@@ -5,6 +5,12 @@ import { Inter } from 'next/font/google'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 
+<head>
+  <link rel="manifest" href="/manifest.json" />
+  <meta name="theme-color" content="#1e40af" />
+  <link rel="apple-touch-icon" href="/icon-192.png" />
+</head>
+
 const inter = Inter({ subsets: ['latin'] })
 
 export default function RootLayout({
