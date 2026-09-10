@@ -6,7 +6,7 @@ import Link from 'next/link'
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: 'http://localhost:3000',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
 })
 
 api.interceptors.request.use(
@@ -29,14 +29,14 @@ api.interceptors.response.use(
       try {
         const refreshToken = localStorage.getItem('refreshToken')
         if (!refreshToken) throw new Error('No refresh token')
-        
+
         const response = await axios.post('http://localhost:3000/auth/refresh', {
           refreshToken
         })
-        
+
         const newAccessToken = response.data.accessToken
         localStorage.setItem('token', newAccessToken)
-        
+
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
         return api(originalRequest)
       } catch {
@@ -109,7 +109,6 @@ export default function TeamAttendanceReport() {
         </p>
       </div>
 
-      {/* Resumen general */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         <div className="bg-white rounded-xl shadow-md p-6 text-center">
           <p className="text-3xl font-bold text-gray-800">{data.summary.totalSessions}</p>
@@ -129,7 +128,6 @@ export default function TeamAttendanceReport() {
         </div>
       </div>
 
-      {/* Distribución de estados */}
       <div className="bg-white rounded-xl shadow-md p-6 mb-6">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">
           Distribución de Asistencia
@@ -154,7 +152,6 @@ export default function TeamAttendanceReport() {
         </div>
       </div>
 
-      {/* Estadísticas por jugador */}
       <div className="bg-white rounded-xl shadow-md p-6">
         <h2 className="text-lg font-semibold text-gray-800 mb-4">
           Estadísticas por Jugador

@@ -1,20 +1,69 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation' // ✅ Importar useSearchParams
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import axios from 'axios'
 import Link from 'next/link'
 
+// ============================================
+// CONFIGURACIÓN DE AXIOS
+// ============================================
+
 const api = axios.create({
-  baseURL: 'http://localhost:3000',
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
 })
 
-// ... (interceptores igual que antes)
+api.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    return config
+  },
+  (error) => Promise.reject(error)
+)
 
-export default function TeamsPage() {
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    const originalRequest = error.config
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true
+      try {
+        const refreshToken = localStorage.getItem('refreshToken')
+        if (!refreshToken) throw new Error('No refresh token')
+
+        const response = await axios.post(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/auth/refresh`,
+          { refreshToken }
+        )
+
+        const newAccessToken = response.data.accessToken
+        localStorage.setItem('token', newAccessToken)
+
+        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
+        return api(originalRequest)
+      } catch {
+        localStorage.removeItem('token')
+        localStorage.removeItem('refreshToken')
+        localStorage.removeItem('user')
+        window.location.href = '/login'
+        return Promise.reject(error)
+      }
+    }
+    return Promise.reject(error)
+  }
+)
+
+// ============================================
+// COMPONENTE QUE USA useSearchParams
+// ============================================
+
+function TeamsContent() {
   const router = useRouter()
-  const searchParams = useSearchParams() // ✅ Obtener parámetros de URL
-  const clubIdFromUrl = searchParams.get('club') // ✅ Obtener club de la URL
+  const searchParams = useSearchParams()
+  const clubIdFromUrl = searchParams.get('club')
 
   const [teams, setTeams] = useState<any[]>([])
   const [clubs, setClubs] = useState<any[]>([])
@@ -35,26 +84,20 @@ export default function TeamsPage() {
       return
     }
     fetchClubs()
-  }, [clubIdFromUrl]) // ✅ Re-ejecutar cuando cambie el parámetro
+  }, [clubIdFromUrl])
 
   const fetchClubs = async () => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await api.get('/clubs', {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      const response = await api.get('/clubs')
       setClubs(response.data)
-      
+
       if (response.data.length > 0) {
-        // ✅ Si hay club en la URL, usarlo; si no, usar el primero
         let clubId = clubIdFromUrl || response.data[0].id
-        
-        // ✅ Verificar que el club existe
         const clubExists = response.data.some((c: any) => c.id === clubId)
         if (!clubExists) {
           clubId = response.data[0].id
         }
-        
+
         setSelectedClub(clubId)
         setNewTeam(prev => ({ ...prev, clubId }))
         fetchTeams(clubId)
@@ -66,14 +109,9 @@ export default function TeamsPage() {
     }
   }
 
-  
-
   const fetchTeams = async (clubId: string) => {
     try {
-      const token = localStorage.getItem('token')
-      const response = await axios.get(`http://localhost:3000/teams/club/${clubId}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      })
+      const response = await api.get(`/teams/club/${clubId}`)
       setTeams(response.data)
     } catch (error) {
       console.error('Error fetching teams:', error)
@@ -82,21 +120,12 @@ export default function TeamsPage() {
 
   const createTeam = async (e: React.FormEvent) => {
     e.preventDefault()
-    
     if (!newTeam.clubId) {
       alert('Por favor, selecciona un club primero')
       return
     }
-
     try {
-      const token = localStorage.getItem('token')
-      await axios.post('http://localhost:3000/teams', newTeam, {
-        headers: { 
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
-      })
-      
+      await api.post('/teams', newTeam)
       setShowModal(false)
       setNewTeam({ name: '', category: '', season: '', clubId: selectedClub })
       fetchTeams(selectedClub)
@@ -212,7 +241,6 @@ export default function TeamsPage() {
         </>
       )}
 
-      {/* Modal de Creación */}
       {showModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl max-w-md w-full p-6">
@@ -260,9 +288,6 @@ export default function TeamsPage() {
                   placeholder="Ej: 2025-2026"
                 />
               </div>
-              <div className="text-sm text-gray-500 bg-blue-50 p-2 rounded">
-                🏀 Club: {clubs.find(c => c.id === selectedClub)?.name || 'Selecciona un club'}
-              </div>
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
@@ -283,5 +308,17 @@ export default function TeamsPage() {
         </div>
       )}
     </div>
+  )
+}
+
+// ============================================
+// COMPONENTE PRINCIPAL CON SUSPENSE
+// ============================================
+
+export default function TeamsPage() {
+  return (
+    <Suspense fallback={<div className="text-center py-12">Cargando equipos...</div>}>
+      <TeamsContent />
+    </Suspense>
   )
 }
