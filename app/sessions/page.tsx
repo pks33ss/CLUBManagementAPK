@@ -7,7 +7,7 @@ import axios from 'axios'
 
 // Configurar API con interceptor
 const api = axios.create({
-  baseURL: 'http://localhost:3000',
+  baseURL: (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'),
 })
 
 api.interceptors.request.use(
@@ -31,7 +31,7 @@ api.interceptors.response.use(
         const refreshToken = localStorage.getItem('refreshToken')
         if (!refreshToken) throw new Error('No refresh token')
         
-        const response = await axios.post('http://localhost:3000/auth/refresh', {
+        const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/auth/refresh`, {
           refreshToken
         })
         

@@ -18,7 +18,7 @@ export default function Login() {
     setError('')
 
     try {
-      const response = await axios.post('http://localhost:3000/auth/login', {
+      const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/auth/login`, {
         email,
         password,
       })

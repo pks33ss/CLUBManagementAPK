@@ -21,7 +21,7 @@ export default function Clubs() {
   const fetchClubs = async () => {
     try {
       const token = localStorage.getItem('token')
-      const response = await axios.get('http://localhost:3000/clubs', {
+      const response = await axios.get(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/clubs`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       setClubs(response.data)

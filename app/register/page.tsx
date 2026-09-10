@@ -23,7 +23,7 @@ export default function Register() {
     setError('')
 
     try {
-      await axios.post('http://localhost:3000/auth/register', formData)
+      await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/auth/register`, formData)
       setSuccess(true)
       setTimeout(() => {
         router.push('/login')

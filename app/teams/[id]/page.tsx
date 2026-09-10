@@ -7,7 +7,7 @@ import Link from 'next/link'
 
 // ✅ Configurar axios con interceptor para manejar 401
 const api = axios.create({
-  baseURL: 'http://localhost:3000',
+  baseURL: (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'),
 })
 
 // Interceptor para añadir el token a cada petición
@@ -35,7 +35,7 @@ api.interceptors.response.use(
           throw new Error('No refresh token')
         }
         
-        const response = await axios.post('http://localhost:3000/auth/refresh', {
+        const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/auth/refresh`, {
           refreshToken
         })
         
