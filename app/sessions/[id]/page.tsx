@@ -1,16 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import axios from 'axios'
+import TacticalBoard from '@/components/TacticalBoard'
+import { useState, useEffect, useRef } from 'react'
 
-// ============================================
-// CONFIGURACIÓN DE AXIOS
-// ============================================
 
 const api = axios.create({
-  baseURL: (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'),
+  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
 })
 
 api.interceptors.request.use(
@@ -33,14 +31,15 @@ api.interceptors.response.use(
       try {
         const refreshToken = localStorage.getItem('refreshToken')
         if (!refreshToken) throw new Error('No refresh token')
-        
-        const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/auth/refresh`, {
-          refreshToken
-        })
-        
+
+        const response = await axios.post(
+          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/auth/refresh`,
+          { refreshToken }
+        )
+
         const newAccessToken = response.data.accessToken
         localStorage.setItem('token', newAccessToken)
-        
+
         originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
         return api(originalRequest)
       } catch {
@@ -54,10 +53,6 @@ api.interceptors.response.use(
     return Promise.reject(error)
   }
 )
-
-// ============================================
-// TIPOS
-// ============================================
 
 interface SessionDetail {
   id: string
@@ -88,6 +83,12 @@ interface SessionDetail {
     duration: number
     difficulty: string
     order: number
+    media: {
+      id: string
+      url: string
+      type: string
+      title: string
+    }[]
   }[]
   attendances: {
     id: string
@@ -120,25 +121,16 @@ interface PlayerAttendance {
   attendanceId: string | null
 }
 
-// ============================================
-// COMPONENTE PRINCIPAL
-// ============================================
-
 export default function SessionDetail() {
   const router = useRouter()
   const params = useParams()
   const sessionId = params.id as string
-
-  // ============================================
-  // ESTADOS
-  // ============================================
 
   const [session, setSession] = useState<SessionDetail | null>(null)
   const [players, setPlayers] = useState<PlayerAttendance[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
 
-  // Estados para editar sesión
   const [showEditModal, setShowEditModal] = useState(false)
   const [editForm, setEditForm] = useState({
     title: '',
@@ -150,7 +142,6 @@ export default function SessionDetail() {
   })
   const [updatingSession, setUpdatingSession] = useState(false)
 
-  // Estados para ejercicios
   const [showExerciseModal, setShowExerciseModal] = useState(false)
   const [newExercise, setNewExercise] = useState({
     name: '',
@@ -161,14 +152,16 @@ export default function SessionDetail() {
   })
   const [addingExercise, setAddingExercise] = useState(false)
 
-  // ✅ Estados para editar ejercicio
+  const [showTacticalBoard, setShowTacticalBoard] = useState(false)
+  const [boardImage, setBoardImage] = useState<string | null>(null)
+
+  // ✅ Estado para imagen subida desde archivo
+const [uploadedImage, setUploadedImage] = useState<string | null>(null)
+const fileInputRef = useRef<HTMLInputElement>(null)
+
   const [showEditExerciseModal, setShowEditExerciseModal] = useState(false)
   const [editingExercise, setEditingExercise] = useState<any>(null)
   const [updatingExercise, setUpdatingExercise] = useState(false)
-
-  // ============================================
-  // EFECTOS
-  // ============================================
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -179,15 +172,11 @@ export default function SessionDetail() {
     fetchSession()
   }, [sessionId])
 
-  // ============================================
-  // FUNCIONES DE SESIÓN
-  // ============================================
-
   const fetchSession = async () => {
     try {
       const response = await api.get(`/sessions/${sessionId}`)
       setSession(response.data)
-      
+
       const playersList = response.data.team.players?.map((player: any) => {
         const attendance = response.data.attendances?.find(
           (a: any) => a.playerId === player.id
@@ -202,7 +191,7 @@ export default function SessionDetail() {
           attendanceId: attendance?.id || null,
         }
       }) || []
-      
+
       setPlayers(playersList)
     } catch (error) {
       console.error('Error:', error)
@@ -211,16 +200,12 @@ export default function SessionDetail() {
     }
   }
 
-  // ============================================
-  // FUNCIONES DE EDICIÓN DE SESIÓN
-  // ============================================
-
   const openEditModal = () => {
     if (session) {
       const dateObj = new Date(session.date)
       const dateStr = dateObj.toISOString().split('T')[0]
       const timeStr = dateObj.toTimeString().slice(0, 5)
-      
+
       setEditForm({
         title: session.title,
         description: session.description || '',
@@ -233,13 +218,39 @@ export default function SessionDetail() {
     }
   }
 
+  // ✅ Función para manejar la subida de imagen desde archivo
+const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const file = e.target.files?.[0]
+  if (!file) return
+
+  // Verificar que es una imagen
+  if (!file.type.startsWith('image/')) {
+    alert('Por favor, selecciona una imagen')
+    return
+  }
+
+  // Verificar tamaño máximo (5MB)
+  if (file.size > 5 * 1024 * 1024) {
+    alert('La imagen es demasiado grande. Máximo 5MB.')
+    return
+  }
+
+  // Convertir a base64
+  const reader = new FileReader()
+  reader.onload = (event) => {
+    const base64 = event.target?.result as string
+    setUploadedImage(base64)
+  }
+  reader.readAsDataURL(file)
+}
+
   const updateSession = async (e: React.FormEvent) => {
     e.preventDefault()
     setUpdatingSession(true)
 
     try {
       const dateObj = new Date(`${editForm.date}T${editForm.time}`)
-      
+
       if (isNaN(dateObj.getTime())) {
         alert('Por favor, selecciona una fecha y hora válidas')
         setUpdatingSession(false)
@@ -265,10 +276,6 @@ export default function SessionDetail() {
     }
   }
 
-  // ============================================
-  // FUNCIONES DE EJERCICIOS
-  // ============================================
-
   const addExercise = async (e: React.FormEvent) => {
     e.preventDefault()
     setAddingExercise(true)
@@ -283,8 +290,35 @@ export default function SessionDetail() {
         order: session?.exercises?.length || 0,
       }
 
-      await api.post(`/sessions/${sessionId}/exercises`, exerciseData)
-      
+      const response = await api.post(`/sessions/${sessionId}/exercises`, exerciseData)
+      const exerciseId = response.data.id
+
+      // 2. Subir la imagen de la pizarra (si existe)
+      if (boardImage) {
+        try {
+          await api.post(`/sessions/exercises/${exerciseId}/upload-image`, {
+            image: boardImage,
+            title: 'Pizarra táctica',
+          })
+        } catch (uploadError) {
+          console.error('Error subiendo imagen de pizarra:', uploadError)
+          alert('El ejercicio se creó, pero la imagen de pizarra no se pudo subir')
+        }
+      }
+
+      // 3. Subir la imagen desde archivo (si existe)
+      if (uploadedImage) {
+        try {
+          await api.post(`/sessions/exercises/${exerciseId}/upload-image`, {
+            image: uploadedImage,
+            title: 'Imagen del ejercicio',
+          })
+        } catch (uploadError) {
+          console.error('Error subiendo imagen:', uploadError)
+          alert('El ejercicio se creó, pero la imagen no se pudo subir')
+        }
+      }
+
       setShowExerciseModal(false)
       setNewExercise({
         name: '',
@@ -293,6 +327,8 @@ export default function SessionDetail() {
         duration: 10,
         difficulty: '',
       })
+      setBoardImage(null)
+      setUploadedImage(null)  // ✅ Limpiar imagen subida
       fetchSession()
     } catch (error) {
       console.error('Error adding exercise:', error)
@@ -314,7 +350,6 @@ export default function SessionDetail() {
     }
   }
 
-  // ✅ NUEVO: Abrir modal de editar ejercicio
   const openEditExerciseModal = (exercise: any) => {
     setEditingExercise({
       id: exercise.id,
@@ -327,11 +362,10 @@ export default function SessionDetail() {
     setShowEditExerciseModal(true)
   }
 
-  // ✅ NUEVO: Actualizar ejercicio
   const updateExercise = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingExercise) return
-    
+
     setUpdatingExercise(true)
 
     try {
@@ -355,51 +389,42 @@ export default function SessionDetail() {
     }
   }
 
-  // ✅ NUEVO: Mover ejercicio arriba/abajo
   const moveExercise = async (exerciseId: string, direction: 'up' | 'down') => {
     if (!session) return
 
     const sortedExercises = [...session.exercises].sort((a, b) => (a.order || 0) - (b.order || 0))
     const currentIndex = sortedExercises.findIndex(e => e.id === exerciseId)
-    
+
     if (currentIndex === -1) return
     if (direction === 'up' && currentIndex === 0) return
     if (direction === 'down' && currentIndex === sortedExercises.length - 1) return
 
     const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1
-    
-    // Intercambiar posiciones
+
     const newOrder = [...sortedExercises]
     const [moved] = newOrder.splice(currentIndex, 1)
     newOrder.splice(newIndex, 0, moved)
 
-    // Actualizar el estado local inmediatamente (optimistic update)
     const updatedExercises = newOrder.map((ex, index) => ({
       ...ex,
       order: index,
     }))
-    
+
     setSession({
       ...session,
       exercises: updatedExercises,
     })
 
-    // Llamar al backend para persistir
     try {
       await api.put(`/sessions/${sessionId}/reorder`, {
         exerciseIds: newOrder.map(e => e.id),
       })
     } catch (error) {
       console.error('Error reordering:', error)
-      // Si falla, recargar para tener el estado real
       fetchSession()
       alert('Error al reordenar los ejercicios')
     }
   }
-
-  // ============================================
-  // FUNCIONES DE ASISTENCIA
-  // ============================================
 
   const updateAttendance = async (playerId: string, status: string) => {
     setUpdating(true)
@@ -407,9 +432,9 @@ export default function SessionDetail() {
       await api.post(`/attendance/session/${sessionId}/player/${playerId}`, {
         status,
       })
-      
-      setPlayers(prev => 
-        prev.map(p => 
+
+      setPlayers(prev =>
+        prev.map(p =>
           p.id === playerId ? { ...p, status } : p
         )
       )
@@ -420,10 +445,6 @@ export default function SessionDetail() {
       setUpdating(false)
     }
   }
-
-  // ============================================
-  // FUNCIONES DE UTILIDAD
-  // ============================================
 
   const getCategoryColor = (category: string) => {
     switch (category) {
@@ -475,10 +496,6 @@ export default function SessionDetail() {
     })
   }
 
-  // ============================================
-  // RENDER
-  // ============================================
-
   if (loading) {
     return <div className="text-center py-12">Cargando entrenamiento...</div>
   }
@@ -511,9 +528,6 @@ export default function SessionDetail() {
         ← Volver a entrenamientos
       </Link>
 
-      {/* ============================================
-          INFORMACIÓN DEL ENTRENAMIENTO
-          ============================================ */}
       <div className="bg-white rounded-xl shadow-md p-6 mb-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
@@ -543,7 +557,6 @@ export default function SessionDetail() {
           </div>
         </div>
 
-        {/* Estadísticas de asistencia */}
         <div className="grid grid-cols-5 gap-2 mt-4 pt-4 border-t border-gray-200">
           <div className="text-center">
             <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
@@ -568,9 +581,6 @@ export default function SessionDetail() {
         </div>
       </div>
 
-      {/* ============================================
-          EJERCICIOS
-          ============================================ */}
       <div className="bg-white rounded-xl shadow-md p-6 mb-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-gray-800">
@@ -620,11 +630,35 @@ export default function SessionDetail() {
                         </span>
                       )}
                     </div>
+
+                    {exercise.media && exercise.media.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        {exercise.media.map((media) => (
+                          <div key={media.id} className="bg-white rounded-lg p-2 border border-gray-200">
+                            {media.type === 'IMAGE' && (
+                              <img
+                                src={media.url}
+                                alt={media.title || 'Imagen del ejercicio'}
+                                className="w-full max-w-md rounded-lg"
+                              />
+                            )}
+                            {media.type === 'LINK' && (
+                              <a
+                                href={media.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:underline text-sm flex items-center gap-2"
+                              >
+                                🔗 {media.title || media.url}
+                              </a>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
-                  {/* ✅ BOTONES DE ACCIÓN */}
                   <div className="flex items-center gap-1">
-                    {/* Mover arriba */}
                     <button
                       onClick={() => moveExercise(exercise.id, 'up')}
                       disabled={index === 0}
@@ -638,7 +672,6 @@ export default function SessionDetail() {
                       ⬆️
                     </button>
 
-                    {/* Mover abajo */}
                     <button
                       onClick={() => moveExercise(exercise.id, 'down')}
                       disabled={index === sortedExercises.length - 1}
@@ -652,7 +685,6 @@ export default function SessionDetail() {
                       ⬇️
                     </button>
 
-                    {/* Editar */}
                     <button
                       onClick={() => openEditExerciseModal(exercise)}
                       className="p-2 rounded text-blue-500 hover:text-blue-700 hover:bg-blue-50 transition"
@@ -661,7 +693,6 @@ export default function SessionDetail() {
                       ✏️
                     </button>
 
-                    {/* Eliminar */}
                     <button
                       onClick={() => removeExercise(exercise.id)}
                       className="p-2 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition"
@@ -677,9 +708,6 @@ export default function SessionDetail() {
         )}
       </div>
 
-      {/* ============================================
-          CONTROL DE ASISTENCIA
-          ============================================ */}
       <div className="bg-white rounded-xl shadow-md p-6">
         <h2 className="text-xl font-semibold text-gray-800 mb-4">
           👥 Control de Asistencia
@@ -775,10 +803,7 @@ export default function SessionDetail() {
           </div>
         )}
       </div>
-
-      {/* ============================================
-          MODAL DE EDITAR ENTRENAMIENTO
-          ============================================ */}
+            {/* MODAL DE EDITAR ENTRENAMIENTO */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl max-w-md w-full p-6">
@@ -887,9 +912,7 @@ export default function SessionDetail() {
         </div>
       )}
 
-      {/* ============================================
-          MODAL DE EDITAR EJERCICIO
-          ============================================ */}
+      {/* MODAL DE EDITAR EJERCICIO */}
       {showEditExerciseModal && editingExercise && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl max-w-md w-full p-6">
@@ -994,12 +1017,10 @@ export default function SessionDetail() {
         </div>
       )}
 
-      {/* ============================================
-          MODAL DE AÑADIR EJERCICIO
-          ============================================ */}
+      {/* MODAL DE AÑADIR EJERCICIO */}
       {showExerciseModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 max-h-[90vh] overflow-auto">
             <h3 className="text-xl font-bold text-gray-800 mb-4">
               Añadir Ejercicio
             </h3>
@@ -1078,6 +1099,78 @@ export default function SessionDetail() {
                 </select>
               </div>
 
+              {/* ✅ Botón de pizarra táctica */}
+              <div className="border-t border-gray-200 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowTacticalBoard(true)}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg transition flex items-center justify-center gap-2"
+                >
+                  🎨 {boardImage ? 'Editar dibujo en pizarra' : 'Dibujar en pizarra táctica'}
+                </button>
+
+                                {/* ✅ Botón para subir imagen desde archivo */}
+                <div className="mt-3">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition flex items-center justify-center gap-2"
+                  >
+                    📸 {uploadedImage ? 'Cambiar imagen' : 'Subir imagen desde dispositivo'}
+                  </button>
+
+                  {/* Vista previa de la imagen subida */}
+                  {uploadedImage && (
+                    <div className="mt-3">
+                      <p className="text-xs text-gray-500 mb-2">Vista previa:</p>
+                      <div className="relative">
+                        <img
+                          src={uploadedImage}
+                          alt="Imagen subida"
+                          className="w-full rounded-lg border border-gray-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setUploadedImage(null)}
+                          className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center"
+                          title="Eliminar imagen"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {boardImage && (
+                  <div className="mt-3">
+                    <p className="text-xs text-gray-500 mb-2">Vista previa:</p>
+                    <div className="relative">
+                      <img
+                        src={boardImage}
+                        alt="Pizarra táctica"
+                        className="w-full rounded-lg border border-gray-200"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setBoardImage(null)}
+                        className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center"
+                        title="Eliminar imagen"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
@@ -1095,6 +1188,32 @@ export default function SessionDetail() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE LA PIZARRA TÁCTICA */}
+      {showTacticalBoard && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-[60]">
+          <div className="bg-white rounded-xl max-w-4xl w-full p-6 max-h-[90vh] overflow-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-gray-800">🎨 Pizarra Táctica</h3>
+              <button
+                onClick={() => setShowTacticalBoard(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            <TacticalBoard
+              width={800}
+              height={800}
+              onSave={(dataUrl) => {
+                setBoardImage(dataUrl)
+                setShowTacticalBoard(false)
+              }}
+            />
           </div>
         </div>
       )}

@@ -6,9 +6,16 @@ const api = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+    // ✅ No añadir token a las peticiones de auth
+    const isAuthRoute = config.url?.includes('/auth/login') || 
+                        config.url?.includes('/auth/register') ||
+                        config.url?.includes('/auth/refresh')
+    
+    if (!isAuthRoute) {
+      const token = localStorage.getItem('token')
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`
+      }
     }
     return config
   },
