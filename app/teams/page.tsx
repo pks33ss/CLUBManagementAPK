@@ -2,8 +2,8 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import axios from 'axios'
 import Link from 'next/link'
+import axios from 'axios'
 
 // ============================================
 // CONFIGURACIÓN DE AXIOS
@@ -183,23 +183,37 @@ function TeamsContent() {
         </div>
       ) : (
         <>
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Club: <span className="font-normal text-gray-500">
-                {clubs.find(c => c.id === selectedClub)?.name || 'Selecciona un club'}
-              </span>
-            </label>
-            <select
-              className="border rounded-lg px-4 py-2 w-64"
-              value={selectedClub}
-              onChange={(e) => handleClubChange(e.target.value)}
-            >
-              {clubs.map((club) => (
-                <option key={club.id} value={club.id}>
-                  {club.name}
-                </option>
-              ))}
-            </select>
+          <div className="mb-6 space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Club: <span className="font-normal text-gray-500">
+                  {clubs.find(c => c.id === selectedClub)?.name || 'Selecciona un club'}
+                </span>
+              </label>
+              <select
+                className="border rounded-lg px-4 py-2 w-64"
+                value={selectedClub}
+                onChange={(e) => handleClubChange(e.target.value)}
+              >
+                {clubs.map((club) => (
+                  <option key={club.id} value={club.id}>
+                    {club.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* ✅ Enlace para gestionar miembros del club */}
+            {selectedClub && (
+              <div>
+                <Link
+                  href={`/clubs/${selectedClub}/members`}
+                  className="inline-block bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition text-sm"
+                >
+                  👥 Gestionar Miembros del Club
+                </Link>
+              </div>
+            )}
           </div>
 
           {teams.length === 0 ? (

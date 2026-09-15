@@ -212,6 +212,12 @@ export default function TeamDetail() {
             </p>
           </div>
           <div className="flex gap-3 w-full md:w-auto">
+           <Link
+  href={`/teams/${teamId}/members`}
+  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition text-sm"
+>
+  👥 Miembros
+</Link> 
             <button 
               onClick={openEdit}
               className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition font-medium"

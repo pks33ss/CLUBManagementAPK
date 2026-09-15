@@ -1,11 +1,10 @@
 'use client'
 
+import { useState, useEffect, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import axios from 'axios'
 import TacticalBoard from '@/components/TacticalBoard'
-import { useState, useEffect, useRef } from 'react'
-
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
@@ -152,16 +151,30 @@ export default function SessionDetail() {
   })
   const [addingExercise, setAddingExercise] = useState(false)
 
+  // Estados para la pizarra táctica
   const [showTacticalBoard, setShowTacticalBoard] = useState(false)
   const [boardImage, setBoardImage] = useState<string | null>(null)
 
-  // ✅ Estado para imagen subida desde archivo
-const [uploadedImage, setUploadedImage] = useState<string | null>(null)
-const fileInputRef = useRef<HTMLInputElement>(null)
+  // Estados para imagen subida desde archivo
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Estados para links
+  const [exerciseLinks, setExerciseLinks] = useState<{ url: string; title: string }[]>([])
+  const [newLink, setNewLink] = useState({ url: '', title: '' })
+
+  // Estados para editar ejercicio
   const [showEditExerciseModal, setShowEditExerciseModal] = useState(false)
   const [editingExercise, setEditingExercise] = useState<any>(null)
   const [updatingExercise, setUpdatingExercise] = useState(false)
+
+  // Estados para media en edición
+  const [editingLinks, setEditingLinks] = useState<{ id?: string; url: string; title: string; isNew?: boolean }[]>([])
+  const [editingNewLink, setEditingNewLink] = useState({ url: '', title: '' })
+  const [editingBoardImage, setEditingBoardImage] = useState<string | null>(null)
+  const [editingUploadedImage, setEditingUploadedImage] = useState<string | null>(null)
+  const [editingShowTacticalBoard, setEditingShowTacticalBoard] = useState(false)
+  const editingFileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -218,32 +231,6 @@ const fileInputRef = useRef<HTMLInputElement>(null)
     }
   }
 
-  // ✅ Función para manejar la subida de imagen desde archivo
-const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-  const file = e.target.files?.[0]
-  if (!file) return
-
-  // Verificar que es una imagen
-  if (!file.type.startsWith('image/')) {
-    alert('Por favor, selecciona una imagen')
-    return
-  }
-
-  // Verificar tamaño máximo (5MB)
-  if (file.size > 5 * 1024 * 1024) {
-    alert('La imagen es demasiado grande. Máximo 5MB.')
-    return
-  }
-
-  // Convertir a base64
-  const reader = new FileReader()
-  reader.onload = (event) => {
-    const base64 = event.target?.result as string
-    setUploadedImage(base64)
-  }
-  reader.readAsDataURL(file)
-}
-
   const updateSession = async (e: React.FormEvent) => {
     e.preventDefault()
     setUpdatingSession(true)
@@ -276,6 +263,56 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     }
   }
 
+  // ============================================
+  // FUNCIONES DE EJERCICIOS
+  // ============================================
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor, selecciona una imagen')
+      return
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('La imagen es demasiado grande. Máximo 5MB.')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string
+      setUploadedImage(base64)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const addLinkToExercise = () => {
+    if (!newLink.url) {
+      alert('Por favor, introduce una URL')
+      return
+    }
+
+    try {
+      new URL(newLink.url)
+    } catch {
+      alert('Por favor, introduce una URL válida (ej: https://youtube.com/watch?v=...)')
+      return
+    }
+
+    setExerciseLinks([...exerciseLinks, {
+      url: newLink.url,
+      title: newLink.title || newLink.url,
+    }])
+    setNewLink({ url: '', title: '' })
+  }
+
+  const removeLinkFromExercise = (index: number) => {
+    setExerciseLinks(exerciseLinks.filter((_, i) => i !== index))
+  }
+
   const addExercise = async (e: React.FormEvent) => {
     e.preventDefault()
     setAddingExercise(true)
@@ -293,7 +330,6 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
       const response = await api.post(`/sessions/${sessionId}/exercises`, exerciseData)
       const exerciseId = response.data.id
 
-      // 2. Subir la imagen de la pizarra (si existe)
       if (boardImage) {
         try {
           await api.post(`/sessions/exercises/${exerciseId}/upload-image`, {
@@ -302,11 +338,9 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
           })
         } catch (uploadError) {
           console.error('Error subiendo imagen de pizarra:', uploadError)
-          alert('El ejercicio se creó, pero la imagen de pizarra no se pudo subir')
         }
       }
 
-      // 3. Subir la imagen desde archivo (si existe)
       if (uploadedImage) {
         try {
           await api.post(`/sessions/exercises/${exerciseId}/upload-image`, {
@@ -315,7 +349,19 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
           })
         } catch (uploadError) {
           console.error('Error subiendo imagen:', uploadError)
-          alert('El ejercicio se creó, pero la imagen no se pudo subir')
+        }
+      }
+
+      if (exerciseLinks.length > 0) {
+        for (const link of exerciseLinks) {
+          try {
+            await api.post(`/sessions/exercises/${exerciseId}/add-link`, {
+              url: link.url,
+              title: link.title,
+            })
+          } catch (linkError) {
+            console.error('Error guardando link:', linkError)
+          }
         }
       }
 
@@ -328,7 +374,9 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         difficulty: '',
       })
       setBoardImage(null)
-      setUploadedImage(null)  // ✅ Limpiar imagen subida
+      setUploadedImage(null)
+      setExerciseLinks([])
+      setNewLink({ url: '', title: '' })
       fetchSession()
     } catch (error) {
       console.error('Error adding exercise:', error)
@@ -347,45 +395,6 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     } catch (error) {
       console.error('Error removing exercise:', error)
       alert('Error al eliminar el ejercicio')
-    }
-  }
-
-  const openEditExerciseModal = (exercise: any) => {
-    setEditingExercise({
-      id: exercise.id,
-      name: exercise.name,
-      description: exercise.description || '',
-      category: exercise.category || '',
-      duration: exercise.duration || 10,
-      difficulty: exercise.difficulty || '',
-    })
-    setShowEditExerciseModal(true)
-  }
-
-  const updateExercise = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!editingExercise) return
-
-    setUpdatingExercise(true)
-
-    try {
-      await api.put(`/sessions/exercises/${editingExercise.id}`, {
-        name: editingExercise.name,
-        description: editingExercise.description || undefined,
-        category: editingExercise.category || undefined,
-        duration: editingExercise.duration ? Number(editingExercise.duration) : undefined,
-        difficulty: editingExercise.difficulty || undefined,
-      })
-
-      setShowEditExerciseModal(false)
-      setEditingExercise(null)
-      fetchSession()
-      alert('✅ Ejercicio actualizado correctamente')
-    } catch (error: any) {
-      console.error('Error:', error)
-      alert(error.response?.data?.message || 'Error al actualizar el ejercicio')
-    } finally {
-      setUpdatingExercise(false)
     }
   }
 
@@ -426,6 +435,189 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     }
   }
 
+  const openEditExerciseModal = (exercise: any) => {
+    setEditingExercise({
+      id: exercise.id,
+      name: exercise.name,
+      description: exercise.description || '',
+      category: exercise.category || '',
+      duration: exercise.duration || 10,
+      difficulty: exercise.difficulty || '',
+      media: exercise.media || [],
+    })
+
+    const existingLinks = (exercise.media || [])
+      .filter((m: any) => m.type === 'LINK')
+      .map((m: any) => ({
+        id: m.id,
+        url: m.url,
+        title: m.title || m.url,
+        isNew: false,
+      }))
+    setEditingLinks(existingLinks)
+
+    const existingImage = (exercise.media || [])
+      .find((m: any) => m.type === 'IMAGE')
+    setEditingBoardImage(existingImage?.url || null)
+
+    setEditingNewLink({ url: '', title: '' })
+    setEditingUploadedImage(null)
+    setShowEditExerciseModal(true)
+  }
+
+  const addLinkToEditingList = () => {
+    if (!editingNewLink.url) {
+      alert('Por favor, introduce una URL')
+      return
+    }
+
+    try {
+      new URL(editingNewLink.url)
+    } catch {
+      alert('Por favor, introduce una URL válida')
+      return
+    }
+
+    setEditingLinks([...editingLinks, {
+      url: editingNewLink.url,
+      title: editingNewLink.title || editingNewLink.url,
+      isNew: true,
+    }])
+    setEditingNewLink({ url: '', title: '' })
+  }
+
+const removeLinkFromEditingList = async (index: number) => {
+  const linkToRemove = editingLinks[index]
+  
+  // Si el link ya existe en el backend, eliminarlo
+  if (linkToRemove.id && !linkToRemove.isNew) {
+    if (!confirm('¿Estás seguro de que quieres eliminar este link?')) return
+    
+    try {
+      await api.delete(`/sessions/media/${linkToRemove.id}`)
+      console.log('✅ Link eliminado del backend')
+    } catch (error) {
+      console.error('Error eliminando link:', error)
+      alert('Error al eliminar el link')
+      return
+    }
+  }
+  
+  // Eliminar de la lista local
+  setEditingLinks(editingLinks.filter((_, i) => i !== index))
+}
+
+  const handleEditFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor, selecciona una imagen')
+      return
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert('La imagen es demasiado grande. Máximo 5MB.')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      const base64 = event.target?.result as string
+      setEditingUploadedImage(base64)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const removeExistingImage = async (exerciseId: string) => {
+    if (!editingExercise?.media) return
+
+    const imageMedia = editingExercise.media.find((m: any) => m.type === 'IMAGE')
+    if (!imageMedia) return
+
+    if (!confirm('¿Estás seguro de que quieres eliminar esta imagen?')) return
+
+    try {
+      await api.delete(`/sessions/media/${imageMedia.id}`)
+      setEditingBoardImage(null)
+      fetchSession()
+    } catch (error) {
+      console.error('Error eliminando imagen:', error)
+      alert('Error al eliminar la imagen')
+    }
+  }
+
+  const updateExercise = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!editingExercise) return
+
+    setUpdatingExercise(true)
+
+    try {
+      await api.put(`/sessions/exercises/${editingExercise.id}`, {
+        name: editingExercise.name,
+        description: editingExercise.description || undefined,
+        category: editingExercise.category || undefined,
+        duration: editingExercise.duration ? Number(editingExercise.duration) : undefined,
+        difficulty: editingExercise.difficulty || undefined,
+      })
+
+      // Subir nueva imagen de pizarra (solo si es nueva, no una URL existente)
+      if (editingBoardImage && !editingBoardImage.startsWith('http')) {
+        try {
+          await api.post(`/sessions/exercises/${editingExercise.id}/upload-image`, {
+            image: editingBoardImage,
+            title: 'Pizarra táctica',
+          })
+        } catch (uploadError) {
+          console.error('Error subiendo pizarra:', uploadError)
+        }
+      }
+
+      // Subir nueva imagen desde archivo
+      if (editingUploadedImage) {
+        try {
+          await api.post(`/sessions/exercises/${editingExercise.id}/upload-image`, {
+            image: editingUploadedImage,
+            title: 'Imagen del ejercicio',
+          })
+        } catch (uploadError) {
+          console.error('Error subiendo imagen:', uploadError)
+        }
+      }
+
+      // Guardar links nuevos
+      const newLinks = editingLinks.filter(l => l.isNew)
+      for (const link of newLinks) {
+        try {
+          await api.post(`/sessions/exercises/${editingExercise.id}/add-link`, {
+            url: link.url,
+            title: link.title,
+          })
+        } catch (linkError) {
+          console.error('Error guardando link:', linkError)
+        }
+      }
+
+      setShowEditExerciseModal(false)
+      setEditingExercise(null)
+      setEditingLinks([])
+      setEditingBoardImage(null)
+      setEditingUploadedImage(null)
+      fetchSession()
+      alert('✅ Ejercicio actualizado correctamente')
+    } catch (error: any) {
+      console.error('Error:', error)
+      alert(error.response?.data?.message || 'Error al actualizar el ejercicio')
+    } finally {
+      setUpdatingExercise(false)
+    }
+  }
+
+    // ============================================
+  // FUNCIONES DE ASISTENCIA
+  // ============================================
+
   const updateAttendance = async (playerId: string, status: string) => {
     setUpdating(true)
     try {
@@ -445,6 +637,10 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
       setUpdating(false)
     }
   }
+
+  // ============================================
+  // FUNCIONES DE UTILIDAD
+  // ============================================
 
   const getCategoryColor = (category: string) => {
     switch (category) {
@@ -528,6 +724,7 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         ← Volver a entrenamientos
       </Link>
 
+      {/* INFORMACIÓN DEL ENTRENAMIENTO */}
       <div className="bg-white rounded-xl shadow-md p-6 mb-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
@@ -581,6 +778,7 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         </div>
       </div>
 
+      {/* EJERCICIOS */}
       <div className="bg-white rounded-xl shadow-md p-6 mb-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-gray-800">
@@ -605,7 +803,8 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
                 key={exercise.id}
                 className="bg-gray-50 rounded-lg p-4 border border-gray-100 hover:border-blue-200 transition"
               >
-                <div className="flex justify-between items-start gap-4">
+                {/* Cabecera con botones */}
+                <div className="flex justify-between items-start gap-4 mb-3">
                   <div className="flex-1">
                     <p className="font-medium text-gray-800">
                       {index + 1}. {exercise.name}
@@ -630,35 +829,10 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
                         </span>
                       )}
                     </div>
-
-                    {exercise.media && exercise.media.length > 0 && (
-                      <div className="mt-3 space-y-2">
-                        {exercise.media.map((media) => (
-                          <div key={media.id} className="bg-white rounded-lg p-2 border border-gray-200">
-                            {media.type === 'IMAGE' && (
-                              <img
-                                src={media.url}
-                                alt={media.title || 'Imagen del ejercicio'}
-                                className="w-full max-w-md rounded-lg"
-                              />
-                            )}
-                            {media.type === 'LINK' && (
-                              <a
-                                href={media.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:underline text-sm flex items-center gap-2"
-                              >
-                                🔗 {media.title || media.url}
-                              </a>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
                   </div>
 
-                  <div className="flex items-center gap-1">
+                  {/* Botones siempre visibles */}
+                  <div className="flex items-center gap-1 flex-shrink-0">
                     <button
                       onClick={() => moveExercise(exercise.id, 'up')}
                       disabled={index === 0}
@@ -702,12 +876,53 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
                     </button>
                   </div>
                 </div>
+
+                {/* Media (imágenes y links) */}
+                {exercise.media && exercise.media.length > 0 && (
+                  <div className="mt-3 space-y-3 border-t border-gray-200 pt-3">
+                    {exercise.media.map((media) => (
+                      <div key={media.id}>
+                        {media.type === 'IMAGE' && (
+                          <div className="bg-white rounded-lg p-2 border border-gray-200">
+                            <img
+                              src={media.url}
+                              alt={media.title || 'Imagen del ejercicio'}
+                              className="w-full max-w-2xl rounded-lg"
+                            />
+                            {media.title && (
+                              <p className="text-xs text-gray-500 mt-1">{media.title}</p>
+                            )}
+                          </div>
+                        )}
+                        {media.type === 'LINK' && (
+                          <a
+                            href={media.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-white rounded-lg p-3 border border-gray-200 hover:border-blue-300 transition flex items-center gap-3"
+                          >
+                            <span className="text-blue-600 text-xl">🔗</span>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-800 truncate">
+                                {media.title || media.url}
+                              </p>
+                              <p className="text-xs text-gray-500 truncate">
+                                {media.url}
+                              </p>
+                            </div>
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
         )}
       </div>
 
+      {/* CONTROL DE ASISTENCIA */}
       <div className="bg-white rounded-xl shadow-md p-6">
         <h2 className="text-xl font-semibold text-gray-800 mb-4">
           👥 Control de Asistencia
@@ -803,18 +1018,18 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
           </div>
         )}
       </div>
+
+
             {/* MODAL DE EDITAR ENTRENAMIENTO */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 max-h-[90vh] overflow-auto">
             <h3 className="text-xl font-bold text-gray-800 mb-4">
               ✏️ Editar Entrenamiento
             </h3>
             <form onSubmit={updateSession} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Título *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Título *</label>
                 <input
                   type="text"
                   value={editForm.title}
@@ -825,9 +1040,7 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Descripción
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
                 <textarea
                   value={editForm.description}
                   onChange={(e) => setEditForm({...editForm, description: e.target.value})}
@@ -838,9 +1051,7 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Fecha *
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Fecha *</label>
                   <input
                     type="date"
                     value={editForm.date}
@@ -850,9 +1061,7 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Hora *
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Hora *</label>
                   <input
                     type="time"
                     value={editForm.time}
@@ -864,9 +1073,7 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Duración (min) *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Duración (min) *</label>
                 <input
                   type="number"
                   value={editForm.duration}
@@ -878,9 +1085,7 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Ubicación
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Ubicación</label>
                 <input
                   type="text"
                   value={editForm.location}
@@ -915,15 +1120,13 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
       {/* MODAL DE EDITAR EJERCICIO */}
       {showEditExerciseModal && editingExercise && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 max-h-[90vh] overflow-auto">
             <h3 className="text-xl font-bold text-gray-800 mb-4">
               ✏️ Editar Ejercicio
             </h3>
             <form onSubmit={updateExercise} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre del Ejercicio *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
                 <input
                   type="text"
                   value={editingExercise.name}
@@ -934,9 +1137,7 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Descripción
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
                 <textarea
                   value={editingExercise.description}
                   onChange={(e) => setEditingExercise({...editingExercise, description: e.target.value})}
@@ -947,9 +1148,7 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Categoría
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
                   <select
                     value={editingExercise.category}
                     onChange={(e) => setEditingExercise({...editingExercise, category: e.target.value})}
@@ -963,9 +1162,7 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Duración (min)
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Duración (min)</label>
                   <input
                     type="number"
                     value={editingExercise.duration}
@@ -977,9 +1174,7 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Dificultad
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Dificultad</label>
                 <select
                   value={editingExercise.difficulty}
                   onChange={(e) => setEditingExercise({...editingExercise, difficulty: e.target.value})}
@@ -990,6 +1185,132 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
                   <option value="MEDIO">Medio</option>
                   <option value="DIFÍCIL">Difícil</option>
                 </select>
+              </div>
+
+              {/* LINKS EXISTENTES Y NUEVOS */}
+              <div className="border-t border-gray-200 pt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  🔗 Links del ejercicio
+                </label>
+
+                {editingLinks.length > 0 && (
+                  <div className="space-y-2 mb-3">
+                    {editingLinks.map((link, index) => (
+                      <div key={index} className="flex items-center gap-2 bg-orange-50 rounded-lg p-2">
+                        <span className="text-orange-600">🔗</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-800 truncate">
+                            {link.title}
+                            {link.isNew && <span className="text-xs text-green-600 ml-2">(nuevo)</span>}
+                          </p>
+                          <p className="text-xs text-gray-500 truncate">{link.url}</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removeLinkFromEditingList(index)}
+                          className="text-red-500 hover:text-red-700 p-1"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <input
+                    type="url"
+                    value={editingNewLink.url}
+                    onChange={(e) => setEditingNewLink({...editingNewLink, url: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="https://youtube.com/watch?v=..."
+                  />
+                  <input
+                    type="text"
+                    value={editingNewLink.title}
+                    onChange={(e) => setEditingNewLink({...editingNewLink, title: e.target.value})}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                    placeholder="Título (opcional)"
+                  />
+                  <button
+                    type="button"
+                    onClick={addLinkToEditingList}
+                    className="w-full bg-orange-600 hover:bg-orange-700 text-white py-2 rounded-lg transition"
+                  >
+                    ➕ Añadir link
+                  </button>
+                </div>
+              </div>
+
+              {/* IMAGEN EXISTENTE */}
+              {editingBoardImage && (
+                <div className="border-t border-gray-200 pt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    📸 Imagen actual
+                  </label>
+                  <div className="relative">
+                    <img
+                      src={editingBoardImage}
+                      alt="Imagen del ejercicio"
+                      className="w-full rounded-lg border border-gray-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeExistingImage(editingExercise.id)}
+                      className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* CAMBIAR IMAGEN */}
+              <div className="border-t border-gray-200 pt-4">
+                <button
+                  type="button"
+                  onClick={() => setEditingShowTacticalBoard(true)}
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg transition"
+                >
+                  🎨 {editingBoardImage ? 'Cambiar dibujo en pizarra' : 'Dibujar en pizarra táctica'}
+                </button>
+
+                <div className="mt-3">
+                  <input
+                    ref={editingFileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleEditFileUpload}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => editingFileInputRef.current?.click()}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition"
+                  >
+                    📸 {editingUploadedImage ? 'Cambiar imagen' : 'Subir nueva imagen'}
+                  </button>
+
+                  {editingUploadedImage && (
+                    <div className="mt-3">
+                      <p className="text-xs text-gray-500 mb-2">Nueva imagen:</p>
+                      <div className="relative">
+                        <img
+                          src={editingUploadedImage}
+                          alt="Nueva imagen"
+                          className="w-full rounded-lg border border-gray-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setEditingUploadedImage(null)}
+                          className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="flex gap-3 pt-2">
@@ -1026,9 +1347,7 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
             </h3>
             <form onSubmit={addExercise} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre del Ejercicio *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del Ejercicio *</label>
                 <input
                   type="text"
                   value={newExercise.name}
@@ -1040,9 +1359,7 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Descripción
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
                 <textarea
                   value={newExercise.description}
                   onChange={(e) => setNewExercise({...newExercise, description: e.target.value})}
@@ -1054,9 +1371,7 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Categoría
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
                   <select
                     value={newExercise.category}
                     onChange={(e) => setNewExercise({...newExercise, category: e.target.value})}
@@ -1070,9 +1385,7 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Duración (min)
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Duración (min)</label>
                   <input
                     type="number"
                     value={newExercise.duration}
@@ -1084,9 +1397,7 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Dificultad
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Dificultad</label>
                 <select
                   value={newExercise.difficulty}
                   onChange={(e) => setNewExercise({...newExercise, difficulty: e.target.value})}
@@ -1099,55 +1410,15 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
                 </select>
               </div>
 
-              {/* ✅ Botón de pizarra táctica */}
+              {/* PIZARRA Y IMAGEN */}
               <div className="border-t border-gray-200 pt-4">
                 <button
                   type="button"
                   onClick={() => setShowTacticalBoard(true)}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg transition flex items-center justify-center gap-2"
+                  className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg transition"
                 >
                   🎨 {boardImage ? 'Editar dibujo en pizarra' : 'Dibujar en pizarra táctica'}
                 </button>
-
-                                {/* ✅ Botón para subir imagen desde archivo */}
-                <div className="mt-3">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileUpload}
-                    className="hidden"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition flex items-center justify-center gap-2"
-                  >
-                    📸 {uploadedImage ? 'Cambiar imagen' : 'Subir imagen desde dispositivo'}
-                  </button>
-
-                  {/* Vista previa de la imagen subida */}
-                  {uploadedImage && (
-                    <div className="mt-3">
-                      <p className="text-xs text-gray-500 mb-2">Vista previa:</p>
-                      <div className="relative">
-                        <img
-                          src={uploadedImage}
-                          alt="Imagen subida"
-                          className="w-full rounded-lg border border-gray-200"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setUploadedImage(null)}
-                          className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center"
-                          title="Eliminar imagen"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
 
                 {boardImage && (
                   <div className="mt-3">
@@ -1162,13 +1433,102 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
                         type="button"
                         onClick={() => setBoardImage(null)}
                         className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center"
-                        title="Eliminar imagen"
                       >
                         ✕
                       </button>
                     </div>
                   </div>
                 )}
+
+                <div className="mt-3">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleFileUpload}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition"
+                  >
+                    📸 {uploadedImage ? 'Cambiar imagen' : 'Subir imagen desde dispositivo'}
+                  </button>
+
+                  {uploadedImage && (
+                    <div className="mt-3">
+                      <p className="text-xs text-gray-500 mb-2">Vista previa:</p>
+                      <div className="relative">
+                        <img
+                          src={uploadedImage}
+                          alt="Imagen subida"
+                          className="w-full rounded-lg border border-gray-200"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setUploadedImage(null)}
+                          className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* LINKS */}
+                <div className="mt-4 border-t border-gray-200 pt-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    🔗 Añadir link a vídeo o recurso
+                  </label>
+
+                  <div className="space-y-2">
+                    <input
+                      type="url"
+                      value={newLink.url}
+                      onChange={(e) => setNewLink({...newLink, url: e.target.value})}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder="https://youtube.com/watch?v=..."
+                    />
+                    <input
+                      type="text"
+                      value={newLink.title}
+                      onChange={(e) => setNewLink({...newLink, title: e.target.value})}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      placeholder="Título del link (opcional)"
+                    />
+                    <button
+                      type="button"
+                      onClick={addLinkToExercise}
+                      className="w-full bg-orange-600 hover:bg-orange-700 text-white py-2 rounded-lg transition"
+                    >
+                      ➕ Añadir link a la lista
+                    </button>
+                  </div>
+
+                  {exerciseLinks.length > 0 && (
+                    <div className="mt-3 space-y-2">
+                      <p className="text-xs text-gray-500">Links añadidos:</p>
+                      {exerciseLinks.map((link, index) => (
+                        <div key={index} className="flex items-center gap-2 bg-orange-50 rounded-lg p-2">
+                          <span className="text-orange-600">🔗</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-800 truncate">{link.title}</p>
+                            <p className="text-xs text-gray-500 truncate">{link.url}</p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removeLinkFromExercise(index)}
+                            className="text-red-500 hover:text-red-700 p-1"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="flex gap-3 pt-2">
@@ -1212,6 +1572,32 @@ const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
               onSave={(dataUrl) => {
                 setBoardImage(dataUrl)
                 setShowTacticalBoard(false)
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE LA PIZARRA TÁCTICA (EDICIÓN) */}
+      {editingShowTacticalBoard && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-[70]">
+          <div className="bg-white rounded-xl max-w-4xl w-full p-6 max-h-[90vh] overflow-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-gray-800">🎨 Pizarra Táctica</h3>
+              <button
+                onClick={() => setEditingShowTacticalBoard(false)}
+                className="text-gray-500 hover:text-gray-700 text-2xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            <TacticalBoard
+              width={800}
+              height={800}
+              onSave={(dataUrl) => {
+                setEditingBoardImage(dataUrl)
+                setEditingShowTacticalBoard(false)
               }}
             />
           </div>

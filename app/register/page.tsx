@@ -3,10 +3,11 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import axios from 'axios'
+import api from '@/lib/api'
 
 export default function Register() {
   const router = useRouter()
+  // ✅ Sin credenciales por defecto
   const [formData, setFormData] = useState({
     name: '',
     lastName: '',
@@ -23,13 +24,15 @@ export default function Register() {
     setError('')
 
     try {
-      await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/auth/register`, formData)
+      await api.post('/auth/register', formData)
       setSuccess(true)
-      setTimeout(() => {
-        router.push('/login')
-      }, 2000)
-    } catch (err) {
-      setError('Error al registrar usuario. Intenta de nuevo.')
+      setTimeout(() => router.push('/login'), 2000)
+    } catch (err: any) {
+      console.error('Error:', err)
+      setError(
+        err.response?.data?.message ||
+        'Error al registrar usuario. Intenta de nuevo.'
+      )
     } finally {
       setLoading(false)
     }
@@ -53,25 +56,29 @@ export default function Register() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre
+                  Nombre *
                 </label>
                 <input
                   type="text"
                   value={formData.name}
-                  onChange={(e) => setFormData({...formData, name: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Juan"
+                  autoComplete="given-name"
                   required
                 />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Apellido
+                  Apellido *
                 </label>
                 <input
                   type="text"
                   value={formData.lastName}
-                  onChange={(e) => setFormData({...formData, lastName: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="Pérez"
+                  autoComplete="family-name"
                   required
                 />
               </div>
@@ -79,29 +86,36 @@ export default function Register() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email
+                Email *
               </label>
               <input
                 type="email"
                 value={formData.email}
-                onChange={(e) => setFormData({...formData, email: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="tu@email.com"
+                autoComplete="email"
                 required
               />
             </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Contraseña
+                Contraseña *
               </label>
               <input
                 type="password"
                 value={formData.password}
-                onChange={(e) => setFormData({...formData, password: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="••••••••"
+                autoComplete="new-password"
                 required
                 minLength={6}
               />
+              <p className="text-xs text-gray-500 mt-1">
+                Mínimo 6 caracteres
+              </p>
             </div>
 
             {error && (
@@ -113,7 +127,7 @@ export default function Register() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200 disabled:opacity-50"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition disabled:opacity-50"
             >
               {loading ? 'Registrando...' : 'Registrarse'}
             </button>
