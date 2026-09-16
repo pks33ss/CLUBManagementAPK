@@ -48,14 +48,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                 <span className="font-bold text-gray-800">Mis Clubs</span>
               </Link>
               <div className="flex gap-6">
-                <Link
-                  href="/dashboard"
-                  className={`text-gray-600 hover:text-gray-900 transition ${
-                    pathname === '/dashboard' ? 'text-blue-600 font-semibold' : ''
-                  }`}
-                >
-                  Inicio
-                </Link>
+                
                 <Link
                   href="/teams"
                   className={`text-gray-600 hover:text-gray-900 transition ${
@@ -88,6 +81,14 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                 >
                   Calendario
                 </Link>
+                <Link
+  href="/attendance/overview"
+  className={`text-gray-600 hover:text-gray-900 transition ${
+    pathname === '/attendance/overview' ? 'text-blue-600 font-semibold' : ''
+  }`}
+>
+  📊 Asistencias
+</Link>
                 {currentUser?.role === 'SUPER_ADMIN' && (
                   <Link
                     href="/admin/users"

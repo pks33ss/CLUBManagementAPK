@@ -135,7 +135,7 @@ export default function Dashboard() {
           {clubs.map((club) => (
             <div
               key={club.id}
-              onClick={() => router.push(`/teams?club=${club.id}`)} // ✅ Navegar a equipos con el club seleccionado
+              onClick={() => router.push(`/clubs/${club.id}`)}  // ✅ Añadir esta línea
               className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all p-6 border border-gray-100 hover:border-blue-200 cursor-pointer"
             >
               <div className="flex items-start justify-between">

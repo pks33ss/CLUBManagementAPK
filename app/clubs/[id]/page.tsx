@@ -82,7 +82,6 @@ export default function ClubDetail() {
         email: response.data.email || '',
       })
 
-      // Verificar mi rol en el club
       const userStr = localStorage.getItem('user')
       if (userStr) {
         const user = JSON.parse(userStr)
@@ -186,9 +185,7 @@ export default function ClubDetail() {
         ← Volver a Mis Clubs
       </Link>
 
-      {/* ============================================
-          INFORMACIÓN DEL CLUB
-          ============================================ */}
+      {/* INFORMACIÓN DEL CLUB */}
       <div className="bg-white rounded-xl shadow-md p-6 mb-6">
         <div className="flex justify-between items-start gap-4">
           <div className="flex items-start gap-4 flex-1">
@@ -259,9 +256,7 @@ export default function ClubDetail() {
         </div>
       </div>
 
-      {/* ============================================
-          EQUIPOS
-          ============================================ */}
+      {/* EQUIPOS */}
       <div className="bg-white rounded-xl shadow-md p-6 mb-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-gray-800">
@@ -301,9 +296,7 @@ export default function ClubDetail() {
         )}
       </div>
 
-      {/* ============================================
-          MIEMBROS
-          ============================================ */}
+      {/* MIEMBROS */}
       <div className="bg-white rounded-xl shadow-md p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-gray-800">
@@ -345,9 +338,7 @@ export default function ClubDetail() {
         )}
       </div>
 
-      {/* ============================================
-          MODAL DE EDITAR CLUB
-          ============================================ */}
+      {/* MODAL DE EDITAR CLUB */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl max-w-md w-full p-6">
@@ -440,9 +431,7 @@ export default function ClubDetail() {
         </div>
       )}
 
-      {/* ============================================
-          MODAL DE ELIMINAR CLUB
-          ============================================ */}
+      {/* MODAL DE ELIMINAR CLUB */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl max-w-md w-full p-6">

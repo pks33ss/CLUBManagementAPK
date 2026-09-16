@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import axios from 'axios'
 import Link from 'next/link'
 
+
 // ✅ Configurar axios con interceptor para manejar 401
 const api = axios.create({
   baseURL: (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'),
@@ -106,6 +107,23 @@ export default function TeamDetail() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
+  // ✅ Estados para crear jugador
+const [showPlayerModal, setShowPlayerModal] = useState(false)
+const [newPlayer, setNewPlayer] = useState({
+  name: '',
+  lastName: '',
+  birthDate: '',
+  position: '',
+  number: '',
+  phone: '',
+  email: '',
+  address: '',
+  height: '',
+  wingspan: '',
+  weight: '',
+})
+const [creatingPlayer, setCreatingPlayer] = useState(false)
+
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token) {
@@ -135,6 +153,50 @@ export default function TeamDetail() {
       setLoading(false)
     }
   }
+
+  const createPlayer = async (e: React.FormEvent) => {
+  e.preventDefault()
+  setCreatingPlayer(true)
+
+  try {
+    await api.post('/players', {
+      name: newPlayer.name,
+      lastName: newPlayer.lastName,
+      birthDate: newPlayer.birthDate || undefined,
+      position: newPlayer.position || undefined,
+      number: newPlayer.number ? parseInt(newPlayer.number) : undefined,
+      phone: newPlayer.phone || undefined,
+      email: newPlayer.email || undefined,
+      address: newPlayer.address || undefined,
+      height: newPlayer.height ? parseFloat(newPlayer.height) : undefined,
+      wingspan: newPlayer.wingspan ? parseFloat(newPlayer.wingspan) : undefined,
+      weight: newPlayer.weight ? parseFloat(newPlayer.weight) : undefined,
+      teamId: teamId,
+    })
+
+    setShowPlayerModal(false)
+    setNewPlayer({
+      name: '',
+      lastName: '',
+      birthDate: '',
+      position: '',
+      number: '',
+      phone: '',
+      email: '',
+      address: '',
+      height: '',
+      wingspan: '',
+      weight: '',
+    })
+    fetchTeam()
+    alert('✅ Jugador añadido correctamente')
+  } catch (error: any) {
+    console.error('Error:', error)
+    alert(error.response?.data?.message || 'Error al crear el jugador')
+  } finally {
+    setCreatingPlayer(false)
+  }
+}
 
   const openEdit = () => {
     if (team) {
@@ -237,35 +299,54 @@ export default function TeamDetail() {
 
       {/* Jugadores */}
       <div className="bg-white rounded-xl shadow-md p-6">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">
-          Jugadores ({team.players?.length || 0})
-        </h2>
-        {team.players?.length === 0 ? (
-          <p className="text-gray-500">No hay jugadores en este equipo</p>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {team.players.map((player) => (
-              <Link
-                key={player.id}
-                href={`/players/${player.id}`}
-                className="bg-gray-50 hover:bg-blue-50 rounded-lg p-4 transition border border-gray-100 hover:border-blue-200"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="bg-blue-100 text-blue-600 w-10 h-10 rounded-full flex items-center justify-center font-bold">
-                    {player.number || '?'}
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-800">
-                      {player.name} {player.lastName}
-                    </p>
-                    <p className="text-sm text-gray-500">{player.position || 'Sin posición'}</p>
-                  </div>
-                </div>
-              </Link>
-            ))}
+  <div className="flex justify-between items-center mb-4">
+    <h2 className="text-xl font-semibold text-gray-800">
+      👥 Jugadores ({team.players?.length || 0})
+    </h2>
+    <button
+      onClick={() => setShowPlayerModal(true)}
+      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition text-sm"
+    >
+      <span className="text-xl">+</span> Nuevo Jugador
+    </button>
+  </div>
+
+  {team.players?.length === 0 ? (
+    <div className="text-center py-8">
+      <div className="text-4xl mb-4">🏃</div>
+      <p className="text-gray-500">No hay jugadores en este equipo</p>
+      <button
+        onClick={() => setShowPlayerModal(true)}
+        className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition"
+      >
+        Añadir Primer Jugador
+      </button>
+    </div>
+  ) : (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      {team.players.map((player: any) => (
+        <Link
+          key={player.id}
+          href={`/players/${player.id}`}
+          className="bg-gray-50 hover:bg-blue-50 rounded-lg p-4 transition border border-gray-100 hover:border-blue-200"
+        >
+          <div className="flex items-center gap-3">
+            <div className="bg-blue-100 text-blue-600 w-10 h-10 rounded-full flex items-center justify-center font-bold">
+              {player.number || '?'}
+            </div>
+            <div>
+              <p className="font-medium text-gray-800">
+                {player.name} {player.lastName}
+              </p>
+              <p className="text-sm text-gray-500">{player.position || 'Sin posición'}</p>
+            </div>
           </div>
-        )}
-      </div>
+        </Link>
+      ))}
+    </div>
+  )}
+</div>
+
 
       {/* Entrenadores */}
       <div className="bg-white rounded-xl shadow-md p-6 mt-6">
@@ -390,6 +471,181 @@ export default function TeamDetail() {
           </div>
         </div>
       )}
+      {/* MODAL DE CREAR JUGADOR */}
+{showPlayerModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="bg-white rounded-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-auto">
+      <h3 className="text-xl font-bold text-gray-800 mb-4">
+        Añadir Nuevo Jugador a {team.name}
+      </h3>
+      <form onSubmit={createPlayer} className="space-y-4">
+        {/* Información personal */}
+        <div>
+          <h4 className="text-sm font-semibold text-gray-700 mb-2">📋 Información Personal</h4>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
+              <input
+                type="text"
+                value={newPlayer.name}
+                onChange={(e) => setNewPlayer({...newPlayer, name: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                required
+                placeholder="Ej: Juan"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Apellido *</label>
+              <input
+                type="text"
+                value={newPlayer.lastName}
+                onChange={(e) => setNewPlayer({...newPlayer, lastName: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                required
+                placeholder="Ej: Pérez"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 mt-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de nacimiento</label>
+              <input
+                type="date"
+                value={newPlayer.birthDate}
+                onChange={(e) => setNewPlayer({...newPlayer, birthDate: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+              <input
+                type="tel"
+                value={newPlayer.phone}
+                onChange={(e) => setNewPlayer({...newPlayer, phone: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                placeholder="+34 600 123 456"
+              />
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <input
+              type="email"
+              value={newPlayer.email}
+              onChange={(e) => setNewPlayer({...newPlayer, email: e.target.value})}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              placeholder="jugador@email.com"
+            />
+          </div>
+
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
+            <input
+              type="text"
+              value={newPlayer.address}
+              onChange={(e) => setNewPlayer({...newPlayer, address: e.target.value})}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              placeholder="Calle, número, ciudad"
+            />
+          </div>
+        </div>
+
+        {/* Información deportiva */}
+        <div className="border-t border-gray-200 pt-4">
+          <h4 className="text-sm font-semibold text-gray-700 mb-2">🏀 Información Deportiva</h4>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Dorsal</label>
+              <input
+                type="number"
+                value={newPlayer.number}
+                onChange={(e) => setNewPlayer({...newPlayer, number: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                min="0"
+                max="99"
+                placeholder="7"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Posición</label>
+              <select
+                value={newPlayer.position}
+                onChange={(e) => setNewPlayer({...newPlayer, position: e.target.value})}
+                className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Seleccionar...</option>
+                <option value="Base">Base</option>
+                <option value="Escolta">Escolta</option>
+                <option value="Alero">Alero</option>
+                <option value="Ala-Pívot">Ala-Pívot</option>
+                <option value="Pívot">Pívot</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-3 gap-4 mt-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Altura (cm)</label>
+              <input
+                type="number"
+                value={newPlayer.height}
+                onChange={(e) => setNewPlayer({...newPlayer, height: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                min="0"
+                step="0.1"
+                placeholder="180"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Envergadura (cm)</label>
+              <input
+                type="number"
+                value={newPlayer.wingspan}
+                onChange={(e) => setNewPlayer({...newPlayer, wingspan: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                min="0"
+                step="0.1"
+                placeholder="185"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Peso (kg)</label>
+              <input
+                type="number"
+                value={newPlayer.weight}
+                onChange={(e) => setNewPlayer({...newPlayer, weight: e.target.value})}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                min="0"
+                step="0.1"
+                placeholder="75"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div className="flex gap-3 pt-4">
+          <button
+            type="button"
+            onClick={() => setShowPlayerModal(false)}
+            className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 rounded-lg transition"
+            disabled={creatingPlayer}
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition disabled:opacity-50"
+            disabled={creatingPlayer}
+          >
+            {creatingPlayer ? 'Creando...' : 'Añadir Jugador'}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+)}
     </div>
   )
 }

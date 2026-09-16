@@ -25,8 +25,11 @@ export default function ClubMembers() {
   const params = useParams()
   const clubId = params.id as string
 
-  // ✅ TODOS los estados DENTRO del componente
+  // ============================================
+  // ESTADOS
+  // ============================================
   const [members, setMembers] = useState<Member[]>([])
+  const [teams, setTeams] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [currentUser, setCurrentUser] = useState<any>(null)
@@ -42,12 +45,14 @@ export default function ClubMembers() {
   const [selectedRole, setSelectedRole] = useState('')
   const [savingRole, setSavingRole] = useState(false)
 
-  // ✅ Estados del reseteo de contraseña
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false)
   const [resetMember, setResetMember] = useState<Member | null>(null)
   const [newPassword, setNewPassword] = useState('')
   const [resetting, setResetting] = useState(false)
 
+  // ============================================
+  // EFECTOS
+  // ============================================
   useEffect(() => {
     const userStr = localStorage.getItem('user')
     if (!userStr) {
@@ -56,8 +61,12 @@ export default function ClubMembers() {
     }
     setCurrentUser(JSON.parse(userStr))
     fetchMembers()
+    fetchTeams()
   }, [clubId])
 
+  // ============================================
+  // FUNCIONES
+  // ============================================
   const fetchMembers = async () => {
     try {
       const response = await api.get(`/clubs/${clubId}/members`)
@@ -74,6 +83,15 @@ export default function ClubMembers() {
       setError(error.response?.data?.message || 'Error al cargar miembros')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const fetchTeams = async () => {
+    try {
+      const response = await api.get(`/teams/club/${clubId}/with-members`)
+      setTeams(response.data)
+    } catch (error) {
+      console.error('Error fetching teams:', error)
     }
   }
 
@@ -136,7 +154,6 @@ export default function ClubMembers() {
     }
   }
 
-  // ✅ Funciones para resetear contraseña
   const openResetPasswordModal = (member: Member) => {
     setResetMember(member)
     setNewPassword('')
@@ -185,8 +202,12 @@ export default function ClubMembers() {
     }
   }
 
+  // ✅ DECLARAR isAdmin ANTES del return
   const isAdmin = userRole === 'ADMIN_CLUB'
 
+  // ============================================
+  // RENDER
+  // ============================================
   if (loading) {
     return <div className="text-center py-12">Cargando miembros...</div>
   }
@@ -204,8 +225,8 @@ export default function ClubMembers() {
 
   return (
     <div>
-      <Link href="/teams" className="text-blue-600 hover:underline inline-block mb-6">
-        ← Volver a equipos
+      <Link href={`/clubs/${clubId}`} className="text-blue-600 hover:underline inline-block mb-6">
+        ← Volver al club
       </Link>
 
       <div className="flex justify-between items-center mb-6">
@@ -223,6 +244,7 @@ export default function ClubMembers() {
         )}
       </div>
 
+      {/* TABLA DE MIEMBROS */}
       <div className="bg-white rounded-xl shadow-md overflow-hidden">
         <table className="w-full">
           <thead className="bg-gray-50">
@@ -290,6 +312,59 @@ export default function ClubMembers() {
           </tbody>
         </table>
       </div>
+
+      {/* GESTIÓN DE EQUIPOS Y ENTRENADORES */}
+      {isAdmin && (
+        <div className="bg-white rounded-xl shadow-md p-6 mt-6">
+          <h2 className="text-xl font-semibold text-gray-800 mb-4">
+            🏀 Gestión de Equipos y Entrenadores
+          </h2>
+
+          {teams.length === 0 ? (
+            <p className="text-gray-500 text-center py-4">
+              No hay equipos en este club
+            </p>
+          ) : (
+            <div className="space-y-4">
+              {teams.map((team) => (
+                <div key={team.id} className="border rounded-lg p-4">
+                  <div className="flex justify-between items-center mb-3">
+                    <h3 className="font-medium text-gray-800">
+                      🏀 {team.name}
+                    </h3>
+                    <Link
+                      href={`/teams/${team.id}/members`}
+                      className="text-sm text-blue-600 hover:underline"
+                    >
+                      Gestionar miembros →
+                    </Link>
+                  </div>
+
+                  {team.members.length === 0 ? (
+                    <p className="text-sm text-gray-500">
+                      No hay entrenadores asignados a este equipo
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {team.members.map((member: any) => (
+                        <div
+                          key={member.id}
+                          className="bg-blue-50 rounded-full px-3 py-1 text-sm flex items-center gap-2"
+                        >
+                          <span>{member.user.name} {member.user.lastName}</span>
+                          <span className="text-xs text-blue-600">
+                            {member.role === 'COACH' ? '🏀' : '🤝'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* MODAL DE INVITAR */}
       {showInviteModal && (
@@ -370,7 +445,7 @@ export default function ClubMembers() {
                 />
                 <div>
                   <p className="font-medium">🏛️ Admin Club</p>
-                  <p className="text-xs text-gray-500">Puede gestionar todo el club (miembros, equipos, jugadores)</p>
+                  <p className="text-xs text-gray-500">Puede gestionar todo el club</p>
                 </div>
               </label>
 
@@ -387,7 +462,7 @@ export default function ClubMembers() {
                 />
                 <div>
                   <p className="font-medium">🏀 Entrenador</p>
-                  <p className="text-xs text-gray-500">Puede gestionar sus equipos (jugadores, entrenamientos)</p>
+                  <p className="text-xs text-gray-500">Puede gestionar sus equipos</p>
                 </div>
               </label>
 
@@ -404,7 +479,7 @@ export default function ClubMembers() {
                 />
                 <div>
                   <p className="font-medium">🤝 Asistente</p>
-                  <p className="text-xs text-gray-500">Puede ver la información y ayudar en la asistencia</p>
+                  <p className="text-xs text-gray-500">Puede ver y ayudar</p>
                 </div>
               </label>
             </div>
@@ -436,9 +511,7 @@ export default function ClubMembers() {
       {showResetPasswordModal && resetMember && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">
-              🔑 Resetear Contraseña
-            </h3>
+            <h3 className="text-xl font-bold text-gray-800 mb-4">🔑 Resetear Contraseña</h3>
 
             <p className="text-sm text-gray-600 mb-4">
               Vas a resetear la contraseña de <strong>{resetMember.user.name} {resetMember.user.lastName}</strong> ({resetMember.user.email})
@@ -446,9 +519,7 @@ export default function ClubMembers() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nueva contraseña *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nueva contraseña *</label>
                 <input
                   type="text"
                   value={newPassword}
@@ -458,9 +529,6 @@ export default function ClubMembers() {
                   minLength={6}
                   required
                 />
-                <p className="text-xs text-gray-500 mt-1">
-                  Comunica esta contraseña al usuario.
-                </p>
               </div>
             </div>
 
