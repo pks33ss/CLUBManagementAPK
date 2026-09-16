@@ -89,6 +89,14 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 >
   📊 Asistencias
 </Link>
+<Link
+  href="/matches"
+  className={`text-gray-600 hover:text-gray-900 transition ${
+    pathname === '/matches' ? 'text-blue-600 font-semibold' : ''
+  }`}
+>
+  🏆 Partidos
+</Link>
                 {currentUser?.role === 'SUPER_ADMIN' && (
                   <Link
                     href="/admin/users"
