@@ -335,6 +335,11 @@ export default function AllMatches() {
                           {match.competition && `🏆 ${match.competition}`}
                         </p>
                       )}
+                      {match.notes && (
+  <p className="text-xs text-gray-500 mt-2 italic line-clamp-2">
+    📝 {match.notes}
+  </p>
+)}
                     </div>
 
                     <div className="flex flex-col items-center md:items-end">

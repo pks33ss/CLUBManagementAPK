@@ -40,6 +40,12 @@ export default function ClubMembers() {
   const [inviteRole, setInviteRole] = useState('COACH')
   const [inviting, setInviting] = useState(false)
 
+  // ✅ Estados para gestión de equipos
+const [showTeamsModal, setShowTeamsModal] = useState(false)
+const [selectedMemberForTeams, setSelectedMemberForTeams] = useState<Member | null>(null)
+const [memberTeams, setMemberTeams] = useState<any[]>([])
+const [loadingMemberTeams, setLoadingMemberTeams] = useState(false)
+
   const [showRoleModal, setShowRoleModal] = useState(false)
   const [selectedMember, setSelectedMember] = useState<Member | null>(null)
   const [selectedRole, setSelectedRole] = useState('')
@@ -140,6 +146,41 @@ export default function ClubMembers() {
       setSavingRole(false)
     }
   }
+
+  // ✅ Funciones para gestión de equipos
+const openTeamsModal = async (member: Member) => {
+  setSelectedMemberForTeams(member)
+  setShowTeamsModal(true)
+  setLoadingMemberTeams(true)
+
+  try {
+    const response = await api.get(`/clubs/${clubId}/members/${member.id}/teams`)
+    setMemberTeams(response.data)
+  } catch (error) {
+    console.error('Error:', error)
+    alert('Error al cargar los equipos del miembro')
+  } finally {
+    setLoadingMemberTeams(false)
+  }
+}
+
+const toggleTeamAssignment = async (teamId: string, isAssigned: boolean) => {
+  if (!selectedMemberForTeams) return
+
+  try {
+    if (isAssigned) {
+      await api.delete(`/clubs/${clubId}/members/${selectedMemberForTeams.id}/teams/${teamId}`)
+    } else {
+      await api.post(`/clubs/${clubId}/members/${selectedMemberForTeams.id}/teams`, { teamId })
+    }
+    // Recargar la lista de equipos del miembro
+    const response = await api.get(`/clubs/${clubId}/members/${selectedMemberForTeams.id}/teams`)
+    setMemberTeams(response.data)
+  } catch (error: any) {
+    console.error('Error:', error)
+    alert(error.response?.data?.message || 'Error al actualizar la asignación')
+  }
+}
 
   const removeMember = async (memberId: string, userName: string) => {
     if (!confirm(`¿Eliminar a ${userName} del club?`)) return
@@ -288,6 +329,15 @@ export default function ClubMembers() {
                       >
                         {getRoleText(member.role)} ✏️
                       </button>
+                        {/* ✅ NUEVO BOTÓN DE EQUIPOS */}
+  <button
+    onClick={() => openTeamsModal(member)}
+    className="text-orange-500 hover:text-orange-700 p-1"
+    disabled={member.userId === currentUser?.id}
+    title="Gestionar equipos"
+  >
+    🏀
+  </button>
                       <button
                         onClick={() => openResetPasswordModal(member)}
                         className="text-yellow-500 hover:text-yellow-700 p-1"
@@ -555,6 +605,69 @@ export default function ClubMembers() {
           </div>
         </div>
       )}
+      {/* MODAL DE GESTIÓN DE EQUIPOS */}
+{showTeamsModal && selectedMemberForTeams && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="bg-white rounded-xl max-w-md w-full p-6 max-h-[90vh] overflow-auto">
+      <h3 className="text-xl font-bold text-gray-800 mb-2">
+        🏀 Equipos de {selectedMemberForTeams.user.name} {selectedMemberForTeams.user.lastName}
+      </h3>
+      <p className="text-sm text-gray-500 mb-4">
+        Asigna los equipos a los que este entrenador tendrá acceso
+      </p>
+
+      {loadingMemberTeams ? (
+        <div className="text-center py-8">Cargando equipos...</div>
+      ) : memberTeams.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">
+          No hay equipos en este club
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {memberTeams.map((team) => (
+            <label
+              key={team.id}
+              className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition ${
+                team.isAssigned ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              <input
+                type="checkbox"
+                checked={team.isAssigned}
+                onChange={() => toggleTeamAssignment(team.id, team.isAssigned)}
+                className="w-5 h-5"
+              />
+              <div className="flex-1">
+                <p className="font-medium text-gray-800">{team.name}</p>
+                <p className="text-xs text-gray-500">
+                  {team.category || 'Sin categoría'}
+                </p>
+              </div>
+              {team.isAssigned && (
+                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
+                  Asignado
+                </span>
+              )}
+            </label>
+          ))}
+        </div>
+      )}
+
+      <div className="flex gap-3 pt-6">
+        <button
+          onClick={() => {
+            setShowTeamsModal(false)
+            setSelectedMemberForTeams(null)
+            setMemberTeams([])
+          }}
+          className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 rounded-lg transition"
+        >
+          Cerrar
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   )
 }

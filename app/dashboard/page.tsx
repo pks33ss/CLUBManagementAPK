@@ -2,55 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import axios from 'axios'
-import Link from 'next/link'
-
-// ✅ Configurar axios con interceptor
-const api = axios.create({
-  baseURL: (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'),
-})
-
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-    return config
-  },
-  (error) => Promise.reject(error)
-)
-
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true
-      try {
-        const refreshToken = localStorage.getItem('refreshToken')
-        if (!refreshToken) throw new Error('No refresh token')
-        
-        const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/auth/refresh`, {
-          refreshToken
-        })
-        
-        const newAccessToken = response.data.accessToken
-        localStorage.setItem('token', newAccessToken)
-        
-        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
-        return api(originalRequest)
-      } catch {
-        localStorage.removeItem('token')
-        localStorage.removeItem('refreshToken')
-        localStorage.removeItem('user')
-        window.location.href = '/login'
-        return Promise.reject(error)
-      }
-    }
-    return Promise.reject(error)
-  }
-)
+import api from '@/lib/api'
 
 interface Club {
   id: string
@@ -135,7 +87,7 @@ export default function Dashboard() {
           {clubs.map((club) => (
             <div
               key={club.id}
-              onClick={() => router.push(`/clubs/${club.id}`)}  // ✅ Añadir esta línea
+              onClick={() => router.push(`/clubs/${club.id}`)}
               className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all p-6 border border-gray-100 hover:border-blue-200 cursor-pointer"
             >
               <div className="flex items-start justify-between">

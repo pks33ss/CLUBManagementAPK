@@ -3,53 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import axios from 'axios'
-
-const api = axios.create({
-  baseURL: (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'),
-})
-
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-    return config
-  },
-  (error) => Promise.reject(error)
-)
-
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true
-      try {
-        const refreshToken = localStorage.getItem('refreshToken')
-        if (!refreshToken) throw new Error('No refresh token')
-        
-        const response = await axios.post(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/auth/refresh`, {
-          refreshToken
-        })
-        
-        const newAccessToken = response.data.accessToken
-        localStorage.setItem('token', newAccessToken)
-        
-        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
-        return api(originalRequest)
-      } catch {
-        localStorage.removeItem('token')
-        localStorage.removeItem('refreshToken')
-        localStorage.removeItem('user')
-        window.location.href = '/login'
-        return Promise.reject(error)
-      }
-    }
-    return Promise.reject(error)
-  }
-)
+import api from '@/lib/api'
 
 export default function NewSession() {
   const router = useRouter()
@@ -104,48 +58,48 @@ export default function NewSession() {
     }
   }
 
-// Asegurar que el teamId se envía correctamente
-const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault()
-  setSubmitting(true)
+  // Asegurar que el teamId se envía correctamente
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSubmitting(true)
 
-  try {
-    // ✅ Asegurar que la fecha está en el formato correcto
-    const dateObj = new Date(`${formData.date}T${formData.time}`)
-    
-    // ✅ Verificar que la fecha es válida
-    if (isNaN(dateObj.getTime())) {
-      alert('Por favor, selecciona una fecha y hora válidas')
+    try {
+      // ✅ Asegurar que la fecha está en el formato correcto
+      const dateObj = new Date(`${formData.date}T${formData.time}`)
+
+      // ✅ Verificar que la fecha es válida
+      if (isNaN(dateObj.getTime())) {
+        alert('Por favor, selecciona una fecha y hora válidas')
+        setSubmitting(false)
+        return
+      }
+
+      // ✅ Usar toISOString() para el formato correcto
+      const sessionData = {
+        title: formData.title,
+        description: formData.description || '',
+        date: dateObj.toISOString(), // ✅ Esto produce "2026-08-20T18:00:00.000Z"
+        duration: Number(formData.duration),
+        location: formData.location || '',
+        teamId: formData.teamId,
+      }
+
+      console.log('📝 Datos a enviar:', sessionData) // Debug
+
+      const response = await api.post('/sessions', sessionData)
+      console.log('✅ Sesión creada:', response.data)
+      router.push('/sessions')
+    } catch (error: any) {
+      console.error('❌ Error completo:', error)
+      if (error.response?.data?.message) {
+        alert(`Error: ${error.response.data.message}`)
+      } else {
+        alert('Error al crear la sesión. Revisa la consola para más detalles.')
+      }
+    } finally {
       setSubmitting(false)
-      return
     }
-
-    // ✅ Usar toISOString() para el formato correcto
-    const sessionData = {
-      title: formData.title,
-      description: formData.description || '',
-      date: dateObj.toISOString(), // ✅ Esto produce "2026-08-20T18:00:00.000Z"
-      duration: Number(formData.duration),
-      location: formData.location || '',
-      teamId: formData.teamId,
-    }
-
-    console.log('📝 Datos a enviar:', sessionData) // Debug
-
-    const response = await api.post('/sessions', sessionData)
-    console.log('✅ Sesión creada:', response.data)
-    router.push('/sessions')
-  } catch (error: any) {
-    console.error('❌ Error completo:', error)
-    if (error.response?.data?.message) {
-      alert(`Error: ${error.response.data.message}`)
-    } else {
-      alert('Error al crear la sesión. Revisa la consola para más detalles.')
-    }
-  } finally {
-    setSubmitting(false)
   }
-}
 
   if (loading) {
     return <div className="text-center py-12">Cargando...</div>

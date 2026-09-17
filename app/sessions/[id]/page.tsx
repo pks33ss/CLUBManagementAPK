@@ -3,55 +3,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
-import axios from 'axios'
+import api from '@/lib/api'
 import TacticalBoard from '@/components/TacticalBoard'
-
-const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
-})
-
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-    return config
-  },
-  (error) => Promise.reject(error)
-)
-
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true
-      try {
-        const refreshToken = localStorage.getItem('refreshToken')
-        if (!refreshToken) throw new Error('No refresh token')
-
-        const response = await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/auth/refresh`,
-          { refreshToken }
-        )
-
-        const newAccessToken = response.data.accessToken
-        localStorage.setItem('token', newAccessToken)
-
-        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
-        return api(originalRequest)
-      } catch {
-        localStorage.removeItem('token')
-        localStorage.removeItem('refreshToken')
-        localStorage.removeItem('user')
-        window.location.href = '/login'
-        return Promise.reject(error)
-      }
-    }
-    return Promise.reject(error)
-  }
-)
 
 interface SessionDetail {
   id: string
@@ -486,26 +439,24 @@ export default function SessionDetail() {
     setEditingNewLink({ url: '', title: '' })
   }
 
-const removeLinkFromEditingList = async (index: number) => {
-  const linkToRemove = editingLinks[index]
-  
-  // Si el link ya existe en el backend, eliminarlo
-  if (linkToRemove.id && !linkToRemove.isNew) {
-    if (!confirm('¿Estás seguro de que quieres eliminar este link?')) return
-    
-    try {
-      await api.delete(`/sessions/media/${linkToRemove.id}`)
-      console.log('✅ Link eliminado del backend')
-    } catch (error) {
-      console.error('Error eliminando link:', error)
-      alert('Error al eliminar el link')
-      return
+  const removeLinkFromEditingList = async (index: number) => {
+    const linkToRemove = editingLinks[index]
+
+    if (linkToRemove.id && !linkToRemove.isNew) {
+      if (!confirm('¿Estás seguro de que quieres eliminar este link?')) return
+
+      try {
+        await api.delete(`/sessions/media/${linkToRemove.id}`)
+        console.log('✅ Link eliminado del backend')
+      } catch (error) {
+        console.error('Error eliminando link:', error)
+        alert('Error al eliminar el link')
+        return
+      }
     }
+
+    setEditingLinks(editingLinks.filter((_, i) => i !== index))
   }
-  
-  // Eliminar de la lista local
-  setEditingLinks(editingLinks.filter((_, i) => i !== index))
-}
 
   const handleEditFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -562,7 +513,6 @@ const removeLinkFromEditingList = async (index: number) => {
         difficulty: editingExercise.difficulty || undefined,
       })
 
-      // Subir nueva imagen de pizarra (solo si es nueva, no una URL existente)
       if (editingBoardImage && !editingBoardImage.startsWith('http')) {
         try {
           await api.post(`/sessions/exercises/${editingExercise.id}/upload-image`, {
@@ -574,7 +524,6 @@ const removeLinkFromEditingList = async (index: number) => {
         }
       }
 
-      // Subir nueva imagen desde archivo
       if (editingUploadedImage) {
         try {
           await api.post(`/sessions/exercises/${editingExercise.id}/upload-image`, {
@@ -586,7 +535,6 @@ const removeLinkFromEditingList = async (index: number) => {
         }
       }
 
-      // Guardar links nuevos
       const newLinks = editingLinks.filter(l => l.isNew)
       for (const link of newLinks) {
         try {
@@ -614,7 +562,7 @@ const removeLinkFromEditingList = async (index: number) => {
     }
   }
 
-    // ============================================
+  // ============================================
   // FUNCIONES DE ASISTENCIA
   // ============================================
 
@@ -803,7 +751,6 @@ const removeLinkFromEditingList = async (index: number) => {
                 key={exercise.id}
                 className="bg-gray-50 rounded-lg p-4 border border-gray-100 hover:border-blue-200 transition"
               >
-                {/* Cabecera con botones */}
                 <div className="flex justify-between items-start gap-4 mb-3">
                   <div className="flex-1">
                     <p className="font-medium text-gray-800">
@@ -831,7 +778,6 @@ const removeLinkFromEditingList = async (index: number) => {
                     </div>
                   </div>
 
-                  {/* Botones siempre visibles */}
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <button
                       onClick={() => moveExercise(exercise.id, 'up')}
@@ -877,7 +823,6 @@ const removeLinkFromEditingList = async (index: number) => {
                   </div>
                 </div>
 
-                {/* Media (imágenes y links) */}
                 {exercise.media && exercise.media.length > 0 && (
                   <div className="mt-3 space-y-3 border-t border-gray-200 pt-3">
                     {exercise.media.map((media) => (
@@ -1019,8 +964,7 @@ const removeLinkFromEditingList = async (index: number) => {
         )}
       </div>
 
-
-            {/* MODAL DE EDITAR ENTRENAMIENTO */}
+      {/* MODAL DE EDITAR ENTRENAMIENTO */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl max-w-md w-full p-6 max-h-[90vh] overflow-auto">
@@ -1187,7 +1131,6 @@ const removeLinkFromEditingList = async (index: number) => {
                 </select>
               </div>
 
-              {/* LINKS EXISTENTES Y NUEVOS */}
               <div className="border-t border-gray-200 pt-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   🔗 Links del ejercicio
@@ -1242,7 +1185,6 @@ const removeLinkFromEditingList = async (index: number) => {
                 </div>
               </div>
 
-              {/* IMAGEN EXISTENTE */}
               {editingBoardImage && (
                 <div className="border-t border-gray-200 pt-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1265,7 +1207,6 @@ const removeLinkFromEditingList = async (index: number) => {
                 </div>
               )}
 
-              {/* CAMBIAR IMAGEN */}
               <div className="border-t border-gray-200 pt-4">
                 <button
                   type="button"
@@ -1410,7 +1351,6 @@ const removeLinkFromEditingList = async (index: number) => {
                 </select>
               </div>
 
-              {/* PIZARRA Y IMAGEN */}
               <div className="border-t border-gray-200 pt-4">
                 <button
                   type="button"
@@ -1477,7 +1417,6 @@ const removeLinkFromEditingList = async (index: number) => {
                   )}
                 </div>
 
-                {/* LINKS */}
                 <div className="mt-4 border-t border-gray-200 pt-4">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     🔗 Añadir link a vídeo o recurso

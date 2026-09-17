@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
+import { attendanceBadgeClass } from '@/lib/attendance'
 
 interface PlayerStats {
   player: {
@@ -125,11 +126,7 @@ export default function AttendanceOverview() {
     return 'bg-red-500'
   }
 
-  const getAttendanceBgColor = (rate: number) => {
-    if (rate >= 80) return 'bg-green-100 text-green-800'
-    if (rate >= 50) return 'bg-yellow-100 text-yellow-800'
-    return 'bg-red-100 text-red-800'
-  }
+
 
   if (loading) {
     return <div className="text-center py-12">Cargando...</div>
@@ -268,7 +265,7 @@ export default function AttendanceOverview() {
                               style={{ width: `${item.stats.attendanceRate}%` }}
                             />
                           </div>
-                          <span className={`text-sm font-medium w-12 text-right px-2 py-0.5 rounded-full ${getAttendanceBgColor(item.stats.attendanceRate)}`}>
+                          <span cclassName={`text-sm font-medium w-12 text-right px-2 py-0.5 rounded-full ${attendanceBadgeClass(item.stats.attendanceRate)}`}>
                             {item.stats.attendanceRate}%
                           </span>
                         </div>

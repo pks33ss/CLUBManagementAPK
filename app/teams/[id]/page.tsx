@@ -3,58 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
-import axios from 'axios'
-
-// ============================================
-// CONFIGURACIÓN DE AXIOS
-// ============================================
-
-const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000',
-})
-
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-    return config
-  },
-  (error) => Promise.reject(error)
-)
-
-api.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    const originalRequest = error.config
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true
-      try {
-        const refreshToken = localStorage.getItem('refreshToken')
-        if (!refreshToken) throw new Error('No refresh token')
-
-        const response = await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'}/auth/refresh`,
-          { refreshToken }
-        )
-
-        const newAccessToken = response.data.accessToken
-        localStorage.setItem('token', newAccessToken)
-
-        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`
-        return api(originalRequest)
-      } catch {
-        localStorage.removeItem('token')
-        localStorage.removeItem('refreshToken')
-        localStorage.removeItem('user')
-        window.location.href = '/login'
-        return Promise.reject(error)
-      }
-    }
-    return Promise.reject(error)
-  }
-)
+import api from '@/lib/api'
 
 // ============================================
 // TIPOS
@@ -159,7 +108,13 @@ export default function TeamDetail() {
       })
     } catch (error: any) {
       console.error('Error:', error)
-      setError(error.response?.data?.message || 'Error al cargar el equipo')
+      if (error.response?.status === 403) {
+        setError('No tienes acceso a este equipo. Si crees que es un error, contacta con el administrador del club.')
+      } else if (error.response?.status === 404) {
+        setError('Este equipo no existe o ha sido eliminado.')
+      } else {
+        setError(error.response?.data?.message || 'Error al cargar el equipo')
+      }
     } finally {
       setLoading(false)
     }
@@ -273,9 +228,18 @@ export default function TeamDetail() {
   if (error || !team) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-500">{error || 'Equipo no encontrado'}</p>
-        <Link href="/teams" className="text-blue-600 hover:underline mt-4 inline-block">
-          ← Volver a equipos
+        <div className="text-6xl mb-4">
+          {error?.includes('No tienes acceso') ? '🔒' : '❌'}
+        </div>
+        <h2 className="text-xl font-bold text-gray-800 mb-2">
+          {error?.includes('No tienes acceso') ? 'Acceso Denegado' : 'Error'}
+        </h2>
+        <p className="text-gray-500 max-w-md mx-auto mb-6">{error || 'Equipo no encontrado'}</p>
+        <Link 
+          href="/teams" 
+          className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition"
+        >
+          ← Volver a Mis Equipos
         </Link>
       </div>
     )
@@ -302,7 +266,6 @@ export default function TeamDetail() {
             </p>
           </div>
 
-          {/* Botones de acción */}
           <div className="flex flex-wrap gap-2">
             <Link
               href={`/teams/${teamId}/matches`}
@@ -525,7 +488,6 @@ export default function TeamDetail() {
               Añadir Nuevo Jugador a {team.name}
             </h3>
             <form onSubmit={createPlayer} className="space-y-4">
-              {/* Información personal */}
               <div>
                 <h4 className="text-sm font-semibold text-gray-700 mb-2">📋 Información Personal</h4>
                 <div className="grid grid-cols-2 gap-4">
@@ -598,7 +560,6 @@ export default function TeamDetail() {
                 </div>
               </div>
 
-              {/* Información deportiva */}
               <div className="border-t border-gray-200 pt-4">
                 <h4 className="text-sm font-semibold text-gray-700 mb-2">🏀 Información Deportiva</h4>
                 <div className="grid grid-cols-2 gap-4">

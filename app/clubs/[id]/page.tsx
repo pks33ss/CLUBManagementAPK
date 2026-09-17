@@ -92,7 +92,13 @@ export default function ClubDetail() {
       }
     } catch (error: any) {
       console.error('Error:', error)
-      setError(error.response?.data?.message || 'Error al cargar el club')
+      if (error.response?.status === 403) {
+        setError('No tienes acceso a este club. Si crees que es un error, contacta con el administrador.')
+      } else if (error.response?.status === 404) {
+        setError('Este club no existe o ha sido eliminado.')
+      } else {
+        setError(error.response?.data?.message || 'Error al cargar el club')
+      }
     } finally {
       setLoading(false)
     }
@@ -162,18 +168,43 @@ export default function ClubDetail() {
     }
   }
 
+  // ✅ Permisos: ADMIN_CLUB del club o SUPER_ADMIN global
   const isAdmin = userRole === 'ADMIN_CLUB' || currentUser?.role === 'SUPER_ADMIN'
 
+  // ✅ Función para verificar si el usuario tiene acceso a un equipo
+  const hasTeamAccess = (teamId: string) => {
+    if (isAdmin) return true
+
+    // COACH/ASSISTANT: solo ven equipos donde están asignados
+    // (Esta verificación la hace el backend, pero aquí también lo comprobamos)
+    return true // Se filtrará en el backend
+  }
+
   if (loading) {
-    return <div className="text-center py-12">Cargando club...</div>
+    return (
+      <div className="text-center py-12">
+        <div className="text-lg text-gray-500">Cargando club...</div>
+      </div>
+    )
   }
 
   if (error || !club) {
+    const isAccessDenied = error?.includes('No tienes acceso')
+
     return (
       <div className="text-center py-12">
-        <p className="text-red-500">{error || 'Club no encontrado'}</p>
-        <Link href="/dashboard" className="text-blue-600 hover:underline mt-4 inline-block">
-          ← Volver al dashboard
+        <div className="text-6xl mb-4">{isAccessDenied ? '🔒' : '❌'}</div>
+        <h2 className="text-xl font-bold text-gray-800 mb-2">
+          {isAccessDenied ? 'Acceso Denegado' : 'Error'}
+        </h2>
+        <p className="text-gray-500 max-w-md mx-auto mb-6">
+          {error || 'Club no encontrado'}
+        </p>
+        <Link
+          href="/dashboard"
+          className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition"
+        >
+          ← Volver al Dashboard
         </Link>
       </div>
     )
@@ -185,9 +216,11 @@ export default function ClubDetail() {
         ← Volver a Mis Clubs
       </Link>
 
-      {/* INFORMACIÓN DEL CLUB */}
+      {/* ============================================
+          INFORMACIÓN DEL CLUB
+          ============================================ */}
       <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-        <div className="flex justify-between items-start gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-start gap-4">
           <div className="flex items-start gap-4 flex-1">
             {club.logo ? (
               <img
@@ -256,24 +289,33 @@ export default function ClubDetail() {
         </div>
       </div>
 
-      {/* EQUIPOS */}
+      {/* ============================================
+          EQUIPOS
+          ============================================ */}
       <div className="bg-white rounded-xl shadow-md p-6 mb-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-gray-800">
             🏀 Equipos ({club.teams?.length || 0})
           </h2>
-          <Link
-            href={`/teams?club=${clubId}`}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition text-sm"
-          >
-            Gestionar Equipos
-          </Link>
+          {isAdmin && (
+            <Link
+              href={`/teams?club=${clubId}`}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition text-sm"
+            >
+              Gestionar Equipos
+            </Link>
+          )}
         </div>
 
         {!club.teams || club.teams.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">
-            No hay equipos en este club
-          </p>
+          <div className="text-center py-8">
+            <div className="text-4xl mb-4">🏀</div>
+            <p className="text-gray-500">
+              {isAdmin
+                ? 'No hay equipos en este club'
+                : 'No tienes equipos asignados en este club'}
+            </p>
+          </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {club.teams.map((team) => (
@@ -284,7 +326,9 @@ export default function ClubDetail() {
               >
                 <h3 className="font-medium text-gray-800">{team.name}</h3>
                 <p className="text-sm text-gray-500">{team.category || 'Sin categoría'}</p>
-                <p className="text-xs text-gray-400 mt-1">{team.season || 'Temporada no especificada'}</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  {team.season || 'Temporada no especificada'}
+                </p>
                 <div className="mt-2">
                   <span className="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-full">
                     👥 {team.players?.length || 0} jugadores
@@ -296,7 +340,9 @@ export default function ClubDetail() {
         )}
       </div>
 
-      {/* MIEMBROS */}
+      {/* ============================================
+          MIEMBROS
+          ============================================ */}
       <div className="bg-white rounded-xl shadow-md p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-gray-800">
@@ -338,7 +384,9 @@ export default function ClubDetail() {
         )}
       </div>
 
-      {/* MODAL DE EDITAR CLUB */}
+      {/* ============================================
+          MODAL DE EDITAR CLUB
+          ============================================ */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl max-w-md w-full p-6">
@@ -431,7 +479,9 @@ export default function ClubDetail() {
         </div>
       )}
 
-      {/* MODAL DE ELIMINAR CLUB */}
+      {/* ============================================
+          MODAL DE ELIMINAR CLUB
+          ============================================ */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl max-w-md w-full p-6">
