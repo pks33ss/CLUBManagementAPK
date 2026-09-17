@@ -253,20 +253,63 @@ export default function LiveStreamTab({ match }: Props) {
   // AUTO-RECUPERACIÓN (estado pegado)
   // ============================================
 
-  useEffect(() => {
-    if (!liveInfo?.isLive || isStreaming) return
-    if (peerRef.current) return
+useEffect(() => {
+  if (!liveInfo?.isLive || isStreaming) return
+  if (peerRef.current) return
 
-    const timer = setTimeout(async () => {
-      console.warn('⚠️ Estado pegado detectado → limpiando')
-      try {
+  // ✅ Reducir a 3s y verificar si realmente hay host activo
+  const timer = setTimeout(async () => {
+    console.warn('⚠️ Stream huérfano detectado → limpiando')
+    try {
+      // Si yo soy el host en la BD pero no estoy emitiendo → forzar stop
+      const userStr = localStorage.getItem('user')
+      const userId = userStr ? JSON.parse(userStr).id : null
+
+      if (liveInfo.hostPeerId && liveInfo.canManage) {
+        // Si soy coach, paro el stream
+        try {
+          await api.post(`/matches/${match.id}/live/stop`)
+          console.log('✅ Stream huérfano detenido')
+        } catch (e) {
+          // Si no soy el host, salgo como viewer
+          await api.delete(`/matches/${match.id}/live/leave`)
+        }
+      } else {
         await api.delete(`/matches/${match.id}/live/leave`)
-      } catch {}
-      fetchLiveInfo()
-    }, 10000)
+      }
+    } catch (err) {
+      console.error('Error limpiando stream:', err)
+    }
+    fetchLiveInfo()
+  }, 3000)
 
-    return () => clearTimeout(timer)
-  }, [liveInfo?.isLive, isStreaming, match.id, fetchLiveInfo])
+  return () => clearTimeout(timer)
+}, [liveInfo?.isLive, liveInfo?.hostPeerId, liveInfo?.canManage, isStreaming, match.id, fetchLiveInfo])
+
+// ✅ Cleanup al cerrar la pestaña del navegador
+useEffect(() => {
+  const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+    if (isStreaming && isHost.current) {
+      // Intentar avisar al backend con sendBeacon (más fiable que fetch al cerrar)
+      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+      const token = localStorage.getItem('token')
+      const url = `${API_URL}/matches/${match.id}/live/stop`
+
+      // navigator.sendBeacon no permite headers, así que usamos un fetch sincrónico
+      try {
+        const xhr = new XMLHttpRequest()
+        xhr.open('POST', url, false)  // false = sincrónico
+        xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+        xhr.send()
+      } catch (err) {
+        console.error('Error cleanup on unload:', err)
+      }
+    }
+  }
+
+  window.addEventListener('beforeunload', handleBeforeUnload)
+  return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+}, [isStreaming, match.id])
 
   // ============================================
   // ACCIONES DEL COACH
@@ -948,20 +991,38 @@ export default function LiveStreamTab({ match }: Props) {
           )}
         </div>
         {soyHost ? (
-          <button
-            onClick={stopStreaming}
-            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm transition"
-          >
-            ⏹️ Detener emisión
-          </button>
-        ) : (
-          <button
-            onClick={leaveAsViewer}
-            className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg text-sm transition"
-          >
-            🚪 Salir
-          </button>
-        )}
+  <button
+    onClick={stopStreaming}
+    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm transition"
+  >
+    ⏹️ Detener emisión
+  </button>
+) : (
+  <button
+    onClick={async () => {
+      // ✅ Si el backend dice que hay stream activo pero no soy el host
+      // y el host no responde → forzar limpieza
+      try {
+        if (liveInfo.isLive && !remoteStream) {
+          // Estoy pegado: pedir al backend que pare si soy coach, o al menos salir
+          if (liveInfo.canManage) {
+            await api.post(`/matches/${match.id}/live/stop`)
+          } else {
+            await api.delete(`/matches/${match.id}/live/leave`)
+          }
+        } else {
+          await leaveAsViewer()
+        }
+      } catch {
+        await leaveAsViewer()
+      }
+      await fetchLiveInfo()
+    }}
+    className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg text-sm transition"
+  >
+    🚪 Salir
+  </button>
+)}
       </div>
 
       <div className="relative bg-black rounded-xl overflow-hidden shadow-md">
