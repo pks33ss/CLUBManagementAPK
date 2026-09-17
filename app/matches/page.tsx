@@ -14,6 +14,7 @@ interface Match {
   status: string
   venue: string
   competition: string
+  notes: string | null
   teamScore: number | null
   opponentScore: number | null
   team: {

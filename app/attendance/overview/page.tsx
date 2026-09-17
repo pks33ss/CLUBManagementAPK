@@ -265,7 +265,7 @@ export default function AttendanceOverview() {
                               style={{ width: `${item.stats.attendanceRate}%` }}
                             />
                           </div>
-                          <span cclassName={`text-sm font-medium w-12 text-right px-2 py-0.5 rounded-full ${attendanceBadgeClass(item.stats.attendanceRate)}`}>
+                          <span className={`text-sm font-medium w-12 text-right px-2 py-0.5 rounded-full ${attendanceBadgeClass(item.stats.attendanceRate)}`}>
                             {item.stats.attendanceRate}%
                           </span>
                         </div>
