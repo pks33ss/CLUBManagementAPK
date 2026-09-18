@@ -113,7 +113,6 @@ export default function LiveStreamTab({ match }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
-  // Setup (coach)
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [permissions, setPermissions] = useState<Record<string, boolean>>({})
   const [savingPermissions, setSavingPermissions] = useState(false)
@@ -128,7 +127,6 @@ export default function LiveStreamTab({ match }: Props) {
     overtimeDuration: 300,
   })
 
-  // Emisión
   const [isStreaming, setIsStreaming] = useState(false)
   const [localStream, setLocalStream] = useState<MediaStream | null>(null)
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null)
@@ -137,18 +135,13 @@ export default function LiveStreamTab({ match }: Props) {
   const [cameraOn, setCameraOn] = useState(true)
   const [audioOn, setAudioOn] = useState(true)
 
-  // Scoreboard
   const [scoreboard, setScoreboard] = useState<ScoreboardState | null>(null)
   const [displayClock, setDisplayClock] = useState(0)
 
-  // ✅ Overlay colapsable
   const [overlayVisible, setOverlayVisible] = useState(true)
-
-  // ✅ Input del cuarto editable (local)
   const [periodInput, setPeriodInput] = useState('')
   const periodInputRef = useRef<HTMLInputElement>(null)
 
-  // REFS
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const remoteVideoRef = useRef<HTMLVideoElement>(null)
   const peerRef = useRef<Peer | null>(null)
@@ -395,15 +388,82 @@ export default function LiveStreamTab({ match }: Props) {
         })
       })
 
+      // ✅ on('call') reforzado
       newPeer.on('call', (call) => {
         console.log('📞 Viewer llama:', call.peer)
+        console.log('📞 Stream a enviar tiene tracks:', stream.getTracks().map(t => t.kind))
+
+        // 1) Answer
         call.answer(stream)
+        console.log('✅ Answer enviado')
+
         activeCallsRef.current.set(call.peer, call)
+
+        // 2) Verificar senders después de 500ms
+        setTimeout(async () => {
+          const pc = (call as any).peerConnection as RTCPeerConnection
+          if (!pc) {
+            console.warn('⚠️ No hay peerConnection')
+            return
+          }
+
+          const senders = pc.getSenders()
+          console.log('🔍 PC senders después de answer:', senders.map((s: any) => ({
+            kind: s.track?.kind,
+            enabled: s.track?.enabled,
+            state: s.track?.readyState,
+          })))
+
+          // 3) Si no hay video sender, añadir manualmente
+          const videoSender = senders.find((s: any) => s.track?.kind === 'video')
+          if (!videoSender) {
+            const videoTrack = stream.getVideoTracks()[0]
+            if (videoTrack) {
+              console.log('➕ Añadiendo video track manualmente')
+              pc.addTrack(videoTrack, stream)
+            }
+          }
+
+          // 4) Si no hay audio sender, añadir manualmente
+          const audioSender = senders.find((s: any) => s.track?.kind === 'audio')
+          if (!audioSender) {
+            const audioTrack = stream.getAudioTracks()[0]
+            if (audioTrack) {
+              console.log('➕ Añadiendo audio track manualmente')
+              pc.addTrack(audioTrack, stream)
+            }
+          }
+
+          // 5) Renegociar si hemos añadido algo
+          if (!videoSender || !audioSender) {
+            try {
+              console.log('🔄 Renegociando conexión...')
+              const offer = await pc.createOffer()
+              await pc.setLocalDescription(offer)
+              console.log('🔄 Oferta de renegociación creada')
+            } catch (err) {
+              console.error('❌ Error renegociando:', err)
+            }
+          }
+
+          // 6) Estado final
+          setTimeout(() => {
+            console.log('🔍 PC senders FINAL:', pc.getSenders().map((s: any) => ({
+              kind: s.track?.kind,
+              enabled: s.track?.enabled,
+            })))
+            console.log('🔍 PC state FINAL:', pc.connectionState, pc.iceConnectionState)
+          }, 2000)
+        }, 500)
 
         call.on('close', () => {
           console.log('📞 Call cerrada con viewer:', call.peer)
           activeCallsRef.current.delete(call.peer)
           setConnectedViewers((v) => v.filter((p) => p !== call.peer))
+        })
+
+        call.on('error', (err) => {
+          console.error('❌ Error en call:', err)
         })
       })
 
@@ -506,7 +566,8 @@ export default function LiveStreamTab({ match }: Props) {
           console.log('📞 Call creada, esperando stream...')
 
           call.on('stream', (remoteStream) => {
-            console.log('📺 Stream recibido!')
+            console.log('📺 Stream recibido!', remoteStream)
+            console.log('📺 Tracks del stream recibido:', remoteStream.getTracks().map(t => t.kind))
             setRemoteStream(remoteStream)
           })
 
@@ -518,6 +579,18 @@ export default function LiveStreamTab({ match }: Props) {
           call.on('error', (err) => {
             console.error('❌ Error en call:', err)
           })
+
+          // ✅ Log estado del peerConnection del viewer
+          setTimeout(() => {
+            const pc = (call as any).peerConnection as RTCPeerConnection
+            if (pc) {
+              console.log('🔍 PC viewer state:', pc.connectionState, pc.iceConnectionState)
+              console.log('🔍 PC viewer receivers:', pc.getReceivers().map((r: any) => ({
+                kind: r.track?.kind,
+                enabled: r.track?.enabled,
+              })))
+            }
+          }, 3000)
         })
 
         dataConn.on('error', (err) => {
