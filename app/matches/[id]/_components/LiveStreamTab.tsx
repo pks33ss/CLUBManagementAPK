@@ -158,7 +158,7 @@ export default function LiveStreamTab({ match }: Props) {
 
   const soyHost = isStreaming && isHost.current
   const soyViewer = isStreaming && !isHost.current
-
+  
   // ============================================
   // CARGA INICIAL
   // ============================================
@@ -272,25 +272,21 @@ export default function LiveStreamTab({ match }: Props) {
   // AUTO-RECUPERACIÓN
   // ============================================
 
-// ✅ Auto-recuperación: si el backend dice isLive=true pero YO no estoy conectado
-// Y el host no responde en 15 segundos, limpio mi estado (no mato la emisión)
-useEffect(() => {
-  if (!liveInfo?.isLive) return
-  if (isStreaming) return            // ✅ Si ya estoy conectado, no toco nada
-  if (peerRef.current) return        // ✅ Si PeerJS está activo, no toco nada
+  useEffect(() => {
+    if (!liveInfo?.isLive) return
+    if (isStreaming) return
+    if (peerRef.current) return
 
-  // ⚠️ Esperar 15s (no 3s) para dar tiempo a conectar
-  const timer = setTimeout(async () => {
-    console.warn('⚠️ No he podido conectar al stream → saliendo sin matar la emisión')
-    try {
-      // ✅ SIEMPRE leave (nunca stop). Solo el host puede hacer stop.
-      await api.delete(`/matches/${match.id}/live/leave`)
-    } catch {}
-    fetchLiveInfo()
-  }, 15000)   // ✅ 15 segundos
+    const timer = setTimeout(async () => {
+      console.warn('⚠️ No he podido conectar al stream → saliendo sin matar la emisión')
+      try {
+        await api.delete(`/matches/${match.id}/live/leave`)
+      } catch {}
+      fetchLiveInfo()
+    }, 15000)
 
-  return () => clearTimeout(timer)
-}, [liveInfo?.isLive, isStreaming, match.id, fetchLiveInfo])
+    return () => clearTimeout(timer)
+  }, [liveInfo?.isLive, isStreaming, match.id, fetchLiveInfo])
 
   // ============================================
   // CLEANUP AL CERRAR PESTAÑA
@@ -381,30 +377,36 @@ useEffect(() => {
       setPeer(newPeer)
       isHost.current = true
 
-newPeer.on('connection', (conn) => {
-  console.log('🔗 Viewer conectado (data):', conn.peer)
-  setConnectedViewers((v) => [...v, conn.peer])
+      newPeer.on('open', () => {
+        console.log('✅ Peer host abierto:', hostPeerId)
+      })
 
-  conn.on('open', () => {
-    console.log('🔗 Data connection abierta con viewer:', conn.peer)
-  })
+      newPeer.on('connection', (conn) => {
+        console.log('🔗 Viewer conectado (data):', conn.peer)
+        setConnectedViewers((v) => [...v, conn.peer])
 
-  conn.on('close', () => {
-    console.log('🔗 Viewer desconectado:', conn.peer)
-    setConnectedViewers((v) => v.filter((p) => p !== conn.peer))
-  })
-})
-newPeer.on('call', (call) => {
-  console.log('📞 Viewer llama:', call.peer)   // ← IMPORTANTE
-  call.answer(stream)
-  activeCallsRef.current.set(call.peer, call)
+        conn.on('open', () => {
+          console.log('🔗 Data connection abierta con viewer:', conn.peer)
+        })
 
-  call.on('close', () => {
-    console.log('📞 Call cerrada con viewer:', call.peer)
-    activeCallsRef.current.delete(call.peer)
-    setConnectedViewers((v) => v.filter((p) => p !== call.peer))
-  })
-})
+        conn.on('close', () => {
+          console.log('🔗 Viewer desconectado:', conn.peer)
+          setConnectedViewers((v) => v.filter((p) => p !== conn.peer))
+        })
+      })
+
+      newPeer.on('call', (call) => {
+        console.log('📞 Viewer llama:', call.peer)
+        call.answer(stream)
+        activeCallsRef.current.set(call.peer, call)
+
+        call.on('close', () => {
+          console.log('📞 Call cerrada con viewer:', call.peer)
+          activeCallsRef.current.delete(call.peer)
+          setConnectedViewers((v) => v.filter((p) => p !== call.peer))
+        })
+      })
+
       newPeer.on('error', (err) => console.error('❌ Peer error:', err))
 
       setIsStreaming(true)
@@ -432,120 +434,112 @@ newPeer.on('call', (call) => {
     }
   }
 
-  // ✅ Reset forzado: limpia TODO el estado del stream
-const forceReset = async () => {
-  if (!confirm('⚠️ ¿Forzar el reset de la emisión? Se cerrará el vídeo para todos los espectadores.')) return
+  const forceReset = async () => {
+    if (!confirm('⚠️ ¿Forzar el reset de la emisión? Se cerrará el vídeo para todos los espectadores.')) return
 
-  try {
-    // 1) Destruir PeerJS local
-    if (peerRef.current) {
-      try { peerRef.current.destroy() } catch {}
-      peerRef.current = null
-      setPeer(null)
-    }
-
-    // 2) Cerrar todas las llamadas activas
-    activeCallsRef.current.forEach((c) => {
-      try { c.close() } catch {}
-    })
-    activeCallsRef.current.clear()
-
-    // 3) Parar tracks locales (cámara/mic)
-    if (localStream) {
-      localStream.getTracks().forEach((t) => t.stop())
-    }
-    setLocalStream(null)
-    setRemoteStream(null)
-    setConnectedViewers([])
-    setIsStreaming(false)
-    isHost.current = false
-
-    // 4) Notificar al backend (parar stream forzosamente)
     try {
-      await api.post(`/matches/${match.id}/live/stop`)
-    } catch (err: any) {
-      console.warn('Error parando stream en backend:', err?.response?.data?.message)
-    }
+      if (peerRef.current) {
+        try { peerRef.current.destroy() } catch {}
+        peerRef.current = null
+        setPeer(null)
+      }
+      activeCallsRef.current.forEach((c) => {
+        try { c.close() } catch {}
+      })
+      activeCallsRef.current.clear()
 
-    // 5) Refrescar el estado
-    await fetchLiveInfo()
-    console.log('✅ Reset forzado completado')
-  } catch (err) {
-    console.error('Error en forceReset:', err)
-    alert('Error al forzar el reset')
-    await fetchLiveInfo()
+      if (localStream) {
+        localStream.getTracks().forEach((t) => t.stop())
+      }
+      setLocalStream(null)
+      setRemoteStream(null)
+      setConnectedViewers([])
+      setIsStreaming(false)
+      isHost.current = false
+
+      try {
+        await api.post(`/matches/${match.id}/live/stop`)
+      } catch (err: any) {
+        console.warn('Error parando stream en backend:', err?.response?.data?.message)
+      }
+
+      await fetchLiveInfo()
+      console.log('✅ Reset forzado completado')
+    } catch (err) {
+      console.error('Error en forceReset:', err)
+      alert('Error al forzar el reset')
+      await fetchLiveInfo()
+    }
   }
-}
+
   // ============================================
   // UNIRSE COMO ESPECTADOR / SALIR
   // ============================================
 
-const joinAsViewer = async () => {
-  try {
-    const res = await api.post(`/matches/${match.id}/live/join`)
-    const hostPeerId = res.data.hostPeerId
+  const joinAsViewer = async () => {
+    try {
+      const res = await api.post(`/matches/${match.id}/live/join`)
+      const hostPeerId = res.data.hostPeerId
 
-    const newPeer = new Peer(PEER_CONFIG)
-    peerRef.current = newPeer
-    setPeer(newPeer)
-    isHost.current = false
+      const newPeer = new Peer(PEER_CONFIG)
+      peerRef.current = newPeer
+      setPeer(newPeer)
+      isHost.current = false
 
-    newPeer.on('open', (myId) => {
-      console.log('✅ Viewer peer abierto:', myId)
-      api.post(`/matches/${match.id}/live/peer`, { peerId: myId }).catch(console.error)
+      newPeer.on('open', (myId) => {
+        console.log('✅ Viewer peer abierto:', myId)
+        api.post(`/matches/${match.id}/live/peer`, { peerId: myId }).catch(console.error)
 
-      // ✅ 1) Primero abrimos la conexión de datos y esperamos a que se abra
-      const dataConn = newPeer.connect(hostPeerId, { reliable: true })
+        const dataConn = newPeer.connect(hostPeerId, { reliable: true })
 
-      dataConn.on('open', () => {
-        console.log('🔗 Data connection abierta con host')
+        dataConn.on('open', () => {
+          console.log('🔗 Data connection abierta con host')
 
-        // ✅ 2) SOLO cuando la data connection está abierta, hacemos la CALL
-        const emptyStream = new MediaStream()
-        const call = newPeer.call(hostPeerId, emptyStream)
+          const emptyStream = new MediaStream()
+          const call = newPeer.call(hostPeerId, emptyStream)
 
-        if (!call) {
-          console.error('❌ newPeer.call devolvió null')
-          return
-        }
+          if (!call) {
+            console.error('❌ newPeer.call devolvió null')
+            return
+          }
 
-        console.log('📞 Call creada, esperando stream...')
+          console.log('📞 Call creada, esperando stream...')
 
-        call.on('stream', (remoteStream) => {
-          console.log('📺 Stream recibido!')
-          setRemoteStream(remoteStream)
+          call.on('stream', (remoteStream) => {
+            console.log('📺 Stream recibido!')
+            setRemoteStream(remoteStream)
+          })
+
+          call.on('close', () => {
+            console.log('📞 Call cerrada')
+            setRemoteStream(null)
+          })
+
+          call.on('error', (err) => {
+            console.error('❌ Error en call:', err)
+          })
         })
 
-        call.on('close', () => {
-          console.log('📞 Call cerrada')
-          setRemoteStream(null)
+        dataConn.on('error', (err) => {
+          console.error('❌ Data connection error:', err)
         })
 
-        call.on('error', (err) => {
-          console.error('❌ Error en call:', err)
+        dataConn.on('close', () => {
+          console.log('🔗 Data connection cerrada')
         })
       })
 
-      dataConn.on('error', (err) => {
-        console.error('❌ Data connection error:', err)
+      newPeer.on('error', (err) => {
+        console.error('❌ Peer viewer error:', err)
+        alert('Error de conexión: ' + err.type)
       })
 
-      dataConn.on('close', () => {
-        console.log('🔗 Data connection cerrada')
-      })
-    })
-
-    newPeer.on('error', (err) => {
-      console.error('❌ Peer viewer error:', err)
-      alert('Error de conexión: ' + err.type)
-    })
-
-    setIsStreaming(true)
-    await fetchLiveInfo()
-  } catch (err: any) {
-    alert(err.response?.data?.message || 'Error al unirse a la emisión')
+      setIsStreaming(true)
+      await fetchLiveInfo()
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Error al unirse a la emisión')
+    }
   }
-}
 
   const leaveAsViewer = async () => {
     try {
@@ -623,9 +617,7 @@ const joinAsViewer = async () => {
     await clockAction('set', m * 60 + s)
   }
 
-  // ✅ Input de cuarto
   const handlePeriodInputChange = (value: string) => {
-    // Limitar a 3 caracteres
     const clean = value.slice(0, 3)
     setPeriodInput(clean)
   }
@@ -667,7 +659,7 @@ const joinAsViewer = async () => {
       if (localStream) localStream.getTracks().forEach((t) => t.stop())
     }
   }, [])
-
+  
   // ============================================
   // RENDER
   // ============================================
@@ -800,6 +792,15 @@ const joinAsViewer = async () => {
             <span className="text-sm text-gray-500">👥 {liveInfo.viewers.length + 1}/{liveInfo.maxUsers}</span>
             {liveInfo.hostName && <span className="text-sm text-gray-500">🎥 {liveInfo.hostName}</span>}
           </div>
+          {liveInfo.canManage && (
+            <button
+              onClick={forceReset}
+              className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-2 rounded-lg text-sm transition"
+              title="Forzar reset del stream"
+            >
+              🔄 Reset
+            </button>
+          )}
         </div>
 
         <div className="bg-white rounded-xl shadow-md p-12 text-center">
@@ -827,24 +828,25 @@ const joinAsViewer = async () => {
               <h2 className="text-xl font-semibold text-green-800">✅ Emisión activada</h2>
               <p className="text-sm text-green-700 mt-1">Los usuarios con permiso pueden iniciar el directo</p>
             </div>
-{liveInfo.canManage && (
-  <div className="flex gap-2">
-    <button
-      onClick={handleToggleEnabled}
-      disabled={togglingEnabled}
-      className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm transition disabled:opacity-50"
-    >
-      {togglingEnabled ? 'Desactivando...' : '⏹️ Desactivar emisión'}
-    </button>
-    <button
-      onClick={forceReset}
-      className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-2 rounded-lg text-sm transition"
-      title="Forzar reset del stream"
-    >
-      🔄 Reset
-    </button>
-  </div>
-)}
+            {liveInfo.canManage && (
+              <div className="flex gap-2">
+                <button
+                  onClick={handleToggleEnabled}
+                  disabled={togglingEnabled}
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm transition disabled:opacity-50"
+                >
+                  {togglingEnabled ? 'Desactivando...' : '⏹️ Desactivar emisión'}
+                </button>
+                <button
+                  onClick={forceReset}
+                  className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-2 rounded-lg text-sm transition"
+                  title="Forzar reset del stream"
+                >
+                  🔄 Reset
+                </button>
+              </div>
+            )}
+          </div>
         </div>
 
         {liveInfo.myPermission ? (
@@ -883,34 +885,33 @@ const joinAsViewer = async () => {
           <span className="text-sm text-gray-500">👥 {liveInfo.viewers.length + 1}/{liveInfo.maxUsers}</span>
           {liveInfo.hostName && <span className="text-sm text-gray-500">🎥 {liveInfo.hostName}</span>}
         </div>
-<div className="flex gap-2">
-  {soyHost ? (
-    <button
-      onClick={stopStreaming}
-      className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm transition"
-    >
-      ⏹️ Detener emisión
-    </button>
-  ) : (
-    <button
-      onClick={leaveAsViewer}
-      className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg text-sm transition"
-    >
-      🚪 Salir
-    </button>
-  )}
+        <div className="flex gap-2">
+          {soyHost ? (
+            <button
+              onClick={stopStreaming}
+              className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm transition"
+            >
+              ⏹️ Detener emisión
+            </button>
+          ) : (
+            <button
+              onClick={leaveAsViewer}
+              className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg text-sm transition"
+            >
+              🚪 Salir
+            </button>
+          )}
 
-  {/* ✅ Botón Forzar Reset (solo coaches/admins) */}
-  {liveInfo.canManage && (
-    <button
-      onClick={forceReset}
-      className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-2 rounded-lg text-sm transition"
-      title="Forzar reset del stream (útil si se queda colgado)"
-    >
-      🔄 Reset
-    </button>
-  )}
-</div>
+          {liveInfo.canManage && (
+            <button
+              onClick={forceReset}
+              className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-2 rounded-lg text-sm transition"
+              title="Forzar reset del stream (útil si se queda colgado)"
+            >
+              🔄 Reset
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Vídeo con overlay */}
@@ -924,10 +925,9 @@ const joinAsViewer = async () => {
             className="w-full aspect-video object-cover" />
         )}
 
-        {/* ✅ Overlay del marcador */}
+        {/* Overlay del marcador */}
         {scoreboard && (scoreboard.enabled || scoreboard.clockEnabled) && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-[95%] max-w-3xl">
-            {/* Botón para colapsar (solo emisor) */}
             {soyHost && (
               <button
                 onClick={() => setOverlayVisible(!overlayVisible)}
@@ -939,19 +939,13 @@ const joinAsViewer = async () => {
             )}
 
             <div className="bg-black/75 backdrop-blur-md rounded-2xl px-4 py-3 text-white shadow-2xl border border-white/10">
-              {/* Marcador */}
               {scoreboard.enabled && (
                 <div className="flex items-center justify-between gap-3 mb-2">
-                  {/* Local */}
                   <div className="flex-1 text-center min-w-0">
                     <p className="text-xs text-gray-300 truncate">{scoreboard.homeTeamName || 'LOCAL'}</p>
                     <p className="text-3xl font-bold">{scoreboard.homeScore}</p>
                   </div>
-
-                  {/* Separador */}
                   <span className="text-xl text-gray-500">-</span>
-
-                  {/* Visitante */}
                   <div className="flex-1 text-center min-w-0">
                     <p className="text-xs text-gray-300 truncate">{scoreboard.awayTeamName || 'VISIT'}</p>
                     <p className="text-3xl font-bold">{scoreboard.awayScore}</p>
@@ -959,7 +953,6 @@ const joinAsViewer = async () => {
                 </div>
               )}
 
-              {/* Reloj + Periodo */}
               {scoreboard.clockEnabled && (
                 <div className="flex items-center justify-center gap-3 pt-2 border-t border-white/10">
                   <input
@@ -984,10 +977,8 @@ const joinAsViewer = async () => {
                 </div>
               )}
 
-              {/* ✅ Controles (solo emisor, colapsables) */}
               {soyHost && overlayVisible && (
                 <div className="pt-3 mt-3 border-t border-white/10 space-y-2">
-                  {/* Marcador: botones +1/+2/+3 */}
                   {scoreboard.enabled && (
                     <div className="grid grid-cols-2 gap-2">
                       <div className="flex items-center justify-center gap-1">
@@ -1017,7 +1008,6 @@ const joinAsViewer = async () => {
                     </div>
                   )}
 
-                  {/* Reloj: play/pause, reset, editar, siguiente cuarto */}
                   {scoreboard.clockEnabled && (
                     <div className="flex items-center justify-center gap-2 flex-wrap">
                       {!scoreboard.clockRunning ? (
@@ -1051,7 +1041,6 @@ const joinAsViewer = async () => {
           </div>
         )}
 
-        {/* Controles cámara/mic (solo emisor) */}
         {soyHost && (
           <div className="absolute top-4 right-4 flex gap-2">
             <button onClick={toggleCamera}
@@ -1069,7 +1058,6 @@ const joinAsViewer = async () => {
           </div>
         )}
 
-        {/* Mensaje connecting (viewer) */}
         {soyViewer && !remoteStream && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div className="text-white text-center">
@@ -1080,7 +1068,6 @@ const joinAsViewer = async () => {
         )}
       </div>
 
-      {/* Info viewers (solo host) */}
       {soyHost && (
         <div className="bg-white rounded-xl shadow-md p-4">
           <p className="text-sm text-gray-500">
