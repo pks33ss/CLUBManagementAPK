@@ -1083,121 +1083,163 @@ const nextPeriod = async () => {
             className="w-full aspect-video object-cover" />
         )}
 
-        {/* Overlay del marcador */}
-        {scoreboard && (scoreboard.enabled || scoreboard.clockEnabled) && (
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 w-[95%] max-w-3xl">
-            {soyHost && (
-              <button
-                onClick={() => setOverlayVisible(!overlayVisible)}
-                className="absolute -top-3 right-2 bg-black/80 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs hover:bg-black z-10"
-                title={overlayVisible ? 'Ocultar controles' : 'Mostrar controles'}
+{/* Overlay del marcador */}
+{scoreboard && (scoreboard.enabled || scoreboard.clockEnabled) && (
+  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 inline-flex flex-col max-w-[85%]">
+    {soyHost && (
+      <button
+        onClick={() => setOverlayVisible(!overlayVisible)}
+        className="absolute -top-3 right-2 bg-black/80 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs hover:bg-black z-10"
+        title={overlayVisible ? 'Ocultar controles' : 'Mostrar controles'}
+      >
+        {overlayVisible ? '👁️' : '👁️‍🗨️'}
+      </button>
+    )}
+
+    <div className="rounded-xl overflow-hidden shadow-2xl border border-white/20">
+      {/* ===== FILA PRINCIPAL: [A] NOMBRE_A | TIEMPO CUARTO | NOMBRE_B [B] ===== */}
+      <div className="flex items-stretch">
+        
+        {/* --- BLOQUE IZQUIERDO: Marcador A + Nombre A --- */}
+        {scoreboard.enabled && (
+          <div className="flex items-stretch shrink-0">
+            {/* Marcador A: fondo blanco, letras negras */}
+            <div className="bg-white text-black px-3 py-1.5 flex items-center justify-center min-w-[50px]">
+              <span className="text-2xl font-bold leading-none">
+                {scoreboard.homeScore}
+              </span>
+            </div>
+            {/* Nombre A: fondo negro, letras blancas negrita, justificado a la derecha */}
+<div className="bg-black text-white px-3 py-1.5 flex items-center justify-end flex-1 min-w-[80px] max-w-[200px]">
+  <span className="text-sm font-bold uppercase truncate text-right">
+    {scoreboard.homeTeamName || 'LOCAL'}
+  </span>
+</div>
+          </div>
+        )}
+
+        {/* --- BLOQUE CENTRAL: Tiempo + Cuarto --- */}
+        {scoreboard.clockEnabled && (
+          <div className="flex items-stretch shrink-0">
+            {/* Tiempo: fondo blanco, letras negras */}
+            <div className="bg-white text-black px-3 py-1.5 flex items-center justify-center min-w-[80px]">
+              <span
+                className={`text-2xl font-mono font-bold leading-none ${
+                  scoreboard.isOvertime ? 'text-orange-600' : ''
+                }`}
               >
-                {overlayVisible ? '👁️' : '👁️‍🗨️'}
-              </button>
+                {formatClock(displayClock)}
+              </span>
+            </div>
+            {/* Cuarto: fondo blanco, letras negras, editable por host */}
+            <input
+              ref={periodInputRef}
+              type="text"
+              value={periodInput}
+              onChange={(e) => handlePeriodInputChange(e.target.value)}
+              onBlur={handlePeriodInputBlur}
+              maxLength={3}
+              disabled={!soyHost}
+              readOnly={!soyHost}
+              className={`bg-white text-black px-2 py-1.5 text-center text-sm font-bold uppercase w-12 border-l border-gray-300 ${
+                soyHost
+                  ? 'focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-text'
+                  : 'cursor-default'
+              }`}
+            />
+            {scoreboard.isOvertime && (
+              <div className="bg-orange-500 text-white px-2 py-1.5 flex items-center text-[10px] font-bold uppercase">
+                PRÓRROGA
+              </div>
             )}
+          </div>
+        )}
 
-            <div className="bg-black/75 backdrop-blur-md rounded-2xl px-4 py-3 text-white shadow-2xl border border-white/10">
-              {scoreboard.enabled && (
-                <div className="flex items-center justify-between gap-3 mb-2">
-                  <div className="flex-1 text-center min-w-0">
-                    <p className="text-xs text-gray-300 truncate">{scoreboard.homeTeamName || 'LOCAL'}</p>
-                    <p className="text-3xl font-bold">{scoreboard.homeScore}</p>
-                  </div>
-                  <span className="text-xl text-gray-500">-</span>
-                  <div className="flex-1 text-center min-w-0">
-                    <p className="text-xs text-gray-300 truncate">{scoreboard.awayTeamName || 'VISIT'}</p>
-                    <p className="text-3xl font-bold">{scoreboard.awayScore}</p>
-                  </div>
-                </div>
-              )}
-
-              {scoreboard.clockEnabled && (
-                <div className="flex items-center justify-center gap-3 pt-2 border-t border-white/10">
-                  <input
-                    ref={periodInputRef}
-                    type="text"
-                    value={periodInput}
-                    onChange={(e) => handlePeriodInputChange(e.target.value)}
-                    onBlur={handlePeriodInputBlur}
-                    maxLength={3}
-                    disabled={!soyHost}
-                    readOnly={!soyHost}
-                    className={`w-14 text-center bg-white/10 rounded px-1 py-0.5 text-sm font-bold uppercase ${
-                      soyHost ? 'border border-white/20 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-text' : 'border-0'
-                    }`}
-                  />
-                  <span className={`text-2xl font-mono font-bold ${scoreboard.isOvertime ? 'text-orange-400' : ''}`}>
-                    {formatClock(displayClock)}
-                  </span>
-                  {scoreboard.isOvertime && (
-                    <span className="bg-orange-500 text-white text-[10px] px-1.5 py-0.5 rounded">PRÓRROGA</span>
-                  )}
-                </div>
-              )}
-
-              {soyHost && overlayVisible && (
-                <div className="pt-3 mt-3 border-t border-white/10 space-y-2">
-                  {scoreboard.enabled && (
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="flex items-center justify-center gap-1">
-                        <button onClick={() => changeScore('home', -1)}
-                          className="w-7 h-7 rounded bg-red-500/80 hover:bg-red-500 text-white text-xs font-bold">−</button>
-                        <button onClick={() => changeScore('home', 1)}
-                          className="w-7 h-7 rounded bg-green-500/80 hover:bg-green-500 text-white text-xs font-bold">+1</button>
-                        <button onClick={() => changeScore('home', 2)}
-                          className="w-7 h-7 rounded bg-blue-500/80 hover:bg-blue-500 text-white text-xs font-bold">+2</button>
-                        <button onClick={() => changeScore('home', 3)}
-                          className="w-7 h-7 rounded bg-purple-500/80 hover:bg-purple-500 text-white text-xs font-bold">+3</button>
-                        <button onClick={() => setScoreManually('home')}
-                          className="w-7 h-7 rounded bg-white/20 hover:bg-white/30 text-white text-xs" title="Ajustar">✏️</button>
-                      </div>
-                      <div className="flex items-center justify-center gap-1">
-                        <button onClick={() => changeScore('away', -1)}
-                          className="w-7 h-7 rounded bg-red-500/80 hover:bg-red-500 text-white text-xs font-bold">−</button>
-                        <button onClick={() => changeScore('away', 1)}
-                          className="w-7 h-7 rounded bg-green-500/80 hover:bg-green-500 text-white text-xs font-bold">+1</button>
-                        <button onClick={() => changeScore('away', 2)}
-                          className="w-7 h-7 rounded bg-blue-500/80 hover:bg-blue-500 text-white text-xs font-bold">+2</button>
-                        <button onClick={() => changeScore('away', 3)}
-                          className="w-7 h-7 rounded bg-purple-500/80 hover:bg-purple-500 text-white text-xs font-bold">+3</button>
-                        <button onClick={() => setScoreManually('away')}
-                          className="w-7 h-7 rounded bg-white/20 hover:bg-white/30 text-white text-xs" title="Ajustar">✏️</button>
-                      </div>
-                    </div>
-                  )}
-
-                  {scoreboard.clockEnabled && (
-                    <div className="flex items-center justify-center gap-2 flex-wrap">
-                      {!scoreboard.clockRunning ? (
-                        <button onClick={() => clockAction('play')}
-                          className="px-3 py-1.5 rounded bg-green-500/80 hover:bg-green-500 text-white text-xs font-bold">
-                          ▶️ Iniciar
-                        </button>
-                      ) : (
-                        <button onClick={() => clockAction('pause')}
-                          className="px-3 py-1.5 rounded bg-orange-500/80 hover:bg-orange-500 text-white text-xs font-bold">
-                          ⏸️ Pausar
-                        </button>
-                      )}
-                      <button onClick={() => clockAction('reset')}
-                        className="px-3 py-1.5 rounded bg-white/20 hover:bg-white/30 text-white text-xs font-bold">
-                        🔄 Reset
-                      </button>
-                      <button onClick={setClockManually}
-                        className="px-3 py-1.5 rounded bg-blue-500/80 hover:bg-blue-500 text-white text-xs font-bold">
-                        ✏️ Editar
-                      </button>
-                      <button onClick={nextPeriod}
-                        className="px-3 py-1.5 rounded bg-indigo-500/80 hover:bg-indigo-500 text-white text-xs font-bold">
-                        ➡️ Siguiente
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
+        {/* --- BLOQUE DERECHO: Nombre B + Marcador B --- */}
+        {scoreboard.enabled && (
+          <div className="flex items-stretch shrink-0">
+            {/* Nombre B: fondo negro, letras blancas negrita, justificado a la izquierda */}
+<div className="bg-black text-white px-3 py-1.5 flex items-center justify-start flex-1 min-w-[80px] max-w-[200px]">
+  <span className="text-sm font-bold uppercase truncate text-left">
+    {scoreboard.awayTeamName || 'VISIT'}
+  </span>
+</div>
+            {/* Marcador B: fondo blanco, letras negras */}
+            <div className="bg-white text-black px-3 py-1.5 flex items-center justify-center min-w-[50px]">
+              <span className="text-2xl font-bold leading-none">
+                {scoreboard.awayScore}
+              </span>
             </div>
           </div>
         )}
+      </div>
+
+      {/* ===== CONTROLES DEL HOST (debajo de la barra) ===== */}
+      {soyHost && overlayVisible && (
+        <div className="bg-black/90 backdrop-blur-md px-3 py-2 border-t border-white/10 space-y-1.5">
+          {/* Botones del marcador */}
+          {scoreboard.enabled && (
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex items-center justify-center gap-1">
+                <button onClick={() => changeScore('home', -1)}
+                  className="w-7 h-7 rounded bg-red-500/80 hover:bg-red-500 text-white text-xs font-bold">−</button>
+                <button onClick={() => changeScore('home', 1)}
+                  className="w-7 h-7 rounded bg-green-500/80 hover:bg-green-500 text-white text-xs font-bold">+1</button>
+                <button onClick={() => changeScore('home', 2)}
+                  className="w-7 h-7 rounded bg-blue-500/80 hover:bg-blue-500 text-white text-xs font-bold">+2</button>
+                <button onClick={() => changeScore('home', 3)}
+                  className="w-7 h-7 rounded bg-purple-500/80 hover:bg-purple-500 text-white text-xs font-bold">+3</button>
+                <button onClick={() => setScoreManually('home')}
+                  className="w-7 h-7 rounded bg-white/20 hover:bg-white/30 text-white text-xs">✏️</button>
+              </div>
+              <div className="flex items-center justify-center gap-1">
+                <button onClick={() => changeScore('away', -1)}
+                  className="w-7 h-7 rounded bg-red-500/80 hover:bg-red-500 text-white text-xs font-bold">−</button>
+                <button onClick={() => changeScore('away', 1)}
+                  className="w-7 h-7 rounded bg-green-500/80 hover:bg-green-500 text-white text-xs font-bold">+1</button>
+                <button onClick={() => changeScore('away', 2)}
+                  className="w-7 h-7 rounded bg-blue-500/80 hover:bg-blue-500 text-white text-xs font-bold">+2</button>
+                <button onClick={() => changeScore('away', 3)}
+                  className="w-7 h-7 rounded bg-purple-500/80 hover:bg-purple-500 text-white text-xs font-bold">+3</button>
+                <button onClick={() => setScoreManually('away')}
+                  className="w-7 h-7 rounded bg-white/20 hover:bg-white/30 text-white text-xs">✏️</button>
+              </div>
+            </div>
+          )}
+
+          {/* Botones del reloj */}
+          {scoreboard.clockEnabled && (
+            <div className="flex items-center justify-center gap-2 flex-wrap">
+              {!scoreboard.clockRunning ? (
+                <button onClick={() => clockAction('play')}
+                  className="px-3 py-1.5 rounded bg-green-500/80 hover:bg-green-500 text-white text-xs font-bold">
+                  ▶️ Iniciar
+                </button>
+              ) : (
+                <button onClick={() => clockAction('pause')}
+                  className="px-3 py-1.5 rounded bg-orange-500/80 hover:bg-orange-500 text-white text-xs font-bold">
+                  ⏸️ Pausar
+                </button>
+              )}
+              <button onClick={() => clockAction('reset')}
+                className="px-3 py-1.5 rounded bg-white/20 hover:bg-white/30 text-white text-xs font-bold">
+                🔄 Reset
+              </button>
+              <button onClick={setClockManually}
+                className="px-3 py-1.5 rounded bg-blue-500/80 hover:bg-blue-500 text-white text-xs font-bold">
+                ✏️ Editar
+              </button>
+              <button onClick={nextPeriod}
+                className="px-3 py-1.5 rounded bg-indigo-500/80 hover:bg-indigo-500 text-white text-xs font-bold">
+                ➡️ Siguiente
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  </div>
+)}
 
         {soyHost && (
           <div className="absolute top-4 right-4 flex gap-2">
