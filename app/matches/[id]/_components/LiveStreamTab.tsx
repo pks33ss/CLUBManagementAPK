@@ -272,24 +272,25 @@ export default function LiveStreamTab({ match }: Props) {
   // AUTO-RECUPERACIÓN
   // ============================================
 
-  useEffect(() => {
-    if (!liveInfo?.isLive || isStreaming) return
-    if (peerRef.current) return
+// ✅ Auto-recuperación: si el backend dice isLive=true pero YO no estoy conectado
+// Y el host no responde en 15 segundos, limpio mi estado (no mato la emisión)
+useEffect(() => {
+  if (!liveInfo?.isLive) return
+  if (isStreaming) return            // ✅ Si ya estoy conectado, no toco nada
+  if (peerRef.current) return        // ✅ Si PeerJS está activo, no toco nada
 
-    const timer = setTimeout(async () => {
-      console.warn('⚠️ Stream huérfano detectado → limpiando')
-      try {
-        if (liveInfo.canManage) {
-          try { await api.post(`/matches/${match.id}/live/stop`) }
-          catch { await api.delete(`/matches/${match.id}/live/leave`) }
-        } else {
-          await api.delete(`/matches/${match.id}/live/leave`)
-        }
-      } catch {}
-      fetchLiveInfo()
-    }, 3000)
-    return () => clearTimeout(timer)
-  }, [liveInfo?.isLive, liveInfo?.canManage, isStreaming, match.id, fetchLiveInfo])
+  // ⚠️ Esperar 15s (no 3s) para dar tiempo a conectar
+  const timer = setTimeout(async () => {
+    console.warn('⚠️ No he podido conectar al stream → saliendo sin matar la emisión')
+    try {
+      // ✅ SIEMPRE leave (nunca stop). Solo el host puede hacer stop.
+      await api.delete(`/matches/${match.id}/live/leave`)
+    } catch {}
+    fetchLiveInfo()
+  }, 15000)   // ✅ 15 segundos
+
+  return () => clearTimeout(timer)
+}, [liveInfo?.isLive, isStreaming, match.id, fetchLiveInfo])
 
   // ============================================
   // CLEANUP AL CERRAR PESTAÑA
@@ -440,7 +441,12 @@ export default function LiveStreamTab({ match }: Props) {
         const emptyStream = new MediaStream()
         const call = newPeer.call(hostPeerId, emptyStream)
         if (!call) return
-        call.on('stream', (rs) => { console.log('📺 Stream recibido'); setRemoteStream(rs) })
+        call.on('stream', (rs) => { 
+            console.log('📺 Stream recibido')
+            setRemoteStream(rs)
+             // El isStreaming=true ya bloquea el auto-cleanup, pero forzamos un re-render
+            setIsStreaming(true)
+        })
         call.on('close', () => setRemoteStream(null))
       })
       newPeer.on('error', (err) => {
