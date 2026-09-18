@@ -106,10 +106,10 @@ const periodLabel = (period: number) => {
 // ============================================
 
 export default function LiveStreamTab({ match }: Props) {
+  // ---------- ESTADOS ----------
   const [loading, setLoading] = useState(true)
   const [liveInfo, setLiveInfo] = useState<LiveInfo | null>(null)
   const [error, setError] = useState<string | null>(null)
-
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   // Setup (coach)
@@ -140,13 +140,17 @@ export default function LiveStreamTab({ match }: Props) {
   const [scoreboard, setScoreboard] = useState<ScoreboardState | null>(null)
   const [displayClock, setDisplayClock] = useState(0)
 
-  // Refs
+  // ---------- REFS ----------
   const localVideoRef = useRef<HTMLVideoElement>(null)
   const remoteVideoRef = useRef<HTMLVideoElement>(null)
   const peerRef = useRef<Peer | null>(null)
   const activeCallsRef = useRef<Map<string, MediaConnection>>(new Map())
   const clockIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const isHost = useRef(false)
+
+  // ✅ Calculamos soyHost/soyViewer UNA VEZ al principio (antes de los useEffect)
+  const soyHost = isStreaming && isHost.current
+  const soyViewer = isStreaming && !isHost.current
 
   // ============================================
   // CARGA INICIAL
@@ -190,6 +194,30 @@ export default function LiveStreamTab({ match }: Props) {
   useEffect(() => {
     fetchLiveInfo()
   }, [fetchLiveInfo])
+
+  // ============================================
+  // ✅ ASIGNAR STREAMS A LOS <video>
+  // ============================================
+
+  useEffect(() => {
+    if (localStream && localVideoRef.current) {
+      console.log('🎥 Asignando stream local al <video>')
+      localVideoRef.current.srcObject = localStream
+      localVideoRef.current.play().catch((err) => {
+        console.warn('Autoplay local bloqueado:', err)
+      })
+    }
+  }, [localStream, soyHost])
+
+  useEffect(() => {
+    if (remoteStream && remoteVideoRef.current) {
+      console.log('📺 Asignando stream remoto al <video>')
+      remoteVideoRef.current.srcObject = remoteStream
+      remoteVideoRef.current.play().catch((err) => {
+        console.warn('Autoplay remoto bloqueado:', err)
+      })
+    }
+  }, [remoteStream, soyViewer])
 
   // ============================================
   // CANDIDATOS Y PERMISOS
@@ -253,63 +281,56 @@ export default function LiveStreamTab({ match }: Props) {
   // AUTO-RECUPERACIÓN (estado pegado)
   // ============================================
 
-useEffect(() => {
-  if (!liveInfo?.isLive || isStreaming) return
-  if (peerRef.current) return
+  useEffect(() => {
+    if (!liveInfo?.isLive || isStreaming) return
+    if (peerRef.current) return
 
-  // ✅ Reducir a 3s y verificar si realmente hay host activo
-  const timer = setTimeout(async () => {
-    console.warn('⚠️ Stream huérfano detectado → limpiando')
-    try {
-      // Si yo soy el host en la BD pero no estoy emitiendo → forzar stop
-      const userStr = localStorage.getItem('user')
-      const userId = userStr ? JSON.parse(userStr).id : null
-
-      if (liveInfo.hostPeerId && liveInfo.canManage) {
-        // Si soy coach, paro el stream
-        try {
-          await api.post(`/matches/${match.id}/live/stop`)
-          console.log('✅ Stream huérfano detenido')
-        } catch (e) {
-          // Si no soy el host, salgo como viewer
+    const timer = setTimeout(async () => {
+      console.warn('⚠️ Stream huérfano detectado → limpiando')
+      try {
+        if (liveInfo.canManage) {
+          try {
+            await api.post(`/matches/${match.id}/live/stop`)
+            console.log('✅ Stream huérfano detenido')
+          } catch {
+            await api.delete(`/matches/${match.id}/live/leave`)
+          }
+        } else {
           await api.delete(`/matches/${match.id}/live/leave`)
         }
-      } else {
-        await api.delete(`/matches/${match.id}/live/leave`)
-      }
-    } catch (err) {
-      console.error('Error limpiando stream:', err)
-    }
-    fetchLiveInfo()
-  }, 3000)
-
-  return () => clearTimeout(timer)
-}, [liveInfo?.isLive, liveInfo?.hostPeerId, liveInfo?.canManage, isStreaming, match.id, fetchLiveInfo])
-
-// ✅ Cleanup al cerrar la pestaña del navegador
-useEffect(() => {
-  const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-    if (isStreaming && isHost.current) {
-      // Intentar avisar al backend con sendBeacon (más fiable que fetch al cerrar)
-      const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-      const token = localStorage.getItem('token')
-      const url = `${API_URL}/matches/${match.id}/live/stop`
-
-      // navigator.sendBeacon no permite headers, así que usamos un fetch sincrónico
-      try {
-        const xhr = new XMLHttpRequest()
-        xhr.open('POST', url, false)  // false = sincrónico
-        xhr.setRequestHeader('Authorization', `Bearer ${token}`)
-        xhr.send()
       } catch (err) {
-        console.error('Error cleanup on unload:', err)
+        console.error('Error limpiando stream:', err)
+      }
+      fetchLiveInfo()
+    }, 3000)
+
+    return () => clearTimeout(timer)
+  }, [liveInfo?.isLive, liveInfo?.canManage, isStreaming, match.id, fetchLiveInfo])
+
+  // ============================================
+  // CLEANUP AL CERRAR PESTAÑA
+  // ============================================
+
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (isStreaming && isHost.current) {
+        const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+        const token = localStorage.getItem('token')
+        const url = `${API_URL}/matches/${match.id}/live/stop`
+        try {
+          const xhr = new XMLHttpRequest()
+          xhr.open('POST', url, false)
+          xhr.setRequestHeader('Authorization', `Bearer ${token}`)
+          xhr.send()
+        } catch (err) {
+          console.error('Error cleanup on unload:', err)
+        }
       }
     }
-  }
 
-  window.addEventListener('beforeunload', handleBeforeUnload)
-  return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-}, [isStreaming, match.id])
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [isStreaming, match.id])
 
   // ============================================
   // ACCIONES DEL COACH
@@ -319,7 +340,6 @@ useEffect(() => {
     if (!liveInfo) return
     setTogglingEnabled(true)
     try {
-      // 1) Guardar config del scoreboard primero
       await api.put(`/matches/${match.id}/live/scoreboard/config`, {
         scoreboardEnabled: setupForm.scoreboardEnabled,
         clockEnabled: setupForm.clockEnabled,
@@ -329,12 +349,10 @@ useEffect(() => {
         overtimeDuration: setupForm.overtimeDuration,
       })
 
-      // 2) Activar/desactivar
       await api.post(`/matches/${match.id}/live/enable`, {
         enabled: !liveInfo.streamingEnabled,
       })
 
-      // 3) Refrescar
       await fetchLiveInfo()
     } catch (err: any) {
       console.error('Error en toggle:', err)
@@ -366,7 +384,7 @@ useEffect(() => {
   }
 
   // ============================================
-  // INICIAR EMISIÓN (host)
+  // INICIAR EMISIÓN
   // ============================================
 
   const startStreaming = async () => {
@@ -378,10 +396,9 @@ useEffect(() => {
         video: { width: 854, height: 480 },
         audio: true,
       })
+
+      // ✅ NOTA: NO asignamos aquí el srcObject. Lo hace el useEffect [localStream]
       setLocalStream(stream)
-      if (localVideoRef.current) {
-        localVideoRef.current.srcObject = stream
-      }
 
       const newPeer = new Peer(hostPeerId, PEER_CONFIG)
       peerRef.current = newPeer
@@ -474,17 +491,14 @@ useEffect(() => {
 
         newPeer.connect(hostPeerId)
 
-        // Crear llamada vacía para recibir el stream
         const emptyStream = new MediaStream()
         const call = newPeer.call(hostPeerId, emptyStream)
         if (!call) return
 
         call.on('stream', (remoteStream) => {
           console.log('📺 Stream recibido')
+          // ✅ NO asignamos aquí. Lo hace el useEffect [remoteStream]
           setRemoteStream(remoteStream)
-          if (remoteVideoRef.current) {
-            remoteVideoRef.current.srcObject = remoteStream
-          }
         })
 
         call.on('close', () => {
@@ -505,12 +519,11 @@ useEffect(() => {
   }
 
   // ============================================
-  // SALIR (viewer o estado pegado)
+  // SALIR
   // ============================================
 
   const leaveAsViewer = async () => {
     try {
-      // Cerrar peer
       if (peerRef.current) {
         peerRef.current.destroy()
         peerRef.current = null
@@ -518,7 +531,6 @@ useEffect(() => {
       activeCallsRef.current.forEach((c) => c.close())
       activeCallsRef.current.clear()
 
-      // Limpiar vídeos
       if (localStream) {
         localStream.getTracks().forEach((t) => t.stop())
       }
@@ -527,7 +539,6 @@ useEffect(() => {
       setIsStreaming(false)
       setConnectedViewers([])
 
-      // Notificar al backend
       try {
         await api.delete(`/matches/${match.id}/live/leave`)
       } catch {}
@@ -661,9 +672,6 @@ useEffect(() => {
       </div>
     )
   }
-
-  const soyHost = isStreaming && isHost.current
-  const soyViewer = isStreaming && !isHost.current
 
   // ==== 1. Emisión DESACTIVADA ====
   if (!liveInfo.streamingEnabled) {
@@ -832,7 +840,7 @@ useEffect(() => {
     )
   }
 
-  // ==== 2. Emisión EN VIVO pero yo NO estoy conectado ====
+  // ==== 2. Emisión EN VIVO pero yo NO conectado ====
   if (liveInfo.isLive && !isStreaming) {
     return (
       <div className="space-y-4">
@@ -991,43 +999,26 @@ useEffect(() => {
           )}
         </div>
         {soyHost ? (
-  <button
-    onClick={stopStreaming}
-    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm transition"
-  >
-    ⏹️ Detener emisión
-  </button>
-) : (
-  <button
-    onClick={async () => {
-      // ✅ Si el backend dice que hay stream activo pero no soy el host
-      // y el host no responde → forzar limpieza
-      try {
-        if (liveInfo.isLive && !remoteStream) {
-          // Estoy pegado: pedir al backend que pare si soy coach, o al menos salir
-          if (liveInfo.canManage) {
-            await api.post(`/matches/${match.id}/live/stop`)
-          } else {
-            await api.delete(`/matches/${match.id}/live/leave`)
-          }
-        } else {
-          await leaveAsViewer()
-        }
-      } catch {
-        await leaveAsViewer()
-      }
-      await fetchLiveInfo()
-    }}
-    className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg text-sm transition"
-  >
-    🚪 Salir
-  </button>
-)}
+          <button
+            onClick={stopStreaming}
+            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm transition"
+          >
+            ⏹️ Detener emisión
+          </button>
+        ) : (
+          <button
+            onClick={leaveAsViewer}
+            className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg text-sm transition"
+          >
+            🚪 Salir
+          </button>
+        )}
       </div>
 
       <div className="relative bg-black rounded-xl overflow-hidden shadow-md">
         {soyHost && (
           <video
+            key={`local-${isStreaming}`}
             ref={localVideoRef}
             autoPlay
             muted
@@ -1037,6 +1028,7 @@ useEffect(() => {
         )}
         {soyViewer && (
           <video
+            key={`remote-${isStreaming}`}
             ref={remoteVideoRef}
             autoPlay
             playsInline
@@ -1121,7 +1113,6 @@ useEffect(() => {
         )}
       </div>
 
-      {/* Panel de control del emisor */}
       {soyHost && scoreboard && (
         <div className="bg-white rounded-xl shadow-md p-6 space-y-4">
           <h3 className="font-semibold text-gray-800">🎛️ Controles del partido</h3>
