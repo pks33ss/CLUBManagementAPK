@@ -432,6 +432,50 @@ newPeer.on('call', (call) => {
     }
   }
 
+  // ✅ Reset forzado: limpia TODO el estado del stream
+const forceReset = async () => {
+  if (!confirm('⚠️ ¿Forzar el reset de la emisión? Se cerrará el vídeo para todos los espectadores.')) return
+
+  try {
+    // 1) Destruir PeerJS local
+    if (peerRef.current) {
+      try { peerRef.current.destroy() } catch {}
+      peerRef.current = null
+      setPeer(null)
+    }
+
+    // 2) Cerrar todas las llamadas activas
+    activeCallsRef.current.forEach((c) => {
+      try { c.close() } catch {}
+    })
+    activeCallsRef.current.clear()
+
+    // 3) Parar tracks locales (cámara/mic)
+    if (localStream) {
+      localStream.getTracks().forEach((t) => t.stop())
+    }
+    setLocalStream(null)
+    setRemoteStream(null)
+    setConnectedViewers([])
+    setIsStreaming(false)
+    isHost.current = false
+
+    // 4) Notificar al backend (parar stream forzosamente)
+    try {
+      await api.post(`/matches/${match.id}/live/stop`)
+    } catch (err: any) {
+      console.warn('Error parando stream en backend:', err?.response?.data?.message)
+    }
+
+    // 5) Refrescar el estado
+    await fetchLiveInfo()
+    console.log('✅ Reset forzado completado')
+  } catch (err) {
+    console.error('Error en forceReset:', err)
+    alert('Error al forzar el reset')
+    await fetchLiveInfo()
+  }
+}
   // ============================================
   // UNIRSE COMO ESPECTADOR / SALIR
   // ============================================
@@ -783,13 +827,24 @@ const joinAsViewer = async () => {
               <h2 className="text-xl font-semibold text-green-800">✅ Emisión activada</h2>
               <p className="text-sm text-green-700 mt-1">Los usuarios con permiso pueden iniciar el directo</p>
             </div>
-            {liveInfo.canManage && (
-              <button onClick={handleToggleEnabled} disabled={togglingEnabled}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm transition disabled:opacity-50">
-                {togglingEnabled ? 'Desactivando...' : '⏹️ Desactivar emisión'}
-              </button>
-            )}
-          </div>
+{liveInfo.canManage && (
+  <div className="flex gap-2">
+    <button
+      onClick={handleToggleEnabled}
+      disabled={togglingEnabled}
+      className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm transition disabled:opacity-50"
+    >
+      {togglingEnabled ? 'Desactivando...' : '⏹️ Desactivar emisión'}
+    </button>
+    <button
+      onClick={forceReset}
+      className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-2 rounded-lg text-sm transition"
+      title="Forzar reset del stream"
+    >
+      🔄 Reset
+    </button>
+  </div>
+)}
         </div>
 
         {liveInfo.myPermission ? (
@@ -828,17 +883,34 @@ const joinAsViewer = async () => {
           <span className="text-sm text-gray-500">👥 {liveInfo.viewers.length + 1}/{liveInfo.maxUsers}</span>
           {liveInfo.hostName && <span className="text-sm text-gray-500">🎥 {liveInfo.hostName}</span>}
         </div>
-        {soyHost ? (
-          <button onClick={stopStreaming}
-            className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm transition">
-            ⏹️ Detener emisión
-          </button>
-        ) : (
-          <button onClick={leaveAsViewer}
-            className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg text-sm transition">
-            🚪 Salir
-          </button>
-        )}
+<div className="flex gap-2">
+  {soyHost ? (
+    <button
+      onClick={stopStreaming}
+      className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm transition"
+    >
+      ⏹️ Detener emisión
+    </button>
+  ) : (
+    <button
+      onClick={leaveAsViewer}
+      className="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg text-sm transition"
+    >
+      🚪 Salir
+    </button>
+  )}
+
+  {/* ✅ Botón Forzar Reset (solo coaches/admins) */}
+  {liveInfo.canManage && (
+    <button
+      onClick={forceReset}
+      className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 px-3 py-2 rounded-lg text-sm transition"
+      title="Forzar reset del stream (útil si se queda colgado)"
+    >
+      🔄 Reset
+    </button>
+  )}
+</div>
       </div>
 
       {/* Vídeo con overlay */}
