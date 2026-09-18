@@ -146,6 +146,7 @@ export default function LiveStreamTab({ match }: Props) {
   const remoteVideoRef = useRef<HTMLVideoElement>(null)
   const peerRef = useRef<Peer | null>(null)
   const activeCallsRef = useRef<Map<string, MediaConnection>>(new Map())
+  const dataChannelsRef = useRef<Map<string, any>>(new Map()) // ✅ Map de peerId → DataConnection
   const clockIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const isHost = useRef(false)
 
@@ -303,6 +304,28 @@ export default function LiveStreamTab({ match }: Props) {
   }, [isStreaming, match.id])
 
   // ============================================
+// ✅ POLLING de respaldo (solo viewer, cada 5s)
+// ============================================
+
+useEffect(() => {
+  if (!soyViewer) return
+  if (!liveInfo?.isLive) return
+
+  const interval = setInterval(async () => {
+    try {
+      const res = await api.get(`/matches/${match.id}/live`)
+      if (res.data.scoreboard) {
+        setScoreboard(res.data.scoreboard)
+      }
+    } catch (err) {
+      console.warn('Polling error:', err)
+    }
+  }, 5000) // cada 5 segundos
+
+  return () => clearInterval(interval)
+}, [soyViewer, liveInfo?.isLive, match.id])
+
+  // ============================================
   // ACCIONES COACH
   // ============================================
 
@@ -374,19 +397,35 @@ export default function LiveStreamTab({ match }: Props) {
         console.log('✅ Peer host abierto:', hostPeerId)
       })
 
-      newPeer.on('connection', (conn) => {
-        console.log('🔗 Viewer conectado (data):', conn.peer)
-        setConnectedViewers((v) => [...v, conn.peer])
+newPeer.on('connection', (conn) => {
+  console.log('🔗 Viewer conectado (data):', conn.peer)
+  setConnectedViewers((v) => [...v, conn.peer])
 
-        conn.on('open', () => {
-          console.log('🔗 Data connection abierta con viewer:', conn.peer)
-        })
+  // ✅ Guardar referencia al data channel
+  dataChannelsRef.current.set(conn.peer, conn)
 
-        conn.on('close', () => {
-          console.log('🔗 Viewer desconectado:', conn.peer)
-          setConnectedViewers((v) => v.filter((p) => p !== conn.peer))
+  conn.on('open', () => {
+    console.log('🔗 Data connection abierta con viewer:', conn.peer)
+
+    // ✅ Enviar el estado actual del scoreboard al nuevo viewer
+    if (scoreboard) {
+      try {
+        conn.send({
+          type: 'scoreboard-sync',
+          scoreboard,
         })
-      })
+      } catch (err) {
+        console.warn('Error enviando sync inicial:', err)
+      }
+    }
+  })
+
+  conn.on('close', () => {
+    console.log('🔗 Viewer desconectado:', conn.peer)
+    setConnectedViewers((v) => v.filter((p) => p !== conn.peer))
+    dataChannelsRef.current.delete(conn.peer)
+  })
+})
 
       // ✅ on('call') reforzado
       newPeer.on('call', (call) => {
@@ -555,6 +594,17 @@ export default function LiveStreamTab({ match }: Props) {
         dataConn.on('open', () => {
           console.log('🔗 Data connection abierta con host')
 
+                // ✅ NUEVO: Escuchar mensajes del host (scoreboard en tiempo real)
+    dataConn.on('data', (data: any) => {
+      console.log('📨 Mensaje recibido del host:', data)
+      if (data?.type === 'scoreboard-update' || data?.type === 'scoreboard-sync') {
+        if (data.scoreboard) {
+          setScoreboard(data.scoreboard)
+        }
+      }
+    })
+
+
 // ✅ Stream dummy con canvas para que la negociación SDP incluya los m-line
 const canvas = document.createElement('canvas')
 canvas.width = 160
@@ -661,35 +711,57 @@ const call = newPeer.call(hostPeerId, dummyStream)
   // CONTROLES SCOREBOARD
   // ============================================
 
-  const changeScore = async (team: 'home' | 'away', delta: number) => {
-    if (!scoreboard) return
-    const newHome = team === 'home' ? scoreboard.homeScore + delta : scoreboard.homeScore
-    const newAway = team === 'away' ? scoreboard.awayScore + delta : scoreboard.awayScore
-    setScoreboard({ ...scoreboard, homeScore: newHome, awayScore: newAway })
-    try {
-      await api.put(`/matches/${match.id}/live/scoreboard/score`, { homeScore: newHome, awayScore: newAway })
-    } catch (err) { console.error('Error score:', err) }
-  }
+// ✅ Emitir cambio de scoreboard por el data channel a todos los viewers
+const broadcastScoreboard = (newScoreboard: ScoreboardState) => {
+  dataChannelsRef.current.forEach((conn, peerId) => {
+    if (conn.open) {
+      try {
+        conn.send({
+          type: 'scoreboard-update',
+          scoreboard: newScoreboard,
+        })
+      } catch (err) {
+        console.warn(`Error enviando a ${peerId}:`, err)
+      }
+    }
+  })
+}
 
-  const setScoreManually = async (team: 'home' | 'away') => {
-    if (!scoreboard) return
-    const current = team === 'home' ? scoreboard.homeScore : scoreboard.awayScore
-    const input = prompt('Nuevo valor:', String(current))
-    if (input === null) return
-    const value = parseInt(input, 10)
-    if (isNaN(value) || value < 0) return
-    const newHome = team === 'home' ? value : scoreboard.homeScore
-    const newAway = team === 'away' ? value : scoreboard.awayScore
-    setScoreboard({ ...scoreboard, homeScore: newHome, awayScore: newAway })
+const changeScore = async (team: 'home' | 'away', delta: number) => {
+  if (!scoreboard) return
+  const newHome = team === 'home' ? scoreboard.homeScore + delta : scoreboard.homeScore
+  const newAway = team === 'away' ? scoreboard.awayScore + delta : scoreboard.awayScore
+  const updated = { ...scoreboard, homeScore: newHome, awayScore: newAway }
+  setScoreboard(updated)
+  broadcastScoreboard(updated)   // ✅ EMITIR
+  try {
     await api.put(`/matches/${match.id}/live/scoreboard/score`, { homeScore: newHome, awayScore: newAway })
-  }
+  } catch (err) { console.error('Error score:', err) }
+}
 
-  const clockAction = async (action: 'play' | 'pause' | 'reset' | 'set', seconds?: number) => {
-    try {
-      const res = await api.put(`/matches/${match.id}/live/scoreboard/clock`, { action, seconds })
-      setScoreboard((s) => (s ? { ...s, ...res.data } : s))
-    } catch (err) { console.error('Error reloj:', err) }
-  }
+const setScoreManually = async (team: 'home' | 'away') => {
+  if (!scoreboard) return
+  const current = team === 'home' ? scoreboard.homeScore : scoreboard.awayScore
+  const input = prompt('Nuevo valor:', String(current))
+  if (input === null) return
+  const value = parseInt(input, 10)
+  if (isNaN(value) || value < 0) return
+  const newHome = team === 'home' ? value : scoreboard.homeScore
+  const newAway = team === 'away' ? value : scoreboard.awayScore
+  const updated = { ...scoreboard, homeScore: newHome, awayScore: newAway }
+  setScoreboard(updated)
+  broadcastScoreboard(updated)   // ✅ EMITIR
+  await api.put(`/matches/${match.id}/live/scoreboard/score`, { homeScore: newHome, awayScore: newAway })
+}
+
+const clockAction = async (action: 'play' | 'pause' | 'reset' | 'set', seconds?: number) => {
+  try {
+    const res = await api.put(`/matches/${match.id}/live/scoreboard/clock`, { action, seconds })
+    const updated = { ...scoreboard!, ...res.data }
+    setScoreboard(updated)
+    broadcastScoreboard(updated)   // ✅ EMITIR
+  } catch (err) { console.error('Error reloj:', err) }
+}
 
   const setClockManually = async () => {
     const input = prompt('Tiempo en formato MM:SS (ej: 07:30)', formatClock(displayClock))
@@ -704,31 +776,35 @@ const call = newPeer.call(hostPeerId, dummyStream)
     setPeriodInput(clean)
   }
 
-  const handlePeriodInputBlur = async () => {
-    if (!scoreboard) return
-    const currentLabel = getPeriodLabel(scoreboard)
-    if (periodInput === currentLabel) return
+const handlePeriodInputBlur = async () => {
+  if (!scoreboard) return
+  const currentLabel = getPeriodLabel(scoreboard)
+  if (periodInput === currentLabel) return
 
-    try {
-      const res = await api.put(`/matches/${match.id}/live/scoreboard/custom-period`, {
-        value: periodInput,
-      })
-      setScoreboard((s) => (s ? { ...s, customPeriodLabel: res.data.customPeriodLabel } : s))
-    } catch (err) {
-      console.error('Error guardando cuarto:', err)
-      setPeriodInput(currentLabel)
-    }
+  try {
+    const res = await api.put(`/matches/${match.id}/live/scoreboard/custom-period`, {
+      value: periodInput,
+    })
+    const updated = { ...scoreboard, customPeriodLabel: res.data.customPeriodLabel }
+    setScoreboard(updated)
+    broadcastScoreboard(updated)   // ✅ EMITIR
+  } catch (err) {
+    console.error('Error guardando cuarto:', err)
+    setPeriodInput(currentLabel)
   }
+}
 
-  const nextPeriod = async () => {
-    try {
-      const res = await api.put(`/matches/${match.id}/live/scoreboard/period`)
-      setScoreboard((s) => (s ? { ...s, ...res.data } : s))
-      if (res.data.customPeriodLabel) setPeriodInput(res.data.customPeriodLabel)
-    } catch (err) {
-      console.error('Error periodo:', err)
-    }
+const nextPeriod = async () => {
+  try {
+    const res = await api.put(`/matches/${match.id}/live/scoreboard/period`)
+    const updated = { ...scoreboard!, ...res.data }
+    setScoreboard(updated)
+    broadcastScoreboard(updated)   // ✅ EMITIR
+    if (res.data.customPeriodLabel) setPeriodInput(res.data.customPeriodLabel)
+  } catch (err) {
+    console.error('Error periodo:', err)
   }
+}
 
   // ============================================
   // CLEANUP
