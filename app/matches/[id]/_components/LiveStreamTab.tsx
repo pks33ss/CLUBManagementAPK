@@ -555,8 +555,17 @@ export default function LiveStreamTab({ match }: Props) {
         dataConn.on('open', () => {
           console.log('🔗 Data connection abierta con host')
 
-          const emptyStream = new MediaStream()
-          const call = newPeer.call(hostPeerId, emptyStream)
+// ✅ Stream dummy con canvas para que la negociación SDP incluya los m-line
+const canvas = document.createElement('canvas')
+canvas.width = 160
+canvas.height = 120
+const ctx = canvas.getContext('2d')!
+ctx.fillStyle = 'black'
+ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+const dummyStream = canvas.captureStream(1) // 1 fps, mínimo consumo
+
+const call = newPeer.call(hostPeerId, dummyStream)
 
           if (!call) {
             console.error('❌ newPeer.call devolvió null')
