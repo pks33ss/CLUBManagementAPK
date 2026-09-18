@@ -381,19 +381,30 @@ useEffect(() => {
       setPeer(newPeer)
       isHost.current = true
 
-      newPeer.on('open', () => console.log('✅ Peer host abierto:', hostPeerId))
-      newPeer.on('connection', (conn) => {
-        setConnectedViewers((v) => [...v, conn.peer])
-        conn.on('close', () => setConnectedViewers((v) => v.filter((p) => p !== conn.peer)))
-      })
-      newPeer.on('call', (call) => {
-        call.answer(stream)
-        activeCallsRef.current.set(call.peer, call)
-        call.on('close', () => {
-          activeCallsRef.current.delete(call.peer)
-          setConnectedViewers((v) => v.filter((p) => p !== call.peer))
-        })
-      })
+newPeer.on('connection', (conn) => {
+  console.log('🔗 Viewer conectado (data):', conn.peer)
+  setConnectedViewers((v) => [...v, conn.peer])
+
+  conn.on('open', () => {
+    console.log('🔗 Data connection abierta con viewer:', conn.peer)
+  })
+
+  conn.on('close', () => {
+    console.log('🔗 Viewer desconectado:', conn.peer)
+    setConnectedViewers((v) => v.filter((p) => p !== conn.peer))
+  })
+})
+newPeer.on('call', (call) => {
+  console.log('📞 Viewer llama:', call.peer)   // ← IMPORTANTE
+  call.answer(stream)
+  activeCallsRef.current.set(call.peer, call)
+
+  call.on('close', () => {
+    console.log('📞 Call cerrada con viewer:', call.peer)
+    activeCallsRef.current.delete(call.peer)
+    setConnectedViewers((v) => v.filter((p) => p !== call.peer))
+  })
+})
       newPeer.on('error', (err) => console.error('❌ Peer error:', err))
 
       setIsStreaming(true)
@@ -425,40 +436,72 @@ useEffect(() => {
   // UNIRSE COMO ESPECTADOR / SALIR
   // ============================================
 
-  const joinAsViewer = async () => {
-    try {
-      const res = await api.post(`/matches/${match.id}/live/join`)
-      const hostPeerId = res.data.hostPeerId
-      const newPeer = new Peer(PEER_CONFIG)
-      peerRef.current = newPeer
-      setPeer(newPeer)
-      isHost.current = false
+const joinAsViewer = async () => {
+  try {
+    const res = await api.post(`/matches/${match.id}/live/join`)
+    const hostPeerId = res.data.hostPeerId
 
-      newPeer.on('open', (myId) => {
-        console.log('✅ Viewer peer abierto:', myId)
-        api.post(`/matches/${match.id}/live/peer`, { peerId: myId }).catch(console.error)
-        newPeer.connect(hostPeerId)
+    const newPeer = new Peer(PEER_CONFIG)
+    peerRef.current = newPeer
+    setPeer(newPeer)
+    isHost.current = false
+
+    newPeer.on('open', (myId) => {
+      console.log('✅ Viewer peer abierto:', myId)
+      api.post(`/matches/${match.id}/live/peer`, { peerId: myId }).catch(console.error)
+
+      // ✅ 1) Primero abrimos la conexión de datos y esperamos a que se abra
+      const dataConn = newPeer.connect(hostPeerId, { reliable: true })
+
+      dataConn.on('open', () => {
+        console.log('🔗 Data connection abierta con host')
+
+        // ✅ 2) SOLO cuando la data connection está abierta, hacemos la CALL
         const emptyStream = new MediaStream()
         const call = newPeer.call(hostPeerId, emptyStream)
-        if (!call) return
-        call.on('stream', (rs) => { 
-            console.log('📺 Stream recibido')
-            setRemoteStream(rs)
-             // El isStreaming=true ya bloquea el auto-cleanup, pero forzamos un re-render
-            setIsStreaming(true)
+
+        if (!call) {
+          console.error('❌ newPeer.call devolvió null')
+          return
+        }
+
+        console.log('📞 Call creada, esperando stream...')
+
+        call.on('stream', (remoteStream) => {
+          console.log('📺 Stream recibido!')
+          setRemoteStream(remoteStream)
         })
-        call.on('close', () => setRemoteStream(null))
+
+        call.on('close', () => {
+          console.log('📞 Call cerrada')
+          setRemoteStream(null)
+        })
+
+        call.on('error', (err) => {
+          console.error('❌ Error en call:', err)
+        })
       })
-      newPeer.on('error', (err) => {
-        console.error('❌ Peer viewer error:', err)
-        alert('Error de conexión: ' + err.type)
+
+      dataConn.on('error', (err) => {
+        console.error('❌ Data connection error:', err)
       })
-      setIsStreaming(true)
-      await fetchLiveInfo()
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al unirse a la emisión')
-    }
+
+      dataConn.on('close', () => {
+        console.log('🔗 Data connection cerrada')
+      })
+    })
+
+    newPeer.on('error', (err) => {
+      console.error('❌ Peer viewer error:', err)
+      alert('Error de conexión: ' + err.type)
+    })
+
+    setIsStreaming(true)
+    await fetchLiveInfo()
+  } catch (err: any) {
+    alert(err.response?.data?.message || 'Error al unirse a la emisión')
   }
+}
 
   const leaveAsViewer = async () => {
     try {
