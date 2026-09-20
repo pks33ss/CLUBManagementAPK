@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
@@ -56,6 +56,11 @@ export default function ClubDetail() {
   })
   const [updating, setUpdating] = useState(false)
 
+  // ✅ Estados para el logo
+  const logoInputRef = useRef<HTMLInputElement>(null)
+  const [logoPreview, setLogoPreview] = useState<string | null>(null)
+  const [uploadingLogo, setUploadingLogo] = useState(false)
+
   // Estados para eliminar
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -82,6 +87,7 @@ export default function ClubDetail() {
         email: response.data.email || '',
       })
 
+      // Verificar mi rol en el club
       const userStr = localStorage.getItem('user')
       if (userStr) {
         const user = JSON.parse(userStr)
@@ -92,13 +98,7 @@ export default function ClubDetail() {
       }
     } catch (error: any) {
       console.error('Error:', error)
-      if (error.response?.status === 403) {
-        setError('No tienes acceso a este club. Si crees que es un error, contacta con el administrador.')
-      } else if (error.response?.status === 404) {
-        setError('Este club no existe o ha sido eliminado.')
-      } else {
-        setError(error.response?.data?.message || 'Error al cargar el club')
-      }
+      setError(error.response?.data?.message || 'Error al cargar el club')
     } finally {
       setLoading(false)
     }
@@ -113,6 +113,7 @@ export default function ClubDetail() {
         phone: club.phone || '',
         email: club.email || '',
       })
+      setLogoPreview(null)
       setShowEditModal(true)
     }
   }
@@ -150,6 +151,63 @@ export default function ClubDetail() {
     }
   }
 
+  // ============================================
+  // LOGO
+  // ============================================
+
+  const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      alert('Por favor, selecciona una imagen')
+      return
+    }
+
+    if (file.size > 3 * 1024 * 1024) {
+      alert('La imagen es demasiado grande. Máximo 3MB.')
+      return
+    }
+
+    const reader = new FileReader()
+    reader.onload = (event) => {
+      setLogoPreview(event.target?.result as string)
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleUploadLogo = async () => {
+    if (!logoPreview) return
+    setUploadingLogo(true)
+    try {
+      const res = await api.post(`/clubs/${clubId}/upload-logo`, {
+        image: logoPreview,
+      })
+      setClub((c) => (c ? { ...c, logo: res.data.logo } : c))
+      setLogoPreview(null)
+      alert('✅ Logo actualizado correctamente')
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Error al subir el logo')
+    } finally {
+      setUploadingLogo(false)
+    }
+  }
+
+  const handleRemoveLogo = async () => {
+    if (!confirm('¿Eliminar el logo del club?')) return
+    setUploadingLogo(true)
+    try {
+      await api.delete(`/clubs/${clubId}/logo`)
+      setClub((c) => (c ? { ...c, logo: '' } : c))
+      setLogoPreview(null)
+      alert('✅ Logo eliminado')
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Error al eliminar el logo')
+    } finally {
+      setUploadingLogo(false)
+    }
+  }
+
   const getRoleColor = (role: string) => {
     switch (role) {
       case 'ADMIN_CLUB': return 'bg-purple-100 text-purple-800'
@@ -168,43 +226,18 @@ export default function ClubDetail() {
     }
   }
 
-  // ✅ Permisos: ADMIN_CLUB del club o SUPER_ADMIN global
   const isAdmin = userRole === 'ADMIN_CLUB' || currentUser?.role === 'SUPER_ADMIN'
 
-  // ✅ Función para verificar si el usuario tiene acceso a un equipo
-  const hasTeamAccess = (teamId: string) => {
-    if (isAdmin) return true
-
-    // COACH/ASSISTANT: solo ven equipos donde están asignados
-    // (Esta verificación la hace el backend, pero aquí también lo comprobamos)
-    return true // Se filtrará en el backend
-  }
-
   if (loading) {
-    return (
-      <div className="text-center py-12">
-        <div className="text-lg text-gray-500">Cargando club...</div>
-      </div>
-    )
+    return <div className="text-center py-12">Cargando club...</div>
   }
 
   if (error || !club) {
-    const isAccessDenied = error?.includes('No tienes acceso')
-
     return (
       <div className="text-center py-12">
-        <div className="text-6xl mb-4">{isAccessDenied ? '🔒' : '❌'}</div>
-        <h2 className="text-xl font-bold text-gray-800 mb-2">
-          {isAccessDenied ? 'Acceso Denegado' : 'Error'}
-        </h2>
-        <p className="text-gray-500 max-w-md mx-auto mb-6">
-          {error || 'Club no encontrado'}
-        </p>
-        <Link
-          href="/dashboard"
-          className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition"
-        >
-          ← Volver al Dashboard
+        <p className="text-red-500">{error || 'Club no encontrado'}</p>
+        <Link href="/dashboard" className="text-blue-600 hover:underline mt-4 inline-block">
+          ← Volver al dashboard
         </Link>
       </div>
     )
@@ -220,7 +253,7 @@ export default function ClubDetail() {
           INFORMACIÓN DEL CLUB
           ============================================ */}
       <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-        <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+        <div className="flex justify-between items-start gap-4">
           <div className="flex items-start gap-4 flex-1">
             {club.logo ? (
               <img
@@ -230,7 +263,7 @@ export default function ClubDetail() {
               />
             ) : (
               <div className="w-20 h-20 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-3xl font-bold">
-                🏀
+                🏆
               </div>
             )}
             <div className="flex-1">
@@ -295,27 +328,20 @@ export default function ClubDetail() {
       <div className="bg-white rounded-xl shadow-md p-6 mb-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-gray-800">
-            🏀 Equipos ({club.teams?.length || 0})
+            🏆 Equipos ({club.teams?.length || 0})
           </h2>
-          {isAdmin && (
-            <Link
-              href={`/teams?club=${clubId}`}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition text-sm"
-            >
-              Gestionar Equipos
-            </Link>
-          )}
+          <Link
+            href={`/teams?club=${clubId}`}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition text-sm"
+          >
+            Gestionar Equipos
+          </Link>
         </div>
 
         {!club.teams || club.teams.length === 0 ? (
-          <div className="text-center py-8">
-            <div className="text-4xl mb-4">🏀</div>
-            <p className="text-gray-500">
-              {isAdmin
-                ? 'No hay equipos en este club'
-                : 'No tienes equipos asignados en este club'}
-            </p>
-          </div>
+          <p className="text-gray-500 text-center py-8">
+            No hay equipos en este club
+          </p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {club.teams.map((team) => (
@@ -326,9 +352,7 @@ export default function ClubDetail() {
               >
                 <h3 className="font-medium text-gray-800">{team.name}</h3>
                 <p className="text-sm text-gray-500">{team.category || 'Sin categoría'}</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  {team.season || 'Temporada no especificada'}
-                </p>
+                <p className="text-xs text-gray-400 mt-1">{team.season || 'Temporada no especificada'}</p>
                 <div className="mt-2">
                   <span className="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-full">
                     👥 {team.players?.length || 0} jugadores
@@ -389,8 +413,84 @@ export default function ClubDetail() {
           ============================================ */}
       {showEditModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 max-h-[90vh] overflow-auto">
             <h3 className="text-xl font-bold text-gray-800 mb-4">✏️ Editar Club</h3>
+
+            {/* Logo */}
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Logo del club
+              </label>
+              <div className="flex items-center gap-4">
+                {/* Preview */}
+                <div className="w-20 h-20 rounded-xl overflow-hidden bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center flex-shrink-0">
+                  {logoPreview ? (
+                    <img src={logoPreview} alt="Preview" className="w-full h-full object-cover" />
+                  ) : club.logo ? (
+                    <img src={club.logo} alt={club.name} className="w-full h-full object-cover" />
+                  ) : (
+                    <span className="text-white text-3xl">🏆</span>
+                  )}
+                </div>
+
+                {/* Botones */}
+                <div className="flex flex-col gap-2">
+                  <input
+                    ref={logoInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleLogoSelect}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => logoInputRef.current?.click()}
+                    className="bg-blue-100 hover:bg-blue-200 text-blue-700 px-3 py-1.5 rounded-lg text-sm transition"
+                  >
+                    📸 {logoPreview || club.logo ? 'Cambiar logo' : 'Subir logo'}
+                  </button>
+                  {(logoPreview || club.logo) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (logoPreview) {
+                          setLogoPreview(null)
+                        } else {
+                          handleRemoveLogo()
+                        }
+                      }}
+                      className="bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 rounded-lg text-sm transition"
+                      disabled={uploadingLogo}
+                    >
+                      🗑️ Quitar
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {/* Preview pendiente de subir */}
+              {logoPreview && (
+                <div className="mt-3 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={handleUploadLogo}
+                    disabled={uploadingLogo}
+                    className="bg-green-600 hover:bg-green-700 text-white px-3 py-1.5 rounded-lg text-sm transition disabled:opacity-50"
+                  >
+                    {uploadingLogo ? 'Subiendo...' : '✅ Confirmar subida'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLogoPreview(null)}
+                    className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1.5 rounded-lg text-sm transition"
+                    disabled={uploadingLogo}
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              )}
+            </div>
+
             <form onSubmit={updateClub} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">

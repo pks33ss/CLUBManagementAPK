@@ -4,6 +4,8 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
+import { SPORTS, getSportConfig } from '@/lib/sport'
+import type { Sport } from '@/lib/sport'
 
 // ============================================
 // COMPONENTE QUE USA useSearchParams
@@ -21,9 +23,10 @@ function TeamsContent() {
   const [showModal, setShowModal] = useState(false)
   const [newTeam, setNewTeam] = useState({
     name: '',
+    sport: 'BASKETBALL' as Sport,
     category: '',
     season: '',
-    clubId: ''
+    clubId: '',
   })
 
   useEffect(() => {
@@ -48,7 +51,7 @@ function TeamsContent() {
         }
 
         setSelectedClub(clubId)
-        setNewTeam(prev => ({ ...prev, clubId }))
+        setNewTeam((prev) => ({ ...prev, clubId }))
         fetchTeams(clubId)
       }
       setLoading(false)
@@ -76,7 +79,13 @@ function TeamsContent() {
     try {
       await api.post('/teams', newTeam)
       setShowModal(false)
-      setNewTeam({ name: '', category: '', season: '', clubId: selectedClub })
+      setNewTeam({
+        name: '',
+        sport: 'BASKETBALL',
+        category: '',
+        season: '',
+        clubId: selectedClub,
+      })
       fetchTeams(selectedClub)
     } catch (error: any) {
       console.error('Error:', error)
@@ -86,7 +95,7 @@ function TeamsContent() {
 
   const handleClubChange = (clubId: string) => {
     setSelectedClub(clubId)
-    setNewTeam(prev => ({ ...prev, clubId }))
+    setNewTeam((prev) => ({ ...prev, clubId }))
     if (clubId) {
       fetchTeams(clubId)
     }
@@ -100,7 +109,7 @@ function TeamsContent() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">🏀 Equipos</h1>
+          <h1 className="text-2xl font-bold text-gray-800">🏆 Equipos</h1>
           <p className="text-gray-500">Gestiona los equipos de tu club</p>
         </div>
         <button
@@ -109,7 +118,7 @@ function TeamsContent() {
               alert('Por favor, selecciona un club primero')
               return
             }
-            setNewTeam(prev => ({ ...prev, clubId: selectedClub }))
+            setNewTeam((prev) => ({ ...prev, clubId: selectedClub }))
             setShowModal(true)
           }}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition"
@@ -121,13 +130,13 @@ function TeamsContent() {
 
       {clubs.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-xl shadow">
-          <div className="text-4xl mb-4">🏀</div>
+          <div className="text-4xl mb-4">🏆</div>
           <p className="text-gray-500">Primero crea un club para poder añadir equipos</p>
           <button
             onClick={() => router.push('/dashboard')}
             className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
           >
-            Ir a Dashboard
+            Ir a Mis Clubs
           </button>
         </div>
       ) : (
@@ -135,8 +144,9 @@ function TeamsContent() {
           <div className="mb-6 space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Club: <span className="font-normal text-gray-500">
-                  {clubs.find(c => c.id === selectedClub)?.name || 'Selecciona un club'}
+                Club:{' '}
+                <span className="font-normal text-gray-500">
+                  {clubs.find((c) => c.id === selectedClub)?.name || 'Selecciona un club'}
                 </span>
               </label>
               <select
@@ -166,11 +176,11 @@ function TeamsContent() {
 
           {teams.length === 0 ? (
             <div className="text-center py-12 bg-white rounded-xl shadow">
-              <div className="text-4xl mb-4">🏀</div>
+              <div className="text-4xl mb-4">🏆</div>
               <p className="text-gray-500">No hay equipos en este club</p>
               <button
                 onClick={() => {
-                  setNewTeam(prev => ({ ...prev, clubId: selectedClub }))
+                  setNewTeam((prev) => ({ ...prev, clubId: selectedClub }))
                   setShowModal(true)
                 }}
                 className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
@@ -180,24 +190,36 @@ function TeamsContent() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {teams.map((team) => (
-                <Link
-                  key={team.id}
-                  href={`/teams/${team.id}`}
-                  className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition border border-gray-100 hover:border-blue-200 cursor-pointer"
-                >
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-800">{team.name}</h3>
-                    <p className="text-sm text-gray-500">{team.category || 'Sin categoría'}</p>
-                    <p className="text-xs text-gray-400 mt-1">{team.season || 'Temporada no especificada'}</p>
-                    <div className="flex gap-2 mt-3">
-                      <span className="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-full">
-                        👥 {team.players?.length || 0} jugadores
-                      </span>
+              {teams.map((team) => {
+                const sport = getSportConfig(team.sport)
+                return (
+                  <Link
+                    key={team.id}
+                    href={`/teams/${team.id}`}
+                    className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition border border-gray-100 hover:border-blue-200 cursor-pointer"
+                  >
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xl">{sport.icon}</span>
+                        <h3 className="text-lg font-semibold text-gray-800">
+                          {team.name}
+                        </h3>
+                      </div>
+                      <p className="text-sm text-gray-500">
+                        {sport.name} · {team.category || 'Sin categoría'}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">
+                        {team.season || 'Temporada no especificada'}
+                      </p>
+                      <div className="flex gap-2 mt-3 flex-wrap">
+                        <span className="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-full">
+                          👥 {team.players?.length || 0} {sport.playerNamePlural.toLowerCase()}
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                </Link>
-              ))}
+                  </Link>
+                )
+              })}
             </div>
           )}
         </>
@@ -215,19 +237,41 @@ function TeamsContent() {
                 <input
                   type="text"
                   value={newTeam.name}
-                  onChange={(e) => setNewTeam({...newTeam, name: e.target.value})}
+                  onChange={(e) => setNewTeam({ ...newTeam, name: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   required
                   placeholder="Ej: Junior A"
                 />
               </div>
+
+              {/* ✅ Selector de deporte */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Deporte *
+                </label>
+                <select
+                  value={newTeam.sport}
+                  onChange={(e) =>
+                    setNewTeam({ ...newTeam, sport: e.target.value as Sport })
+                  }
+                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
+                  required
+                >
+                  {SPORTS.map((s) => (
+                    <option key={s.value} value={s.value}>
+                      {s.icon} {s.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Categoría
                 </label>
                 <select
                   value={newTeam.category}
-                  onChange={(e) => setNewTeam({...newTeam, category: e.target.value})}
+                  onChange={(e) => setNewTeam({ ...newTeam, category: e.target.value })}
                   className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Seleccionar...</option>
@@ -238,6 +282,7 @@ function TeamsContent() {
                   <option value="Alevín">Alevín</option>
                 </select>
               </div>
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Temporada
@@ -245,11 +290,12 @@ function TeamsContent() {
                 <input
                   type="text"
                   value={newTeam.season}
-                  onChange={(e) => setNewTeam({...newTeam, season: e.target.value})}
+                  onChange={(e) => setNewTeam({ ...newTeam, season: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   placeholder="Ej: 2025-2026"
                 />
               </div>
+
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"

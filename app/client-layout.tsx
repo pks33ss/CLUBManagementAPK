@@ -97,6 +97,10 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                 <Link href="/matches" className={linkClass('/matches')}>
                   🏆 Partidos
                 </Link>
+                
+                <Link href="/seasons" className={linkClass('/seasons')}>
+  📅 Planificación
+</Link>
 
                 {currentUser?.role === 'SUPER_ADMIN' && (
                   <Link href="/admin/users" className={linkClass('/admin/users')}>

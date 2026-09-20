@@ -8,6 +8,7 @@ interface Club {
   id: string
   name: string
   description: string
+  logo: string | null
   members: any[]
   teams: any[]
 }
@@ -59,8 +60,8 @@ export default function Dashboard() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">🏀 Mis Clubs</h1>
-          <p className="text-gray-500">Gestiona tus clubs de baloncesto</p>
+          <h1 className="text-2xl font-bold text-gray-800">🏆 Mis Clubs</h1>
+          <p className="text-gray-500">Gestiona tus clubs deportivos</p>
         </div>
         <button
           onClick={() => setShowModal(true)}
@@ -72,7 +73,7 @@ export default function Dashboard() {
 
       {clubs.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-xl shadow">
-          <div className="text-6xl mb-4">🏀</div>
+          <div className="text-6xl mb-4">🏆</div>
           <h3 className="text-xl font-semibold text-gray-700">No tienes clubs</h3>
           <p className="text-gray-500 mt-2">Crea tu primer club para empezar</p>
           <button
@@ -90,15 +91,30 @@ export default function Dashboard() {
               onClick={() => router.push(`/clubs/${club.id}`)}
               className="bg-white rounded-xl shadow-md hover:shadow-lg transition-all p-6 border border-gray-100 hover:border-blue-200 cursor-pointer"
             >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-gray-800">
-                    {club.name}
-                  </h3>
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3 mb-2">
+                    {club.logo ? (
+                      <img
+                        src={club.logo}
+                        alt={club.name}
+                        className="w-12 h-12 rounded-lg object-cover border border-gray-200 flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-2xl flex-shrink-0">
+                        🏆
+                      </div>
+                    )}
+                    <h3 className="text-lg font-semibold text-gray-800 truncate">
+                      {club.name}
+                    </h3>
+                  </div>
+
                   <p className="text-gray-500 text-sm mt-1 line-clamp-2">
                     {club.description || 'Sin descripción'}
                   </p>
-                  <div className="flex gap-4 mt-3">
+
+                  <div className="flex gap-4 mt-3 flex-wrap">
                     <span className="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-full">
                       👥 {club.members?.length || 0} miembros
                     </span>
@@ -107,7 +123,6 @@ export default function Dashboard() {
                     </span>
                   </div>
                 </div>
-                <span className="text-2xl">🏀</span>
               </div>
             </div>
           ))}
@@ -127,7 +142,7 @@ export default function Dashboard() {
                 <input
                   type="text"
                   value={newClub.name}
-                  onChange={(e) => setNewClub({...newClub, name: e.target.value})}
+                  onChange={(e) => setNewClub({ ...newClub, name: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   required
                   placeholder="Ej: Los Angeles Lakers"
@@ -139,7 +154,7 @@ export default function Dashboard() {
                 </label>
                 <textarea
                   value={newClub.description}
-                  onChange={(e) => setNewClub({...newClub, description: e.target.value})}
+                  onChange={(e) => setNewClub({ ...newClub, description: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   rows={3}
                   placeholder="Breve descripción del club"
