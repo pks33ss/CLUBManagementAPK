@@ -134,74 +134,32 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
               )}
             </div>
 
-            {/* CENTRO: secciones del equipo activo */}
-            {activeTeam && (
-              <div className="hidden lg:flex items-center gap-1 flex-1 justify-center overflow-x-auto">
-                <Link
-                  href="/home"
-                  className={linkClass(
-                    '/home',
-                    'px-3 py-2 rounded-lg text-sm whitespace-nowrap',
-                  )}
-                >
-                  🏠 Inicio
-                </Link>
-                <Link
-                  href="/sessions"
-                  className={linkClass(
-                    '/sessions',
-                    'px-3 py-2 rounded-lg text-sm whitespace-nowrap',
-                  )}
-                >
-                  🏋️ Entrenamientos
-                </Link>
-                <Link
-                  href="/matches"
-                  className={linkClass(
-                    '/matches',
-                    'px-3 py-2 rounded-lg text-sm whitespace-nowrap',
-                  )}
-                >
-                  🏆 Partidos
-                </Link>
-                <Link
-                  href="/calendar"
-                  className={linkClass(
-                    '/calendar',
-                    'px-3 py-2 rounded-lg text-sm whitespace-nowrap',
-                  )}
-                >
-                  📅 Calendario
-                </Link>
-                <Link
-                  href="/players"
-                  className={linkClass(
-                    '/players',
-                    'px-3 py-2 rounded-lg text-sm whitespace-nowrap',
-                  )}
-                >
-                  👥 Jugadores
-                </Link>
-                <Link
-                  href="/attendance/overview"
-                  className={linkClass(
-                    '/attendance',
-                    'px-3 py-2 rounded-lg text-sm whitespace-nowrap',
-                  )}
-                >
-                  📊 Asistencias
-                </Link>
-                <Link
-                  href="/seasons"
-                  className={linkClass(
-                    '/seasons',
-                    'px-3 py-2 rounded-lg text-sm whitespace-nowrap',
-                  )}
-                >
-                  📋 Planificación
-                </Link>
-              </div>
-            )}
+{/* CENTRO: secciones del equipo activo (solo desktop) */}
+{activeTeam && (
+  <div className="hidden lg:flex items-center gap-1 flex-1 justify-center overflow-x-auto">
+    <Link href="/home" className={linkClass('/home', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
+      🏠 Inicio
+    </Link>
+    <Link href="/sessions" className={linkClass('/sessions', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
+      🏋️ Entrenamientos
+    </Link>
+    <Link href="/matches" className={linkClass('/matches', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
+      🏆 Partidos
+    </Link>
+    <Link href="/calendar" className={linkClass('/calendar', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
+      📅 Calendario
+    </Link>
+    <Link href="/players" className={linkClass('/players', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
+      👥 Jugadores
+    </Link>
+    <Link href="/attendance/overview" className={linkClass('/attendance', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
+      📊 Asistencias
+    </Link>
+    <Link href="/seasons" className={linkClass('/seasons', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
+      📋 Planificación
+    </Link>
+  </div>
+)}
 
             {/* DERECHA: usuario + rol + logout */}
             <div className="flex items-center gap-3 shrink-0">
@@ -245,6 +203,78 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </nav>
+ {/* ============================================ */}
+      {/* BARRA DE SECCIONES (solo móvil)               */}
+      {/* ============================================ */}
+      {activeTeam && (
+        <div className="lg:hidden bg-white border-b border-gray-200 overflow-x-auto">
+          <div className="flex items-center gap-1 px-2 py-2">
+            <Link
+              href="/home"
+              className={linkClass(
+                '/home',
+                'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0',
+              )}
+            >
+              🏠 Inicio
+            </Link>
+            <Link
+              href="/sessions"
+              className={linkClass(
+                '/sessions',
+                'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0',
+              )}
+            >
+              🏋️ Entren.
+            </Link>
+            <Link
+              href="/matches"
+              className={linkClass(
+                '/matches',
+                'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0',
+              )}
+            >
+              🏆 Partidos
+            </Link>
+            <Link
+              href="/calendar"
+              className={linkClass(
+                '/calendar',
+                'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0',
+              )}
+            >
+              📅 Calend.
+            </Link>
+            <Link
+              href="/players"
+              className={linkClass(
+                '/players',
+                'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0',
+              )}
+            >
+              👥 Jugadores
+            </Link>
+            <Link
+              href="/attendance/overview"
+              className={linkClass(
+                '/attendance',
+                'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0',
+              )}
+            >
+              📊 Asist.
+            </Link>
+            <Link
+              href="/seasons"
+              className={linkClass(
+                '/seasons',
+                'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0',
+              )}
+            >
+              📋 Planif.
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* ============================================ */}
       {/* CONTENIDO                                     */}

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
 import { attendanceBadgeClass } from '@/lib/attendance'
+import { useActiveTeam } from '@/lib/ActiveTeamContext'
 
 interface PlayerStats {
   player: {
@@ -45,57 +46,31 @@ interface TeamStats {
 
 export default function AttendanceOverview() {
   const router = useRouter()
-  const [clubs, setClubs] = useState<any[]>([])
-  const [teams, setTeams] = useState<any[]>([])
-  const [selectedClub, setSelectedClub] = useState('')
-  const [selectedTeam, setSelectedTeam] = useState('')
+  const { activeTeam, loading: loadingTeams } = useActiveTeam()
+
   const [teamStats, setTeamStats] = useState<TeamStats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [loadingStats, setLoadingStats] = useState(false)
   const [error, setError] = useState('')
 
+  // Cargar stats cuando cambia el equipo activo
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token) {
       router.push('/login')
       return
     }
-    fetchClubs()
-  }, [])
 
-  const fetchClubs = async () => {
-    try {
-      const response = await api.get('/clubs')
-      setClubs(response.data)
-      if (response.data.length > 0) {
-        setSelectedClub(response.data[0].id)
-        fetchTeams(response.data[0].id)
-      }
-    } catch (error) {
-      console.error('Error:', error)
-    } finally {
+    if (!activeTeam) {
+      setTeamStats(null)
       setLoading(false)
+      return
     }
-  }
 
-  const fetchTeams = async (clubId: string) => {
-    try {
-      const response = await api.get(`/teams/club/${clubId}`)
-      setTeams(response.data)
-      if (response.data.length > 0) {
-        setSelectedTeam(response.data[0].id)
-        fetchTeamStats(response.data[0].id)
-      } else {
-        setSelectedTeam('')
-        setTeamStats(null)
-      }
-    } catch (error) {
-      console.error('Error fetching teams:', error)
-    }
-  }
+    fetchTeamStats(activeTeam.id)
+  }, [activeTeam, router])
 
   const fetchTeamStats = async (teamId: string) => {
-    setLoadingStats(true)
+    setLoading(true)
     try {
       const response = await api.get(`/attendance/team/${teamId}/stats`)
       setTeamStats(response.data)
@@ -105,19 +80,8 @@ export default function AttendanceOverview() {
       setError(error.response?.data?.message || 'Error al cargar las estadísticas')
       setTeamStats(null)
     } finally {
-      setLoadingStats(false)
+      setLoading(false)
     }
-  }
-
-  const handleClubChange = (clubId: string) => {
-    setSelectedClub(clubId)
-    setTeamStats(null)
-    fetchTeams(clubId)
-  }
-
-  const handleTeamChange = (teamId: string) => {
-    setSelectedTeam(teamId)
-    fetchTeamStats(teamId)
   }
 
   const getAttendanceColor = (rate: number) => {
@@ -126,55 +90,44 @@ export default function AttendanceOverview() {
     return 'bg-red-500'
   }
 
+  // ============================================
+  // RENDER
+  // ============================================
 
+  if (loadingTeams || loading) {
+    return <div className="text-center py-12 text-gray-500">Cargando estadísticas...</div>
+  }
 
-  if (loading) {
-    return <div className="text-center py-12">Cargando...</div>
+  // Sin equipo activo
+  if (!activeTeam) {
+    return (
+      <div className="text-center py-16 bg-white rounded-xl shadow">
+        <div className="text-6xl mb-4">📊</div>
+        <h3 className="text-xl font-semibold text-gray-700 mb-2">
+          Selecciona un equipo
+        </h3>
+        <p className="text-gray-500 mb-6">
+          Elige un equipo desde el menú superior para ver sus estadísticas
+        </p>
+      </div>
+    )
   }
 
   return (
     <div>
+      {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-800">📊 Overview de Asistencias</h1>
-        <p className="text-gray-500">Resumen de asistencia a los entrenamientos</p>
-      </div>
-
-      {/* Selectores */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Club</label>
-          <select
-            className="w-full border rounded-lg px-4 py-2"
-            value={selectedClub}
-            onChange={(e) => handleClubChange(e.target.value)}
-          >
-            {clubs.map((club) => (
-              <option key={club.id} value={club.id}>{club.name}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Equipo</label>
-          <select
-            className="w-full border rounded-lg px-4 py-2"
-            value={selectedTeam}
-            onChange={(e) => handleTeamChange(e.target.value)}
-            disabled={teams.length === 0}
-          >
-            {teams.map((team) => (
-              <option key={team.id} value={team.id}>{team.name}</option>
-            ))}
-          </select>
-        </div>
+        <p className="text-gray-500">
+          {activeTeam.name} · {activeTeam.club?.name}
+        </p>
       </div>
 
       {error && (
         <div className="bg-red-50 text-red-600 p-4 rounded-lg mb-4">{error}</div>
       )}
 
-      {loadingStats ? (
-        <div className="text-center py-12">Cargando estadísticas...</div>
-      ) : teamStats ? (
+      {teamStats ? (
         <>
           {/* RESUMEN GENERAL */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
@@ -280,7 +233,7 @@ export default function AttendanceOverview() {
       ) : (
         <div className="text-center py-12 bg-white rounded-xl shadow">
           <div className="text-4xl mb-4">📊</div>
-          <p className="text-gray-500">Selecciona un equipo para ver sus estadísticas</p>
+          <p className="text-gray-500">No hay estadísticas disponibles para este equipo</p>
         </div>
       )}
     </div>

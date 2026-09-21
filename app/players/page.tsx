@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
 import { getSportIcon, getSportConfig } from '@/lib/sport'
+import { useActiveTeam } from '@/lib/ActiveTeamContext'
 
 interface Player {
   id: string
@@ -27,13 +28,10 @@ type GroupBy = 'none' | 'team' | 'position'
 
 export default function PlayersPage() {
   const router = useRouter()
+  const { activeTeam, allTeams, loading: loadingTeams } = useActiveTeam()
 
   const [players, setPlayers] = useState<Player[]>([])
-  const [teams, setTeams] = useState<any[]>([])
-  const [clubs, setClubs] = useState<any[]>([])
-  const [selectedClub, setSelectedClub] = useState('')
   const [selectedTeams, setSelectedTeams] = useState<string[]>([])
-  const [loading, setLoading] = useState(true)
   const [loadingPlayers, setLoadingPlayers] = useState(false)
   const [showTeamSelector, setShowTeamSelector] = useState(false)
 
@@ -41,7 +39,12 @@ export default function PlayersPage() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
   const [groupBy, setGroupBy] = useState<GroupBy>('none')
 
-  // Para el modal de crear jugador, necesitamos el sport del equipo elegido
+  // Equipos del club del activeTeam (para el multi-selector)
+  const clubTeams = activeTeam
+    ? allTeams.filter((t) => t.club?.id === activeTeam.club?.id)
+    : []
+
+  // Modal crear jugador
   const [showModal, setShowModal] = useState(false)
   const [newPlayer, setNewPlayer] = useState({
     name: '',
@@ -58,15 +61,34 @@ export default function PlayersPage() {
     teamId: '',
   })
 
+  // Guard de login
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token) {
       router.push('/login')
+    }
+  }, [router])
+
+  // Resetear selección cuando cambia el activeTeam
+  useEffect(() => {
+    if (activeTeam) {
+      setSelectedTeams([activeTeam.id])
+    } else {
+      setSelectedTeams([])
+      setPlayers([])
+    }
+  }, [activeTeam])
+
+  // Cargar jugadores cuando cambia la selección
+  useEffect(() => {
+    if (selectedTeams.length === 0) {
+      setPlayers([])
       return
     }
-    fetchClubs()
-  }, [])
+    fetchPlayersByTeams(selectedTeams)
+  }, [selectedTeams])
 
+  // Cerrar dropdown al hacer click fuera
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement
@@ -78,42 +100,7 @@ export default function PlayersPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const fetchClubs = async () => {
-    try {
-      const response = await api.get('/clubs')
-      setClubs(response.data)
-      if (response.data.length > 0) {
-        setSelectedClub(response.data[0].id)
-        fetchTeams(response.data[0].id)
-      }
-    } catch (error) {
-      console.error('Error:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchTeams = async (clubId: string) => {
-    try {
-      const response = await api.get(`/teams/club/${clubId}`)
-      setTeams(response.data)
-      const allTeamIds = response.data.map((t: any) => t.id)
-      setSelectedTeams(allTeamIds)
-      if (allTeamIds.length > 0) {
-        fetchPlayersByTeams(allTeamIds)
-      } else {
-        setPlayers([])
-      }
-    } catch (error) {
-      console.error('Error fetching teams:', error)
-    }
-  }
-
   const fetchPlayersByTeams = async (teamIds: string[]) => {
-    if (teamIds.length === 0) {
-      setPlayers([])
-      return
-    }
     setLoadingPlayers(true)
     try {
       const response = await api.post('/players/by-teams', { teamIds })
@@ -126,32 +113,18 @@ export default function PlayersPage() {
     }
   }
 
-  const handleClubChange = (clubId: string) => {
-    setSelectedClub(clubId)
-    setSelectedTeams([])
-    fetchTeams(clubId)
-  }
-
   const toggleTeam = (teamId: string) => {
-    let newSelected: string[]
-    if (selectedTeams.includes(teamId)) {
-      newSelected = selectedTeams.filter((id) => id !== teamId)
-    } else {
-      newSelected = [...selectedTeams, teamId]
-    }
-    setSelectedTeams(newSelected)
-    fetchPlayersByTeams(newSelected)
+    setSelectedTeams((prev) =>
+      prev.includes(teamId) ? prev.filter((id) => id !== teamId) : [...prev, teamId]
+    )
   }
 
   const selectAllTeams = () => {
-    const allIds = teams.map((t) => t.id)
-    setSelectedTeams(allIds)
-    fetchPlayersByTeams(allIds)
+    setSelectedTeams(clubTeams.map((t) => t.id))
   }
 
   const deselectAllTeams = () => {
     setSelectedTeams([])
-    setPlayers([])
   }
 
   const createPlayer = async (e: React.FormEvent) => {
@@ -190,9 +163,9 @@ export default function PlayersPage() {
 
   const getSelectedTeamsText = () => {
     if (selectedTeams.length === 0) return 'Selecciona equipos...'
-    if (selectedTeams.length === teams.length) return 'Todos los equipos'
+    if (selectedTeams.length === clubTeams.length) return 'Todos los equipos'
     if (selectedTeams.length === 1) {
-      const team = teams.find((t) => t.id === selectedTeams[0])
+      const team = clubTeams.find((t) => t.id === selectedTeams[0])
       return team?.name || '1 equipo'
     }
     return `${selectedTeams.length} equipos seleccionados`
@@ -249,7 +222,6 @@ export default function PlayersPage() {
     return sortOrder === 'asc' ? '↑' : '↓'
   }
 
-  // Icono del grupo: usamos 🏆 genérico porque puede haber varios deportes
   const getGroupIcon = (group: GroupBy) => {
     switch (group) {
       case 'team': return '🏆'
@@ -258,12 +230,30 @@ export default function PlayersPage() {
     }
   }
 
-  // Sport del equipo seleccionado en el modal (para posiciones dinámicas)
-  const selectedTeamInModal = teams.find((t) => t.id === newPlayer.teamId)
+  const selectedTeamInModal = clubTeams.find((t) => t.id === newPlayer.teamId)
   const modalSport = getSportConfig(selectedTeamInModal?.sport)
 
-  if (loading) {
-    return <div className="text-center py-12">Cargando jugadores...</div>
+  // ============================================
+  // RENDER
+  // ============================================
+
+  if (loadingTeams) {
+    return <div className="text-center py-12 text-gray-500">Cargando jugadores...</div>
+  }
+
+  // Sin equipo activo
+  if (!activeTeam) {
+    return (
+      <div className="text-center py-16 bg-white rounded-xl shadow">
+        <div className="text-6xl mb-4">🏃</div>
+        <h3 className="text-xl font-semibold text-gray-700 mb-2">
+          Selecciona un equipo
+        </h3>
+        <p className="text-gray-500 mb-6">
+          Elige un equipo desde el menú superior para ver sus jugadores
+        </p>
+      </div>
+    )
   }
 
   return (
@@ -271,267 +261,239 @@ export default function PlayersPage() {
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">🏃 Jugadores</h1>
-          <p className="text-gray-500">Gestiona los jugadores de tus equipos</p>
+          <p className="text-gray-500">
+            {activeTeam.name} · {activeTeam.club?.name}
+          </p>
         </div>
         <button
           onClick={() => {
-            if (teams.length === 0) {
+            if (clubTeams.length === 0) {
               alert('Primero crea un equipo')
               return
             }
-            setNewPlayer((prev) => ({ ...prev, teamId: teams[0]?.id || '' }))
+            setNewPlayer((prev) => ({ ...prev, teamId: activeTeam.id }))
             setShowModal(true)
           }}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition"
-          disabled={teams.length === 0}
+          disabled={clubTeams.length === 0}
         >
           <span className="text-xl">+</span> Nuevo Jugador
         </button>
       </div>
 
-      {clubs.length === 0 ? (
+      {/* Selector multi-equipo (solo equipos del club activo) */}
+      <div className="team-selector-container relative mb-6 max-w-md">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Equipos del club
+        </label>
+        <button
+          type="button"
+          onClick={() => setShowTeamSelector(!showTeamSelector)}
+          className="w-full border rounded-lg px-4 py-2 text-left flex justify-between items-center hover:bg-gray-50 transition"
+        >
+          <span className={selectedTeams.length === 0 ? 'text-gray-400' : 'text-gray-800'}>
+            {getSelectedTeamsText()}
+          </span>
+          <span className="text-gray-400">▼</span>
+        </button>
+
+        {showTeamSelector && (
+          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-auto">
+            <div className="p-2 border-b border-gray-100 flex gap-2">
+              <button
+                type="button"
+                onClick={selectAllTeams}
+                className="flex-1 text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 py-1.5 rounded transition"
+              >
+                ✓ Todos
+              </button>
+              <button
+                type="button"
+                onClick={deselectAllTeams}
+                className="flex-1 text-xs bg-gray-50 text-gray-600 hover:bg-gray-100 py-1.5 rounded transition"
+              >
+                ✕ Ninguno
+              </button>
+            </div>
+
+            {clubTeams.length === 0 ? (
+              <div className="p-4 text-sm text-gray-500 text-center">
+                No hay equipos en este club
+              </div>
+            ) : (
+              clubTeams.map((team) => (
+                <label
+                  key={team.id}
+                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 cursor-pointer transition"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedTeams.includes(team.id)}
+                    onChange={() => toggleTeam(team.id)}
+                    className="w-4 h-4"
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-800 flex items-center gap-1">
+                      <span>{getSportIcon(team.sport)}</span>
+                      <span>{team.name}</span>
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {team.category || 'Sin categoría'}
+                    </p>
+                  </div>
+                </label>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Barra de ordenación y agrupación */}
+      {players.length > 0 && (
+        <div className="bg-white rounded-xl shadow-md p-4 mb-4 flex flex-wrap items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-700">Agrupar por:</span>
+            <div className="flex gap-1">
+              <button
+                onClick={() => setGroupBy('none')}
+                className={`px-3 py-1.5 rounded-lg text-sm transition ${
+                  groupBy === 'none' ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                }`}
+              >
+                Ninguno
+              </button>
+              <button
+                onClick={() => setGroupBy('team')}
+                className={`px-3 py-1.5 rounded-lg text-sm transition ${
+                  groupBy === 'team' ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                }`}
+              >
+                🏆 Equipo
+              </button>
+              <button
+                onClick={() => setGroupBy('position')}
+                className={`px-3 py-1.5 rounded-lg text-sm transition ${
+                  groupBy === 'position' ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                }`}
+              >
+                📍 Posición
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Lista de jugadores */}
+      {loadingPlayers ? (
+        <div className="text-center py-12 text-gray-500">Cargando jugadores...</div>
+      ) : players.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-xl shadow">
-          <div className="text-4xl mb-4">🏆</div>
-          <p className="text-gray-500">Primero crea un club y un equipo para añadir jugadores</p>
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
-          >
-            Ir a Mis Clubs
-          </button>
+          <div className="text-4xl mb-4">🏃</div>
+          <p className="text-gray-500">
+            {selectedTeams.length === 0
+              ? 'Selecciona al menos un equipo'
+              : 'No hay jugadores en los equipos seleccionados'}
+          </p>
         </div>
       ) : (
         <>
-          {/* Selectores de club y equipos */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Club</label>
-              <select
-                className="w-full border rounded-lg px-4 py-2"
-                value={selectedClub}
-                onChange={(e) => handleClubChange(e.target.value)}
-              >
-                {clubs.map((club) => (
-                  <option key={club.id} value={club.id}>
-                    {club.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="team-selector-container relative">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Equipos</label>
-              <button
-                type="button"
-                onClick={() => setShowTeamSelector(!showTeamSelector)}
-                className="w-full border rounded-lg px-4 py-2 text-left flex justify-between items-center hover:bg-gray-50 transition"
-              >
-                <span className={selectedTeams.length === 0 ? 'text-gray-400' : 'text-gray-800'}>
-                  {getSelectedTeamsText()}
-                </span>
-                <span className="text-gray-400">▼</span>
-              </button>
-
-              {showTeamSelector && (
-                <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-auto">
-                  <div className="p-2 border-b border-gray-100 flex gap-2">
-                    <button
-                      type="button"
-                      onClick={selectAllTeams}
-                      className="flex-1 text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 py-1.5 rounded transition"
-                    >
-                      ✓ Todos
-                    </button>
-                    <button
-                      type="button"
-                      onClick={deselectAllTeams}
-                      className="flex-1 text-xs bg-gray-50 text-gray-600 hover:bg-gray-100 py-1.5 rounded transition"
-                    >
-                      ✕ Ninguno
-                    </button>
-                  </div>
-
-                  {teams.length === 0 ? (
-                    <div className="p-4 text-sm text-gray-500 text-center">
-                      No hay equipos en este club
-                    </div>
-                  ) : (
-                    teams.map((team) => (
-                      <label
-                        key={team.id}
-                        className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 cursor-pointer transition"
-                      >
-                        <input
-                          type="checkbox"
-                          checked={selectedTeams.includes(team.id)}
-                          onChange={() => toggleTeam(team.id)}
-                          className="w-4 h-4"
-                        />
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-800 flex items-center gap-1">
-                            <span>{getSportIcon(team.sport)}</span>
-                            <span>{team.name}</span>
-                          </p>
-                          <p className="text-xs text-gray-500">
-                            {team.category || 'Sin categoría'} • {team.players?.length || 0} jugadores
-                          </p>
-                        </div>
-                      </label>
-                    ))
-                  )}
-                </div>
+          <div className="bg-white rounded-t-xl px-6 py-4 border-b border-gray-200">
+            <p className="text-sm text-gray-500">
+              Mostrando <strong>{players.length}</strong> jugadores de{' '}
+              <strong>{selectedTeams.length}</strong> equipos
+              {groupBy !== 'none' && (
+                <>
+                  {' '}
+                  · Agrupados por <strong>{groupBy === 'team' ? 'equipo' : 'posición'}</strong>
+                </>
               )}
-            </div>
+            </p>
           </div>
 
-          {/* Barra de ordenación y agrupación */}
-          {players.length > 0 && (
-            <div className="bg-white rounded-xl shadow-md p-4 mb-4 flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-700">Agrupar por:</span>
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => setGroupBy('none')}
-                    className={`px-3 py-1.5 rounded-lg text-sm transition ${
-                      groupBy === 'none' ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                    }`}
-                  >
-                    Ninguno
-                  </button>
-                  <button
-                    onClick={() => setGroupBy('team')}
-                    className={`px-3 py-1.5 rounded-lg text-sm transition ${
-                      groupBy === 'team' ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                    }`}
-                  >
-                    🏆 Equipo
-                  </button>
-                  <button
-                    onClick={() => setGroupBy('position')}
-                    className={`px-3 py-1.5 rounded-lg text-sm transition ${
-                      groupBy === 'position' ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                    }`}
-                  >
-                    📍 Posición
-                  </button>
+          {groupKeys.map((groupKey, groupIndex) => (
+            <div
+              key={groupKey}
+              className={`bg-white overflow-hidden ${
+                groupIndex === 0 ? 'rounded-t-none' : ''
+              } ${groupIndex === groupKeys.length - 1 ? 'rounded-b-xl' : ''} ${
+                groupIndex > 0 ? 'border-t border-gray-100' : ''
+              }`}
+            >
+              {groupBy !== 'none' && (
+                <div className="bg-gradient-to-r from-blue-50 to-transparent px-6 py-3">
+                  <h2 className="font-semibold text-gray-800 flex items-center gap-2">
+                    <span>{getGroupIcon(groupBy)}</span>
+                    <span>{groupKey || 'Sin definir'}</span>
+                    <span className="text-sm font-normal text-gray-500">
+                      ({groupedPlayers[groupKey].length} jugadores)
+                    </span>
+                  </h2>
                 </div>
-              </div>
+              )}
+
+              <table className="w-full">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <button onClick={() => handleSort('number')} className="flex items-center gap-1 hover:text-gray-800 transition">
+                        # {getSortIcon('number')}
+                      </button>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      <button onClick={() => handleSort('name')} className="flex items-center gap-1 hover:text-gray-800 transition">
+                        Nombre {getSortIcon('name')}
+                      </button>
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                      Posición
+                    </th>
+                    {groupBy !== 'team' && (
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                        <button onClick={() => handleSort('team')} className="flex items-center gap-1 hover:text-gray-800 transition">
+                          Equipo {getSortIcon('team')}
+                        </button>
+                      </th>
+                    )}
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                      Acciones
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {groupedPlayers[groupKey].map((player: Player) => (
+                    <tr key={player.id} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 text-sm font-medium text-gray-700">
+                        {player.number || '-'}
+                      </td>
+                      <td className="px-6 py-4 font-medium text-gray-900">
+                        <Link href={`/players/${player.id}`} className="hover:text-blue-600 transition">
+                          {player.name} {player.lastName}
+                        </Link>
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {player.position || '-'}
+                      </td>
+                      {groupBy !== 'team' && (
+                        <td className="px-6 py-4 text-sm">
+                          <Link
+                            href={`/teams/${player.team?.id}`}
+                            className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-1 rounded-full text-xs font-medium hover:bg-blue-100 transition"
+                          >
+                            {getSportIcon(player.team?.sport)} {player.team?.name || 'Sin equipo'}
+                          </Link>
+                        </td>
+                      )}
+                      <td className="px-6 py-4 text-right">
+                        <Link href={`/players/${player.id}`} className="text-blue-600 hover:text-blue-800 transition text-sm">
+                          Ver ficha →
+                        </Link>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
-          )}
-
-          {/* Lista de jugadores */}
-          {loadingPlayers ? (
-            <div className="text-center py-12">Cargando jugadores...</div>
-          ) : players.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-xl shadow">
-              <div className="text-4xl mb-4">🏃</div>
-              <p className="text-gray-500">
-                {selectedTeams.length === 0
-                  ? 'Selecciona al menos un equipo'
-                  : 'No hay jugadores en los equipos seleccionados'}
-              </p>
-            </div>
-          ) : (
-            <>
-              <div className="bg-white rounded-t-xl px-6 py-4 border-b border-gray-200">
-                <p className="text-sm text-gray-500">
-                  Mostrando <strong>{players.length}</strong> jugadores de{' '}
-                  <strong>{selectedTeams.length}</strong> equipos
-                  {groupBy !== 'none' && (
-                    <>
-                      {' '}
-                      · Agrupados por <strong>{groupBy === 'team' ? 'equipo' : 'posición'}</strong>
-                    </>
-                  )}
-                </p>
-              </div>
-
-              {groupKeys.map((groupKey, groupIndex) => (
-                <div
-                  key={groupKey}
-                  className={`bg-white overflow-hidden ${
-                    groupIndex === 0 ? 'rounded-t-none' : ''
-                  } ${groupIndex === groupKeys.length - 1 ? 'rounded-b-xl' : ''} ${
-                    groupIndex > 0 ? 'border-t border-gray-100' : ''
-                  }`}
-                >
-                  {groupBy !== 'none' && (
-                    <div className="bg-gradient-to-r from-blue-50 to-transparent px-6 py-3">
-                      <h2 className="font-semibold text-gray-800 flex items-center gap-2">
-                        <span>{getGroupIcon(groupBy)}</span>
-                        <span>{groupKey || 'Sin definir'}</span>
-                        <span className="text-sm font-normal text-gray-500">
-                          ({groupedPlayers[groupKey].length} jugadores)
-                        </span>
-                      </h2>
-                    </div>
-                  )}
-
-                  <table className="w-full">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          <button onClick={() => handleSort('number')} className="flex items-center gap-1 hover:text-gray-800 transition">
-                            # {getSortIcon('number')}
-                          </button>
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          <button onClick={() => handleSort('name')} className="flex items-center gap-1 hover:text-gray-800 transition">
-                            Nombre {getSortIcon('name')}
-                          </button>
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          Posición
-                        </th>
-                        {groupBy !== 'team' && (
-                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                            <button onClick={() => handleSort('team')} className="flex items-center gap-1 hover:text-gray-800 transition">
-                              Equipo {getSortIcon('team')}
-                            </button>
-                          </th>
-                        )}
-                        <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                          Acciones
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {groupedPlayers[groupKey].map((player: Player) => (
-                        <tr key={player.id} className="hover:bg-gray-50">
-                          <td className="px-6 py-4 text-sm font-medium text-gray-700">
-                            {player.number || '-'}
-                          </td>
-                          <td className="px-6 py-4 font-medium text-gray-900">
-                            <Link href={`/players/${player.id}`} className="hover:text-blue-600 transition">
-                              {player.name} {player.lastName}
-                            </Link>
-                          </td>
-                          <td className="px-6 py-4 text-sm text-gray-600">
-                            {player.position || '-'}
-                          </td>
-                          {groupBy !== 'team' && (
-                            <td className="px-6 py-4 text-sm">
-                              <Link
-                                href={`/teams/${player.team?.id}`}
-                                className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-1 rounded-full text-xs font-medium hover:bg-blue-100 transition"
-                              >
-                                {getSportIcon(player.team?.sport)} {player.team?.name || 'Sin equipo'}
-                              </Link>
-                            </td>
-                          )}
-                          <td className="px-6 py-4 text-right">
-                            <Link href={`/players/${player.id}`} className="text-blue-600 hover:text-blue-800 transition text-sm">
-                              Ver ficha →
-                            </Link>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ))}
-            </>
-          )}
+          ))}
         </>
       )}
 
@@ -550,7 +512,7 @@ export default function PlayersPage() {
                   required
                 >
                   <option value="">Seleccionar equipo...</option>
-                  {teams.map((team) => (
+                  {clubTeams.map((team) => (
                     <option key={team.id} value={team.id}>
                       {getSportIcon(team.sport)} {team.name}
                     </option>

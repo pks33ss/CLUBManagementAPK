@@ -12,6 +12,7 @@ import AttendanceCard from './_components/AttendanceCard'
 import TopPlayersCard from './_components/TopPlayersCard'
 import PendingCallupsCard from './_components/PendingCallupsCard'
 import MatchBalanceCard from './_components/MatchBalanceCard'
+import TeamDropdownSelector from './_components/TeamDropdownSelector'
 
 interface DashboardData {
   team: {
@@ -193,29 +194,30 @@ export default function HomePage() {
           </p>
         </div>
 
-        {/* Botón de favorito para el equipo activo */}
-        <button
-          onClick={() => {
-            if (isFavorite(activeTeam.id)) {
-              // Quitar de favoritos
-              const currentFav = favorites.some((t) => t.id === activeTeam.id)
-              if (currentFav) {
-                // No hacemos removeFavorite directo para evitar cambiar el activo
-                // Solo el botón del sidebar lo hace
+        {/* Dropdown selector + botón favorito */}
+        <div className="flex items-center gap-2 flex-wrap">
+          <TeamDropdownSelector
+            teams={allTeams}
+            currentTeamId={activeTeam.id}
+            onChange={setActiveTeam}
+          />
+
+          <button
+            onClick={() => {
+              if (!isFavorite(activeTeam.id)) {
+                addFavorite(activeTeam.id)
               }
-            } else {
-              addFavorite(activeTeam.id)
-            }
-          }}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition text-sm font-medium ${
-            isFavorite(activeTeam.id)
-              ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
-              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-          }`}
-          title={isFavorite(activeTeam.id) ? 'Equipo en favoritos' : 'Añadir a favoritos'}
-        >
-          {isFavorite(activeTeam.id) ? '⭐ En favoritos' : '☆ Añadir a favoritos'}
-        </button>
+            }}
+            disabled={isFavorite(activeTeam.id)}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition text-sm font-medium ${
+              isFavorite(activeTeam.id)
+                ? 'bg-yellow-100 text-yellow-800 cursor-default'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            {isFavorite(activeTeam.id) ? '⭐' : '☆ Favorito'}
+          </button>
+        </div>
       </div>
 
       {/* ============================================ */}
