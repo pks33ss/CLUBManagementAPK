@@ -581,25 +581,33 @@ const handleDelete = async () => {
   // FUNCIONES DE ASISTENCIA
   // ============================================
 
-  const updateAttendance = async (playerId: string, status: string) => {
-    setUpdating(true)
-    try {
+const updateAttendance = async (playerId: string, status: string) => {
+  setUpdating(true)
+  try {
+    if (status === 'PENDING') {
+      // Desmarcar = eliminar la asistencia
+      await api.delete(`/attendance/session/${sessionId}/player/${playerId}`)
+    } else {
+      // Marcar = upsert
       await api.post(`/attendance/session/${sessionId}/player/${playerId}`, {
         status,
       })
-
-      setPlayers(prev =>
-        prev.map(p =>
-          p.id === playerId ? { ...p, status } : p
-        )
-      )
-    } catch (error) {
-      console.error('Error updating attendance:', error)
-      alert('Error al actualizar la asistencia')
-    } finally {
-      setUpdating(false)
     }
+
+    setPlayers(prev =>
+      prev.map(p =>
+        p.id === playerId ? { ...p, status } : p
+      )
+    )
+  } catch (error) {
+    console.error('Error updating attendance:', error)
+    alert('Error al actualizar la asistencia')
+  } finally {
+    setUpdating(false)
   }
+}
+
+
 
   // ============================================
   // FUNCIONES DE UTILIDAD

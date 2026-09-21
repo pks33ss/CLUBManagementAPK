@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react'
 import { usePathname } from 'next/navigation'
 import api from '@/lib/api'
 
@@ -40,6 +40,9 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
   const [allTeams, setAllTeams] = useState<Team[]>([])
   const [loading, setLoading] = useState(true)
 
+  // Evita que dos loadData() se solapen
+  const loadingRef = useRef(false)
+
   // ============================================
   // CARGA INICIAL
   // ============================================
@@ -57,6 +60,13 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
       setLoading(false)
       return
     }
+
+    // ✅ 3) Evitar solapamientos (si ya hay una carga en curso, salir)
+    if (loadingRef.current) return
+    loadingRef.current = true
+
+    // ✅ 4) Marcar loading=true para que las páginas no rendericen aún
+    setLoading(true)
 
     try {
       // 1) Todos los equipos del usuario
@@ -86,7 +96,6 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
       setFavorites(favTeams)
 
       // 3) Equipo activo
-      // 3a) Intentar leer de localStorage primero
       const savedActiveId = localStorage.getItem('activeTeamId')
       let foundActive: Team | null = null
 
@@ -97,24 +106,27 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
           null
       }
 
-      // 3b) Si no hay activo guardado, usar el primer favorito
+      // Si no hay activo guardado, usar el primer favorito
       if (!foundActive && favTeams.length > 0) {
         foundActive = favTeams[0]
       }
 
-      // 3c) Si tampoco hay favoritos, dejar null (el usuario tendrá que elegir)
+      // ✅ 5) Solo actualizar si el id cambió (evita re-renders innecesarios)
       if (foundActive) {
-        setActiveTeamState(foundActive)
+        setActiveTeamState((prev) => {
+          if (prev?.id === foundActive!.id) return prev
+          return foundActive
+        })
         localStorage.setItem('activeTeamId', foundActive.id)
       } else {
-        setActiveTeamState(null)
+        setActiveTeamState((prev) => (prev === null ? prev : null))
       }
     } catch (err: any) {
-      // ✅ 3) No mostrar error si es 401 (token caducado, el interceptor se encarga)
       if (err.response?.status !== 401) {
         console.error('Error cargando contexto:', err)
       }
     } finally {
+      loadingRef.current = false
       setLoading(false)
     }
   }

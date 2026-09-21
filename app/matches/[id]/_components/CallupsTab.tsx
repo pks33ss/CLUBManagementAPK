@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import api from '@/lib/api'
 import { getSportIcon } from '@/lib/sport'
 import type { MatchDetail } from '../page'
@@ -10,13 +10,14 @@ interface Props {
   onUpdate: () => void
 }
 
+type FlagStatus = 'PENDING' | 'YES' | 'NO'
+
 interface CallupFlags {
-  isAvailable: boolean
-  isCalledUp: boolean
-  isConfirmed: boolean
+  availableStatus: FlagStatus
+  calledUpStatus: FlagStatus
+  confirmedStatus: FlagStatus
 }
 
-// Estado por jugador en el frontend
 interface PlayerRow {
   playerId: string
   name: string
@@ -28,6 +29,33 @@ interface PlayerRow {
   flags: CallupFlags
 }
 
+// ============================================
+// CICLO Y ESTILOS DE LOS FLAGS
+// ============================================
+
+const cycleStatus = (current: FlagStatus): FlagStatus => {
+  if (current === 'PENDING') return 'YES'
+  if (current === 'YES') return 'NO'
+  return 'PENDING'
+}
+
+// Iconos y colores según estado
+const STATUS_ICON: Record<FlagStatus, string> = {
+  PENDING: '⬜',
+  YES: '✅',
+  NO: '❌',
+}
+
+const STATUS_STYLE: Record<FlagStatus, string> = {
+  PENDING: 'bg-gray-100 text-gray-400 hover:bg-gray-200',
+  YES: 'bg-green-100 text-green-700 hover:bg-green-200',
+  NO: 'bg-red-100 text-red-700 hover:bg-red-200',
+}
+
+// ============================================
+// COMPONENTE PRINCIPAL
+// ============================================
+
 export default function CallupsTab({ match, onUpdate }: Props) {
   const [saving, setSaving] = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
@@ -35,14 +63,12 @@ export default function CallupsTab({ match, onUpdate }: Props) {
   const [loadingCandidates, setLoadingCandidates] = useState(false)
   const [selectedPlayers, setSelectedPlayers] = useState<string[]>([])
 
-  // Construimos las filas de jugadores a partir de:
-  // 1. Los jugadores del equipo
-  // 2. Los callups existentes (que pueden incluir jugadores de otros equipos)
+  // Construimos las filas de jugadores
   const buildRows = (): PlayerRow[] => {
     const rows: PlayerRow[] = []
     const seen = new Set<string>()
 
-    // Primero los jugadores del equipo
+    // Jugadores del equipo
     for (const p of match.team.players) {
       const callup = match.callups.find((c: any) => c.playerId === p.id)
       rows.push({
@@ -53,15 +79,15 @@ export default function CallupsTab({ match, onUpdate }: Props) {
         position: p.position,
         fromOtherTeam: false,
         flags: {
-          isAvailable: callup?.isAvailable ?? true,
-          isCalledUp: callup?.isCalledUp ?? false,
-          isConfirmed: callup?.isConfirmed ?? false,
+          availableStatus: callup?.availableStatus ?? 'PENDING',
+          calledUpStatus: callup?.calledUpStatus ?? 'PENDING',
+          confirmedStatus: callup?.confirmedStatus ?? 'PENDING',
         },
       })
       seen.add(p.id)
     }
 
-    // Luego los callups de jugadores de otros equipos
+    // Callups de jugadores de otros equipos
     for (const c of match.callups) {
       if (seen.has(c.playerId)) continue
       rows.push({
@@ -73,9 +99,9 @@ export default function CallupsTab({ match, onUpdate }: Props) {
         fromOtherTeam: true,
         teamName: (c.player as any).team?.name || 'Otro equipo',
         flags: {
-          isAvailable: c.isAvailable ?? true,
-          isCalledUp: c.isCalledUp ?? false,
-          isConfirmed: c.isConfirmed ?? false,
+          availableStatus: c.availableStatus ?? 'PENDING',
+          calledUpStatus: c.calledUpStatus ?? 'PENDING',
+          confirmedStatus: c.confirmedStatus ?? 'PENDING',
         },
       })
     }
@@ -86,18 +112,20 @@ export default function CallupsTab({ match, onUpdate }: Props) {
   const rows = buildRows()
 
   // ============================================
-  // GUARDAR UN FLAG
+  // CICLAR UN FLAG
   // ============================================
 
-  const toggleFlag = async (
+  const cycleFlag = async (
     playerId: string,
     currentFlags: CallupFlags,
     key: keyof CallupFlags,
   ) => {
     setSaving(`${playerId}-${key}`)
     try {
-      const newFlags = { ...currentFlags, [key]: !currentFlags[key] }
-      await api.put(`/matches/${match.id}/callups/${playerId}`, newFlags)
+      const newStatus = cycleStatus(currentFlags[key])
+      await api.put(`/matches/${match.id}/callups/${playerId}`, {
+        [key]: newStatus,
+      })
       onUpdate()
     } catch (err) {
       console.error(err)
@@ -143,7 +171,7 @@ export default function CallupsTab({ match, onUpdate }: Props) {
   }
 
   // ============================================
-  // QUITAR JUGADOR DE LA CONVOCATORIA
+  // QUITAR JUGADOR
   // ============================================
 
   const removePlayer = async (playerId: string, name: string) => {
@@ -166,42 +194,43 @@ export default function CallupsTab({ match, onUpdate }: Props) {
 
   const summary = {
     total: rows.length,
-    available: rows.filter((r) => r.flags.isAvailable).length,
-    calledUp: rows.filter((r) => r.flags.isCalledUp).length,
-    confirmed: rows.filter((r) => r.flags.isCalledUp && r.flags.isConfirmed).length,
+    available: rows.filter((r) => r.flags.availableStatus === 'YES').length,
+    calledUp: rows.filter((r) => r.flags.calledUpStatus === 'YES').length,
+    confirmed: rows.filter((r) => r.flags.confirmedStatus === 'YES').length,
   }
 
   // ============================================
-  // SUB-COMPONENTE: Botón de flag
+  // SUB-COMPONENTE: Botón de flag con etiqueta
   // ============================================
 
   const FlagButton = ({
-    active,
-    iconOn,
-    iconOff,
-    colorOn,
+    status,
+    label,
     onClick,
     disabled,
     title,
   }: {
-    active: boolean
-    iconOn: string
-    iconOff: string
-    colorOn: string
+    status: FlagStatus
+    label: string
     onClick: () => void
     disabled: boolean
     title: string
   }) => (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className={`w-10 h-10 rounded-lg flex items-center justify-center text-base transition ${
-        active ? colorOn : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
-      } ${disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-    >
-      {active ? iconOn : iconOff}
-    </button>
+    <div className="flex flex-col items-center gap-1">
+      <span className="text-[10px] text-gray-500 uppercase font-semibold tracking-wide md:hidden">
+        {label}
+      </span>
+      <button
+        onClick={onClick}
+        disabled={disabled}
+        title={title}
+        className={`w-10 h-10 rounded-lg flex items-center justify-center text-base transition ${STATUS_STYLE[status]} ${
+          disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'
+        }`}
+      >
+        {STATUS_ICON[status]}
+      </button>
+    </div>
   )
 
   return (
@@ -226,30 +255,29 @@ export default function CallupsTab({ match, onUpdate }: Props) {
         </button>
       </div>
 
-      {/* Cabecera de columnas */}
-<div className="hidden md:grid grid-cols-[1fr_90px_90px_90px_48px] gap-2 px-3 py-2 bg-gray-50 rounded-lg mb-2 text-xs font-semibold text-gray-500 uppercase items-center">
-  <div>Jugador</div>
-  <div className="text-center whitespace-nowrap">Disponible</div>
-  <div className="text-center whitespace-nowrap">Convocado</div>
-  <div className="text-center whitespace-nowrap">Confirmado</div>
-  <div></div>
-</div>
+      {/* Cabecera de columnas (solo desktop) */}
+      <div className="hidden md:grid grid-cols-[1fr_90px_90px_90px_48px] gap-2 px-3 py-2 bg-gray-50 rounded-lg mb-2 text-xs font-semibold text-gray-500 uppercase items-center">
+        <div>Jugador</div>
+        <div className="text-center whitespace-nowrap">Disponible</div>
+        <div className="text-center whitespace-nowrap">Convocado</div>
+        <div className="text-center whitespace-nowrap">Confirmado</div>
+        <div></div>
+      </div>
 
       {/* Lista de jugadores */}
       <div className="space-y-2">
         {rows.map((row) => {
           const isSaving = saving?.startsWith(row.playerId)
-          const canConfirm = row.flags.isCalledUp // solo se puede confirmar si está convocado
 
           return (
-<div
-  key={row.playerId}
-  className={`grid grid-cols-1 md:grid-cols-[1fr_90px_90px_90px_48px] gap-2 items-center p-3 rounded-lg border transition ${
-    row.fromOtherTeam
-      ? 'border-purple-200 bg-purple-50/30'
-      : 'border-gray-100 hover:border-blue-200'
-  }`}
->
+            <div
+              key={row.playerId}
+              className={`grid grid-cols-1 md:grid-cols-[1fr_90px_90px_90px_48px] gap-2 items-center p-3 rounded-lg border transition ${
+                row.fromOtherTeam
+                  ? 'border-purple-200 bg-purple-50/30'
+                  : 'border-gray-100 hover:border-blue-200'
+              }`}
+            >
               {/* Jugador */}
               <div className="flex items-center gap-3 min-w-0">
                 {row.number != null && (
@@ -273,54 +301,55 @@ export default function CallupsTab({ match, onUpdate }: Props) {
                 </div>
               </div>
 
-              {/* Disponible */}
-              <div className="flex justify-center">
-                <FlagButton
-                  active={row.flags.isAvailable}
-                  iconOn="✅"
-                  iconOff="⬜"
-                  colorOn="bg-green-100 text-green-700"
-                  onClick={() => toggleFlag(row.playerId, row.flags, 'isAvailable')}
-                  disabled={!!isSaving}
-                  title="Disponible / No disponible"
-                />
-              </div>
+              {/* 3 flags en fila (móvil: 3 columnas con etiquetas; desktop: 3 columnas en grid) */}
+              <div className="grid grid-cols-3 md:contents gap-2 md:gap-0 pt-2 md:pt-0 border-t md:border-t-0 border-gray-100">
+                {/* Disponible */}
+                <div className="flex justify-center">
+                  <FlagButton
+                    status={row.flags.availableStatus}
+                    label="Disponible"
+                    onClick={() =>
+                      cycleFlag(row.playerId, row.flags, 'availableStatus')
+                    }
+                    disabled={!!isSaving}
+                    title="Disponible: ⬜ pendiente / ✅ sí / ❌ no"
+                  />
+                </div>
 
-              {/* Convocado */}
-              <div className="flex justify-center">
-                <FlagButton
-                  active={row.flags.isCalledUp}
-                  iconOn="📢"
-                  iconOff="⬜"
-                  colorOn="bg-blue-100 text-blue-700"
-                  onClick={() => toggleFlag(row.playerId, row.flags, 'isCalledUp')}
-                  disabled={!!isSaving}
-                  title="Convocado / No convocado"
-                />
-              </div>
+                {/* Convocado */}
+                <div className="flex justify-center">
+                  <FlagButton
+                    status={row.flags.calledUpStatus}
+                    label="Convocado"
+                    onClick={() =>
+                      cycleFlag(row.playerId, row.flags, 'calledUpStatus')
+                    }
+                    disabled={!!isSaving}
+                    title="Convocado: ⬜ pendiente / ✅ sí / ❌ no"
+                  />
+                </div>
 
-              {/* Confirmado */}
-              <div className="flex justify-center">
-                <FlagButton
-                  active={row.flags.isConfirmed}
-                  iconOn="✅"
-                  iconOff="⬜"
-                  colorOn="bg-purple-100 text-purple-700"
-                  onClick={() => toggleFlag(row.playerId, row.flags, 'isConfirmed')}
-                  disabled={!!isSaving || !canConfirm}
-                  title={
-                    canConfirm
-                      ? 'Confirmado / No confirmado'
-                      : 'Primero debe estar convocado'
-                  }
-                />
+                {/* Confirmado */}
+                <div className="flex justify-center">
+                  <FlagButton
+                    status={row.flags.confirmedStatus}
+                    label="Confirmado"
+                    onClick={() =>
+                      cycleFlag(row.playerId, row.flags, 'confirmedStatus')
+                    }
+                    disabled={!!isSaving}
+                    title="Confirmado: ⬜ pendiente / ✅ sí / ❌ no"
+                  />
+                </div>
               </div>
 
               {/* Quitar */}
               <div className="flex justify-center">
                 {row.fromOtherTeam ? (
                   <button
-                    onClick={() => removePlayer(row.playerId, `${row.name} ${row.lastName}`)}
+                    onClick={() =>
+                      removePlayer(row.playerId, `${row.name} ${row.lastName}`)
+                    }
                     disabled={!!isSaving}
                     className="w-10 h-10 rounded-lg flex items-center justify-center text-red-400 hover:text-red-600 hover:bg-red-50 transition"
                     title="Quitar de la convocatoria"

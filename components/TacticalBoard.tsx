@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
-import { Stage, Layer, Line, Circle, Arrow, Image as KonvaImage, Text } from 'react-konva'
+import { Stage, Layer, Line, Circle, Arrow, Image as KonvaImage } from 'react-konva'
 import useImage from 'use-image'
 import Konva from 'konva'
 
@@ -33,10 +33,10 @@ interface DrawableItem {
 // COMPONENTE PRINCIPAL
 // ============================================
 
-export default function TacticalBoard({ 
-  width = 800, 
+export default function TacticalBoard({
+  width = 800,
   height = 800,
-  onSave 
+  onSave,
 }: TacticalBoardProps) {
   const [courtImage] = useImage('/basketball-court.png')
   const [items, setItems] = useState<DrawableItem[]>([])
@@ -45,6 +45,28 @@ export default function TacticalBoard({
   const [isDrawing, setIsDrawing] = useState(false)
   const [currentPoints, setCurrentPoints] = useState<number[]>([])
   const stageRef = useRef<Konva.Stage>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
+
+  // ✅ NUEVO: tamaño real disponible
+  const [boardSize, setBoardSize] = useState({ width, height })
+
+  // ============================================
+  // RESPONSIVE: medir el contenedor y escalar
+  // ============================================
+
+  useEffect(() => {
+    const updateSize = () => {
+      if (!containerRef.current) return
+      const availableWidth = containerRef.current.clientWidth
+      // El board es cuadrado → usamos el menor entre ancho disponible y height original
+      const size = Math.min(availableWidth, height)
+      setBoardSize({ width: size, height: size })
+    }
+
+    updateSize()
+    window.addEventListener('resize', updateSize)
+    return () => window.removeEventListener('resize', updateSize)
+  }, [height])
 
   // ============================================
   // MANEJO DE EVENTOS
@@ -53,7 +75,8 @@ export default function TacticalBoard({
   const handleMouseDown = (e: any) => {
     const stage = e.target.getStage()
     const pos = stage.getPointerPosition()
-    
+    if (!pos) return
+
     if (tool === 'select') return
     if (tool === 'eraser') {
       // Eliminar el item más cercano
@@ -83,14 +106,10 @@ export default function TacticalBoard({
     if (!isDrawing) return
     const stage = e.target.getStage()
     const pos = stage.getPointerPosition()
+    if (!pos) return
 
     if (tool === 'arrow' || tool === 'line') {
-      setCurrentPoints([
-        currentPoints[0],
-        currentPoints[1],
-        pos.x,
-        pos.y,
-      ])
+      setCurrentPoints([currentPoints[0], currentPoints[1], pos.x, pos.y])
     }
   }
 
@@ -118,7 +137,10 @@ export default function TacticalBoard({
 
   const handleSave = () => {
     if (!stageRef.current) return
-    const dataUrl = stageRef.current.toDataURL({ pixelRatio: 2 })
+    // ✅ Exportamos a resolución original (no la escalada) para que se vea nítido
+    const dataUrl = stageRef.current.toDataURL({
+      pixelRatio: width / boardSize.width,
+    })
     if (onSave) {
       onSave(dataUrl)
     }
@@ -146,46 +168,22 @@ export default function TacticalBoard({
       {/* Barra de herramientas */}
       <div className="bg-white rounded-xl shadow-md p-4 flex flex-wrap items-center gap-2">
         <div className="flex gap-1 border-r border-gray-200 pr-3">
-          <ToolButton
-            active={tool === 'select'}
-            onClick={() => setTool('select')}
-            title="Seleccionar"
-          >
+          <ToolButton active={tool === 'select'} onClick={() => setTool('select')} title="Seleccionar">
             🖱️
           </ToolButton>
-          <ToolButton
-            active={tool === 'arrow'}
-            onClick={() => setTool('arrow')}
-            title="Flecha"
-          >
+          <ToolButton active={tool === 'arrow'} onClick={() => setTool('arrow')} title="Flecha">
             ➡️
           </ToolButton>
-          <ToolButton
-            active={tool === 'line'}
-            onClick={() => setTool('line')}
-            title="Línea"
-          >
+          <ToolButton active={tool === 'line'} onClick={() => setTool('line')} title="Línea">
             ➖
           </ToolButton>
-          <ToolButton
-            active={tool === 'player'}
-            onClick={() => setTool('player')}
-            title="Jugador"
-          >
+          <ToolButton active={tool === 'player'} onClick={() => setTool('player')} title="Jugador">
             🔵
           </ToolButton>
-          <ToolButton
-            active={tool === 'cone'}
-            onClick={() => setTool('cone')}
-            title="Cono"
-          >
+          <ToolButton active={tool === 'cone'} onClick={() => setTool('cone')} title="Cono">
             🔺
           </ToolButton>
-          <ToolButton
-            active={tool === 'ball'}
-            onClick={() => setTool('ball')}
-            title="Balón"
-          >
+          <ToolButton active={tool === 'ball'} onClick={() => setTool('ball')} title="Balón">
             🏀
           </ToolButton>
         </div>
@@ -229,15 +227,19 @@ export default function TacticalBoard({
         </div>
       </div>
 
-      {/* Pizarra */}
-      <div className="bg-white rounded-xl shadow-md p-4 overflow-auto">
+      {/* Pizarra responsive */}
+      <div
+        ref={containerRef}
+        className="bg-white rounded-xl shadow-md p-4 flex justify-center"
+      >
         <Stage
           ref={stageRef}
-          width={width}
-          height={height}
+          width={boardSize.width}
+          height={boardSize.height}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
           onTouchStart={handleMouseDown}
           onTouchMove={handleMouseMove}
           onTouchEnd={handleMouseUp}
@@ -247,8 +249,8 @@ export default function TacticalBoard({
             {courtImage && (
               <KonvaImage
                 image={courtImage}
-                width={width}
-                height={height}
+                width={boardSize.width}
+                height={boardSize.height}
               />
             )}
           </Layer>
@@ -256,16 +258,19 @@ export default function TacticalBoard({
           {/* Dibujos */}
           <Layer>
             {items.map((item) => {
+              // ✅ Escalar items por si el tamaño cambió
+              const scale = boardSize.width / width
+
               if (item.type === 'arrow' && item.points) {
                 return (
                   <Arrow
                     key={item.id}
-                    points={item.points}
+                    points={item.points.map((p) => p * scale)}
                     stroke={item.color}
                     fill={item.color}
-                    strokeWidth={3}
-                    pointerLength={10}
-                    pointerWidth={10}
+                    strokeWidth={3 * scale}
+                    pointerLength={10 * scale}
+                    pointerWidth={10 * scale}
                   />
                 )
               }
@@ -273,48 +278,22 @@ export default function TacticalBoard({
                 return (
                   <Line
                     key={item.id}
-                    points={item.points}
+                    points={item.points.map((p) => p * scale)}
                     stroke={item.color}
-                    strokeWidth={3}
+                    strokeWidth={3 * scale}
                   />
                 )
               }
-              if (item.type === 'player') {
+              if (item.type === 'player' || item.type === 'cone' || item.type === 'ball') {
                 return (
                   <Circle
                     key={item.id}
-                    x={item.x}
-                    y={item.y}
-                    radius={item.radius}
+                    x={(item.x ?? 0) * scale}
+                    y={(item.y ?? 0) * scale}
+                    radius={(item.radius ?? 20) * scale}
                     fill={item.fill}
                     stroke="#ffffff"
-                    strokeWidth={2}
-                  />
-                )
-              }
-              if (item.type === 'cone') {
-                return (
-                  <Circle
-                    key={item.id}
-                    x={item.x}
-                    y={item.y}
-                    radius={item.radius}
-                    fill={item.fill}
-                    stroke="#ffffff"
-                    strokeWidth={2}
-                  />
-                )
-              }
-              if (item.type === 'ball') {
-                return (
-                  <Circle
-                    key={item.id}
-                    x={item.x}
-                    y={item.y}
-                    radius={item.radius}
-                    fill={item.fill}
-                    stroke="#ffffff"
-                    strokeWidth={2}
+                    strokeWidth={2 * scale}
                   />
                 )
               }
@@ -323,22 +302,26 @@ export default function TacticalBoard({
 
             {/* Dibujo actual */}
             {isDrawing && (tool === 'arrow' || tool === 'line') && currentPoints.length === 4 && (
-              tool === 'arrow' ? (
-                <Arrow
-                  points={currentPoints}
-                  stroke={color}
-                  fill={color}
-                  strokeWidth={3}
-                  pointerLength={10}
-                  pointerWidth={10}
-                />
-              ) : (
-                <Line
-                  points={currentPoints}
-                  stroke={color}
-                  strokeWidth={3}
-                />
-              )
+              (() => {
+                const scale = boardSize.width / width
+                const scaledPoints = currentPoints.map((p) => p * scale)
+                return tool === 'arrow' ? (
+                  <Arrow
+                    points={scaledPoints}
+                    stroke={color}
+                    fill={color}
+                    strokeWidth={3 * scale}
+                    pointerLength={10 * scale}
+                    pointerWidth={10 * scale}
+                  />
+                ) : (
+                  <Line
+                    points={scaledPoints}
+                    stroke={color}
+                    strokeWidth={3 * scale}
+                  />
+                )
+              })()
             )}
           </Layer>
         </Stage>
@@ -351,25 +334,23 @@ export default function TacticalBoard({
 // COMPONENTE AUXILIAR
 // ============================================
 
-function ToolButton({ 
-  active, 
-  onClick, 
-  title, 
-  children 
-}: { 
+function ToolButton({
+  active,
+  onClick,
+  title,
+  children,
+}: {
   active: boolean
   onClick: () => void
   title: string
-  children: React.ReactNode 
+  children: React.ReactNode
 }) {
   return (
     <button
       onClick={onClick}
       title={title}
       className={`p-2 rounded-lg transition ${
-        active 
-          ? 'bg-blue-600 text-white' 
-          : 'bg-gray-100 hover:bg-gray-200'
+        active ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200'
       }`}
     >
       {children}
