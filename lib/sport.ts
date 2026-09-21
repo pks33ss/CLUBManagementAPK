@@ -107,25 +107,24 @@ export const SPORT_CONFIG: Record<Sport, SportConfig> = {
 
 /**
  * Devuelve la configuración completa de un deporte.
- * Si el deporte es null/undefined, devuelve la de baloncesto por defecto.
+ * Si el deporte es null/undefined o no existe, devuelve la de baloncesto.
  */
-export function getSportConfig(sport: Sport | null | undefined): SportConfig {
-  return SPORT_CONFIG[sport || 'BASKETBALL']
+export function getSportConfig(sport: string | null | undefined): SportConfig {
+  const key = (sport as Sport) || 'BASKETBALL'
+  return SPORT_CONFIG[key] || SPORT_CONFIG.BASKETBALL
 }
 
 /**
  * Devuelve solo el icono del deporte.
- * Uso: <span>{getSportIcon(team.sport)}</span>
  */
-export function getSportIcon(sport: Sport | null | undefined): string {
+export function getSportIcon(sport: string | null | undefined): string {
   return getSportConfig(sport).icon
 }
 
 /**
  * Devuelve solo el nombre del deporte.
- * Uso: <p>{getSportName(team.sport)}</p>
  */
-export function getSportName(sport: Sport | null | undefined): string {
+export function getSportName(sport: string | null | undefined): string {
   return getSportConfig(sport).name
 }
 
@@ -138,7 +137,7 @@ export function getSportIconByValue(sport: string | null | undefined): string {
 }
 
 /**
- * Devuelve las opciones de deporte con un valor por defecto si está vacío.
+ * Devuelve las opciones de deporte.
  */
 export function getSportOptions() {
   return SPORTS

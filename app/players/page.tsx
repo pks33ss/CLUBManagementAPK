@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
+import { getSportIcon, getSportConfig } from '@/lib/sport'
 
 interface Player {
   id: string
@@ -16,6 +17,7 @@ interface Player {
     id: string
     name: string
     category: string
+    sport?: string
   }
 }
 
@@ -35,14 +37,11 @@ export default function PlayersPage() {
   const [loadingPlayers, setLoadingPlayers] = useState(false)
   const [showTeamSelector, setShowTeamSelector] = useState(false)
 
-  // ✅ Estados para ordenación
   const [sortField, setSortField] = useState<SortField>('number')
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
-
-  // ✅ Estados para agrupación
   const [groupBy, setGroupBy] = useState<GroupBy>('none')
 
-  // Estados para crear jugador
+  // Para el modal de crear jugador, necesitamos el sport del equipo elegido
   const [showModal, setShowModal] = useState(false)
   const [newPlayer, setNewPlayer] = useState({
     name: '',
@@ -56,7 +55,7 @@ export default function PlayersPage() {
     height: '',
     wingspan: '',
     weight: '',
-    teamId: ''
+    teamId: '',
   })
 
   useEffect(() => {
@@ -115,7 +114,6 @@ export default function PlayersPage() {
       setPlayers([])
       return
     }
-
     setLoadingPlayers(true)
     try {
       const response = await api.post('/players/by-teams', { teamIds })
@@ -137,7 +135,7 @@ export default function PlayersPage() {
   const toggleTeam = (teamId: string) => {
     let newSelected: string[]
     if (selectedTeams.includes(teamId)) {
-      newSelected = selectedTeams.filter(id => id !== teamId)
+      newSelected = selectedTeams.filter((id) => id !== teamId)
     } else {
       newSelected = [...selectedTeams, teamId]
     }
@@ -146,7 +144,7 @@ export default function PlayersPage() {
   }
 
   const selectAllTeams = () => {
-    const allIds = teams.map(t => t.id)
+    const allIds = teams.map((t) => t.id)
     setSelectedTeams(allIds)
     fetchPlayersByTeams(allIds)
   }
@@ -158,12 +156,10 @@ export default function PlayersPage() {
 
   const createPlayer = async (e: React.FormEvent) => {
     e.preventDefault()
-
     if (!newPlayer.teamId) {
       alert('Por favor, selecciona un equipo')
       return
     }
-
     try {
       await api.post('/players', {
         name: newPlayer.name,
@@ -179,12 +175,11 @@ export default function PlayersPage() {
         weight: newPlayer.weight ? parseFloat(newPlayer.weight) : undefined,
         teamId: newPlayer.teamId,
       })
-
       setShowModal(false)
       setNewPlayer({
         name: '', lastName: '', birthDate: '', position: '', number: '',
         phone: '', email: '', address: '', height: '', wingspan: '',
-        weight: '', teamId: ''
+        weight: '', teamId: '',
       })
       fetchPlayersByTeams(selectedTeams)
     } catch (error: any) {
@@ -197,13 +192,12 @@ export default function PlayersPage() {
     if (selectedTeams.length === 0) return 'Selecciona equipos...'
     if (selectedTeams.length === teams.length) return 'Todos los equipos'
     if (selectedTeams.length === 1) {
-      const team = teams.find(t => t.id === selectedTeams[0])
+      const team = teams.find((t) => t.id === selectedTeams[0])
       return team?.name || '1 equipo'
     }
     return `${selectedTeams.length} equipos seleccionados`
   }
 
-  // ✅ Función para cambiar el orden
   const handleSort = (field: SortField) => {
     if (sortField === field) {
       setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
@@ -213,11 +207,9 @@ export default function PlayersPage() {
     }
   }
 
-  // ✅ Función para ordenar los jugadores
   const sortPlayers = (playersToSort: Player[]) => {
     return [...playersToSort].sort((a, b) => {
       let comparison = 0
-
       switch (sortField) {
         case 'number':
           const numA = a.number || 999
@@ -231,31 +223,19 @@ export default function PlayersPage() {
           comparison = (a.team?.name || '').localeCompare(b.team?.name || '')
           break
       }
-
       return sortOrder === 'asc' ? comparison : -comparison
     })
   }
 
   const sortedPlayers = sortPlayers(players)
 
-  // ✅ Función para agrupar los jugadores
   const groupPlayers = (playersToGroup: Player[]) => {
-    if (groupBy === 'none') {
-      return { '': playersToGroup }
-    }
-
+    if (groupBy === 'none') return { '': playersToGroup }
     return playersToGroup.reduce((acc: any, player) => {
       let key = ''
-
-      if (groupBy === 'team') {
-        key = player.team?.name || 'Sin equipo'
-      } else if (groupBy === 'position') {
-        key = player.position || 'Sin posición'
-      }
-
-      if (!acc[key]) {
-        acc[key] = []
-      }
+      if (groupBy === 'team') key = player.team?.name || 'Sin equipo'
+      else if (groupBy === 'position') key = player.position || 'Sin posición'
+      if (!acc[key]) acc[key] = []
       acc[key].push(player)
       return acc
     }, {})
@@ -264,20 +244,23 @@ export default function PlayersPage() {
   const groupedPlayers = groupPlayers(sortedPlayers)
   const groupKeys = Object.keys(groupedPlayers).sort()
 
-  // ✅ Icono de ordenación
   const getSortIcon = (field: SortField) => {
     if (sortField !== field) return '↕️'
     return sortOrder === 'asc' ? '↑' : '↓'
   }
 
-  // ✅ Icono del grupo
+  // Icono del grupo: usamos 🏆 genérico porque puede haber varios deportes
   const getGroupIcon = (group: GroupBy) => {
     switch (group) {
-      case 'team': return '🏀'
+      case 'team': return '🏆'
       case 'position': return '📍'
       default: return ''
     }
   }
+
+  // Sport del equipo seleccionado en el modal (para posiciones dinámicas)
+  const selectedTeamInModal = teams.find((t) => t.id === newPlayer.teamId)
+  const modalSport = getSportConfig(selectedTeamInModal?.sport)
 
   if (loading) {
     return <div className="text-center py-12">Cargando jugadores...</div>
@@ -296,7 +279,7 @@ export default function PlayersPage() {
               alert('Primero crea un equipo')
               return
             }
-            setNewPlayer(prev => ({ ...prev, teamId: teams[0]?.id || '' }))
+            setNewPlayer((prev) => ({ ...prev, teamId: teams[0]?.id || '' }))
             setShowModal(true)
           }}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition"
@@ -308,13 +291,13 @@ export default function PlayersPage() {
 
       {clubs.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-xl shadow">
-          <div className="text-4xl mb-4">🏀</div>
+          <div className="text-4xl mb-4">🏆</div>
           <p className="text-gray-500">Primero crea un club y un equipo para añadir jugadores</p>
           <button
             onClick={() => router.push('/dashboard')}
             className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
           >
-            Ir a Dashboard
+            Ir a Mis Clubs
           </button>
         </div>
       ) : (
@@ -329,7 +312,9 @@ export default function PlayersPage() {
                 onChange={(e) => handleClubChange(e.target.value)}
               >
                 {clubs.map((club) => (
-                  <option key={club.id} value={club.id}>{club.name}</option>
+                  <option key={club.id} value={club.id}>
+                    {club.name}
+                  </option>
                 ))}
               </select>
             </div>
@@ -383,7 +368,10 @@ export default function PlayersPage() {
                           className="w-4 h-4"
                         />
                         <div className="flex-1">
-                          <p className="text-sm font-medium text-gray-800">{team.name}</p>
+                          <p className="text-sm font-medium text-gray-800 flex items-center gap-1">
+                            <span>{getSportIcon(team.sport)}</span>
+                            <span>{team.name}</span>
+                          </p>
                           <p className="text-xs text-gray-500">
                             {team.category || 'Sin categoría'} • {team.players?.length || 0} jugadores
                           </p>
@@ -405,9 +393,7 @@ export default function PlayersPage() {
                   <button
                     onClick={() => setGroupBy('none')}
                     className={`px-3 py-1.5 rounded-lg text-sm transition ${
-                      groupBy === 'none'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                      groupBy === 'none' ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                     }`}
                   >
                     Ninguno
@@ -415,19 +401,15 @@ export default function PlayersPage() {
                   <button
                     onClick={() => setGroupBy('team')}
                     className={`px-3 py-1.5 rounded-lg text-sm transition ${
-                      groupBy === 'team'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                      groupBy === 'team' ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                     }`}
                   >
-                    🏀 Equipo
+                    🏆 Equipo
                   </button>
                   <button
                     onClick={() => setGroupBy('position')}
                     className={`px-3 py-1.5 rounded-lg text-sm transition ${
-                      groupBy === 'position'
-                        ? 'bg-blue-600 text-white'
-                        : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                      groupBy === 'position' ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
                     }`}
                   >
                     📍 Posición
@@ -451,13 +433,15 @@ export default function PlayersPage() {
             </div>
           ) : (
             <>
-              {/* Contador */}
               <div className="bg-white rounded-t-xl px-6 py-4 border-b border-gray-200">
                 <p className="text-sm text-gray-500">
                   Mostrando <strong>{players.length}</strong> jugadores de{' '}
                   <strong>{selectedTeams.length}</strong> equipos
                   {groupBy !== 'none' && (
-                    <> · Agrupados por <strong>{groupBy === 'team' ? 'equipo' : 'posición'}</strong></>
+                    <>
+                      {' '}
+                      · Agrupados por <strong>{groupBy === 'team' ? 'equipo' : 'posición'}</strong>
+                    </>
                   )}
                 </p>
               </div>
@@ -467,13 +451,10 @@ export default function PlayersPage() {
                   key={groupKey}
                   className={`bg-white overflow-hidden ${
                     groupIndex === 0 ? 'rounded-t-none' : ''
-                  } ${
-                    groupIndex === groupKeys.length - 1 ? 'rounded-b-xl' : ''
-                  } ${
+                  } ${groupIndex === groupKeys.length - 1 ? 'rounded-b-xl' : ''} ${
                     groupIndex > 0 ? 'border-t border-gray-100' : ''
                   }`}
                 >
-                  {/* Cabecera del grupo */}
                   {groupBy !== 'none' && (
                     <div className="bg-gradient-to-r from-blue-50 to-transparent px-6 py-3">
                       <h2 className="font-semibold text-gray-800 flex items-center gap-2">
@@ -490,18 +471,12 @@ export default function PlayersPage() {
                     <thead className="bg-gray-50">
                       <tr>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          <button
-                            onClick={() => handleSort('number')}
-                            className="flex items-center gap-1 hover:text-gray-800 transition"
-                          >
+                          <button onClick={() => handleSort('number')} className="flex items-center gap-1 hover:text-gray-800 transition">
                             # {getSortIcon('number')}
                           </button>
                         </th>
                         <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                          <button
-                            onClick={() => handleSort('name')}
-                            className="flex items-center gap-1 hover:text-gray-800 transition"
-                          >
+                          <button onClick={() => handleSort('name')} className="flex items-center gap-1 hover:text-gray-800 transition">
                             Nombre {getSortIcon('name')}
                           </button>
                         </th>
@@ -510,10 +485,7 @@ export default function PlayersPage() {
                         </th>
                         {groupBy !== 'team' && (
                           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                            <button
-                              onClick={() => handleSort('team')}
-                              className="flex items-center gap-1 hover:text-gray-800 transition"
-                            >
+                            <button onClick={() => handleSort('team')} className="flex items-center gap-1 hover:text-gray-800 transition">
                               Equipo {getSortIcon('team')}
                             </button>
                           </th>
@@ -530,10 +502,7 @@ export default function PlayersPage() {
                             {player.number || '-'}
                           </td>
                           <td className="px-6 py-4 font-medium text-gray-900">
-                            <Link
-                              href={`/players/${player.id}`}
-                              className="hover:text-blue-600 transition"
-                            >
+                            <Link href={`/players/${player.id}`} className="hover:text-blue-600 transition">
                               {player.name} {player.lastName}
                             </Link>
                           </td>
@@ -546,15 +515,12 @@ export default function PlayersPage() {
                                 href={`/teams/${player.team?.id}`}
                                 className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-1 rounded-full text-xs font-medium hover:bg-blue-100 transition"
                               >
-                                🏀 {player.team?.name || 'Sin equipo'}
+                                {getSportIcon(player.team?.sport)} {player.team?.name || 'Sin equipo'}
                               </Link>
                             </td>
                           )}
                           <td className="px-6 py-4 text-right">
-                            <Link
-                              href={`/players/${player.id}`}
-                              className="text-blue-600 hover:text-blue-800 transition text-sm"
-                            >
+                            <Link href={`/players/${player.id}`} className="text-blue-600 hover:text-blue-800 transition text-sm">
                               Ver ficha →
                             </Link>
                           </td>
@@ -579,13 +545,15 @@ export default function PlayersPage() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Equipo *</label>
                 <select
                   value={newPlayer.teamId}
-                  onChange={(e) => setNewPlayer({...newPlayer, teamId: e.target.value})}
+                  onChange={(e) => setNewPlayer({ ...newPlayer, teamId: e.target.value, position: '' })}
                   className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
                   required
                 >
                   <option value="">Seleccionar equipo...</option>
                   {teams.map((team) => (
-                    <option key={team.id} value={team.id}>{team.name}</option>
+                    <option key={team.id} value={team.id}>
+                      {getSportIcon(team.sport)} {team.name}
+                    </option>
                   ))}
                 </select>
               </div>
@@ -598,7 +566,7 @@ export default function PlayersPage() {
                     <input
                       type="text"
                       value={newPlayer.name}
-                      onChange={(e) => setNewPlayer({...newPlayer, name: e.target.value})}
+                      onChange={(e) => setNewPlayer({ ...newPlayer, name: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       required
                     />
@@ -608,7 +576,7 @@ export default function PlayersPage() {
                     <input
                       type="text"
                       value={newPlayer.lastName}
-                      onChange={(e) => setNewPlayer({...newPlayer, lastName: e.target.value})}
+                      onChange={(e) => setNewPlayer({ ...newPlayer, lastName: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       required
                     />
@@ -621,7 +589,7 @@ export default function PlayersPage() {
                     <input
                       type="date"
                       value={newPlayer.birthDate}
-                      onChange={(e) => setNewPlayer({...newPlayer, birthDate: e.target.value})}
+                      onChange={(e) => setNewPlayer({ ...newPlayer, birthDate: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -630,7 +598,7 @@ export default function PlayersPage() {
                     <input
                       type="tel"
                       value={newPlayer.phone}
-                      onChange={(e) => setNewPlayer({...newPlayer, phone: e.target.value})}
+                      onChange={(e) => setNewPlayer({ ...newPlayer, phone: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -641,7 +609,7 @@ export default function PlayersPage() {
                   <input
                     type="email"
                     value={newPlayer.email}
-                    onChange={(e) => setNewPlayer({...newPlayer, email: e.target.value})}
+                    onChange={(e) => setNewPlayer({ ...newPlayer, email: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
@@ -651,21 +619,23 @@ export default function PlayersPage() {
                   <input
                     type="text"
                     value={newPlayer.address}
-                    onChange={(e) => setNewPlayer({...newPlayer, address: e.target.value})}
+                    onChange={(e) => setNewPlayer({ ...newPlayer, address: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
               </div>
 
               <div className="border-t border-gray-200 pt-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">🏀 Información Deportiva</h4>
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                  {modalSport.icon} Información Deportiva
+                </h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Dorsal</label>
                     <input
                       type="number"
                       value={newPlayer.number}
-                      onChange={(e) => setNewPlayer({...newPlayer, number: e.target.value})}
+                      onChange={(e) => setNewPlayer({ ...newPlayer, number: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       min="0"
                       max="99"
@@ -673,18 +643,26 @@ export default function PlayersPage() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Posición</label>
-                    <select
-                      value={newPlayer.position}
-                      onChange={(e) => setNewPlayer({...newPlayer, position: e.target.value})}
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Seleccionar...</option>
-                      <option value="Base">Base</option>
-                      <option value="Escolta">Escolta</option>
-                      <option value="Alero">Alero</option>
-                      <option value="Ala-Pívot">Ala-Pívot</option>
-                      <option value="Pívot">Pívot</option>
-                    </select>
+                    {modalSport.positions.length > 0 ? (
+                      <select
+                        value={newPlayer.position}
+                        onChange={(e) => setNewPlayer({ ...newPlayer, position: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Seleccionar...</option>
+                        {modalSport.positions.map((pos) => (
+                          <option key={pos} value={pos}>{pos}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        value={newPlayer.position}
+                        onChange={(e) => setNewPlayer({ ...newPlayer, position: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        placeholder="Ej: Delantero"
+                      />
+                    )}
                   </div>
                 </div>
 
@@ -694,7 +672,7 @@ export default function PlayersPage() {
                     <input
                       type="number"
                       value={newPlayer.height}
-                      onChange={(e) => setNewPlayer({...newPlayer, height: e.target.value})}
+                      onChange={(e) => setNewPlayer({ ...newPlayer, height: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       min="0"
                       step="0.1"
@@ -705,7 +683,7 @@ export default function PlayersPage() {
                     <input
                       type="number"
                       value={newPlayer.wingspan}
-                      onChange={(e) => setNewPlayer({...newPlayer, wingspan: e.target.value})}
+                      onChange={(e) => setNewPlayer({ ...newPlayer, wingspan: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       min="0"
                       step="0.1"
@@ -716,7 +694,7 @@ export default function PlayersPage() {
                     <input
                       type="number"
                       value={newPlayer.weight}
-                      onChange={(e) => setNewPlayer({...newPlayer, weight: e.target.value})}
+                      onChange={(e) => setNewPlayer({ ...newPlayer, weight: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       min="0"
                       step="0.1"

@@ -58,12 +58,12 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             <div className="flex items-center gap-8">
 
               {/* ✅ Inicio */}
-              <Link
-                href="/home"
-                className={linkClass('/home', 'flex items-center gap-2 transition')}
-              >
-                🏀 Inicio
-              </Link>
+<Link
+  href="/home"
+  className={linkClass('/home', 'flex items-center gap-2 transition')}
+>
+  🏆 Inicio
+</Link>
 
               {/* ✅ Mis Clubs */}
               <Link

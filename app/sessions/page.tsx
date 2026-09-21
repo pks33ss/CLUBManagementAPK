@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
+import { getSportIcon, getSportConfig } from '@/lib/sport'
 import {
   summarizeAttendance,
   attendanceBadgeClass,
@@ -21,6 +22,7 @@ interface Session {
   team: {
     id: string
     name: string
+    sport?: string
     club: {
       id: string
       name: string
@@ -108,6 +110,10 @@ export default function SessionsPage() {
     })
   }
 
+  // Sport del equipo seleccionado (para el título de la sección)
+  const selectedTeamData = teams.find((t) => t.id === selectedTeam)
+  const sport = getSportConfig(selectedTeamData?.sport)
+
   if (loading) {
     return <div className="text-center py-12">Cargando sesiones...</div>
   }
@@ -116,8 +122,10 @@ export default function SessionsPage() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">📋 Entrenamientos</h1>
-          <p className="text-gray-500">Gestiona los entrenamientos de tus equipos</p>
+          <h1 className="text-2xl font-bold text-gray-800">
+            📋 Entrenamientos {selectedTeamData && `· ${getSportIcon(selectedTeamData.sport)}`}
+          </h1>
+          <p className="text-gray-500">Gestiona los entrenamientos de tus {sport.teamNamePlural.toLowerCase()}</p>
         </div>
         <Link
           href="/sessions/new"
@@ -129,7 +137,7 @@ export default function SessionsPage() {
 
       {clubs.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-xl shadow">
-          <div className="text-4xl mb-4">🏀</div>
+          <div className="text-4xl mb-4">🏆</div>
           <p className="text-gray-500">
             Primero crea un club y un equipo para añadir sesiones
           </p>
@@ -137,7 +145,7 @@ export default function SessionsPage() {
             onClick={() => router.push('/dashboard')}
             className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
           >
-            Ir a Dashboard
+            Ir a Mis Clubs
           </button>
         </div>
       ) : (
@@ -170,7 +178,7 @@ export default function SessionsPage() {
               >
                 {teams.map((team) => (
                   <option key={team.id} value={team.id}>
-                    {team.name}
+                    {getSportIcon(team.sport)} {team.name}
                   </option>
                 ))}
               </select>
@@ -181,7 +189,7 @@ export default function SessionsPage() {
             <div className="text-center py-12 bg-white rounded-xl shadow">
               <div className="text-4xl mb-4">📋</div>
               <p className="text-gray-500">
-                No hay sesiones programadas para este equipo
+                No hay sesiones programadas para este {sport.teamName.toLowerCase()}
               </p>
               <Link
                 href="/sessions/new"
@@ -194,6 +202,7 @@ export default function SessionsPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {sessions.map((session) => {
                 const attendanceSummary = summarizeAttendance(session.attendances)
+                const sessionSport = getSportConfig(session.team?.sport)
                 return (
                   <Link
                     key={session.id}
@@ -201,9 +210,12 @@ export default function SessionsPage() {
                     className="bg-white rounded-xl shadow-md hover:shadow-lg transition p-6 border border-gray-100 hover:border-blue-200"
                   >
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-800">
-                        {session.title}
-                      </h3>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xl">{sessionSport.icon}</span>
+                        <h3 className="text-lg font-semibold text-gray-800">
+                          {session.title}
+                        </h3>
+                      </div>
                       <p className="text-sm text-gray-500 mt-1">
                         {formatDate(session.date)}
                       </p>

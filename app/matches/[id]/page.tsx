@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
+import { getSportConfig } from '@/lib/sport'
 
 import MatchHeader from './_components/MatchHeader'
 import CallupsTab from './_components/CallupsTab'
@@ -31,6 +32,7 @@ export interface MatchDetail {
   team: {
     id: string
     name: string
+    sport?: string
     club: { id: string; name: string }
     players: any[]
   }
@@ -89,14 +91,16 @@ export default function MatchDetailPage() {
     )
   }
 
-const tabs: { id: Tab; label: string; icon: string }[] = [
-  { id: 'lineup',   label: 'Line Up',       icon: '🏀' },
-  { id: 'gameplan', label: 'Plan',          icon: '📋' },
-  { id: 'callups',  label: 'Convocatoria',  icon: '🎯' },
-  { id: 'stats',    label: 'Estadísticas',  icon: '📊' },
-  { id: 'notes',    label: 'Notas',         icon: '📝' },
-  { id: 'live',     label: 'Directo',       icon: '📺' },   // ✅ NUEVO
-]
+  const sport = getSportConfig(match.team?.sport)
+
+  const tabs: { id: Tab; label: string; icon: string }[] = [
+    { id: 'lineup',   label: 'Line Up',       icon: sport.icon },
+    { id: 'gameplan', label: 'Plan',          icon: '📋' },
+    { id: 'callups',  label: 'Convocatoria',  icon: '🎯' },
+    { id: 'stats',    label: 'Estadísticas',  icon: '📊' },
+    { id: 'notes',    label: 'Notas',         icon: '📝' },
+    { id: 'live',     label: 'Directo',       icon: '📺' },
+  ]
 
   return (
     <div>
@@ -127,24 +131,12 @@ const tabs: { id: Tab; label: string; icon: string }[] = [
 
       {/* Contenido del tab */}
       <div>
-        {activeTab === 'callups' && (
-          <CallupsTab match={match} onUpdate={fetchMatch} />
-        )}
-        {activeTab === 'lineup' && (
-          <LineupTab match={match} onUpdate={fetchMatch} />
-        )}
-        {activeTab === 'stats' && (
-          <StatsTab match={match} onUpdate={fetchMatch} />
-        )}
-        {activeTab === 'gameplan' && (
-          <GamePlanTab match={match} onUpdate={fetchMatch} />
-        )}
-        {activeTab === 'notes' && (
-          <NotesTab match={match} onUpdate={fetchMatch} />
-        )}
-        {activeTab === 'live' && (
-  <LiveStreamTab match={match} />        // ✅ NUEVO
-)}
+        {activeTab === 'callups' && <CallupsTab match={match} onUpdate={fetchMatch} />}
+        {activeTab === 'lineup' && <LineupTab match={match} onUpdate={fetchMatch} />}
+        {activeTab === 'stats' && <StatsTab match={match} onUpdate={fetchMatch} />}
+        {activeTab === 'gameplan' && <GamePlanTab match={match} onUpdate={fetchMatch} />}
+        {activeTab === 'notes' && <NotesTab match={match} onUpdate={fetchMatch} />}
+        {activeTab === 'live' && <LiveStreamTab match={match} />}
       </div>
     </div>
   )

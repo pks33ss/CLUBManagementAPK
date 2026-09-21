@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import api from '@/lib/api'
+import { getSportConfig } from '@/lib/sport'
 import type { MatchDetail } from '../page'
 
 interface Props {
@@ -10,7 +11,7 @@ interface Props {
 }
 
 interface Lineup {
-  starters: string[]        // 5 playerIds
+  starters: string[]
   quarters: {
     Q1: string[]
     Q2: string[]
@@ -23,22 +24,18 @@ interface Lineup {
 }
 
 const QUARTERS = ['Q1', 'Q2', 'Q3', 'Q4', 'OT'] as const
-const POSITIONS = ['Base', 'Escolta', 'Alero', 'Ala-pívot', 'Pívot']
 
-// ✅ Solo jugadores convocados pueden estar en el lineup
 const getEligiblePlayers = (match: MatchDetail) => {
-  const callupIds = match.callups.map(c => c.playerId)
-  if (callupIds.length === 0) {
-    // Si no hay convocados, permitimos toda la plantilla (opción por defecto)
-    return match.team.players
-  }
-  return match.team.players.filter(p => callupIds.includes(p.id))
+  const callupIds = match.callups.map((c) => c.playerId)
+  if (callupIds.length === 0) return match.team.players
+  return match.team.players.filter((p) => callupIds.includes(p.id))
 }
 
 export default function LineupTab({ match, onUpdate }: Props) {
   const eligiblePlayers = getEligiblePlayers(match)
+  const sport = getSportConfig((match.team as any)?.sport)
+  const POSITIONS = sport.positions.length > 0 ? sport.positions : ['Jugador 1', 'Jugador 2', 'Jugador 3', 'Jugador 4', 'Jugador 5']
 
-  // Estado local del lineup
   const [lineup, setLineup] = useState<Lineup>({
     starters: ['', '', '', '', ''],
     quarters: { Q1: [], Q2: [], Q3: [], Q4: [], OT: [] },
@@ -48,7 +45,6 @@ export default function LineupTab({ match, onUpdate }: Props) {
   const [saving, setSaving] = useState(false)
   const [dirty, setDirty] = useState(false)
 
-  // Cargar lineup del backend cuando llega
   useEffect(() => {
     if (match.lineup) {
       setLineup({
@@ -64,17 +60,13 @@ export default function LineupTab({ match, onUpdate }: Props) {
         notes: match.lineup.notes || '',
       })
     } else {
-      // ✅ Auto-rellenar con los convocados (Opción B)
       const autoStarters = ['', '', '', '', '']
       eligiblePlayers.slice(0, 5).forEach((p, i) => {
         autoStarters[i] = p.id
       })
       setLineup({
         starters: autoStarters,
-        quarters: {
-          Q1: [...autoStarters.filter(Boolean)],
-          Q2: [], Q3: [], Q4: [], OT: [],
-        },
+        quarters: { Q1: [...autoStarters.filter(Boolean)], Q2: [], Q3: [], Q4: [], OT: [] },
         plannedMinutes: {},
         notes: '',
       })
@@ -82,7 +74,7 @@ export default function LineupTab({ match, onUpdate }: Props) {
     setDirty(false)
   }, [match.id])
 
-  const getPlayer = (id: string) => match.team.players.find(p => p.id === id)
+  const getPlayer = (id: string) => match.team.players.find((p) => p.id === id)
 
   const updateStarter = (index: number, playerId: string) => {
     const newStarters = [...lineup.starters]
@@ -94,7 +86,7 @@ export default function LineupTab({ match, onUpdate }: Props) {
   const toggleQuarterPlayer = (quarter: typeof QUARTERS[number], playerId: string) => {
     const current = lineup.quarters[quarter]
     const newList = current.includes(playerId)
-      ? current.filter(id => id !== playerId)
+      ? current.filter((id) => id !== playerId)
       : [...current, playerId]
     setLineup({ ...lineup, quarters: { ...lineup.quarters, [quarter]: newList } })
     setDirty(true)
@@ -111,7 +103,6 @@ export default function LineupTab({ match, onUpdate }: Props) {
   const handleSave = async () => {
     setSaving(true)
     try {
-      // Limpiar starters vacíos
       const cleanLineup: Lineup = {
         ...lineup,
         starters: lineup.starters.filter(Boolean),
@@ -147,7 +138,7 @@ export default function LineupTab({ match, onUpdate }: Props) {
     return (
       <div className="bg-white rounded-xl shadow-md p-6 text-center">
         <p className="text-gray-500">
-          Necesitas convocar jugadores primero para poder definir el line up.
+          Necesitas convocar {sport.playerNamePlural.toLowerCase()} primero para poder definir el line up.
         </p>
       </div>
     )
@@ -155,12 +146,11 @@ export default function LineupTab({ match, onUpdate }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* Header con botones */}
       <div className="bg-white rounded-xl shadow-md p-4 flex justify-between items-center flex-wrap gap-3">
         <div>
-          <h2 className="text-xl font-semibold text-gray-800">🏀 Line Up</h2>
+          <h2 className="text-xl font-semibold text-gray-800">{sport.icon} Line Up</h2>
           <p className="text-xs text-gray-500">
-            {eligiblePlayers.length} jugadores disponibles
+            {eligiblePlayers.length} {sport.playerNamePlural.toLowerCase()} disponibles
             {match.callups.length > 0 && ' (convocados)'}
           </p>
         </div>
@@ -181,7 +171,6 @@ export default function LineupTab({ match, onUpdate }: Props) {
         </div>
       </div>
 
-      {/* Quinteto inicial */}
       <div className="bg-white rounded-xl shadow-md p-6">
         <h3 className="font-semibold text-gray-800 mb-4">⚡ Quinteto inicial</h3>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
@@ -190,16 +179,14 @@ export default function LineupTab({ match, onUpdate }: Props) {
             const player = playerId ? getPlayer(playerId) : null
             return (
               <div key={pos} className="border border-gray-200 rounded-lg p-3">
-                <p className="text-xs font-semibold text-gray-500 uppercase mb-2">
-                  {pos}
-                </p>
+                <p className="text-xs font-semibold text-gray-500 uppercase mb-2">{pos}</p>
                 <select
                   value={playerId || ''}
                   onChange={(e) => updateStarter(i, e.target.value)}
                   className="w-full text-sm border rounded px-2 py-1.5"
                 >
                   <option value="">— Seleccionar —</option>
-                  {eligiblePlayers.map(p => (
+                  {eligiblePlayers.map((p) => (
                     <option
                       key={p.id}
                       value={p.id}
@@ -224,11 +211,10 @@ export default function LineupTab({ match, onUpdate }: Props) {
         </div>
       </div>
 
-      {/* Rotaciones por cuarto */}
       <div className="bg-white rounded-xl shadow-md p-6">
         <h3 className="font-semibold text-gray-800 mb-4">🔄 Rotaciones por cuarto</h3>
         <p className="text-xs text-gray-500 mb-4">
-          Marca qué jugadores están en pista en cada cuarto
+          Marca qué {sport.playerNamePlural.toLowerCase()} están en pista en cada cuarto
         </p>
         <div className="space-y-4">
           {QUARTERS.map((q) => (
@@ -236,7 +222,7 @@ export default function LineupTab({ match, onUpdate }: Props) {
               <div className="flex items-center gap-2 mb-2">
                 <span className="font-bold text-sm text-gray-700">{q}</span>
                 <span className="text-xs text-gray-400">
-                  {lineup.quarters[q].length} jugadores
+                  {lineup.quarters[q].length} {sport.playerNamePlural.toLowerCase()}
                 </span>
               </div>
               <div className="flex flex-wrap gap-2">
@@ -263,12 +249,10 @@ export default function LineupTab({ match, onUpdate }: Props) {
         </div>
       </div>
 
-      {/* Minutos planificados */}
       <div className="bg-white rounded-xl shadow-md p-6">
         <h3 className="font-semibold text-gray-800 mb-4">⏱️ Minutos planificados</h3>
         <p className="text-xs text-gray-500 mb-4">
-          Total: <strong>{totalPlannedMinutes}</strong> min (un partido son 40 min × 5 = 200 min
-          repartidos)
+          Total: <strong>{totalPlannedMinutes}</strong> min
         </p>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
           {eligiblePlayers.map((p) => (
@@ -292,7 +276,6 @@ export default function LineupTab({ match, onUpdate }: Props) {
         </div>
       </div>
 
-      {/* Notas */}
       <div className="bg-white rounded-xl shadow-md p-6">
         <h3 className="font-semibold text-gray-800 mb-4">📝 Notas de rotación</h3>
         <textarea

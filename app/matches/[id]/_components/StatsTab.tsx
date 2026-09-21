@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import api from '@/lib/api'
+import { getSportConfig } from '@/lib/sport'
 import type { MatchDetail } from '../page'
 
 interface Props {
@@ -18,16 +19,17 @@ const EMPTY_STATS = {
 }
 
 export default function StatsTab({ match, onUpdate }: Props) {
-  // Solo jugadores convocados pueden tener stats
   const eligiblePlayers = match.callups.length > 0
-    ? match.team.players.filter(p => match.callups.some(c => c.playerId === p.id))
+    ? match.team.players.filter((p) => match.callups.some((c) => c.playerId === p.id))
     : match.team.players
+
+  const sport = getSportConfig((match.team as any)?.sport)
 
   const [editing, setEditing] = useState<string | null>(null)
   const [form, setForm] = useState<any>(EMPTY_STATS)
   const [saving, setSaving] = useState(false)
 
-  const statsMap = new Map(match.playerStats.map(s => [s.playerId, s]))
+  const statsMap = new Map(match.playerStats.map((s) => [s.playerId, s]))
 
   const startEdit = (playerId: string) => {
     const existing = statsMap.get(playerId)
@@ -38,7 +40,6 @@ export default function StatsTab({ match, onUpdate }: Props) {
   const handleSave = async (playerId: string) => {
     setSaving(true)
     try {
-      // Limpiamos campos no numéricos y los que no aplican
       const { id, matchId, playerId: _pid, player, createdAt, updatedAt, ...stats } = form
       await api.post(`/matches/${match.id}/stats/${playerId}`, stats)
       setEditing(null)
@@ -63,7 +64,9 @@ export default function StatsTab({ match, onUpdate }: Props) {
   if (eligiblePlayers.length === 0) {
     return (
       <div className="bg-white rounded-xl shadow-md p-6 text-center">
-        <p className="text-gray-500">No hay jugadores disponibles para registrar estadísticas</p>
+        <p className="text-gray-500">
+          No hay {sport.playerNamePlural.toLowerCase()} disponibles para registrar estadísticas
+        </p>
       </div>
     )
   }
@@ -74,7 +77,7 @@ export default function StatsTab({ match, onUpdate }: Props) {
         <div>
           <h2 className="text-xl font-semibold text-gray-800">📊 Estadísticas</h2>
           <div className="flex gap-3 mt-1 text-xs text-gray-500">
-            <span>🏀 {totalTeam.points} pts equipo</span>
+            <span>{sport.icon} {totalTeam.points} pts {sport.teamName.toLowerCase()}</span>
             <span>💪 {totalTeam.rebounds} reb</span>
             <span>🎯 {totalTeam.assists} ast</span>
           </div>
@@ -86,7 +89,7 @@ export default function StatsTab({ match, onUpdate }: Props) {
           <thead className="bg-gray-50">
             <tr>
               <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">#</th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Jugador</th>
+              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{sport.playerName}</th>
               <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Min</th>
               <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Pts</th>
               <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Reb</th>

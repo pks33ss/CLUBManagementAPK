@@ -237,7 +237,7 @@ const toggleTeamAssignment = async (teamId: string, isAssigned: boolean) => {
   const getRoleText = (role: string) => {
     switch (role) {
       case 'ADMIN_CLUB': return '🏛️ Admin Club'
-      case 'COACH': return '🏀 Entrenador'
+      case 'COACH': return '🏆 Entrenador'
       case 'ASSISTANT': return '🤝 Asistente'
       default: return role
     }
@@ -336,7 +336,7 @@ const toggleTeamAssignment = async (teamId: string, isAssigned: boolean) => {
     disabled={member.userId === currentUser?.id}
     title="Gestionar equipos"
   >
-    🏀
+    🏆
   </button>
                       <button
                         onClick={() => openResetPasswordModal(member)}
@@ -367,7 +367,7 @@ const toggleTeamAssignment = async (teamId: string, isAssigned: boolean) => {
       {isAdmin && (
         <div className="bg-white rounded-xl shadow-md p-6 mt-6">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            🏀 Gestión de Equipos y Entrenadores
+            🏆 Gestión de Equipos y Entrenadores
           </h2>
 
           {teams.length === 0 ? (
@@ -380,7 +380,7 @@ const toggleTeamAssignment = async (teamId: string, isAssigned: boolean) => {
                 <div key={team.id} className="border rounded-lg p-4">
                   <div className="flex justify-between items-center mb-3">
                     <h3 className="font-medium text-gray-800">
-                      🏀 {team.name}
+                      🏆 {team.name}
                     </h3>
                     <Link
                       href={`/teams/${team.id}/members`}
@@ -403,7 +403,7 @@ const toggleTeamAssignment = async (teamId: string, isAssigned: boolean) => {
                         >
                           <span>{member.user.name} {member.user.lastName}</span>
                           <span className="text-xs text-blue-600">
-                            {member.role === 'COACH' ? '🏀' : '🤝'}
+                            {member.role === 'COACH' ? '🏆' : '🤝'}
                           </span>
                         </div>
                       ))}
@@ -445,7 +445,7 @@ const toggleTeamAssignment = async (teamId: string, isAssigned: boolean) => {
                   className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
                   required
                 >
-                  <option value="COACH">🏀 Entrenador</option>
+                  <option value="COACH">🏆 Entrenador</option>
                   <option value="ASSISTANT">🤝 Asistente</option>
                   <option value="ADMIN_CLUB">🏛️ Admin Club</option>
                 </select>
@@ -511,7 +511,7 @@ const toggleTeamAssignment = async (teamId: string, isAssigned: boolean) => {
                   className="w-4 h-4"
                 />
                 <div>
-                  <p className="font-medium">🏀 Entrenador</p>
+                  <p className="font-medium">🏆 Entrenador</p>
                   <p className="text-xs text-gray-500">Puede gestionar sus equipos</p>
                 </div>
               </label>
@@ -610,7 +610,7 @@ const toggleTeamAssignment = async (teamId: string, isAssigned: boolean) => {
   <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
     <div className="bg-white rounded-xl max-w-md w-full p-6 max-h-[90vh] overflow-auto">
       <h3 className="text-xl font-bold text-gray-800 mb-2">
-        🏀 Equipos de {selectedMemberForTeams.user.name} {selectedMemberForTeams.user.lastName}
+        🏆 Equipos de {selectedMemberForTeams.user.name} {selectedMemberForTeams.user.lastName}
       </h3>
       <p className="text-sm text-gray-500 mb-4">
         Asigna los equipos a los que este entrenador tendrá acceso

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import api from '@/lib/api'
+import { getSportConfig } from '@/lib/sport'
 import type { PlayerDetail } from '../page'
 
 interface Props {
@@ -17,6 +18,8 @@ export default function PlayerInfoTab({ player, onUpdate }: Props) {
   const [updating, setUpdating] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleting, setDeleting] = useState(false)
+
+  const sport = getSportConfig((player.team as any)?.sport)
 
   const [editForm, setEditForm] = useState({
     name: player.name || '',
@@ -95,9 +98,12 @@ export default function PlayerInfoTab({ player, onUpdate }: Props) {
 
       {/* Datos deportivos */}
       <div className="bg-white rounded-xl shadow-md p-6">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">🏀 Datos deportivos</h2>
+        <h2 className="text-xl font-semibold text-gray-800 mb-4">
+          {sport.icon} Datos deportivos
+        </h2>
         <dl className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <InfoRow label="Equipo" value={player.team.name} />
+          <InfoRow label="Deporte" value={sport.name} />
           <InfoRow label="Club" value={player.team.club.name} />
           <InfoRow label="Categoría" value={player.team.category || '—'} />
           <InfoRow label="Dorsal" value={player.number != null ? `#${player.number}` : '—'} />
@@ -182,7 +188,9 @@ export default function PlayerInfoTab({ player, onUpdate }: Props) {
               </div>
 
               <div className="border-t pt-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">🏀 Información Deportiva</h4>
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                  {sport.icon} Información Deportiva
+                </h4>
                 <div className="grid grid-cols-2 gap-4">
                   <input
                     type="number"
@@ -193,18 +201,26 @@ export default function PlayerInfoTab({ player, onUpdate }: Props) {
                     min="0"
                     max="99"
                   />
-                  <select
-                    value={editForm.position}
-                    onChange={(e) => setEditForm({ ...editForm, position: e.target.value })}
-                    className="w-full border rounded-lg px-4 py-2"
-                  >
-                    <option value="">Posición...</option>
-                    <option value="Base">Base</option>
-                    <option value="Escolta">Escolta</option>
-                    <option value="Alero">Alero</option>
-                    <option value="Ala-Pívot">Ala-Pívot</option>
-                    <option value="Pívot">Pívot</option>
-                  </select>
+                  {sport.positions.length > 0 ? (
+                    <select
+                      value={editForm.position}
+                      onChange={(e) => setEditForm({ ...editForm, position: e.target.value })}
+                      className="w-full border rounded-lg px-4 py-2"
+                    >
+                      <option value="">Posición...</option>
+                      {sport.positions.map((pos) => (
+                        <option key={pos} value={pos}>{pos}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={editForm.position}
+                      onChange={(e) => setEditForm({ ...editForm, position: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg"
+                      placeholder="Posición"
+                    />
+                  )}
                 </div>
                 <div className="grid grid-cols-3 gap-4 mt-4">
                   <input

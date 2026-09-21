@@ -2,13 +2,21 @@
 
 import { useState, useEffect } from 'react'
 import api from '@/lib/api'
+import { getSportIcon } from '@/lib/sport'
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, ResponsiveContainer, Legend,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
 } from 'recharts'
 
 interface Props {
   playerId: string
+  sport?: string
 }
 
 interface Summary {
@@ -31,11 +39,13 @@ interface EvolutionPoint {
   minutes: number
 }
 
-export default function PlayerStatsTab({ playerId }: Props) {
+export default function PlayerStatsTab({ playerId, sport }: Props) {
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<{ summary: Summary; evolution: EvolutionPoint[] } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [chartMetric, setChartMetric] = useState<'points' | 'rebounds' | 'assists'>('points')
+
+  const sportIcon = getSportIcon(sport)
 
   useEffect(() => {
     const fetch = async () => {
@@ -72,7 +82,7 @@ export default function PlayerStatsTab({ playerId }: Props) {
     <div className="space-y-6">
       {/* Resumen */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard label="Partidos" value={summary.gamesPlayed} icon="🏀" />
+        <StatCard label="Partidos" value={summary.gamesPlayed} icon={sportIcon} />
         <StatCard label="Victorias" value={summary.wins} icon="🏆" subtitle={`${summary.winRate}% win rate`} color="text-green-600" />
         <StatCard label="Derrotas" value={summary.losses} icon="❌" color="text-red-600" />
         <StatCard label="Min/partido" value={summary.averages.minutes} icon="⏱️" />

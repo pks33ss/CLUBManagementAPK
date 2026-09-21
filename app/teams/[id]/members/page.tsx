@@ -131,7 +131,7 @@ export default function TeamMembers() {
 
   const getRoleText = (role: string) => {
     switch (role) {
-      case 'COACH': return '🏀 Entrenador'
+      case 'COACH': return '🏆 Entrenador'
       case 'ASSISTANT': return '🤝 Asistente'
       default: return role
     }
@@ -257,7 +257,7 @@ export default function TeamMembers() {
                   className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
                   required
                 >
-                  <option value="COACH">🏀 Entrenador</option>
+                  <option value="COACH">🏆 Entrenador</option>
                   <option value="ASSISTANT">🤝 Asistente</option>
                 </select>
               </div>
@@ -305,7 +305,7 @@ export default function TeamMembers() {
                   className="w-4 h-4"
                 />
                 <div>
-                  <p className="font-medium">🏀 Entrenador</p>
+                  <p className="font-medium">🏆 Entrenador</p>
                   <p className="text-xs text-gray-500">Puede gestionar el equipo (jugadores, entrenamientos, asistencia)</p>
                 </div>
               </label>

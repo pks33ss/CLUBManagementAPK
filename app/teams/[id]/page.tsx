@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
+import { getSportConfig } from '@/lib/sport'
 
 // ============================================
 // TIPOS
@@ -12,6 +13,7 @@ import api from '@/lib/api'
 interface TeamDetail {
   id: string
   name: string
+  sport: string
   category: string
   season: string
   club: {
@@ -55,7 +57,7 @@ export default function TeamDetail() {
   const [editForm, setEditForm] = useState({
     name: '',
     category: '',
-    season: ''
+    season: '',
   })
   const [updating, setUpdating] = useState(false)
 
@@ -63,7 +65,7 @@ export default function TeamDetail() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  // ✅ Estados para crear jugador
+  // Estados para crear jugador
   const [showPlayerModal, setShowPlayerModal] = useState(false)
   const [newPlayer, setNewPlayer] = useState({
     name: '',
@@ -104,7 +106,7 @@ export default function TeamDetail() {
       setEditForm({
         name: response.data.name,
         category: response.data.category || '',
-        season: response.data.season || ''
+        season: response.data.season || '',
       })
     } catch (error: any) {
       console.error('Error:', error)
@@ -129,7 +131,7 @@ export default function TeamDetail() {
       setEditForm({
         name: team.name,
         category: team.category || '',
-        season: team.season || ''
+        season: team.season || '',
       })
       setShowEditModal(true)
     }
@@ -235,8 +237,8 @@ export default function TeamDetail() {
           {error?.includes('No tienes acceso') ? 'Acceso Denegado' : 'Error'}
         </h2>
         <p className="text-gray-500 max-w-md mx-auto mb-6">{error || 'Equipo no encontrado'}</p>
-        <Link 
-          href="/teams" 
+        <Link
+          href="/teams"
           className="inline-block bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition"
         >
           ← Volver a Mis Equipos
@@ -244,6 +246,8 @@ export default function TeamDetail() {
       </div>
     )
   }
+
+  const sport = getSportConfig(team.sport)
 
   return (
     <div>
@@ -257,9 +261,11 @@ export default function TeamDetail() {
       <div className="bg-white rounded-xl shadow-md p-6 mb-6">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-800">{team.name}</h1>
+            <h1 className="text-3xl font-bold text-gray-800">
+              {sport.icon} {team.name}
+            </h1>
             <p className="text-gray-500 mt-1">
-              {team.category || 'Sin categoría'} • {team.season || 'Temporada no especificada'}
+              {sport.name} · {team.category || 'Sin categoría'} • {team.season || 'Temporada no especificada'}
             </p>
             <p className="text-sm text-gray-400 mt-2">
               Club: {team.club?.name || 'Sin club'}
@@ -302,25 +308,25 @@ export default function TeamDetail() {
       <div className="bg-white rounded-xl shadow-md p-6">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-semibold text-gray-800">
-            👥 Jugadores ({team.players?.length || 0})
+            👥 {sport.playerNamePlural} ({team.players?.length || 0})
           </h2>
           <button
             onClick={() => setShowPlayerModal(true)}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition text-sm"
           >
-            <span className="text-xl">+</span> Nuevo Jugador
+            <span className="text-xl">+</span> Nuevo {sport.playerName}
           </button>
         </div>
 
         {team.players?.length === 0 ? (
           <div className="text-center py-8">
             <div className="text-4xl mb-4">🏃</div>
-            <p className="text-gray-500">No hay jugadores en este equipo</p>
+            <p className="text-gray-500">No hay {sport.playerNamePlural.toLowerCase()} en este {sport.teamName.toLowerCase()}</p>
             <button
               onClick={() => setShowPlayerModal(true)}
               className="mt-4 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition"
             >
-              Añadir Primer Jugador
+              Añadir Primer {sport.playerName}
             </button>
           </div>
         ) : (
@@ -391,7 +397,7 @@ export default function TeamDetail() {
                 <input
                   type="text"
                   value={editForm.name}
-                  onChange={(e) => setEditForm({...editForm, name: e.target.value})}
+                  onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   required
                 />
@@ -402,7 +408,7 @@ export default function TeamDetail() {
                 </label>
                 <select
                   value={editForm.category}
-                  onChange={(e) => setEditForm({...editForm, category: e.target.value})}
+                  onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
                   className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">Seleccionar...</option>
@@ -420,7 +426,7 @@ export default function TeamDetail() {
                 <input
                   type="text"
                   value={editForm.season}
-                  onChange={(e) => setEditForm({...editForm, season: e.target.value})}
+                  onChange={(e) => setEditForm({ ...editForm, season: e.target.value })}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                   placeholder="Ej: 2025-2026"
                 />
@@ -485,7 +491,7 @@ export default function TeamDetail() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-auto">
             <h3 className="text-xl font-bold text-gray-800 mb-4">
-              Añadir Nuevo Jugador a {team.name}
+              Añadir Nuevo {sport.playerName} a {team.name}
             </h3>
             <form onSubmit={createPlayer} className="space-y-4">
               <div>
@@ -496,7 +502,7 @@ export default function TeamDetail() {
                     <input
                       type="text"
                       value={newPlayer.name}
-                      onChange={(e) => setNewPlayer({...newPlayer, name: e.target.value})}
+                      onChange={(e) => setNewPlayer({ ...newPlayer, name: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       required
                       placeholder="Ej: Juan"
@@ -507,7 +513,7 @@ export default function TeamDetail() {
                     <input
                       type="text"
                       value={newPlayer.lastName}
-                      onChange={(e) => setNewPlayer({...newPlayer, lastName: e.target.value})}
+                      onChange={(e) => setNewPlayer({ ...newPlayer, lastName: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       required
                       placeholder="Ej: Pérez"
@@ -521,7 +527,7 @@ export default function TeamDetail() {
                     <input
                       type="date"
                       value={newPlayer.birthDate}
-                      onChange={(e) => setNewPlayer({...newPlayer, birthDate: e.target.value})}
+                      onChange={(e) => setNewPlayer({ ...newPlayer, birthDate: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     />
                   </div>
@@ -530,7 +536,7 @@ export default function TeamDetail() {
                     <input
                       type="tel"
                       value={newPlayer.phone}
-                      onChange={(e) => setNewPlayer({...newPlayer, phone: e.target.value})}
+                      onChange={(e) => setNewPlayer({ ...newPlayer, phone: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       placeholder="+34 600 123 456"
                     />
@@ -542,7 +548,7 @@ export default function TeamDetail() {
                   <input
                     type="email"
                     value={newPlayer.email}
-                    onChange={(e) => setNewPlayer({...newPlayer, email: e.target.value})}
+                    onChange={(e) => setNewPlayer({ ...newPlayer, email: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     placeholder="jugador@email.com"
                   />
@@ -553,7 +559,7 @@ export default function TeamDetail() {
                   <input
                     type="text"
                     value={newPlayer.address}
-                    onChange={(e) => setNewPlayer({...newPlayer, address: e.target.value})}
+                    onChange={(e) => setNewPlayer({ ...newPlayer, address: e.target.value })}
                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                     placeholder="Calle, número, ciudad"
                   />
@@ -561,14 +567,16 @@ export default function TeamDetail() {
               </div>
 
               <div className="border-t border-gray-200 pt-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">🏀 Información Deportiva</h4>
+                <h4 className="text-sm font-semibold text-gray-700 mb-2">
+                  {sport.icon} Información Deportiva
+                </h4>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Dorsal</label>
                     <input
                       type="number"
                       value={newPlayer.number}
-                      onChange={(e) => setNewPlayer({...newPlayer, number: e.target.value})}
+                      onChange={(e) => setNewPlayer({ ...newPlayer, number: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       min="0"
                       max="99"
@@ -577,18 +585,28 @@ export default function TeamDetail() {
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Posición</label>
-                    <select
-                      value={newPlayer.position}
-                      onChange={(e) => setNewPlayer({...newPlayer, position: e.target.value})}
-                      className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">Seleccionar...</option>
-                      <option value="Base">Base</option>
-                      <option value="Escolta">Escolta</option>
-                      <option value="Alero">Alero</option>
-                      <option value="Ala-Pívot">Ala-Pívot</option>
-                      <option value="Pívot">Pívot</option>
-                    </select>
+                    {sport.positions.length > 0 ? (
+                      <select
+                        value={newPlayer.position}
+                        onChange={(e) => setNewPlayer({ ...newPlayer, position: e.target.value })}
+                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
+                      >
+                        <option value="">Seleccionar...</option>
+                        {sport.positions.map((pos) => (
+                          <option key={pos} value={pos}>
+                            {pos}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        value={newPlayer.position}
+                        onChange={(e) => setNewPlayer({ ...newPlayer, position: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        placeholder="Ej: Delantero"
+                      />
+                    )}
                   </div>
                 </div>
 
@@ -598,7 +616,7 @@ export default function TeamDetail() {
                     <input
                       type="number"
                       value={newPlayer.height}
-                      onChange={(e) => setNewPlayer({...newPlayer, height: e.target.value})}
+                      onChange={(e) => setNewPlayer({ ...newPlayer, height: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       min="0"
                       step="0.1"
@@ -610,7 +628,7 @@ export default function TeamDetail() {
                     <input
                       type="number"
                       value={newPlayer.wingspan}
-                      onChange={(e) => setNewPlayer({...newPlayer, wingspan: e.target.value})}
+                      onChange={(e) => setNewPlayer({ ...newPlayer, wingspan: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       min="0"
                       step="0.1"
@@ -622,7 +640,7 @@ export default function TeamDetail() {
                     <input
                       type="number"
                       value={newPlayer.weight}
-                      onChange={(e) => setNewPlayer({...newPlayer, weight: e.target.value})}
+                      onChange={(e) => setNewPlayer({ ...newPlayer, weight: e.target.value })}
                       className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                       min="0"
                       step="0.1"
@@ -646,7 +664,7 @@ export default function TeamDetail() {
                   className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition disabled:opacity-50"
                   disabled={creatingPlayer}
                 >
-                  {creatingPlayer ? 'Creando...' : 'Añadir Jugador'}
+                  {creatingPlayer ? 'Creando...' : `Añadir ${sport.playerName}`}
                 </button>
               </div>
             </form>

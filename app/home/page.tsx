@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import api from '@/lib/api'
+import { getSportIcon, getSportConfig } from '@/lib/sport'
 
 import TeamSelector from './_components/TeamSelector'
 import NextTrainingCard from './_components/NextTrainingCard'
@@ -18,6 +19,7 @@ interface DashboardData {
   team: {
     id: string
     name: string
+    sport?: string
     category?: string
     season?: string
     club: { id: string; name: string }
@@ -50,11 +52,9 @@ export default function HomePage() {
       }
 
       try {
-        // Cargamos los equipos del usuario (todos sus clubes)
         const clubsRes = await api.get('/clubs')
         const clubs = clubsRes.data
 
-        // Por cada club, traemos sus equipos
         const allTeams: any[] = []
         for (const club of clubs) {
           try {
@@ -74,7 +74,6 @@ export default function HomePage() {
           return
         }
 
-        // Opción D: último visitado → primer equipo
         const saved = localStorage.getItem(STORAGE_KEY)
         const valid = saved && allTeams.some((t) => t.id === saved)
         const initialId = valid ? saved! : allTeams[0].id
@@ -138,7 +137,7 @@ export default function HomePage() {
   if (teams.length === 0) {
     return (
       <div className="text-center py-16 bg-white rounded-xl shadow">
-        <div className="text-6xl mb-4">🏀</div>
+        <div className="text-6xl mb-4">🏆</div>
         <h3 className="text-xl font-semibold text-gray-700">
           No tienes equipos todavía
         </h3>
@@ -149,13 +148,21 @@ export default function HomePage() {
     )
   }
 
+  // Datos del equipo activo (con sport)
+  const activeTeam = teams.find((t) => t.id === activeTeamId)
+  const sportConfig = getSportConfig(activeTeam?.sport)
+
   return (
     <div className="space-y-6">
       {/* Header con selector */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">🏠 Inicio</h1>
-          <p className="text-gray-500 text-sm">Resumen de tu equipo</p>
+          <h1 className="text-2xl font-bold text-gray-800">
+            {sportConfig.icon} Inicio
+          </h1>
+          <p className="text-gray-500 text-sm">
+            Resumen de tu {sportConfig.teamName.toLowerCase()}
+          </p>
         </div>
         <TeamSelector
           teams={teams}

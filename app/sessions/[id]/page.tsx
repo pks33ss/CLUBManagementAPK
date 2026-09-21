@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
 import TacticalBoard from '@/components/TacticalBoard'
+import { getSportIcon, getSportConfig } from '@/lib/sport'
 
 interface SessionDetail {
   id: string
@@ -16,6 +17,7 @@ interface SessionDetail {
   team: {
     id: string
     name: string
+    sport?: string
     club: {
       id: string
       name: string
@@ -82,6 +84,8 @@ export default function SessionDetail() {
   const [players, setPlayers] = useState<PlayerAttendance[]>([])
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+const [deleting, setDeleting] = useState(false)
 
   const [showEditModal, setShowEditModal] = useState(false)
   const [editForm, setEditForm] = useState({
@@ -215,7 +219,18 @@ export default function SessionDetail() {
       setUpdatingSession(false)
     }
   }
-
+const handleDelete = async () => {
+  setDeleting(true)
+  try {
+    await api.delete(`/sessions/${sessionId}`)
+    router.push('/sessions')
+  } catch (err) {
+    console.error(err)
+    alert('Error al eliminar el entrenamiento')
+    setDeleting(false)
+    setShowDeleteModal(false)
+  }
+}
   // ============================================
   // FUNCIONES DE EJERCICIOS
   // ============================================
@@ -615,6 +630,7 @@ export default function SessionDetail() {
       case 'ABSENT': return 'bg-red-100 text-red-800'
       case 'LATE': return 'bg-yellow-100 text-yellow-800'
       case 'EXCUSED': return 'bg-blue-100 text-blue-800'
+      case 'PENDING': return 'bg-gray-100 text-gray-500'
       default: return 'bg-gray-100 text-gray-800'
     }
   }
@@ -682,24 +698,32 @@ export default function SessionDetail() {
               ⏱️ {session.duration} min • 📍 {session.location || 'Sin ubicación'}
             </p>
             <p className="text-sm text-gray-400 mt-1">
-              🏀 {session.team.name} • {session.team.club.name}
-            </p>
+  {getSportIcon(session.team?.sport)} {session.team.name} • {session.team.club.name}
+</p>
             {session.description && (
               <p className="text-gray-600 mt-2">{session.description}</p>
             )}
           </div>
-          <div className="flex flex-col items-end gap-2">
-            <div className="text-right">
-              <p className="text-sm text-gray-500">Creado por</p>
-              <p className="font-medium">{session.createdBy.name} {session.createdBy.lastName}</p>
-            </div>
-            <button
-              onClick={openEditModal}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition text-sm"
-            >
-              ✏️ Editar Entrenamiento
-            </button>
-          </div>
+<div className="flex flex-col items-end gap-2">
+  <div className="text-right">
+    <p className="text-sm text-gray-500">Creado por</p>
+    <p className="font-medium">{session.createdBy.name} {session.createdBy.lastName}</p>
+  </div>
+  <div className="flex gap-2">
+    <button
+      onClick={openEditModal}
+      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition text-sm"
+    >
+      ✏️ Editar Entrenamiento
+    </button>
+    <button
+      onClick={() => setShowDeleteModal(true)}
+      className="bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-lg transition text-sm"
+    >
+      🗑️ Eliminar
+    </button>
+  </div>
+</div>
         </div>
 
         <div className="grid grid-cols-5 gap-2 mt-4 pt-4 border-t border-gray-200">
@@ -870,8 +894,11 @@ export default function SessionDetail() {
       {/* CONTROL DE ASISTENCIA */}
       <div className="bg-white rounded-xl shadow-md p-6">
         <h2 className="text-xl font-semibold text-gray-800 mb-4">
-          👥 Control de Asistencia
-        </h2>
+  👥 Control de Asistencia
+</h2>
+<p className="text-xs text-gray-500 -mt-3 mb-4">
+  {getSportConfig(session.team?.sport).icon} {getSportConfig(session.team?.sport).playerNamePlural} · {getSportConfig(session.team?.sport).teamName}: {session.team.name}
+</p>
 
         {players.length === 0 ? (
           <p className="text-gray-500 text-center py-8">
@@ -948,6 +975,18 @@ export default function SessionDetail() {
                         >
                           📝
                         </button>
+                        <button
+  onClick={() => updateAttendance(player.id, 'PENDING')}
+  className={`px-2 py-1 rounded text-xs transition ${
+    player.status === 'PENDING'
+      ? 'bg-gray-600 text-white'
+      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+  }`}
+  disabled={updating}
+  title="Desmarcar (volver a pendiente)"
+>
+  ⏳
+</button>
                       </div>
                     </td>
                   </tr>
@@ -1542,6 +1581,35 @@ export default function SessionDetail() {
           </div>
         </div>
       )}
+      {/* MODAL ELIMINAR ENTRENAMIENTO */}
+{showDeleteModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="bg-white rounded-xl max-w-md w-full p-6">
+      <h3 className="text-xl font-bold text-gray-800 mb-2">🗑️ Eliminar Entrenamiento</h3>
+      <p className="text-gray-600 mb-6">
+        ¿Seguro que quieres eliminar el entrenamiento <strong>"{session.title}"</strong>?
+        Se eliminarán también los ejercicios y las asistencias asociadas.
+        Esta acción no se puede deshacer.
+      </p>
+      <div className="flex gap-3">
+        <button
+          onClick={() => setShowDeleteModal(false)}
+          className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 rounded-lg transition"
+          disabled={deleting}
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={handleDelete}
+          disabled={deleting}
+          className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg transition disabled:opacity-50"
+        >
+          {deleting ? 'Eliminando...' : 'Sí, eliminar'}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   )
 }

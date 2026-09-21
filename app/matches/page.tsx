@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
+import { getSportIcon } from '@/lib/sport'
 
 interface Match {
   id: string
@@ -20,6 +21,7 @@ interface Match {
   team: {
     id: string
     name: string
+    sport?: string
     club: {
       id: string
       name: string
@@ -107,6 +109,10 @@ export default function AllMatches() {
     fetchMatches(teamId)
   }
 
+  // Sport del equipo seleccionado
+  const selectedTeamData = teams.find((t) => t.id === selectedTeam)
+  const sportIcon = getSportIcon(selectedTeamData?.sport)
+
   const getTypeText = (type: string) => {
     switch (type) {
       case 'LEAGUE': return '🏆 Liga'
@@ -178,7 +184,7 @@ export default function AllMatches() {
     })
   }
 
-  const filteredMatches = matches.filter(m => {
+  const filteredMatches = matches.filter((m) => {
     if (filter === 'all') return true
     if (filter === 'scheduled') return m.status === 'SCHEDULED' || m.status === 'POSTPONED'
     if (filter === 'finished') return m.status === 'FINISHED'
@@ -200,13 +206,13 @@ export default function AllMatches() {
 
       {clubs.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-xl shadow">
-          <div className="text-4xl mb-4">🏀</div>
+          <div className="text-4xl mb-4">🏆</div>
           <p className="text-gray-500">Primero crea un club y un equipo</p>
           <button
             onClick={() => router.push('/dashboard')}
             className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
           >
-            Ir a Dashboard
+            Ir a Mis Clubs
           </button>
         </div>
       ) : (
@@ -221,7 +227,9 @@ export default function AllMatches() {
                 onChange={(e) => handleClubChange(e.target.value)}
               >
                 {clubs.map((club) => (
-                  <option key={club.id} value={club.id}>{club.name}</option>
+                  <option key={club.id} value={club.id}>
+                    {club.name}
+                  </option>
                 ))}
               </select>
             </div>
@@ -234,7 +242,9 @@ export default function AllMatches() {
                 disabled={teams.length === 0}
               >
                 {teams.map((team) => (
-                  <option key={team.id} value={team.id}>{team.name}</option>
+                  <option key={team.id} value={team.id}>
+                    {getSportIcon(team.sport)} {team.name}
+                  </option>
                 ))}
               </select>
             </div>
@@ -324,7 +334,7 @@ export default function AllMatches() {
                         <span className="text-xs text-gray-500">{getTypeText(match.type)}</span>
                         <span className="text-xs text-gray-500">{getLocationText(match.location)}</span>
                         <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full font-medium">
-                          🏀 {match.team?.name}
+                          {getSportIcon(match.team?.sport)} {match.team?.name}
                         </span>
                       </div>
                       <h3 className="text-lg font-bold text-gray-800">{match.opponent}</h3>
@@ -337,14 +347,16 @@ export default function AllMatches() {
                         </p>
                       )}
                       {match.notes && (
-  <p className="text-xs text-gray-500 mt-2 italic line-clamp-2">
-    📝 {match.notes}
-  </p>
-)}
+                        <p className="text-xs text-gray-500 mt-2 italic line-clamp-2">
+                          📝 {match.notes}
+                        </p>
+                      )}
                     </div>
 
                     <div className="flex flex-col items-center md:items-end">
-                      {match.status === 'FINISHED' && match.teamScore !== null && match.opponentScore !== null ? (
+                      {match.status === 'FINISHED' &&
+                      match.teamScore !== null &&
+                      match.opponentScore !== null ? (
                         <>
                           <p className={`text-3xl font-bold ${getResultColor(match)}`}>
                             {match.teamScore} - {match.opponentScore}
@@ -361,8 +373,12 @@ export default function AllMatches() {
 
                   {match._count && (
                     <div className="flex gap-3 mt-3 pt-3 border-t border-gray-100">
-                      <span className="text-xs text-gray-500">👥 {match._count.callups} convocados</span>
-                      <span className="text-xs text-gray-500">📊 {match._count.playerStats} con estadísticas</span>
+                      <span className="text-xs text-gray-500">
+                        👥 {match._count.callups} convocados
+                      </span>
+                      <span className="text-xs text-gray-500">
+                        📊 {match._count.playerStats} con estadísticas
+                      </span>
                     </div>
                   )}
                 </Link>

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import api from '@/lib/api'
 import type { SeasonDetail } from '../page'
+import { getSportIcon } from '@/lib/sport'
 
 interface Props {
   season: SeasonDetail
@@ -80,9 +81,9 @@ export default function SeasonHeader({
               />
               <div>
                 <h1 className="text-3xl font-bold text-gray-800">{season.name}</h1>
-                <p className="text-sm text-gray-500 mt-1">
-                  🏀 {season.team.name} · {season.team.club.name}
-                </p>
+<p className="text-sm text-gray-500 mt-1">
+  {getSportIcon(season.team.sport)} {season.team.name} · {season.team.club.name}
+</p>
               </div>
             </div>
 

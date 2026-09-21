@@ -2,7 +2,9 @@
 
 import { useState } from 'react'
 import api from '@/lib/api'
+import { getSportIcon } from '@/lib/sport'
 import type { MatchDetail } from '../page'
+import { useRouter } from 'next/navigation'
 
 interface Props {
   match: MatchDetail
@@ -23,7 +25,8 @@ export default function MatchHeader({ match, onUpdate }: Props) {
     opponentScore: match.opponentScore ?? 0,
   })
   const [saving, setSaving] = useState(false)
-
+const [showDeleteModal, setShowDeleteModal] = useState(false)
+const [deleting, setDeleting] = useState(false)
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'SCHEDULED': return 'bg-blue-100 text-blue-800'
@@ -116,6 +119,19 @@ export default function MatchHeader({ match, onUpdate }: Props) {
     }
   }
 
+  const handleDelete = async () => {
+  setDeleting(true)
+  try {
+    await api.delete(`/matches/${match.id}`)
+    window.location.href = '/matches'   // Redirigir a la lista de partidos
+  } catch (err) {
+    console.error(err)
+    alert('Error al eliminar el partido')
+    setDeleting(false)
+    setShowDeleteModal(false)
+  }
+}
+
   return (
     <>
       <div className="bg-white rounded-xl shadow-md p-6 mb-6">
@@ -128,7 +144,7 @@ export default function MatchHeader({ match, onUpdate }: Props) {
               <span className="text-xs text-gray-500">{getTypeText(match.type)}</span>
               <span className="text-xs text-gray-500">{getLocationText(match.location)}</span>
               <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full font-medium">
-                🏀 {match.team.name}
+                {getSportIcon(match.team?.sport)} {match.team.name}
               </span>
             </div>
 
@@ -140,37 +156,65 @@ export default function MatchHeader({ match, onUpdate }: Props) {
             {match.venue && <p className="text-gray-500 text-sm">📍 {match.venue}</p>}
             {match.competition && <p className="text-gray-500 text-sm">🏆 {match.competition}</p>}
 
-            <div className="flex gap-3 mt-4">
-              <button
-                onClick={() => setShowEditModal(true)}
-                className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg transition"
-              >
-                ✏️ Editar datos
-              </button>
-              <button
-                onClick={() => setShowResultModal(true)}
-                className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition"
-              >
-                {match.status === 'FINISHED' ? '🔄 Actualizar resultado' : '🏆 Añadir resultado'}
-              </button>
-            </div>
+            <div className="flex gap-3 mt-4 flex-wrap">
+  <button
+    onClick={() => setShowEditModal(true)}
+    className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg transition"
+  >
+    ✏️ Editar datos
+  </button>
+  <button
+    onClick={() => setShowResultModal(true)}
+    className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition"
+  >
+    {match.status === 'FINISHED' ? '🔄 Actualizar resultado' : '🏆 Añadir resultado'}
+  </button>
+  <button
+    onClick={() => setShowDeleteModal(true)}
+    className="text-sm bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 rounded-lg transition"
+  >
+    🗑️ Eliminar partido
+  </button>
+</div>
           </div>
 
           {/* Marcador */}
           <div className="flex flex-col items-center justify-center bg-gray-50 rounded-xl p-6 min-w-[200px]">
-            {match.status === 'FINISHED' && match.teamScore !== null && match.opponentScore !== null ? (
+            {match.status === 'FINISHED' &&
+            match.teamScore !== null &&
+            match.opponentScore !== null ? (
               <>
                 <p className="text-5xl font-bold text-gray-800">
-                  <span className={match.teamScore > match.opponentScore ? 'text-green-600' : match.teamScore < match.opponentScore ? 'text-red-600' : ''}>
+                  <span
+                    className={
+                      match.teamScore > match.opponentScore
+                        ? 'text-green-600'
+                        : match.teamScore < match.opponentScore
+                        ? 'text-red-600'
+                        : ''
+                    }
+                  >
                     {match.teamScore}
                   </span>
                   <span className="text-gray-300 mx-2">-</span>
-                  <span className={match.opponentScore > match.teamScore ? 'text-green-600' : match.opponentScore < match.teamScore ? 'text-red-600' : ''}>
+                  <span
+                    className={
+                      match.opponentScore > match.teamScore
+                        ? 'text-green-600'
+                        : match.opponentScore < match.teamScore
+                        ? 'text-red-600'
+                        : ''
+                    }
+                  >
                     {match.opponentScore}
                   </span>
                 </p>
                 <p className="text-sm font-medium text-gray-500 mt-2">
-                  {match.teamScore > match.opponentScore ? '🏆 Victoria' : match.teamScore < match.opponentScore ? '❌ Derrota' : '🤝 Empate'}
+                  {match.teamScore > match.opponentScore
+                    ? '🏆 Victoria'
+                    : match.teamScore < match.opponentScore
+                    ? '❌ Derrota'
+                    : '🤝 Empate'}
                 </p>
               </>
             ) : (
@@ -260,7 +304,9 @@ export default function MatchHeader({ match, onUpdate }: Props) {
                   <input
                     type="number"
                     value={resultForm.teamScore}
-                    onChange={(e) => setResultForm({ ...resultForm, teamScore: Number(e.target.value) })}
+                    onChange={(e) =>
+                      setResultForm({ ...resultForm, teamScore: Number(e.target.value) })
+                    }
                     className="w-full px-4 py-3 text-center text-2xl font-bold border-2 rounded-lg focus:ring-2 focus:ring-blue-500"
                     min="0"
                     required
@@ -273,7 +319,9 @@ export default function MatchHeader({ match, onUpdate }: Props) {
                   <input
                     type="number"
                     value={resultForm.opponentScore}
-                    onChange={(e) => setResultForm({ ...resultForm, opponentScore: Number(e.target.value) })}
+                    onChange={(e) =>
+                      setResultForm({ ...resultForm, opponentScore: Number(e.target.value) })
+                    }
                     className="w-full px-4 py-3 text-center text-2xl font-bold border-2 rounded-lg focus:ring-2 focus:ring-blue-500"
                     min="0"
                     required
@@ -301,6 +349,35 @@ export default function MatchHeader({ match, onUpdate }: Props) {
           </div>
         </div>
       )}
+      {/* Modal Eliminar */}
+{showDeleteModal && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div className="bg-white rounded-xl max-w-md w-full p-6">
+      <h3 className="text-xl font-bold text-gray-800 mb-2">🗑️ Eliminar partido</h3>
+      <p className="text-gray-600 mb-6">
+        ¿Seguro que quieres eliminar el partido <strong>vs {match.opponent}</strong>?
+        Se eliminarán también las convocatorias y estadísticas asociadas.
+        Esta acción no se puede deshacer.
+      </p>
+      <div className="flex gap-3">
+        <button
+          onClick={() => setShowDeleteModal(false)}
+          className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 rounded-lg transition"
+          disabled={deleting}
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={handleDelete}
+          disabled={deleting}
+          className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg transition disabled:opacity-50"
+        >
+          {deleting ? 'Eliminando...' : 'Sí, eliminar'}
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </>
   )
 }

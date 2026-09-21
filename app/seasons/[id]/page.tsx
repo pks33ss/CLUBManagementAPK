@@ -47,6 +47,7 @@ export interface SeasonDetail {
   team: {
     id: string
     name: string
+    sport?: string
     club: { id: string; name: string }
   }
 }

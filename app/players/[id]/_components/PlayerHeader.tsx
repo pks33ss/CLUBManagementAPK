@@ -1,5 +1,6 @@
 'use client'
 
+import { getSportConfig } from '@/lib/sport'
 import type { PlayerDetail } from '../page'
 
 interface Props {
@@ -18,6 +19,7 @@ export default function PlayerHeader({ player }: Props) {
   }
 
   const age = getAge(player.birthDate)
+  const sport = getSportConfig((player.team as any)?.sport)
 
   return (
     <div className="bg-white rounded-xl shadow-md p-6 mb-6">
@@ -54,7 +56,7 @@ export default function PlayerHeader({ player }: Props) {
           </div>
 
           <p className="text-sm text-gray-500 mt-2">
-            🏀 <span className="font-medium text-gray-700">{player.team.name}</span>
+            {sport.icon} <span className="font-medium text-gray-700">{player.team.name}</span>
             {player.team.category && <span className="text-gray-400"> · {player.team.category}</span>}
             {' · '}{player.team.club.name}
           </p>

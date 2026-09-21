@@ -1,11 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
+import { getSportIcon } from '@/lib/sport'
 
 interface Team {
   id: string
   name: string
   category?: string
+  sport?: string
   club?: { id: string; name: string }
 }
 
@@ -25,7 +27,7 @@ export default function TeamSelector({ teams, currentTeamId, onChange }: Props) 
         onClick={() => setOpen(!open)}
         className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-4 py-2 hover:border-blue-300 transition shadow-sm"
       >
-        <span className="text-lg">🏀</span>
+        <span className="text-lg">{getSportIcon(current?.sport)}</span>
         <div className="text-left">
           <div className="text-sm font-semibold text-gray-800">
             {current?.name || 'Selecciona equipo'}
@@ -36,7 +38,9 @@ export default function TeamSelector({ teams, currentTeamId, onChange }: Props) 
         </div>
         <svg
           className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
-          fill="none" stroke="currentColor" viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
         >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
         </svg>
@@ -57,10 +61,19 @@ export default function TeamSelector({ teams, currentTeamId, onChange }: Props) 
                   team.id === currentTeamId ? 'bg-blue-50' : ''
                 }`}
               >
-                <div className="text-sm font-medium text-gray-800">{team.name}</div>
-                {team.club && (
-                  <div className="text-xs text-gray-500">{team.club.name}</div>
-                )}
+                <div className="flex items-center gap-2">
+                  <span className="text-base">{getSportIcon(team.sport)}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-gray-800 truncate">
+                      {team.name}
+                    </div>
+                    {team.club && (
+                      <div className="text-xs text-gray-500 truncate">
+                        {team.club.name}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </button>
             ))}
           </div>

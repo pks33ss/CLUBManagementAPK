@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
+import { getSportIcon } from '@/lib/sport'
 
 interface Season {
   id: string
@@ -162,7 +163,7 @@ export default function SeasonsPage() {
 
       {clubs.length === 0 ? (
         <div className="text-center py-12 bg-white rounded-xl shadow">
-          <div className="text-4xl mb-4">🏀</div>
+          <div className="text-4xl mb-4">🏆</div>
           <p className="text-gray-500">Primero crea un club y un equipo</p>
           <button
             onClick={() => router.push('/dashboard')}
@@ -195,9 +196,9 @@ export default function SeasonsPage() {
                 onChange={(e) => handleTeamChange(e.target.value)}
                 disabled={teams.length === 0}
               >
-                {teams.map((t) => (
-                  <option key={t.id} value={t.id}>{t.name}</option>
-                ))}
+{teams.map((t) => (
+  <option key={t.id} value={t.id}>{getSportIcon(t.sport)} {t.name}</option>
+))}
               </select>
             </div>
           </div>
