@@ -134,6 +134,10 @@ export default function LiveStreamTab({ match }: Props) {
   const [connectedViewers, setConnectedViewers] = useState<string[]>([])
   const [cameraOn, setCameraOn] = useState(true)
   const [audioOn, setAudioOn] = useState(true)
+    // ✅ NUEVOS: cámara actual + fullscreen
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment')
+  const videoContainerRef = useRef<HTMLDivElement>(null)
+  const [isFullscreen, setIsFullscreen] = useState(false)
 
   const [scoreboard, setScoreboard] = useState<ScoreboardState | null>(null)
   const [displayClock, setDisplayClock] = useState(0)
@@ -383,7 +387,11 @@ useEffect(() => {
       const hostPeerId = res.data.hostPeerId
 
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 854, height: 480 },
+        video: {
+          width: 854,
+          height: 480,
+          facingMode: { ideal: facingMode },
+        },
         audio: true,
       })
       setLocalStream(stream)
@@ -705,6 +713,90 @@ const call = newPeer.call(hostPeerId, dummyStream)
     if (!localStream) return
     const track = localStream.getAudioTracks()[0]
     if (track) { track.enabled = !track.enabled; setAudioOn(track.enabled) }
+  }
+    // ============================================
+  // ✅ FULL SCREEN
+  // ============================================
+
+  const toggleFullscreen = async () => {
+    try {
+      if (!document.fullscreenElement) {
+        await videoContainerRef.current?.requestFullscreen()
+      } else {
+        await document.exitFullscreen()
+      }
+    } catch (err) {
+      console.error('Error al cambiar a pantalla completa:', err)
+    }
+  }
+
+  // Listener para sincronizar el estado isFullscreen
+  useEffect(() => {
+    const handler = () => {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+    document.addEventListener('fullscreenchange', handler)
+    return () => document.removeEventListener('fullscreenchange', handler)
+  }, [])
+
+  // ============================================
+  // ✅ CAMBIAR CÁMARA (frontal ↔ trasera)
+  // ============================================
+
+  const switchCamera = async () => {
+    if (!localStream) return
+    if (!isHost.current) return // solo el host puede cambiar su cámara
+
+    const newFacing: 'user' | 'environment' =
+      facingMode === 'user' ? 'environment' : 'user'
+
+    try {
+      // 1) Pedir nueva cámara
+      const newStream = await navigator.mediaDevices.getUserMedia({
+        video: {
+          width: 854,
+          height: 480,
+          facingMode: { ideal: newFacing },
+        },
+        audio: false, // el audio sigue del stream viejo
+      })
+
+      const newVideoTrack = newStream.getVideoTracks()[0]
+
+      // 2) Sustituir el track de vídeo en el stream local
+      const oldVideoTrack = localStream.getVideoTracks()[0]
+      if (oldVideoTrack) {
+        localStream.removeTrack(oldVideoTrack)
+        oldVideoTrack.stop()
+      }
+      localStream.addTrack(newVideoTrack)
+
+      // 3) Reemplazar el track en todas las conexiones activas (viewers)
+      activeCallsRef.current.forEach((call) => {
+        const pc = (call as any).peerConnection as RTCPeerConnection
+        if (!pc) return
+        const sender = pc.getSenders().find((s) => s.track?.kind === 'video')
+        if (sender) {
+          sender.replaceTrack(newVideoTrack).catch((err) => {
+            console.warn('Error reemplazando track:', err)
+          })
+        }
+      })
+
+      // 4) Actualizar el elemento de vídeo local
+      if (localVideoRef.current) {
+        localVideoRef.current.srcObject = null
+        localVideoRef.current.srcObject = localStream
+        await localVideoRef.current.play().catch(() => {})
+      }
+
+      // 5) Actualizar estado
+      setFacingMode(newFacing)
+      console.log('📷 Cámara cambiada a:', newFacing)
+    } catch (err) {
+      console.error('Error al cambiar cámara:', err)
+      alert('No se pudo cambiar la cámara. Puede que este dispositivo no tenga cámara ' + (facingMode === 'user' ? 'trasera' : 'frontal') + '.')
+    }
   }
 
   // ============================================
@@ -1073,7 +1165,11 @@ const nextPeriod = async () => {
       </div>
 
       {/* Vídeo con overlay */}
-      <div className="relative bg-black rounded-xl overflow-hidden shadow-md">
+            {/* Vídeo con overlay */}
+      <div
+        ref={videoContainerRef}
+        className="relative bg-black rounded-xl overflow-hidden shadow-md"
+      >
         {soyHost && (
           <video key={`local-${isStreaming}`} ref={localVideoRef} autoPlay muted playsInline
             className="w-full aspect-video object-cover" />
@@ -1241,22 +1337,48 @@ const nextPeriod = async () => {
   </div>
 )}
 
-        {soyHost && (
-          <div className="absolute top-4 right-4 flex gap-2">
+        {/* Controles flotantes sobre el vídeo */}
+        <div className="absolute top-4 right-4 flex gap-2">
+          {/* Cambiar cámara (solo host) */}
+          {soyHost && (
+            <button
+              onClick={switchCamera}
+              className="px-3 py-2 rounded-full text-xs font-medium transition bg-white/90 text-gray-800 hover:bg-white"
+              title={facingMode === 'user' ? 'Cambiar a cámara trasera' : 'Cambiar a cámara frontal'}
+            >
+              {facingMode === 'user' ? '🤳' : '📷'}
+            </button>
+          )}
+
+          {/* Full screen (host y viewer) */}
+          <button
+            onClick={toggleFullscreen}
+            className="px-3 py-2 rounded-full text-xs font-medium transition bg-white/90 text-gray-800 hover:bg-white"
+            title={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
+          >
+            {isFullscreen ? '⛶' : '⛶'}
+          </button>
+
+          {/* Cámara on/off (solo host) */}
+          {soyHost && (
             <button onClick={toggleCamera}
               className={`px-3 py-2 rounded-full text-xs font-medium transition ${
                 cameraOn ? 'bg-white/90 text-gray-800' : 'bg-red-600 text-white'
               }`}>
               {cameraOn ? '📸' : '📸❌'}
             </button>
+          )}
+
+          {/* Audio on/off (solo host) */}
+          {soyHost && (
             <button onClick={toggleAudio}
               className={`px-3 py-2 rounded-full text-xs font-medium transition ${
                 audioOn ? 'bg-white/90 text-gray-800' : 'bg-red-600 text-white'
               }`}>
               {audioOn ? '🎤' : '🔇'}
             </button>
-          </div>
-        )}
+          )}
+        </div>
 
         {soyViewer && !remoteStream && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
