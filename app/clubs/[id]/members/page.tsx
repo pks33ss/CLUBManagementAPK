@@ -285,83 +285,145 @@ const toggleTeamAssignment = async (teamId: string, isAssigned: boolean) => {
         )}
       </div>
 
-      {/* TABLA DE MIEMBROS */}
-      <div className="bg-white rounded-xl shadow-md overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usuario</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rol</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Desde</th>
-              {isAdmin && (
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
-              )}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {members.map((member) => (
-              <tr key={member.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4">
-                  <p className="font-medium text-gray-900">
-                    {member.user.name} {member.user.lastName}
-                  </p>
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-600">
-                  {member.user.email}
-                </td>
-                <td className="px-6 py-4">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(member.role)}`}>
-                    {getRoleText(member.role)}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-600">
-                  {new Date(member.joinedAt).toLocaleDateString('es-ES')}
-                </td>
-                {isAdmin && (
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex gap-2 justify-end">
-                      <button
-                        onClick={() => openRoleModal(member)}
-                        className={`text-xs px-3 py-1 rounded-full font-medium transition hover:opacity-80 ${getRoleColor(member.role)}`}
-                        disabled={member.userId === currentUser?.id}
-                        title="Cambiar rol"
-                      >
-                        {getRoleText(member.role)} ✏️
-                      </button>
-                        {/* ✅ NUEVO BOTÓN DE EQUIPOS */}
-  <button
-    onClick={() => openTeamsModal(member)}
-    className="text-orange-500 hover:text-orange-700 p-1"
-    disabled={member.userId === currentUser?.id}
-    title="Gestionar equipos"
-  >
-    🏆
-  </button>
-                      <button
-                        onClick={() => openResetPasswordModal(member)}
-                        className="text-yellow-500 hover:text-yellow-700 p-1"
-                        disabled={member.userId === currentUser?.id}
-                        title="Resetear contraseña"
-                      >
-                        🔑
-                      </button>
-                      <button
-                        onClick={() => removeMember(member.id, `${member.user.name} ${member.user.lastName}`)}
-                        className="text-red-500 hover:text-red-700 p-1"
-                        disabled={member.userId === currentUser?.id}
-                        title="Eliminar miembro"
-                      >
-                        🗑️
-                      </button>
-                    </div>
-                  </td>
-                )}
-              </tr>
-            ))}
-          </tbody>
-        </table>
+{/* TABLA DE MIEMBROS - Responsive */}
+<div className="bg-white rounded-xl shadow-md overflow-hidden">
+  {/* === Vista desktop: tabla === */}
+  <div className="hidden md:block">
+    <table className="w-full">
+      <thead className="bg-gray-50">
+        <tr>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usuario</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rol</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Desde</th>
+          {isAdmin && (
+            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
+          )}
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-gray-200">
+        {members.map((member) => (
+          <tr key={member.id} className="hover:bg-gray-50">
+            <td className="px-6 py-4">
+              <p className="font-medium text-gray-900">
+                {member.user.name} {member.user.lastName}
+              </p>
+            </td>
+            <td className="px-6 py-4 text-sm text-gray-600">
+              {member.user.email}
+            </td>
+            <td className="px-6 py-4">
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(member.role)}`}>
+                {getRoleText(member.role)}
+              </span>
+            </td>
+            <td className="px-6 py-4 text-sm text-gray-600">
+              {new Date(member.joinedAt).toLocaleDateString('es-ES')}
+            </td>
+            {isAdmin && (
+              <td className="px-6 py-4 text-right">
+                <div className="flex gap-2 justify-end">
+                  <button
+                    onClick={() => openRoleModal(member)}
+                    className={`text-xs px-3 py-1 rounded-full font-medium transition hover:opacity-80 ${getRoleColor(member.role)}`}
+                    disabled={member.userId === currentUser?.id}
+                    title="Cambiar rol"
+                  >
+                    {getRoleText(member.role)} ✏️
+                  </button>
+                  <button
+                    onClick={() => openTeamsModal(member)}
+                    className="text-orange-500 hover:text-orange-700 p-1"
+                    disabled={member.userId === currentUser?.id}
+                    title="Gestionar equipos"
+                  >
+                    🏀
+                  </button>
+                  <button
+                    onClick={() => openResetPasswordModal(member)}
+                    className="text-yellow-500 hover:text-yellow-700 p-1"
+                    disabled={member.userId === currentUser?.id}
+                    title="Resetear contraseña"
+                  >
+                    🔑
+                  </button>
+                  <button
+                    onClick={() => removeMember(member.id, `${member.user.name} ${member.user.lastName}`)}
+                    className="text-red-500 hover:text-red-700 p-1"
+                    disabled={member.userId === currentUser?.id}
+                    title="Eliminar miembro"
+                  >
+                    🗑️
+                  </button>
+                </div>
+              </td>
+            )}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  {/* === Vista móvil: cards === */}
+  <div className="md:hidden divide-y divide-gray-200">
+    {members.map((member) => (
+      <div key={member.id} className="p-4 space-y-3">
+        {/* Cabecera: nombre + rol */}
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex-1 min-w-0">
+            <p className="font-medium text-gray-900 truncate">
+              {member.user.name} {member.user.lastName}
+            </p>
+            <p className="text-xs text-gray-500 truncate">{member.user.email}</p>
+            <p className="text-xs text-gray-400 mt-0.5">
+              Desde {new Date(member.joinedAt).toLocaleDateString('es-ES')}
+            </p>
+          </div>
+          <span className={`px-2 py-1 rounded-full text-xs font-medium shrink-0 ${getRoleColor(member.role)}`}>
+            {getRoleText(member.role)}
+          </span>
+        </div>
+
+        {/* Acciones en móvil */}
+        {isAdmin && member.userId !== currentUser?.id && (
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
+            <button
+              onClick={() => openRoleModal(member)}
+              className="flex-1 min-w-[120px] text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-lg font-medium transition"
+            >
+              ✏️ Cambiar rol
+            </button>
+            <button
+              onClick={() => openTeamsModal(member)}
+              className="flex-1 min-w-[120px] text-xs bg-orange-50 hover:bg-orange-100 text-orange-700 px-3 py-2 rounded-lg font-medium transition"
+            >
+              🏀 Equipos
+            </button>
+            <button
+              onClick={() => openResetPasswordModal(member)}
+              className="flex-1 min-w-[120px] text-xs bg-yellow-50 hover:bg-yellow-100 text-yellow-700 px-3 py-2 rounded-lg font-medium transition"
+            >
+              🔑 Contraseña
+            </button>
+            <button
+              onClick={() => removeMember(member.id, `${member.user.name} ${member.user.lastName}`)}
+              className="flex-1 min-w-[120px] text-xs bg-red-50 hover:bg-red-100 text-red-700 px-3 py-2 rounded-lg font-medium transition"
+            >
+              🗑️ Eliminar
+            </button>
+          </div>
+        )}
+
+        {/* Mensaje si es el propio usuario */}
+        {isAdmin && member.userId === currentUser?.id && (
+          <p className="text-xs text-gray-400 italic pt-2 border-t border-gray-100">
+            No puedes modificar tu propio rol
+          </p>
+        )}
       </div>
+    ))}
+  </div>
+</div>
 
       {/* GESTIÓN DE EQUIPOS Y ENTRENADORES */}
       {isAdmin && (
