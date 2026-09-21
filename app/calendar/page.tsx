@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
 import { getSportIcon } from '@/lib/sport'
+import { useActiveTeam } from '@/lib/ActiveTeamContext'
 
 // ============================================
 // TIPOS
@@ -24,6 +25,8 @@ interface CalendarEventItem {
   opponentScore?: number | null
   eventType?: string
   link: string | null
+  teamId?: string
+  teamName?: string
 }
 
 type ViewMode = 'month' | 'list'
@@ -98,12 +101,11 @@ const formatDateLong = (d: string | Date) => {
 
 export default function CalendarPage() {
   const router = useRouter()
+  const { activeTeam, allTeams, loading: loadingTeams } = useActiveTeam()
 
-  // Equipos y clubs
-  const [clubs, setClubs] = useState<any[]>([])
-  const [teams, setTeams] = useState<any[]>([])
-  const [selectedClub, setSelectedClub] = useState('')
-  const [selectedTeam, setSelectedTeam] = useState('')
+  // Multi-selector de equipos
+  const [selectedTeams, setSelectedTeams] = useState<string[]>([])
+  const [showTeamSelector, setShowTeamSelector] = useState(false)
 
   // Filtros por tipo
   const [showSessions, setShowSessions] = useState(true)
@@ -112,7 +114,6 @@ export default function CalendarPage() {
 
   // Datos
   const [events, setEvents] = useState<CalendarEventItem[]>([])
-  const [loading, setLoading] = useState(true)
   const [loadingEvents, setLoadingEvents] = useState(false)
 
   // Vista
@@ -133,64 +134,65 @@ export default function CalendarPage() {
   })
   const [saving, setSaving] = useState(false)
 
+  // Equipos del club del activeTeam
+  const clubTeams = activeTeam
+    ? allTeams.filter((t) => t.club?.id === activeTeam.club?.id)
+    : []
+
   // ============================================
   // EFECTOS
   // ============================================
 
+  // Guard de login
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token) {
       router.push('/login')
+    }
+  }, [router])
+
+  // Resetear selección cuando cambia el activeTeam
+  useEffect(() => {
+    if (activeTeam) {
+      setSelectedTeams([activeTeam.id])
+    } else {
+      setSelectedTeams([])
+      setEvents([])
+    }
+  }, [activeTeam])
+
+  // Cargar eventos cuando cambian la selección o el mes
+  useEffect(() => {
+    if (selectedTeams.length === 0) {
+      setEvents([])
       return
     }
-    fetchClubs()
+    fetchEvents()
+  }, [selectedTeams, currentMonth])
+
+  // Cerrar dropdown al hacer click fuera
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (!target.closest('.team-selector-container')) {
+        setShowTeamSelector(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  const fetchClubs = async () => {
-    try {
-      const res = await api.get('/clubs')
-      setClubs(res.data)
-      if (res.data.length > 0) {
-        setSelectedClub(res.data[0].id)
-        fetchTeams(res.data[0].id)
-      }
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const fetchTeams = async (clubId: string) => {
-    try {
-      const res = await api.get(`/teams/club/${clubId}`)
-      setTeams(res.data)
-      if (res.data.length > 0) {
-        setSelectedTeam(res.data[0].id)
-      } else {
-        setSelectedTeam('')
-        setEvents([])
-      }
-    } catch (err) {
-      console.error(err)
-    }
-  }
-
-  // Cargar eventos cuando cambian el equipo o el mes
-  useEffect(() => {
-    if (!selectedTeam) return
-    fetchEvents()
-  }, [selectedTeam, currentMonth])
-
   const fetchEvents = async () => {
+    if (selectedTeams.length === 0) return
     setLoadingEvents(true)
     try {
-      // Calcular el rango: 1º y último día del mes visible
       const from = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1)
       const to = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0, 23, 59, 59)
 
-      const res = await api.get(`/calendar/team/${selectedTeam}`, {
-        params: { from: from.toISOString(), to: to.toISOString() },
+      const res = await api.post('/calendar/by-teams', {
+        teamIds: selectedTeams,
+        from: from.toISOString(),
+        to: to.toISOString(),
       })
       setEvents(res.data)
     } catch (err) {
@@ -205,15 +207,28 @@ export default function CalendarPage() {
   // HANDLERS
   // ============================================
 
-  const handleClubChange = (clubId: string) => {
-    setSelectedClub(clubId)
-    setSelectedTeam('')
-    setEvents([])
-    fetchTeams(clubId)
+  const toggleTeam = (teamId: string) => {
+    setSelectedTeams((prev) =>
+      prev.includes(teamId) ? prev.filter((id) => id !== teamId) : [...prev, teamId]
+    )
   }
 
-  const handleTeamChange = (teamId: string) => {
-    setSelectedTeam(teamId)
+  const selectAllTeams = () => {
+    setSelectedTeams(clubTeams.map((t) => t.id))
+  }
+
+  const deselectAllTeams = () => {
+    setSelectedTeams([])
+  }
+
+  const getSelectedTeamsText = () => {
+    if (selectedTeams.length === 0) return 'Selecciona equipos...'
+    if (selectedTeams.length === clubTeams.length) return 'Todos los equipos'
+    if (selectedTeams.length === 1) {
+      const team = clubTeams.find((t) => t.id === selectedTeams[0])
+      return team?.name || '1 equipo'
+    }
+    return `${selectedTeams.length} equipos seleccionados`
   }
 
   const goToPreviousMonth = () => {
@@ -245,14 +260,14 @@ export default function CalendarPage() {
 
   const createEvent = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!selectedTeam) return
+    if (!activeTeam) return
     setSaving(true)
 
     try {
       const startISO = new Date(`${form.startDate}T${form.startTime}`).toISOString()
       const endISO = new Date(`${form.endDate}T${form.endTime}`).toISOString()
 
-      await api.post(`/calendar/team/${selectedTeam}/events`, {
+      await api.post(`/calendar/team/${activeTeam.id}/events`, {
         title: form.title,
         description: form.description || undefined,
         startDate: startISO,
@@ -291,7 +306,6 @@ export default function CalendarPage() {
     return true
   })
 
-  // Eventos agrupados por día (YYYY-MM-DD)
   const eventsByDay = useMemo(() => {
     const map: Record<string, CalendarEventItem[]> = {}
     for (const ev of filteredEvents) {
@@ -302,28 +316,18 @@ export default function CalendarPage() {
     return map
   }, [filteredEvents])
 
-  // Días del grid del mes (lunes → domingo)
   const monthGrid = useMemo(() => {
     const year = currentMonth.getFullYear()
     const month = currentMonth.getMonth()
     const firstDay = new Date(year, month, 1)
     const lastDay = new Date(year, month + 1, 0)
 
-    // Lunes = 1, Domingo = 0 → convertir a índice 0-6 (lunes=0)
     const firstWeekday = (firstDay.getDay() + 6) % 7
     const daysInMonth = lastDay.getDate()
 
     const grid: (Date | null)[] = []
-
-    // Rellenar días vacíos del principio
     for (let i = 0; i < firstWeekday; i++) grid.push(null)
-
-    // Días del mes
-    for (let d = 1; d <= daysInMonth; d++) {
-      grid.push(new Date(year, month, d))
-    }
-
-    // Rellenar el final hasta múltiplo de 7
+    for (let d = 1; d <= daysInMonth; d++) grid.push(new Date(year, month, d))
     while (grid.length % 7 !== 0) grid.push(null)
 
     return grid
@@ -331,12 +335,30 @@ export default function CalendarPage() {
 
   const todayKey = toDateKey(new Date())
 
+  // ¿Hay varios equipos seleccionados? → para mostrar teamName en los eventos
+  const showTeamBadge = selectedTeams.length > 1
+
   // ============================================
   // RENDER
   // ============================================
 
-  if (loading) {
+  if (loadingTeams) {
     return <div className="text-center py-12 text-gray-500">Cargando calendario...</div>
+  }
+
+  // Sin equipo activo
+  if (!activeTeam) {
+    return (
+      <div className="text-center py-16 bg-white rounded-xl shadow">
+        <div className="text-6xl mb-4">📅</div>
+        <h3 className="text-xl font-semibold text-gray-700 mb-2">
+          Selecciona un equipo
+        </h3>
+        <p className="text-gray-500 mb-6">
+          Elige un equipo desde el menú superior para ver su calendario
+        </p>
+      </div>
+    )
   }
 
   return (
@@ -345,149 +367,173 @@ export default function CalendarPage() {
       <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">📅 Calendario</h1>
-          <p className="text-gray-500">Todos los eventos de tu equipo en un vistazo</p>
+          <p className="text-gray-500">
+            {activeTeam.name} · {activeTeam.club?.name}
+          </p>
         </div>
         <button
           onClick={() => openCreateModal()}
-          disabled={!selectedTeam}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition disabled:opacity-50"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition"
         >
           <span className="text-xl">+</span> Nuevo Evento
         </button>
       </div>
 
-      {clubs.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl shadow">
-          <div className="text-4xl mb-4">🏆</div>
-          <p className="text-gray-500">Primero crea un club y un equipo</p>
+      {/* Multi-selector de equipos */}
+      <div className="team-selector-container relative mb-4 max-w-md">
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Equipos del club
+        </label>
+        <button
+          type="button"
+          onClick={() => setShowTeamSelector(!showTeamSelector)}
+          className="w-full border rounded-lg px-4 py-2 text-left flex justify-between items-center hover:bg-gray-50 transition"
+        >
+          <span className={selectedTeams.length === 0 ? 'text-gray-400' : 'text-gray-800'}>
+            {getSelectedTeamsText()}
+          </span>
+          <span className="text-gray-400">▼</span>
+        </button>
+
+        {showTeamSelector && (
+          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-auto">
+            <div className="p-2 border-b border-gray-100 flex gap-2">
+              <button
+                type="button"
+                onClick={selectAllTeams}
+                className="flex-1 text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 py-1.5 rounded transition"
+              >
+                ✓ Todos
+              </button>
+              <button
+                type="button"
+                onClick={deselectAllTeams}
+                className="flex-1 text-xs bg-gray-50 text-gray-600 hover:bg-gray-100 py-1.5 rounded transition"
+              >
+                ✕ Ninguno
+              </button>
+            </div>
+
+            {clubTeams.length === 0 ? (
+              <div className="p-4 text-sm text-gray-500 text-center">
+                No hay equipos en este club
+              </div>
+            ) : (
+              clubTeams.map((team) => (
+                <label
+                  key={team.id}
+                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 cursor-pointer transition"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedTeams.includes(team.id)}
+                    onChange={() => toggleTeam(team.id)}
+                    className="w-4 h-4"
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-gray-800 flex items-center gap-1">
+                      <span>{getSportIcon(team.sport)}</span>
+                      <span>{team.name}</span>
+                    </p>
+                    <p className="text-xs text-gray-500">
+                      {team.category || 'Sin categoría'}
+                    </p>
+                  </div>
+                </label>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Barra de vista + filtros por tipo */}
+      <div className="bg-white rounded-xl shadow-md p-4 mb-4 flex flex-wrap items-center gap-4">
+        {/* Toggle vista */}
+        <div className="flex gap-1">
           <button
-            onClick={() => router.push('/dashboard')}
-            className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
+            onClick={() => setViewMode('month')}
+            className={`px-3 py-1.5 rounded-lg text-sm transition ${
+              viewMode === 'month'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+            }`}
           >
-            Ir a Mis Clubs
+            📅 Mes
+          </button>
+          <button
+            onClick={() => setViewMode('list')}
+            className={`px-3 py-1.5 rounded-lg text-sm transition ${
+              viewMode === 'list'
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+            }`}
+          >
+            📋 Lista
           </button>
         </div>
+
+        {/* Filtros por tipo */}
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setShowSessions(!showSessions)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition border-2 ${
+              showSessions
+                ? 'bg-blue-50 border-blue-400 text-blue-800'
+                : 'bg-white border-gray-200 text-gray-400 line-through'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-blue-500"></span>
+            Entrenamientos
+          </button>
+          <button
+            onClick={() => setShowMatches(!showMatches)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition border-2 ${
+              showMatches
+                ? 'bg-orange-50 border-orange-400 text-orange-800'
+                : 'bg-white border-gray-200 text-gray-400 line-through'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-orange-500"></span>
+            Partidos
+          </button>
+          <button
+            onClick={() => setShowEvents(!showEvents)}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition border-2 ${
+              showEvents
+                ? 'bg-purple-50 border-purple-400 text-purple-800'
+                : 'bg-white border-gray-200 text-gray-400 line-through'
+            }`}
+          >
+            <span className="w-2 h-2 rounded-full bg-purple-500"></span>
+            Eventos
+          </button>
+        </div>
+      </div>
+
+      {/* Vista */}
+      {viewMode === 'month' ? (
+        <MonthView
+          currentMonth={currentMonth}
+          monthGrid={monthGrid}
+          eventsByDay={eventsByDay}
+          todayKey={todayKey}
+          loading={loadingEvents}
+          showTeamBadge={showTeamBadge}
+          onPreviousMonth={goToPreviousMonth}
+          onNextMonth={goToNextMonth}
+          onToday={goToToday}
+          onDayClick={openCreateModal}
+          onEventClick={(ev) => {
+            if (ev.link) router.push(ev.link)
+          }}
+        />
       ) : (
-        <>
-          {/* Filtros */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Club</label>
-              <select
-                className="w-full border rounded-lg px-4 py-2"
-                value={selectedClub}
-                onChange={(e) => handleClubChange(e.target.value)}
-              >
-                {clubs.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Equipo</label>
-              <select
-                className="w-full border rounded-lg px-4 py-2"
-                value={selectedTeam}
-                onChange={(e) => handleTeamChange(e.target.value)}
-                disabled={teams.length === 0}
-              >
-                {teams.map((t) => (
-                  <option key={t.id} value={t.id}>
-                    {getSportIcon(t.sport)} {t.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Barra de vista + filtros por tipo */}
-          <div className="bg-white rounded-xl shadow-md p-4 mb-4 flex flex-wrap items-center gap-4">
-            {/* Toggle vista */}
-            <div className="flex gap-1">
-              <button
-                onClick={() => setViewMode('month')}
-                className={`px-3 py-1.5 rounded-lg text-sm transition ${
-                  viewMode === 'month'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                }`}
-              >
-                📅 Mes
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`px-3 py-1.5 rounded-lg text-sm transition ${
-                  viewMode === 'list'
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                }`}
-              >
-                📋 Lista
-              </button>
-            </div>
-
-            {/* Filtros por tipo */}
-            <div className="flex flex-wrap gap-2">
-              <button
-                onClick={() => setShowSessions(!showSessions)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition border-2 ${
-                  showSessions
-                    ? 'bg-blue-50 border-blue-400 text-blue-800'
-                    : 'bg-white border-gray-200 text-gray-400 line-through'
-                }`}
-              >
-                <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-                Entrenamientos
-              </button>
-              <button
-                onClick={() => setShowMatches(!showMatches)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition border-2 ${
-                  showMatches
-                    ? 'bg-orange-50 border-orange-400 text-orange-800'
-                    : 'bg-white border-gray-200 text-gray-400 line-through'
-                }`}
-              >
-                <span className="w-2 h-2 rounded-full bg-orange-500"></span>
-                Partidos
-              </button>
-              <button
-                onClick={() => setShowEvents(!showEvents)}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition border-2 ${
-                  showEvents
-                    ? 'bg-purple-50 border-purple-400 text-purple-800'
-                    : 'bg-white border-gray-200 text-gray-400 line-through'
-                }`}
-              >
-                <span className="w-2 h-2 rounded-full bg-purple-500"></span>
-                Eventos
-              </button>
-            </div>
-          </div>
-
-          {/* Vista */}
-          {viewMode === 'month' ? (
-            <MonthView
-              currentMonth={currentMonth}
-              monthGrid={monthGrid}
-              eventsByDay={eventsByDay}
-              todayKey={todayKey}
-              loading={loadingEvents}
-              onPreviousMonth={goToPreviousMonth}
-              onNextMonth={goToNextMonth}
-              onToday={goToToday}
-              onDayClick={openCreateModal}
-              onEventClick={(ev) => {
-                if (ev.link) router.push(ev.link)
-              }}
-            />
-          ) : (
-            <ListView
-              events={filteredEvents}
-              loading={loadingEvents}
-              onDelete={deleteEvent}
-            />
-          )}
-        </>
+        <ListView
+          events={filteredEvents}
+          loading={loadingEvents}
+          showTeamBadge={showTeamBadge}
+          onDelete={deleteEvent}
+        />
       )}
 
       {/* Modal crear evento */}
@@ -495,6 +541,9 @@ export default function CalendarPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-xl max-w-md w-full p-6 max-h-[90vh] overflow-auto">
             <h3 className="text-xl font-bold text-gray-800 mb-4">📌 Nuevo Evento</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              Se creará en: <strong>{activeTeam.name}</strong>
+            </p>
             <form onSubmit={createEvent} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Título *</label>
@@ -622,6 +671,7 @@ function MonthView({
   eventsByDay,
   todayKey,
   loading,
+  showTeamBadge,
   onPreviousMonth,
   onNextMonth,
   onToday,
@@ -633,6 +683,7 @@ function MonthView({
   eventsByDay: Record<string, CalendarEventItem[]>
   todayKey: string
   loading: boolean
+  showTeamBadge: boolean
   onPreviousMonth: () => void
   onNextMonth: () => void
   onToday: () => void
@@ -727,7 +778,7 @@ function MonthView({
                         onEventClick(ev)
                       }}
                       className={`w-full text-left text-[10px] px-1.5 py-0.5 rounded truncate transition hover:opacity-80 ${style.bg} ${style.text}`}
-                      title={ev.title}
+                      title={`${ev.title}${showTeamBadge && ev.teamName ? ` · ${ev.teamName}` : ''}`}
                     >
                       {style.icon} {formatTime(ev.startDate)} {ev.title}
                     </button>
@@ -758,13 +809,14 @@ function MonthView({
 function ListView({
   events,
   loading,
+  showTeamBadge,
   onDelete,
 }: {
   events: CalendarEventItem[]
   loading: boolean
+  showTeamBadge: boolean
   onDelete: (id: string, title: string) => void
 }) {
-  // Agrupar por día
   const grouped: Record<string, CalendarEventItem[]> = {}
   for (const ev of events) {
     const key = toDateKey(new Date(ev.startDate))
@@ -830,6 +882,11 @@ function ListView({
                         >
                           {style.icon} {style.label}
                         </span>
+                        {showTeamBadge && ev.teamName && (
+                          <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">
+                            {ev.teamName}
+                          </span>
+                        )}
                         <span className="text-sm font-semibold text-gray-800">
                           {formatTime(ev.startDate)}
                         </span>
