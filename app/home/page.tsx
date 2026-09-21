@@ -4,16 +4,14 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import api from '@/lib/api'
 import { getSportIcon, getSportConfig } from '@/lib/sport'
+import { useActiveTeam } from '@/lib/ActiveTeamContext'
 
-import TeamSelector from './_components/TeamSelector'
 import NextTrainingCard from './_components/NextTrainingCard'
 import NextMatchCard from './_components/NextMatchCard'
 import AttendanceCard from './_components/AttendanceCard'
 import TopPlayersCard from './_components/TopPlayersCard'
 import PendingCallupsCard from './_components/PendingCallupsCard'
 import MatchBalanceCard from './_components/MatchBalanceCard'
-
-const STORAGE_KEY = 'activeTeamId'
 
 interface DashboardData {
   team: {
@@ -34,73 +32,43 @@ interface DashboardData {
 
 export default function HomePage() {
   const router = useRouter()
-  const [teams, setTeams] = useState<any[]>([])
-  const [activeTeamId, setActiveTeamId] = useState<string | null>(null)
+  const {
+    activeTeam,
+    favorites,
+    allTeams,
+    loading: loadingTeams,
+    setActiveTeam,
+    addFavorite,
+    isFavorite,
+  } = useActiveTeam()
+
+  const [currentUser, setCurrentUser] = useState<any>(null)
   const [data, setData] = useState<DashboardData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loadingDashboard, setLoadingDashboard] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // ------------------------------------------------------------
-  // 1) Al montar: cargar equipos disponibles + elegir activo
-  // ------------------------------------------------------------
+  // Cargar usuario actual
   useEffect(() => {
-    const init = async () => {
-      const token = localStorage.getItem('token')
-      if (!token) {
-        router.push('/login')
-        return
-      }
-
+    const userStr = localStorage.getItem('user')
+    if (userStr) {
       try {
-        const clubsRes = await api.get('/clubs')
-        const clubs = clubsRes.data
+        setCurrentUser(JSON.parse(userStr))
+      } catch {}
+    }
+  }, [])
 
-        const allTeams: any[] = []
-        for (const club of clubs) {
-          try {
-            const teamsRes = await api.get(`/teams/club/${club.id}`)
-            for (const team of teamsRes.data) {
-              allTeams.push({ ...team, club: { id: club.id, name: club.name } })
-            }
-          } catch {
-            // Si no tiene acceso a ese club, ignoramos
-          }
-        }
-
-        setTeams(allTeams)
-
-        if (allTeams.length === 0) {
-          setLoading(false)
-          return
-        }
-
-        const saved = localStorage.getItem(STORAGE_KEY)
-        const valid = saved && allTeams.some((t) => t.id === saved)
-        const initialId = valid ? saved! : allTeams[0].id
-
-        setActiveTeamId(initialId)
-        localStorage.setItem(STORAGE_KEY, initialId)
-      } catch (err) {
-        console.error('Error cargando equipos:', err)
-        setError('No se pudieron cargar tus equipos')
-        setLoading(false)
-      }
+  // Cargar dashboard cuando cambia el equipo activo
+  useEffect(() => {
+    if (!activeTeam) {
+      setData(null)
+      return
     }
 
-    init()
-  }, [router])
-
-  // ------------------------------------------------------------
-  // 2) Cuando cambia activeTeamId: cargar dashboard
-  // ------------------------------------------------------------
-  useEffect(() => {
-    if (!activeTeamId) return
-
     const fetchDashboard = async () => {
-      setLoading(true)
+      setLoadingDashboard(true)
       setError(null)
       try {
-        const res = await api.get(`/dashboard/team/${activeTeamId}`)
+        const res = await api.get(`/dashboard/team/${activeTeam.id}`)
         setData(res.data)
       } catch (err: any) {
         if (err.response?.status === 403) {
@@ -110,84 +78,219 @@ export default function HomePage() {
         } else {
           setError('Error al cargar el dashboard')
         }
+        setData(null)
       } finally {
-        setLoading(false)
+        setLoadingDashboard(false)
       }
     }
 
     fetchDashboard()
-  }, [activeTeamId])
+  }, [activeTeam])
 
-  const handleTeamChange = (teamId: string) => {
-    setActiveTeamId(teamId)
-    localStorage.setItem(STORAGE_KEY, teamId)
-  }
+  // ============================================
+  // RENDER
+  // ============================================
 
-  // ------------------------------------------------------------
-  // Render
-  // ------------------------------------------------------------
-  if (loading && !data) {
+  // Cargando equipos
+  if (loadingTeams) {
     return (
       <div className="flex justify-center items-center h-64 text-gray-500">
-        Cargando dashboard...
+        Cargando...
       </div>
     )
   }
 
-  if (teams.length === 0) {
+  // Sin equipos
+  if (allTeams.length === 0) {
     return (
       <div className="text-center py-16 bg-white rounded-xl shadow">
         <div className="text-6xl mb-4">🏆</div>
         <h3 className="text-xl font-semibold text-gray-700">
           No tienes equipos todavía
         </h3>
-        <p className="text-gray-500 mt-2">
+        <p className="text-gray-500 mt-2 mb-6">
           Crea un club y añade un equipo para ver tu dashboard
         </p>
+        <button
+          onClick={() => router.push('/dashboard')}
+          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition"
+        >
+          Ir a Mis Clubs
+        </button>
       </div>
     )
   }
 
-  // Datos del equipo activo (con sport)
-  const activeTeam = teams.find((t) => t.id === activeTeamId)
-  const sportConfig = getSportConfig(activeTeam?.sport)
+  // Sin equipo activo (solo si no hay favoritos y el usuario aún no ha elegido)
+  if (!activeTeam) {
+    return (
+      <div className="space-y-6">
+        <div className="text-center py-8">
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">
+            👋 ¡Hola{currentUser?.name ? `, ${currentUser.name}` : ''}!
+          </h1>
+          <p className="text-gray-500">
+            Selecciona un equipo para empezar
+          </p>
+        </div>
+
+        <div className="bg-white rounded-xl shadow-md p-6">
+          <h2 className="text-lg font-semibold text-gray-800 mb-4">
+            🏀 Mis equipos
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {allTeams.map((team) => (
+              <button
+                key={team.id}
+                onClick={() => setActiveTeam(team)}
+                className="text-left p-4 rounded-lg border border-gray-100 hover:border-blue-300 hover:bg-blue-50 transition"
+              >
+                <div className="flex items-center gap-3">
+                  {team.club?.logo ? (
+                    <img
+                      src={team.club.logo}
+                      alt={team.club.name}
+                      className="w-10 h-10 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <span className="text-2xl">{getSportIcon(team.sport)}</span>
+                  )}
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-800 truncate">
+                      {team.name}
+                    </p>
+                    <p className="text-xs text-gray-500 truncate">
+                      {team.club?.name}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // Con equipo activo
+  const sportConfig = getSportConfig(activeTeam.sport)
 
   return (
     <div className="space-y-6">
-      {/* Header con selector */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+      {/* ============================================ */}
+      {/* HEADER PERSONALIZADO                          */}
+      {/* ============================================ */}
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-800">
-            {sportConfig.icon} Inicio
+            👋 ¡Hola{currentUser?.name ? `, ${currentUser.name}` : ''}!
           </h1>
-          <p className="text-gray-500 text-sm">
-            Resumen de tu {sportConfig.teamName.toLowerCase()}
+          <p className="text-gray-500 text-sm mt-1">
+            {sportConfig.icon} Resumen de{' '}
+            <span className="font-medium text-gray-700">{activeTeam.name}</span>
+            {' · '}
+            {activeTeam.club?.name}
           </p>
         </div>
-        <TeamSelector
-          teams={teams}
-          currentTeamId={activeTeamId}
-          onChange={handleTeamChange}
-        />
+
+        {/* Botón de favorito para el equipo activo */}
+        <button
+          onClick={() => {
+            if (isFavorite(activeTeam.id)) {
+              // Quitar de favoritos
+              const currentFav = favorites.some((t) => t.id === activeTeam.id)
+              if (currentFav) {
+                // No hacemos removeFavorite directo para evitar cambiar el activo
+                // Solo el botón del sidebar lo hace
+              }
+            } else {
+              addFavorite(activeTeam.id)
+            }
+          }}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition text-sm font-medium ${
+            isFavorite(activeTeam.id)
+              ? 'bg-yellow-100 text-yellow-800 hover:bg-yellow-200'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+          }`}
+          title={isFavorite(activeTeam.id) ? 'Equipo en favoritos' : 'Añadir a favoritos'}
+        >
+          {isFavorite(activeTeam.id) ? '⭐ En favoritos' : '☆ Añadir a favoritos'}
+        </button>
       </div>
 
-      {/* Error */}
+      {/* ============================================ */}
+      {/* GRID DE FAVORITOS (atajo rápido)              */}
+      {/* ============================================ */}
+      {favorites.length > 1 && (
+        <div className="bg-white rounded-xl shadow-md p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-gray-700">
+              ⭐ Cambio rápido de equipo
+            </h3>
+          </div>
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {favorites.map((team) => {
+              const isActive = team.id === activeTeam.id
+              return (
+                <button
+                  key={team.id}
+                  onClick={() => setActiveTeam(team)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition whitespace-nowrap shrink-0 ${
+                    isActive
+                      ? 'border-blue-400 bg-blue-50'
+                      : 'border-gray-100 hover:border-blue-200 hover:bg-blue-50/50'
+                  }`}
+                >
+                  {team.club?.logo ? (
+                    <img
+                      src={team.club.logo}
+                      alt={team.club.name}
+                      className="w-6 h-6 rounded object-cover"
+                    />
+                  ) : (
+                    <span className="text-base">{getSportIcon(team.sport)}</span>
+                  )}
+                  <span
+                    className={`text-sm ${
+                      isActive ? 'font-semibold text-blue-700' : 'text-gray-700'
+                    }`}
+                  >
+                    {team.name}
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ============================================ */}
+      {/* ERROR                                         */}
+      {/* ============================================ */}
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
           {error}
         </div>
       )}
 
-      {/* Grid de tarjetas */}
-      {data && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <NextTrainingCard training={data.nextTraining} />
-          <NextMatchCard match={data.nextMatch} />
-          <AttendanceCard attendance={data.attendance} />
-          <TopPlayersCard players={data.topPlayers} />
-          <PendingCallupsCard callups={data.pendingCallups} />
-          <MatchBalanceCard balance={data.matchBalance} />
+      {/* ============================================ */}
+      {/* DASHBOARD                                     */}
+      {/* ============================================ */}
+      {loadingDashboard && !data ? (
+        <div className="flex justify-center items-center h-40 text-gray-500">
+          Cargando dashboard...
         </div>
+      ) : (
+        data && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <NextTrainingCard training={data.nextTraining} />
+            <NextMatchCard match={data.nextMatch} />
+            <AttendanceCard attendance={data.attendance} />
+            <TopPlayersCard players={data.topPlayers} />
+            <PendingCallupsCard callups={data.pendingCallups} />
+            <MatchBalanceCard balance={data.matchBalance} />
+          </div>
+        )
       )}
     </div>
   )
