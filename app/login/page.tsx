@@ -28,7 +28,7 @@ export default function Login() {
       localStorage.setItem('refreshToken', response.data.refreshToken)
       localStorage.setItem('user', JSON.stringify(response.data.user))
 
-      router.push('/dashboard')
+      router.push('/home')
     } catch (err) {
       console.error('Error:', err)
       setError('Credenciales inválidas. Intenta de nuevo.')

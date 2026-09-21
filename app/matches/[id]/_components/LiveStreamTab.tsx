@@ -134,7 +134,8 @@ export default function LiveStreamTab({ match }: Props) {
   const [connectedViewers, setConnectedViewers] = useState<string[]>([])
   const [cameraOn, setCameraOn] = useState(true)
   const [audioOn, setAudioOn] = useState(true)
-    // ✅ NUEVOS: cámara actual + fullscreen
+
+  // ✅ NUEVOS: cámara actual + fullscreen
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment')
   const videoContainerRef = useRef<HTMLDivElement>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -150,13 +151,13 @@ export default function LiveStreamTab({ match }: Props) {
   const remoteVideoRef = useRef<HTMLVideoElement>(null)
   const peerRef = useRef<Peer | null>(null)
   const activeCallsRef = useRef<Map<string, MediaConnection>>(new Map())
-  const dataChannelsRef = useRef<Map<string, any>>(new Map()) // ✅ Map de peerId → DataConnection
+  const dataChannelsRef = useRef<Map<string, any>>(new Map())
   const clockIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const isHost = useRef(false)
 
   const soyHost = isStreaming && isHost.current
   const soyViewer = isStreaming && !isHost.current
-  
+
   // ============================================
   // CARGA INICIAL
   // ============================================
@@ -215,6 +216,51 @@ export default function LiveStreamTab({ match }: Props) {
       remoteVideoRef.current.play().catch((err) => console.warn('Autoplay remoto:', err))
     }
   }, [remoteStream, soyViewer])
+
+  // ============================================
+  // ✅ FULLSCREEN CHANGE LISTENER (con orientación)
+  // ============================================
+
+  useEffect(() => {
+    const handler = () => {
+      const isNowFullscreen = !!document.fullscreenElement
+      setIsFullscreen(isNowFullscreen)
+
+      // Si hemos salido de fullscreen por cualquier vía, desbloquear orientación
+      if (!isNowFullscreen) {
+        try {
+          const orientation = screen.orientation as any
+          if (orientation?.unlock) {
+            orientation.unlock()
+            console.log('🔓 Orientación desbloqueada')
+          }
+        } catch (err) {
+          // Silencioso
+        }
+      }
+    }
+
+    const webkitHandler = () => {
+      const isNowFullscreen = !!(document as any).webkitFullscreenElement
+      setIsFullscreen(isNowFullscreen)
+      if (!isNowFullscreen) {
+        try {
+          const orientation = screen.orientation as any
+          if (orientation?.unlock) orientation.unlock()
+        } catch (err) {
+          // Silencioso
+        }
+      }
+    }
+
+    document.addEventListener('fullscreenchange', handler)
+    document.addEventListener('webkitfullscreenchange', webkitHandler)
+
+    return () => {
+      document.removeEventListener('fullscreenchange', handler)
+      document.removeEventListener('webkitfullscreenchange', webkitHandler)
+    }
+  }, [])
 
   // ============================================
   // CANDIDATOS Y PERMISOS
@@ -308,26 +354,26 @@ export default function LiveStreamTab({ match }: Props) {
   }, [isStreaming, match.id])
 
   // ============================================
-// ✅ POLLING de respaldo (solo viewer, cada 5s)
-// ============================================
+  // POLLING de respaldo (solo viewer, cada 5s)
+  // ============================================
 
-useEffect(() => {
-  if (!soyViewer) return
-  if (!liveInfo?.isLive) return
+  useEffect(() => {
+    if (!soyViewer) return
+    if (!liveInfo?.isLive) return
 
-  const interval = setInterval(async () => {
-    try {
-      const res = await api.get(`/matches/${match.id}/live`)
-      if (res.data.scoreboard) {
-        setScoreboard(res.data.scoreboard)
+    const interval = setInterval(async () => {
+      try {
+        const res = await api.get(`/matches/${match.id}/live`)
+        if (res.data.scoreboard) {
+          setScoreboard(res.data.scoreboard)
+        }
+      } catch (err) {
+        console.warn('Polling error:', err)
       }
-    } catch (err) {
-      console.warn('Polling error:', err)
-    }
-  }, 5000) // cada 5 segundos
+    }, 5000)
 
-  return () => clearInterval(interval)
-}, [soyViewer, liveInfo?.isLive, match.id])
+    return () => clearInterval(interval)
+  }, [soyViewer, liveInfo?.isLive, match.id])
 
   // ============================================
   // ACCIONES COACH
@@ -405,48 +451,38 @@ useEffect(() => {
         console.log('✅ Peer host abierto:', hostPeerId)
       })
 
-newPeer.on('connection', (conn) => {
-  console.log('🔗 Viewer conectado (data):', conn.peer)
-  setConnectedViewers((v) => [...v, conn.peer])
+      newPeer.on('connection', (conn) => {
+        console.log('🔗 Viewer conectado (data):', conn.peer)
+        setConnectedViewers((v) => [...v, conn.peer])
+        dataChannelsRef.current.set(conn.peer, conn)
 
-  // ✅ Guardar referencia al data channel
-  dataChannelsRef.current.set(conn.peer, conn)
-
-  conn.on('open', () => {
-    console.log('🔗 Data connection abierta con viewer:', conn.peer)
-
-    // ✅ Enviar el estado actual del scoreboard al nuevo viewer
-    if (scoreboard) {
-      try {
-        conn.send({
-          type: 'scoreboard-sync',
-          scoreboard,
+        conn.on('open', () => {
+          console.log('🔗 Data connection abierta con viewer:', conn.peer)
+          if (scoreboard) {
+            try {
+              conn.send({ type: 'scoreboard-sync', scoreboard })
+            } catch (err) {
+              console.warn('Error enviando sync inicial:', err)
+            }
+          }
         })
-      } catch (err) {
-        console.warn('Error enviando sync inicial:', err)
-      }
-    }
-  })
 
-  conn.on('close', () => {
-    console.log('🔗 Viewer desconectado:', conn.peer)
-    setConnectedViewers((v) => v.filter((p) => p !== conn.peer))
-    dataChannelsRef.current.delete(conn.peer)
-  })
-})
+        conn.on('close', () => {
+          console.log('🔗 Viewer desconectado:', conn.peer)
+          setConnectedViewers((v) => v.filter((p) => p !== conn.peer))
+          dataChannelsRef.current.delete(conn.peer)
+        })
+      })
 
-      // ✅ on('call') reforzado
       newPeer.on('call', (call) => {
         console.log('📞 Viewer llama:', call.peer)
         console.log('📞 Stream a enviar tiene tracks:', stream.getTracks().map(t => t.kind))
 
-        // 1) Answer
         call.answer(stream)
         console.log('✅ Answer enviado')
 
         activeCallsRef.current.set(call.peer, call)
 
-        // 2) Verificar senders después de 500ms
         setTimeout(async () => {
           const pc = (call as any).peerConnection as RTCPeerConnection
           if (!pc) {
@@ -461,7 +497,6 @@ newPeer.on('connection', (conn) => {
             state: s.track?.readyState,
           })))
 
-          // 3) Si no hay video sender, añadir manualmente
           const videoSender = senders.find((s: any) => s.track?.kind === 'video')
           if (!videoSender) {
             const videoTrack = stream.getVideoTracks()[0]
@@ -471,7 +506,6 @@ newPeer.on('connection', (conn) => {
             }
           }
 
-          // 4) Si no hay audio sender, añadir manualmente
           const audioSender = senders.find((s: any) => s.track?.kind === 'audio')
           if (!audioSender) {
             const audioTrack = stream.getAudioTracks()[0]
@@ -481,7 +515,6 @@ newPeer.on('connection', (conn) => {
             }
           }
 
-          // 5) Renegociar si hemos añadido algo
           if (!videoSender || !audioSender) {
             try {
               console.log('🔄 Renegociando conexión...')
@@ -493,7 +526,6 @@ newPeer.on('connection', (conn) => {
             }
           }
 
-          // 6) Estado final
           setTimeout(() => {
             console.log('🔍 PC senders FINAL:', pc.getSenders().map((s: any) => ({
               kind: s.track?.kind,
@@ -602,28 +634,25 @@ newPeer.on('connection', (conn) => {
         dataConn.on('open', () => {
           console.log('🔗 Data connection abierta con host')
 
-                // ✅ NUEVO: Escuchar mensajes del host (scoreboard en tiempo real)
-    dataConn.on('data', (data: any) => {
-      console.log('📨 Mensaje recibido del host:', data)
-      if (data?.type === 'scoreboard-update' || data?.type === 'scoreboard-sync') {
-        if (data.scoreboard) {
-          setScoreboard(data.scoreboard)
-        }
-      }
-    })
+          dataConn.on('data', (data: any) => {
+            console.log('📨 Mensaje recibido del host:', data)
+            if (data?.type === 'scoreboard-update' || data?.type === 'scoreboard-sync') {
+              if (data.scoreboard) {
+                setScoreboard(data.scoreboard)
+              }
+            }
+          })
 
+          const canvas = document.createElement('canvas')
+          canvas.width = 160
+          canvas.height = 120
+          const ctx = canvas.getContext('2d')!
+          ctx.fillStyle = 'black'
+          ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-// ✅ Stream dummy con canvas para que la negociación SDP incluya los m-line
-const canvas = document.createElement('canvas')
-canvas.width = 160
-canvas.height = 120
-const ctx = canvas.getContext('2d')!
-ctx.fillStyle = 'black'
-ctx.fillRect(0, 0, canvas.width, canvas.height)
+          const dummyStream = canvas.captureStream(1)
 
-const dummyStream = canvas.captureStream(1) // 1 fps, mínimo consumo
-
-const call = newPeer.call(hostPeerId, dummyStream)
+          const call = newPeer.call(hostPeerId, dummyStream)
 
           if (!call) {
             console.error('❌ newPeer.call devolvió null')
@@ -647,7 +676,6 @@ const call = newPeer.call(hostPeerId, dummyStream)
             console.error('❌ Error en call:', err)
           })
 
-          // ✅ Log estado del peerConnection del viewer
           setTimeout(() => {
             const pc = (call as any).peerConnection as RTCPeerConnection
             if (pc) {
@@ -714,30 +742,68 @@ const call = newPeer.call(hostPeerId, dummyStream)
     const track = localStream.getAudioTracks()[0]
     if (track) { track.enabled = !track.enabled; setAudioOn(track.enabled) }
   }
-    // ============================================
-  // ✅ FULL SCREEN
+
+  // ============================================
+  // ✅ FULL SCREEN (con orientación horizontal)
   // ============================================
 
+  const lockOrientation = async () => {
+    try {
+      const orientation = screen.orientation as any
+      if (orientation?.lock) {
+        await orientation.lock('landscape')
+        console.log('🔒 Orientación bloqueada a landscape')
+      } else {
+        console.log('⚠️ Este navegador no soporta screen.orientation.lock')
+      }
+    } catch (err) {
+      console.log('⚠️ No se pudo bloquear orientación:', err)
+    }
+  }
+
+  const unlockOrientation = () => {
+    try {
+      const orientation = screen.orientation as any
+      if (orientation?.unlock) {
+        orientation.unlock()
+        console.log('🔓 Orientación desbloqueada')
+      }
+    } catch (err) {
+      console.log('⚠️ No se pudo desbloquear orientación:', err)
+    }
+  }
+
   const toggleFullscreen = async () => {
+    const isIPhone = /iPhone/.test(navigator.userAgent)
+
+    if (isIPhone) {
+      const videoEl = soyHost ? localVideoRef.current : remoteVideoRef.current
+      if (!videoEl) return
+
+      if ((videoEl as any).webkitDisplayingFullscreen) {
+        (videoEl as any).webkitExitFullscreen?.()
+        setIsFullscreen(false)
+        unlockOrientation()
+      } else {
+        (videoEl as any).webkitEnterFullscreen?.()
+        setIsFullscreen(true)
+        lockOrientation()
+      }
+      return
+    }
+
     try {
       if (!document.fullscreenElement) {
         await videoContainerRef.current?.requestFullscreen()
+        lockOrientation()
       } else {
         await document.exitFullscreen()
+        unlockOrientation()
       }
     } catch (err) {
       console.error('Error al cambiar a pantalla completa:', err)
     }
   }
-
-  // Listener para sincronizar el estado isFullscreen
-  useEffect(() => {
-    const handler = () => {
-      setIsFullscreen(!!document.fullscreenElement)
-    }
-    document.addEventListener('fullscreenchange', handler)
-    return () => document.removeEventListener('fullscreenchange', handler)
-  }, [])
 
   // ============================================
   // ✅ CAMBIAR CÁMARA (frontal ↔ trasera)
@@ -745,25 +811,23 @@ const call = newPeer.call(hostPeerId, dummyStream)
 
   const switchCamera = async () => {
     if (!localStream) return
-    if (!isHost.current) return // solo el host puede cambiar su cámara
+    if (!isHost.current) return
 
     const newFacing: 'user' | 'environment' =
       facingMode === 'user' ? 'environment' : 'user'
 
     try {
-      // 1) Pedir nueva cámara
       const newStream = await navigator.mediaDevices.getUserMedia({
         video: {
           width: 854,
           height: 480,
           facingMode: { ideal: newFacing },
         },
-        audio: false, // el audio sigue del stream viejo
+        audio: false,
       })
 
       const newVideoTrack = newStream.getVideoTracks()[0]
 
-      // 2) Sustituir el track de vídeo en el stream local
       const oldVideoTrack = localStream.getVideoTracks()[0]
       if (oldVideoTrack) {
         localStream.removeTrack(oldVideoTrack)
@@ -771,7 +835,6 @@ const call = newPeer.call(hostPeerId, dummyStream)
       }
       localStream.addTrack(newVideoTrack)
 
-      // 3) Reemplazar el track en todas las conexiones activas (viewers)
       activeCallsRef.current.forEach((call) => {
         const pc = (call as any).peerConnection as RTCPeerConnection
         if (!pc) return
@@ -783,14 +846,12 @@ const call = newPeer.call(hostPeerId, dummyStream)
         }
       })
 
-      // 4) Actualizar el elemento de vídeo local
       if (localVideoRef.current) {
         localVideoRef.current.srcObject = null
         localVideoRef.current.srcObject = localStream
         await localVideoRef.current.play().catch(() => {})
       }
 
-      // 5) Actualizar estado
       setFacingMode(newFacing)
       console.log('📷 Cámara cambiada a:', newFacing)
     } catch (err) {
@@ -803,57 +864,56 @@ const call = newPeer.call(hostPeerId, dummyStream)
   // CONTROLES SCOREBOARD
   // ============================================
 
-// ✅ Emitir cambio de scoreboard por el data channel a todos los viewers
-const broadcastScoreboard = (newScoreboard: ScoreboardState) => {
-  dataChannelsRef.current.forEach((conn, peerId) => {
-    if (conn.open) {
-      try {
-        conn.send({
-          type: 'scoreboard-update',
-          scoreboard: newScoreboard,
-        })
-      } catch (err) {
-        console.warn(`Error enviando a ${peerId}:`, err)
+  const broadcastScoreboard = (newScoreboard: ScoreboardState) => {
+    dataChannelsRef.current.forEach((conn, peerId) => {
+      if (conn.open) {
+        try {
+          conn.send({
+            type: 'scoreboard-update',
+            scoreboard: newScoreboard,
+          })
+        } catch (err) {
+          console.warn(`Error enviando a ${peerId}:`, err)
+        }
       }
-    }
-  })
-}
+    })
+  }
 
-const changeScore = async (team: 'home' | 'away', delta: number) => {
-  if (!scoreboard) return
-  const newHome = team === 'home' ? scoreboard.homeScore + delta : scoreboard.homeScore
-  const newAway = team === 'away' ? scoreboard.awayScore + delta : scoreboard.awayScore
-  const updated = { ...scoreboard, homeScore: newHome, awayScore: newAway }
-  setScoreboard(updated)
-  broadcastScoreboard(updated)   // ✅ EMITIR
-  try {
-    await api.put(`/matches/${match.id}/live/scoreboard/score`, { homeScore: newHome, awayScore: newAway })
-  } catch (err) { console.error('Error score:', err) }
-}
-
-const setScoreManually = async (team: 'home' | 'away') => {
-  if (!scoreboard) return
-  const current = team === 'home' ? scoreboard.homeScore : scoreboard.awayScore
-  const input = prompt('Nuevo valor:', String(current))
-  if (input === null) return
-  const value = parseInt(input, 10)
-  if (isNaN(value) || value < 0) return
-  const newHome = team === 'home' ? value : scoreboard.homeScore
-  const newAway = team === 'away' ? value : scoreboard.awayScore
-  const updated = { ...scoreboard, homeScore: newHome, awayScore: newAway }
-  setScoreboard(updated)
-  broadcastScoreboard(updated)   // ✅ EMITIR
-  await api.put(`/matches/${match.id}/live/scoreboard/score`, { homeScore: newHome, awayScore: newAway })
-}
-
-const clockAction = async (action: 'play' | 'pause' | 'reset' | 'set', seconds?: number) => {
-  try {
-    const res = await api.put(`/matches/${match.id}/live/scoreboard/clock`, { action, seconds })
-    const updated = { ...scoreboard!, ...res.data }
+  const changeScore = async (team: 'home' | 'away', delta: number) => {
+    if (!scoreboard) return
+    const newHome = team === 'home' ? scoreboard.homeScore + delta : scoreboard.homeScore
+    const newAway = team === 'away' ? scoreboard.awayScore + delta : scoreboard.awayScore
+    const updated = { ...scoreboard, homeScore: newHome, awayScore: newAway }
     setScoreboard(updated)
-    broadcastScoreboard(updated)   // ✅ EMITIR
-  } catch (err) { console.error('Error reloj:', err) }
-}
+    broadcastScoreboard(updated)
+    try {
+      await api.put(`/matches/${match.id}/live/scoreboard/score`, { homeScore: newHome, awayScore: newAway })
+    } catch (err) { console.error('Error score:', err) }
+  }
+
+  const setScoreManually = async (team: 'home' | 'away') => {
+    if (!scoreboard) return
+    const current = team === 'home' ? scoreboard.homeScore : scoreboard.awayScore
+    const input = prompt('Nuevo valor:', String(current))
+    if (input === null) return
+    const value = parseInt(input, 10)
+    if (isNaN(value) || value < 0) return
+    const newHome = team === 'home' ? value : scoreboard.homeScore
+    const newAway = team === 'away' ? value : scoreboard.awayScore
+    const updated = { ...scoreboard, homeScore: newHome, awayScore: newAway }
+    setScoreboard(updated)
+    broadcastScoreboard(updated)
+    await api.put(`/matches/${match.id}/live/scoreboard/score`, { homeScore: newHome, awayScore: newAway })
+  }
+
+  const clockAction = async (action: 'play' | 'pause' | 'reset' | 'set', seconds?: number) => {
+    try {
+      const res = await api.put(`/matches/${match.id}/live/scoreboard/clock`, { action, seconds })
+      const updated = { ...scoreboard!, ...res.data }
+      setScoreboard(updated)
+      broadcastScoreboard(updated)
+    } catch (err) { console.error('Error reloj:', err) }
+  }
 
   const setClockManually = async () => {
     const input = prompt('Tiempo en formato MM:SS (ej: 07:30)', formatClock(displayClock))
@@ -868,35 +928,35 @@ const clockAction = async (action: 'play' | 'pause' | 'reset' | 'set', seconds?:
     setPeriodInput(clean)
   }
 
-const handlePeriodInputBlur = async () => {
-  if (!scoreboard) return
-  const currentLabel = getPeriodLabel(scoreboard)
-  if (periodInput === currentLabel) return
+  const handlePeriodInputBlur = async () => {
+    if (!scoreboard) return
+    const currentLabel = getPeriodLabel(scoreboard)
+    if (periodInput === currentLabel) return
 
-  try {
-    const res = await api.put(`/matches/${match.id}/live/scoreboard/custom-period`, {
-      value: periodInput,
-    })
-    const updated = { ...scoreboard, customPeriodLabel: res.data.customPeriodLabel }
-    setScoreboard(updated)
-    broadcastScoreboard(updated)   // ✅ EMITIR
-  } catch (err) {
-    console.error('Error guardando cuarto:', err)
-    setPeriodInput(currentLabel)
+    try {
+      const res = await api.put(`/matches/${match.id}/live/scoreboard/custom-period`, {
+        value: periodInput,
+      })
+      const updated = { ...scoreboard, customPeriodLabel: res.data.customPeriodLabel }
+      setScoreboard(updated)
+      broadcastScoreboard(updated)
+    } catch (err) {
+      console.error('Error guardando cuarto:', err)
+      setPeriodInput(currentLabel)
+    }
   }
-}
 
-const nextPeriod = async () => {
-  try {
-    const res = await api.put(`/matches/${match.id}/live/scoreboard/period`)
-    const updated = { ...scoreboard!, ...res.data }
-    setScoreboard(updated)
-    broadcastScoreboard(updated)   // ✅ EMITIR
-    if (res.data.customPeriodLabel) setPeriodInput(res.data.customPeriodLabel)
-  } catch (err) {
-    console.error('Error periodo:', err)
+  const nextPeriod = async () => {
+    try {
+      const res = await api.put(`/matches/${match.id}/live/scoreboard/period`)
+      const updated = { ...scoreboard!, ...res.data }
+      setScoreboard(updated)
+      broadcastScoreboard(updated)
+      if (res.data.customPeriodLabel) setPeriodInput(res.data.customPeriodLabel)
+    } catch (err) {
+      console.error('Error periodo:', err)
+    }
   }
-}
 
   // ============================================
   // CLEANUP
@@ -909,7 +969,7 @@ const nextPeriod = async () => {
       if (localStream) localStream.getTracks().forEach((t) => t.stop())
     }
   }, [])
-  
+
   // ============================================
   // RENDER
   // ============================================
@@ -1165,7 +1225,6 @@ const nextPeriod = async () => {
       </div>
 
       {/* Vídeo con overlay */}
-            {/* Vídeo con overlay */}
       <div
         ref={videoContainerRef}
         className="relative bg-black rounded-xl overflow-hidden shadow-md"
@@ -1179,167 +1238,158 @@ const nextPeriod = async () => {
             className="w-full aspect-video object-cover" />
         )}
 
-{/* Overlay del marcador */}
-{scoreboard && (scoreboard.enabled || scoreboard.clockEnabled) && (
-  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 inline-flex flex-col max-w-[85%]">
-    {soyHost && (
-      <button
-        onClick={() => setOverlayVisible(!overlayVisible)}
-        className="absolute -top-3 right-2 bg-black/80 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs hover:bg-black z-10"
-        title={overlayVisible ? 'Ocultar controles' : 'Mostrar controles'}
-      >
-        {overlayVisible ? '👁️' : '👁️‍🗨️'}
-      </button>
-    )}
-
-    <div className="rounded-xl overflow-hidden shadow-2xl border border-white/20">
-      {/* ===== FILA PRINCIPAL: [A] NOMBRE_A | TIEMPO CUARTO | NOMBRE_B [B] ===== */}
-      <div className="flex items-stretch">
-        
-        {/* --- BLOQUE IZQUIERDO: Marcador A + Nombre A --- */}
-        {scoreboard.enabled && (
-          <div className="flex items-stretch shrink-0">
-            {/* Marcador A: fondo blanco, letras negras */}
-            <div className="bg-white text-black px-3 py-1.5 flex items-center justify-center min-w-[50px]">
-              <span className="text-2xl font-bold leading-none">
-                {scoreboard.homeScore}
-              </span>
-            </div>
-            {/* Nombre A: fondo negro, letras blancas negrita, justificado a la derecha */}
-<div className="bg-black text-white px-3 py-1.5 flex items-center justify-end flex-1 min-w-[80px] max-w-[200px]">
-  <span className="text-sm font-bold uppercase truncate text-right">
-    {scoreboard.homeTeamName || 'LOCAL'}
-  </span>
-</div>
-          </div>
-        )}
-
-        {/* --- BLOQUE CENTRAL: Tiempo + Cuarto --- */}
-        {scoreboard.clockEnabled && (
-          <div className="flex items-stretch shrink-0">
-            {/* Tiempo: fondo blanco, letras negras */}
-            <div className="bg-white text-black px-3 py-1.5 flex items-center justify-center min-w-[80px]">
-              <span
-                className={`text-2xl font-mono font-bold leading-none ${
-                  scoreboard.isOvertime ? 'text-orange-600' : ''
-                }`}
+        {/* Overlay del marcador */}
+        {scoreboard && (scoreboard.enabled || scoreboard.clockEnabled) && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 inline-flex flex-col max-w-[85%]">
+            {soyHost && (
+              <button
+                onClick={() => setOverlayVisible(!overlayVisible)}
+                className="absolute -top-3 right-2 bg-black/80 text-white rounded-full w-7 h-7 flex items-center justify-center text-xs hover:bg-black z-10"
+                title={overlayVisible ? 'Ocultar controles' : 'Mostrar controles'}
               >
-                {formatClock(displayClock)}
-              </span>
-            </div>
-            {/* Cuarto: fondo blanco, letras negras, editable por host */}
-            <input
-              ref={periodInputRef}
-              type="text"
-              value={periodInput}
-              onChange={(e) => handlePeriodInputChange(e.target.value)}
-              onBlur={handlePeriodInputBlur}
-              maxLength={3}
-              disabled={!soyHost}
-              readOnly={!soyHost}
-              className={`bg-white text-black px-2 py-1.5 text-center text-sm font-bold uppercase w-12 border-l border-gray-300 ${
-                soyHost
-                  ? 'focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-text'
-                  : 'cursor-default'
-              }`}
-            />
-            {scoreboard.isOvertime && (
-              <div className="bg-orange-500 text-white px-2 py-1.5 flex items-center text-[10px] font-bold uppercase">
-                PRÓRROGA
-              </div>
+                {overlayVisible ? '👁️' : '👁️‍🗨️'}
+              </button>
             )}
-          </div>
-        )}
 
-        {/* --- BLOQUE DERECHO: Nombre B + Marcador B --- */}
-        {scoreboard.enabled && (
-          <div className="flex items-stretch shrink-0">
-            {/* Nombre B: fondo negro, letras blancas negrita, justificado a la izquierda */}
-<div className="bg-black text-white px-3 py-1.5 flex items-center justify-start flex-1 min-w-[80px] max-w-[200px]">
-  <span className="text-sm font-bold uppercase truncate text-left">
-    {scoreboard.awayTeamName || 'VISIT'}
-  </span>
-</div>
-            {/* Marcador B: fondo blanco, letras negras */}
-            <div className="bg-white text-black px-3 py-1.5 flex items-center justify-center min-w-[50px]">
-              <span className="text-2xl font-bold leading-none">
-                {scoreboard.awayScore}
-              </span>
-            </div>
-          </div>
-        )}
-      </div>
+            <div className="rounded-xl overflow-hidden shadow-2xl border border-white/20">
+              {/* ===== FILA PRINCIPAL ===== */}
+              <div className="flex items-stretch">
+                
+                {/* --- BLOQUE IZQUIERDO --- */}
+                {scoreboard.enabled && (
+                  <div className="flex items-stretch shrink-0">
+                    <div className="bg-white text-black px-3 py-1.5 flex items-center justify-center min-w-[50px]">
+                      <span className="text-2xl font-bold leading-none">
+                        {scoreboard.homeScore}
+                      </span>
+                    </div>
+                    <div className="bg-black text-white px-3 py-1.5 flex items-center justify-end flex-1 min-w-[80px] max-w-[200px]">
+                      <span className="text-sm font-bold uppercase truncate text-right">
+                        {scoreboard.homeTeamName || 'LOCAL'}
+                      </span>
+                    </div>
+                  </div>
+                )}
 
-      {/* ===== CONTROLES DEL HOST (debajo de la barra) ===== */}
-      {soyHost && overlayVisible && (
-        <div className="bg-black/90 backdrop-blur-md px-3 py-2 border-t border-white/10 space-y-1.5">
-          {/* Botones del marcador */}
-          {scoreboard.enabled && (
-            <div className="grid grid-cols-2 gap-2">
-              <div className="flex items-center justify-center gap-1">
-                <button onClick={() => changeScore('home', -1)}
-                  className="w-7 h-7 rounded bg-red-500/80 hover:bg-red-500 text-white text-xs font-bold">−</button>
-                <button onClick={() => changeScore('home', 1)}
-                  className="w-7 h-7 rounded bg-green-500/80 hover:bg-green-500 text-white text-xs font-bold">+1</button>
-                <button onClick={() => changeScore('home', 2)}
-                  className="w-7 h-7 rounded bg-blue-500/80 hover:bg-blue-500 text-white text-xs font-bold">+2</button>
-                <button onClick={() => changeScore('home', 3)}
-                  className="w-7 h-7 rounded bg-purple-500/80 hover:bg-purple-500 text-white text-xs font-bold">+3</button>
-                <button onClick={() => setScoreManually('home')}
-                  className="w-7 h-7 rounded bg-white/20 hover:bg-white/30 text-white text-xs">✏️</button>
+                {/* --- BLOQUE CENTRAL --- */}
+                {scoreboard.clockEnabled && (
+                  <div className="flex items-stretch shrink-0">
+                    <div className="bg-white text-black px-3 py-1.5 flex items-center justify-center min-w-[80px]">
+                      <span
+                        className={`text-2xl font-mono font-bold leading-none ${
+                          scoreboard.isOvertime ? 'text-orange-600' : ''
+                        }`}
+                      >
+                        {formatClock(displayClock)}
+                      </span>
+                    </div>
+                    <input
+                      ref={periodInputRef}
+                      type="text"
+                      value={periodInput}
+                      onChange={(e) => handlePeriodInputChange(e.target.value)}
+                      onBlur={handlePeriodInputBlur}
+                      maxLength={3}
+                      disabled={!soyHost}
+                      readOnly={!soyHost}
+                      className={`bg-white text-black px-2 py-1.5 text-center text-sm font-bold uppercase w-12 border-l border-gray-300 ${
+                        soyHost
+                          ? 'focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-text'
+                          : 'cursor-default'
+                      }`}
+                    />
+                    {scoreboard.isOvertime && (
+                      <div className="bg-orange-500 text-white px-2 py-1.5 flex items-center text-[10px] font-bold uppercase">
+                        PRÓRROGA
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* --- BLOQUE DERECHO --- */}
+                {scoreboard.enabled && (
+                  <div className="flex items-stretch shrink-0">
+                    <div className="bg-black text-white px-3 py-1.5 flex items-center justify-start flex-1 min-w-[80px] max-w-[200px]">
+                      <span className="text-sm font-bold uppercase truncate text-left">
+                        {scoreboard.awayTeamName || 'VISIT'}
+                      </span>
+                    </div>
+                    <div className="bg-white text-black px-3 py-1.5 flex items-center justify-center min-w-[50px]">
+                      <span className="text-2xl font-bold leading-none">
+                        {scoreboard.awayScore}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="flex items-center justify-center gap-1">
-                <button onClick={() => changeScore('away', -1)}
-                  className="w-7 h-7 rounded bg-red-500/80 hover:bg-red-500 text-white text-xs font-bold">−</button>
-                <button onClick={() => changeScore('away', 1)}
-                  className="w-7 h-7 rounded bg-green-500/80 hover:bg-green-500 text-white text-xs font-bold">+1</button>
-                <button onClick={() => changeScore('away', 2)}
-                  className="w-7 h-7 rounded bg-blue-500/80 hover:bg-blue-500 text-white text-xs font-bold">+2</button>
-                <button onClick={() => changeScore('away', 3)}
-                  className="w-7 h-7 rounded bg-purple-500/80 hover:bg-purple-500 text-white text-xs font-bold">+3</button>
-                <button onClick={() => setScoreManually('away')}
-                  className="w-7 h-7 rounded bg-white/20 hover:bg-white/30 text-white text-xs">✏️</button>
-              </div>
-            </div>
-          )}
 
-          {/* Botones del reloj */}
-          {scoreboard.clockEnabled && (
-            <div className="flex items-center justify-center gap-2 flex-wrap">
-              {!scoreboard.clockRunning ? (
-                <button onClick={() => clockAction('play')}
-                  className="px-3 py-1.5 rounded bg-green-500/80 hover:bg-green-500 text-white text-xs font-bold">
-                  ▶️ Iniciar
-                </button>
-              ) : (
-                <button onClick={() => clockAction('pause')}
-                  className="px-3 py-1.5 rounded bg-orange-500/80 hover:bg-orange-500 text-white text-xs font-bold">
-                  ⏸️ Pausar
-                </button>
+              {/* ===== CONTROLES DEL HOST ===== */}
+              {soyHost && overlayVisible && (
+                <div className="bg-black/90 backdrop-blur-md px-3 py-2 border-t border-white/10 space-y-1.5">
+                  {scoreboard.enabled && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="flex items-center justify-center gap-1">
+                        <button onClick={() => changeScore('home', -1)}
+                          className="w-7 h-7 rounded bg-red-500/80 hover:bg-red-500 text-white text-xs font-bold">−</button>
+                        <button onClick={() => changeScore('home', 1)}
+                          className="w-7 h-7 rounded bg-green-500/80 hover:bg-green-500 text-white text-xs font-bold">+1</button>
+                        <button onClick={() => changeScore('home', 2)}
+                          className="w-7 h-7 rounded bg-blue-500/80 hover:bg-blue-500 text-white text-xs font-bold">+2</button>
+                        <button onClick={() => changeScore('home', 3)}
+                          className="w-7 h-7 rounded bg-purple-500/80 hover:bg-purple-500 text-white text-xs font-bold">+3</button>
+                        <button onClick={() => setScoreManually('home')}
+                          className="w-7 h-7 rounded bg-white/20 hover:bg-white/30 text-white text-xs">✏️</button>
+                      </div>
+                      <div className="flex items-center justify-center gap-1">
+                        <button onClick={() => changeScore('away', -1)}
+                          className="w-7 h-7 rounded bg-red-500/80 hover:bg-red-500 text-white text-xs font-bold">−</button>
+                        <button onClick={() => changeScore('away', 1)}
+                          className="w-7 h-7 rounded bg-green-500/80 hover:bg-green-500 text-white text-xs font-bold">+1</button>
+                        <button onClick={() => changeScore('away', 2)}
+                          className="w-7 h-7 rounded bg-blue-500/80 hover:bg-blue-500 text-white text-xs font-bold">+2</button>
+                        <button onClick={() => changeScore('away', 3)}
+                          className="w-7 h-7 rounded bg-purple-500/80 hover:bg-purple-500 text-white text-xs font-bold">+3</button>
+                        <button onClick={() => setScoreManually('away')}
+                          className="w-7 h-7 rounded bg-white/20 hover:bg-white/30 text-white text-xs">✏️</button>
+                      </div>
+                    </div>
+                  )}
+
+                  {scoreboard.clockEnabled && (
+                    <div className="flex items-center justify-center gap-2 flex-wrap">
+                      {!scoreboard.clockRunning ? (
+                        <button onClick={() => clockAction('play')}
+                          className="px-3 py-1.5 rounded bg-green-500/80 hover:bg-green-500 text-white text-xs font-bold">
+                          ▶️ Iniciar
+                        </button>
+                      ) : (
+                        <button onClick={() => clockAction('pause')}
+                          className="px-3 py-1.5 rounded bg-orange-500/80 hover:bg-orange-500 text-white text-xs font-bold">
+                          ⏸️ Pausar
+                        </button>
+                      )}
+                      <button onClick={() => clockAction('reset')}
+                        className="px-3 py-1.5 rounded bg-white/20 hover:bg-white/30 text-white text-xs font-bold">
+                        🔄 Reset
+                      </button>
+                      <button onClick={setClockManually}
+                        className="px-3 py-1.5 rounded bg-blue-500/80 hover:bg-blue-500 text-white text-xs font-bold">
+                        ✏️ Editar
+                      </button>
+                      <button onClick={nextPeriod}
+                        className="px-3 py-1.5 rounded bg-indigo-500/80 hover:bg-indigo-500 text-white text-xs font-bold">
+                        ➡️ Siguiente
+                      </button>
+                    </div>
+                  )}
+                </div>
               )}
-              <button onClick={() => clockAction('reset')}
-                className="px-3 py-1.5 rounded bg-white/20 hover:bg-white/30 text-white text-xs font-bold">
-                🔄 Reset
-              </button>
-              <button onClick={setClockManually}
-                className="px-3 py-1.5 rounded bg-blue-500/80 hover:bg-blue-500 text-white text-xs font-bold">
-                ✏️ Editar
-              </button>
-              <button onClick={nextPeriod}
-                className="px-3 py-1.5 rounded bg-indigo-500/80 hover:bg-indigo-500 text-white text-xs font-bold">
-                ➡️ Siguiente
-              </button>
             </div>
-          )}
-        </div>
-      )}
-    </div>
-  </div>
-)}
+          </div>
+        )}
 
         {/* Controles flotantes sobre el vídeo */}
         <div className="absolute top-4 right-4 flex gap-2">
-          {/* Cambiar cámara (solo host) */}
           {soyHost && (
             <button
               onClick={switchCamera}
@@ -1350,7 +1400,6 @@ const nextPeriod = async () => {
             </button>
           )}
 
-          {/* Full screen (host y viewer) */}
           <button
             onClick={toggleFullscreen}
             className="px-3 py-2 rounded-full text-xs font-medium transition bg-white/90 text-gray-800 hover:bg-white"
@@ -1359,7 +1408,6 @@ const nextPeriod = async () => {
             {isFullscreen ? '⛶' : '⛶'}
           </button>
 
-          {/* Cámara on/off (solo host) */}
           {soyHost && (
             <button onClick={toggleCamera}
               className={`px-3 py-2 rounded-full text-xs font-medium transition ${
@@ -1369,7 +1417,6 @@ const nextPeriod = async () => {
             </button>
           )}
 
-          {/* Audio on/off (solo host) */}
           {soyHost && (
             <button onClick={toggleAudio}
               className={`px-3 py-2 rounded-full text-xs font-medium transition ${
