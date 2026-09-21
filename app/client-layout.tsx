@@ -442,27 +442,35 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
 
-            {/* Footer del sidebar */}
-            <div className="p-4 border-t border-gray-200 space-y-1">
-              <Link
-                href="/profile"
-                onClick={() => setSidebarOpen(false)}
-                className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition text-gray-700"
-              >
-                <span className="text-lg">⚙️</span>
-                <span className="text-sm font-medium">Configuración</span>
-              </Link>
-              <button
-                onClick={() => {
-                  setSidebarOpen(false)
-                  handleLogout()
-                }}
-                className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-red-50 transition text-red-600"
-              >
-                <span className="text-lg">🚪</span>
-                <span className="text-sm font-medium">Cerrar Sesión</span>
-              </button>
-            </div>
+{/* Footer del sidebar */}
+<div className="p-4 border-t border-gray-200 space-y-1">
+  <Link
+    href="/dashboard"
+    onClick={() => setSidebarOpen(false)}
+    className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition text-gray-700"
+  >
+    <span className="text-lg">🏛️</span>
+    <span className="text-sm font-medium">Mis Clubs</span>
+  </Link>
+  <Link
+    href="/profile"
+    onClick={() => setSidebarOpen(false)}
+    className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition text-gray-700"
+  >
+    <span className="text-lg">⚙️</span>
+    <span className="text-sm font-medium">Configuración</span>
+  </Link>
+  <button
+    onClick={() => {
+      setSidebarOpen(false)
+      handleLogout()
+    }}
+    className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-red-50 transition text-red-600"
+  >
+    <span className="text-lg">🚪</span>
+    <span className="text-sm font-medium">Cerrar Sesión</span>
+  </button>
+</div>
           </div>
         </>
       )}
