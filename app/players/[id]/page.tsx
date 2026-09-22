@@ -26,12 +26,13 @@ export interface PlayerDetail {
   wingspan: number | null
   weight: number | null
   isActive: boolean
-  team: {
-    id: string
-    name: string
-    category: string | null
-    club: { id: string; name: string }
-  }
+team: {
+  id: string
+  name: string
+  category: string | null
+  sport?: string
+  club: { id: string; name: string }
+}
   tutors: any[]
 }
 

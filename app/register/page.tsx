@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
 import { Button, Input } from '@/components/ui'
+import { Logo } from '@/components/ui/Logo'
 
 export default function Register() {
   const router = useRouter()
