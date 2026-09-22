@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
-import { getSportIcon } from '@/lib/sport'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
+import { Button, Card, Badge, Input, Textarea, Modal } from '@/components/ui'
 
 interface Season {
   id: string
@@ -31,7 +31,7 @@ export default function SeasonsPage() {
     description: '',
     startDate: '',
     endDate: '',
-    color: '#3b82f6',
+    color: '#00E676',
   })
   const [saving, setSaving] = useState(false)
 
@@ -79,7 +79,7 @@ export default function SeasonsPage() {
         color: form.color || undefined,
       })
       setShowModal(false)
-      setForm({ name: '', description: '', startDate: '', endDate: '', color: '#3b82f6' })
+      setForm({ name: '', description: '', startDate: '', endDate: '', color: '#00E676' })
       fetchSeasons(activeTeam.id)
     } catch (err: any) {
       alert(err.response?.data?.message || 'Error al crear la planificación')
@@ -102,18 +102,18 @@ export default function SeasonsPage() {
   // ============================================
 
   if (loadingTeams || loading) {
-    return <div className="text-center py-12 text-gray-500">Cargando planificaciones...</div>
+    return <div className="text-center py-12 text-text-muted">Cargando planificaciones...</div>
   }
 
   // Sin equipo activo
   if (!activeTeam) {
     return (
-      <div className="text-center py-16 bg-white rounded-xl shadow">
+      <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
         <div className="text-6xl mb-4">📅</div>
-        <h3 className="text-xl font-semibold text-gray-700 mb-2">
+        <h3 className="text-xl font-semibold text-text-primary mb-2">
           Selecciona un equipo
         </h3>
-        <p className="text-gray-500 mb-6">
+        <p className="text-text-secondary mb-6">
           Elige un equipo desde el menú superior para ver sus planificaciones
         </p>
       </div>
@@ -125,167 +125,144 @@ export default function SeasonsPage() {
       {/* Header */}
       <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">📅 Planificación</h1>
-          <p className="text-gray-500">
+          <h1 className="text-2xl font-bold text-text-primary">📅 Planificación</h1>
+          <p className="text-text-secondary">
             {activeTeam.name} · {activeTeam.club?.name}
           </p>
         </div>
-        <button
+        <Button
           onClick={() => setShowModal(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition"
+          icon={<span className="text-xl">+</span>}
         >
-          <span className="text-xl">+</span> Nueva Planificación
-        </button>
+          Nueva Planificación
+        </Button>
       </div>
 
       {/* Lista */}
       {seasons.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl shadow">
+        <div className="text-center py-12 bg-surface rounded-xl shadow border border-border-subtle">
           <div className="text-5xl mb-4">📅</div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">
+          <h3 className="text-lg font-semibold text-text-primary mb-2">
             No hay planificaciones todavía
           </h3>
-          <p className="text-gray-500 text-sm mb-4">
+          <p className="text-text-secondary text-sm mb-4">
             Crea tu primera planificación para empezar
           </p>
-          <button
-            onClick={() => setShowModal(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition"
-          >
+          <Button onClick={() => setShowModal(true)}>
             Crear Primera Planificación
-          </button>
+          </Button>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {seasons.map((season) => (
-            <Link
-              key={season.id}
-              href={`/seasons/${season.id}`}
-              className="bg-white rounded-xl shadow-md hover:shadow-lg transition p-5 border border-gray-100 hover:border-blue-200"
-            >
-              <div className="flex items-start gap-3">
-                <div
-                  className="w-1 rounded-full self-stretch min-h-[60px]"
-                  style={{ backgroundColor: season.color || '#3b82f6' }}
-                />
-                <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-semibold text-gray-800 truncate">
-                    {season.name}
-                  </h3>
-                  {season.description && (
-                    <p className="text-sm text-gray-500 mt-1 line-clamp-2">
-                      {season.description}
+            <Card key={season.id} hover>
+              <Link href={`/seasons/${season.id}`} className="block p-5">
+                <div className="flex items-start gap-3">
+                  <div
+                    className="w-1 rounded-full self-stretch min-h-[60px]"
+                    style={{ backgroundColor: season.color || '#00E676' }}
+                  />
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-semibold text-text-primary truncate">
+                      {season.name}
+                    </h3>
+                    {season.description && (
+                      <p className="text-sm text-text-secondary mt-1 line-clamp-2">
+                        {season.description}
+                      </p>
+                    )}
+                    <p className="text-xs text-text-muted mt-2">
+                      📆 {formatDateRange(season.startDate, season.endDate)}
                     </p>
-                  )}
-                  <p className="text-xs text-gray-400 mt-2">
-                    📆 {formatDateRange(season.startDate, season.endDate)}
-                  </p>
-                  <div className="mt-3">
-                    <span className="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-full">
-                      📦 {season._count.blocks} bloque{season._count.blocks !== 1 ? 's' : ''}
-                    </span>
+                    <div className="mt-3">
+                      <Badge variant="brand">
+                        📦 {season._count.blocks} bloque{season._count.blocks !== 1 ? 's' : ''}
+                      </Badge>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </Link>
+              </Link>
+            </Card>
           ))}
         </div>
       )}
 
       {/* Modal crear */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">Nueva Planificación</h3>
-            <form onSubmit={createSeason} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre *
-                </label>
-                <input
-                  type="text"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="Ej: Planificación 2026-27"
-                  required
-                />
-              </div>
+      <Modal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        title="Nueva Planificación"
+        size="md"
+      >
+        <form onSubmit={createSeason} className="space-y-4">
+          <Input
+            label="Nombre *"
+            type="text"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            placeholder="Ej: Planificación 2026-27"
+            required
+          />
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Contenido
-                </label>
-                <textarea
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  rows={3}
-                  placeholder="Objetivos, notas generales..."
-                />
-              </div>
+          <Textarea
+            label="Contenido"
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            rows={3}
+            placeholder="Objetivos, notas generales..."
+          />
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Fecha inicio
-                  </label>
-                  <input
-                    type="date"
-                    value={form.startDate}
-                    onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Fecha fin
-                  </label>
-                  <input
-                    type="date"
-                    value={form.endDate}
-                    onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Color
-                </label>
-                <div className="flex gap-2 items-center">
-                  <input
-                    type="color"
-                    value={form.color}
-                    onChange={(e) => setForm({ ...form, color: e.target.value })}
-                    className="w-12 h-10 rounded border cursor-pointer"
-                  />
-                  <span className="text-xs text-gray-500">{form.color}</span>
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 rounded-lg transition"
-                  disabled={saving}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition disabled:opacity-50"
-                >
-                  {saving ? 'Creando...' : 'Crear Planificación'}
-                </button>
-              </div>
-            </form>
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Fecha inicio"
+              type="date"
+              value={form.startDate}
+              onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+            />
+            <Input
+              label="Fecha fin"
+              type="date"
+              value={form.endDate}
+              onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+            />
           </div>
-        </div>
-      )}
+
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-1">
+              Color
+            </label>
+            <div className="flex gap-2 items-center">
+              <input
+                type="color"
+                value={form.color}
+                onChange={(e) => setForm({ ...form, color: e.target.value })}
+                className="w-12 h-10 rounded border border-border-subtle cursor-pointer bg-surface-elevated"
+              />
+              <span className="text-xs text-text-muted">{form.color}</span>
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setShowModal(false)}
+              disabled={saving}
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              disabled={saving}
+              loading={saving}
+              className="flex-1"
+            >
+              {saving ? 'Creando...' : 'Crear Planificación'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }

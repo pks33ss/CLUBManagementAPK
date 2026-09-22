@@ -14,8 +14,8 @@ interface Props {
 
 export default function TopPlayersCard({ players }: Props) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition lg:col-span-2">
-      <div className="flex items-center gap-2 text-yellow-600 mb-4">
+    <div className="bg-surface rounded-xl shadow-sm border border-border-subtle p-6 hover:border-brand-primary/30 transition lg:col-span-2">
+      <div className="flex items-center gap-2 text-warning mb-4">
         <span className="text-xl">⭐</span>
         <h3 className="font-semibold text-sm uppercase tracking-wide">
           Top jugadores
@@ -23,7 +23,7 @@ export default function TopPlayersCard({ players }: Props) {
       </div>
 
       {players.length === 0 ? (
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-text-muted">
           Sin estadísticas todavía. Añade resultados de partidos para ver el ranking.
         </p>
       ) : (
@@ -31,49 +31,49 @@ export default function TopPlayersCard({ players }: Props) {
           {players.map((player, idx) => (
             <div
               key={player.id}
-              className="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 transition"
+              className="flex items-center gap-3 p-3 rounded-lg hover:bg-surface-elevated transition"
             >
               <div
                 className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
                   idx === 0
-                    ? 'bg-yellow-400 text-yellow-900'
+                    ? 'bg-warning text-bg-base'
                     : idx === 1
-                    ? 'bg-gray-300 text-gray-700'
+                    ? 'bg-text-muted text-bg-base'
                     : idx === 2
-                    ? 'bg-orange-300 text-orange-900'
-                    : 'bg-gray-100 text-gray-600'
+                    ? 'bg-warning/60 text-bg-base'
+                    : 'bg-surface-elevated text-text-secondary'
                 }`}
               >
                 {idx + 1}
               </div>
 
               {player.number != null && (
-                <div className="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-xs">
+                <div className="w-8 h-8 rounded-full bg-brand-primary text-bg-base flex items-center justify-center font-bold text-xs">
                   {player.number}
                 </div>
               )}
 
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-gray-800 truncate">
+                <div className="text-sm font-medium text-text-primary truncate">
                   {player.name}
                 </div>
-                <div className="text-xs text-gray-500">
+                <div className="text-xs text-text-muted">
                   {player.gamesPlayed} partido{player.gamesPlayed !== 1 ? 's' : ''}
                 </div>
               </div>
 
               <div className="flex gap-3 text-xs">
                 <div className="text-center">
-                  <div className="font-bold text-gray-800">{player.avgPoints}</div>
-                  <div className="text-gray-500">PTS</div>
+                  <div className="font-bold text-text-primary">{player.avgPoints}</div>
+                  <div className="text-text-muted">PTS</div>
                 </div>
                 <div className="text-center">
-                  <div className="font-bold text-gray-800">{player.avgRebounds}</div>
-                  <div className="text-gray-500">REB</div>
+                  <div className="font-bold text-text-primary">{player.avgRebounds}</div>
+                  <div className="text-text-muted">REB</div>
                 </div>
                 <div className="text-center">
-                  <div className="font-bold text-gray-800">{player.avgAssists}</div>
-                  <div className="text-gray-500">AST</div>
+                  <div className="font-bold text-text-primary">{player.avgAssists}</div>
+                  <div className="text-text-muted">AST</div>
                 </div>
               </div>
             </div>

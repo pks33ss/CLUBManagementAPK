@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
+import { Button, Card, CardBody, Badge, Input, Select, Modal } from '@/components/ui'
 
 interface Member {
   id: string
@@ -121,11 +122,11 @@ export default function TeamMembers() {
     }
   }
 
-  const getRoleColor = (role: string) => {
+  const getRoleVariant = (role: string): 'info' | 'success' | 'neutral' => {
     switch (role) {
-      case 'COACH': return 'bg-blue-100 text-blue-800'
-      case 'ASSISTANT': return 'bg-green-100 text-green-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'COACH': return 'info'
+      case 'ASSISTANT': return 'success'
+      default: return 'neutral'
     }
   }
 
@@ -138,14 +139,14 @@ export default function TeamMembers() {
   }
 
   if (loading) {
-    return <div className="text-center py-12">Cargando miembros...</div>
+    return <div className="text-center py-12 text-text-muted">Cargando miembros...</div>
   }
 
   if (error) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-500">{error}</p>
-        <Link href={`/teams/${teamId}`} className="text-blue-600 hover:underline mt-4 inline-block">
+        <p className="text-danger">{error}</p>
+        <Link href={`/teams/${teamId}`} className="text-brand-primary hover:underline mt-4 inline-block">
           ← Volver al equipo
         </Link>
       </div>
@@ -154,202 +155,242 @@ export default function TeamMembers() {
 
   return (
     <div>
-      <Link href={`/teams/${teamId}`} className="text-blue-600 hover:underline inline-block mb-6">
+      <Link href={`/teams/${teamId}`} className="text-brand-primary hover:underline inline-block mb-6">
         ← Volver al equipo
       </Link>
 
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">👥 Miembros del Equipo</h1>
-          <p className="text-gray-500">Gestiona los entrenadores y asistentes del equipo</p>
+          <h1 className="text-2xl font-bold text-text-primary">👥 Miembros del Equipo</h1>
+          <p className="text-text-secondary">Gestiona los entrenadores y asistentes del equipo</p>
         </div>
-        <button
+        <Button
           onClick={() => setShowInviteModal(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition"
+          icon={<span className="text-xl">+</span>}
         >
-          <span className="text-xl">+</span> Invitar Miembro
-        </button>
+          Invitar Miembro
+        </Button>
       </div>
 
-      <div className="bg-white rounded-xl shadow-md overflow-hidden">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usuario</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rol</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Desde</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {members.map((member) => (
-              <tr key={member.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4">
-                  <p className="font-medium text-gray-900">
+      <Card>
+        {/* Vista desktop */}
+        <div className="hidden md:block">
+          <table className="w-full">
+            <thead className="bg-surface-elevated">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">Usuario</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">Rol</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">Desde</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase">Acciones</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border-subtle">
+              {members.map((member) => (
+                <tr key={member.id} className="hover:bg-surface-elevated transition">
+                  <td className="px-6 py-4">
+                    <p className="font-medium text-text-primary">
+                      {member.user.name} {member.user.lastName}
+                    </p>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-text-secondary">
+                    {member.user.email}
+                  </td>
+                  <td className="px-6 py-4">
+                    <Badge variant={getRoleVariant(member.role)}>
+                      {getRoleText(member.role)}
+                    </Badge>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-text-secondary">
+                    {new Date(member.joinedAt).toLocaleDateString('es-ES')}
+                  </td>
+                  <td className="px-6 py-4 text-right">
+                    <div className="flex gap-2 justify-end">
+                      <button
+                        onClick={() => openRoleModal(member)}
+                        className="text-xs px-3 py-1 rounded-full font-medium transition hover:opacity-80 bg-surface-elevated text-text-secondary"
+                        disabled={member.userId === currentUser?.id}
+                        title="Cambiar rol"
+                      >
+                        {getRoleText(member.role)} ✏️
+                      </button>
+                      <button
+                        onClick={() => removeMember(member.id, `${member.user.name} ${member.user.lastName}`)}
+                        className="text-danger hover:text-danger/80 p-1"
+                        disabled={member.userId === currentUser?.id}
+                        title="Eliminar miembro"
+                      >
+                        🗑️
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Vista móvil */}
+        <div className="md:hidden divide-y divide-border-subtle">
+          {members.map((member) => (
+            <div key={member.id} className="p-4 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-text-primary truncate">
                     {member.user.name} {member.user.lastName}
                   </p>
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-600">
-                  {member.user.email}
-                </td>
-                <td className="px-6 py-4">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(member.role)}`}>
-                    {getRoleText(member.role)}
-                  </span>
-                </td>
-                <td className="px-6 py-4 text-sm text-gray-600">
-                  {new Date(member.joinedAt).toLocaleDateString('es-ES')}
-                </td>
-                <td className="px-6 py-4 text-right">
-                  <div className="flex gap-2 justify-end">
-                    <button
-                      onClick={() => openRoleModal(member)}
-                      className={`text-xs px-3 py-1 rounded-full font-medium transition hover:opacity-80 ${getRoleColor(member.role)}`}
-                      disabled={member.userId === currentUser?.id}
-                      title="Cambiar rol"
-                    >
-                      {getRoleText(member.role)} ✏️
-                    </button>
-                    <button
-                      onClick={() => removeMember(member.id, `${member.user.name} ${member.user.lastName}`)}
-                      className="text-red-500 hover:text-red-700 p-1"
-                      disabled={member.userId === currentUser?.id}
-                      title="Eliminar miembro"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* MODAL DE INVITAR */}
-      {showInviteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">Invitar Miembro al Equipo</h3>
-            <form onSubmit={inviteMember} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Email del usuario *
-                </label>
-                <input
-                  type="email"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="usuario@email.com"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Rol en el equipo *
-                </label>
-                <select
-                  value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="COACH">🏆 Entrenador</option>
-                  <option value="ASSISTANT">🤝 Asistente</option>
-                </select>
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowInviteModal(false)}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 rounded-lg transition"
-                  disabled={inviting}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={inviting}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition disabled:opacity-50"
-                >
-                  {inviting ? 'Invitando...' : 'Invitar'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL DE CAMBIAR ROL */}
-      {showRoleModal && selectedMember && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">
-              Cambiar Rol de {selectedMember.user.name} {selectedMember.user.lastName}
-            </h3>
-
-            <div className="space-y-3">
-              <label className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition ${
-                selectedRole === 'COACH' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'
-              }`}>
-                <input
-                  type="radio"
-                  name="role"
-                  value="COACH"
-                  checked={selectedRole === 'COACH'}
-                  onChange={(e) => setSelectedRole(e.target.value)}
-                  className="w-4 h-4"
-                />
-                <div>
-                  <p className="font-medium">🏆 Entrenador</p>
-                  <p className="text-xs text-gray-500">Puede gestionar el equipo (jugadores, entrenamientos, asistencia)</p>
+                  <p className="text-xs text-text-muted truncate">{member.user.email}</p>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    Desde {new Date(member.joinedAt).toLocaleDateString('es-ES')}
+                  </p>
                 </div>
-              </label>
+                <Badge variant={getRoleVariant(member.role)}>
+                  {getRoleText(member.role)}
+                </Badge>
+              </div>
 
-              <label className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition ${
-                selectedRole === 'ASSISTANT' ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:bg-gray-50'
-              }`}>
-                <input
-                  type="radio"
-                  name="role"
-                  value="ASSISTANT"
-                  checked={selectedRole === 'ASSISTANT'}
-                  onChange={(e) => setSelectedRole(e.target.value)}
-                  className="w-4 h-4"
-                />
-                <div>
-                  <p className="font-medium">🤝 Asistente</p>
-                  <p className="text-xs text-gray-500">Puede ver la información y ayudar en la asistencia</p>
+              {member.userId !== currentUser?.id && (
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-border-subtle">
+                  <button
+                    onClick={() => openRoleModal(member)}
+                    className="flex-1 min-w-[120px] text-xs bg-surface-elevated hover:bg-border-subtle text-text-secondary px-3 py-2 rounded-lg font-medium transition"
+                  >
+                    ✏️ Cambiar rol
+                  </button>
+                  <button
+                    onClick={() => removeMember(member.id, `${member.user.name} ${member.user.lastName}`)}
+                    className="flex-1 min-w-[120px] text-xs bg-danger/10 hover:bg-danger/20 text-danger px-3 py-2 rounded-lg font-medium transition"
+                  >
+                    🗑️ Eliminar
+                  </button>
                 </div>
-              </label>
+              )}
             </div>
-
-            <div className="flex gap-3 pt-6">
-              <button
-                onClick={() => {
-                  setShowRoleModal(false)
-                  setSelectedMember(null)
-                }}
-                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 rounded-lg transition"
-                disabled={savingRole}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={saveRole}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition disabled:opacity-50"
-                disabled={savingRole}
-              >
-                {savingRole ? 'Guardando...' : 'Guardar Cambios'}
-              </button>
-            </div>
-          </div>
+          ))}
         </div>
-      )}
+      </Card>
+
+      {/* MODAL INVITAR */}
+      <Modal
+        isOpen={showInviteModal}
+        onClose={() => setShowInviteModal(false)}
+        title="Invitar Miembro al Equipo"
+        size="md"
+      >
+        <form onSubmit={inviteMember} className="space-y-4">
+          <Input
+            label="Email del usuario *"
+            type="email"
+            value={inviteEmail}
+            onChange={(e) => setInviteEmail(e.target.value)}
+            placeholder="usuario@email.com"
+            required
+          />
+
+          <Select
+            label="Rol en el equipo *"
+            value={inviteRole}
+            onChange={(e) => setInviteRole(e.target.value)}
+            required
+          >
+            <option value="COACH">🏆 Entrenador</option>
+            <option value="ASSISTANT">🤝 Asistente</option>
+          </Select>
+
+          <div className="flex gap-3 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setShowInviteModal(false)}
+              disabled={inviting}
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              disabled={inviting}
+              loading={inviting}
+              className="flex-1"
+            >
+              {inviting ? 'Invitando...' : 'Invitar'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* MODAL CAMBIAR ROL */}
+      <Modal
+        isOpen={showRoleModal && !!selectedMember}
+        onClose={() => {
+          setShowRoleModal(false)
+          setSelectedMember(null)
+        }}
+        title={selectedMember ? `Cambiar Rol de ${selectedMember.user.name} ${selectedMember.user.lastName}` : ''}
+        size="md"
+      >
+        <div className="space-y-3">
+          <label
+            className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition ${
+              selectedRole === 'COACH' ? 'border-brand-primary bg-brand-primary/5' : 'border-border-subtle hover:bg-surface-elevated'
+            }`}
+          >
+            <input
+              type="radio"
+              name="role"
+              value="COACH"
+              checked={selectedRole === 'COACH'}
+              onChange={(e) => setSelectedRole(e.target.value)}
+              className="w-4 h-4 accent-brand-primary"
+            />
+            <div>
+              <p className="font-medium text-text-primary">🏆 Entrenador</p>
+              <p className="text-xs text-text-muted">Puede gestionar el equipo (jugadores, entrenamientos, asistencia)</p>
+            </div>
+          </label>
+
+          <label
+            className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition ${
+              selectedRole === 'ASSISTANT' ? 'border-brand-primary bg-brand-primary/5' : 'border-border-subtle hover:bg-surface-elevated'
+            }`}
+          >
+            <input
+              type="radio"
+              name="role"
+              value="ASSISTANT"
+              checked={selectedRole === 'ASSISTANT'}
+              onChange={(e) => setSelectedRole(e.target.value)}
+              className="w-4 h-4 accent-brand-primary"
+            />
+            <div>
+              <p className="font-medium text-text-primary">🤝 Asistente</p>
+              <p className="text-xs text-text-muted">Puede ver la información y ayudar en la asistencia</p>
+            </div>
+          </label>
+        </div>
+
+        <div className="flex gap-3 pt-6">
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setShowRoleModal(false)
+              setSelectedMember(null)
+            }}
+            disabled={savingRole}
+            className="flex-1"
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={saveRole}
+            disabled={savingRole}
+            loading={savingRole}
+            className="flex-1"
+          >
+            {savingRole ? 'Guardando...' : 'Guardar Cambios'}
+          </Button>
+        </div>
+      </Modal>
     </div>
   )
 }

@@ -1,6 +1,7 @@
 'use client'
 
 import { getSportConfig } from '@/lib/sport'
+import { Badge } from '@/components/ui'
 import type { PlayerDetail } from '../page'
 
 interface Props {
@@ -22,10 +23,10 @@ export default function PlayerHeader({ player }: Props) {
   const sport = getSportConfig((player.team as any)?.sport)
 
   return (
-    <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+    <div className="bg-surface rounded-xl shadow-md border border-border-subtle p-6 mb-6">
       <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
         {/* Avatar con número */}
-        <div className="w-24 h-24 rounded-full bg-blue-600 text-white flex items-center justify-center text-3xl font-bold shrink-0">
+        <div className="w-24 h-24 rounded-full bg-brand-primary text-bg-base flex items-center justify-center text-3xl font-bold shrink-0">
           {player.number ?? initials}
         </div>
 
@@ -33,31 +34,27 @@ export default function PlayerHeader({ player }: Props) {
         <div className="flex-1">
           <div className="flex items-center gap-3 flex-wrap mb-2">
             {player.position && (
-              <span className="bg-purple-100 text-purple-700 text-xs font-medium px-3 py-1 rounded-full">
-                {player.position}
-              </span>
+              <Badge variant="brand">{player.position}</Badge>
             )}
             {!player.isActive && (
-              <span className="bg-gray-200 text-gray-600 text-xs font-medium px-3 py-1 rounded-full">
-                Inactivo
-              </span>
+              <Badge variant="neutral">Inactivo</Badge>
             )}
           </div>
 
-          <h1 className="text-3xl font-bold text-gray-800 mb-1">
+          <h1 className="text-3xl font-bold text-text-primary mb-1">
             {player.name} {player.lastName}
           </h1>
 
-          <div className="flex flex-wrap gap-4 text-sm text-gray-500">
+          <div className="flex flex-wrap gap-4 text-sm text-text-secondary">
             {age !== null && <span>🎂 {age} años</span>}
             {player.height != null && <span>📏 {player.height} cm</span>}
             {player.weight != null && <span>⚖️ {player.weight} kg</span>}
             {player.wingspan != null && <span>🖐️ {player.wingspan} cm</span>}
           </div>
 
-          <p className="text-sm text-gray-500 mt-2">
-            {sport.icon} <span className="font-medium text-gray-700">{player.team.name}</span>
-            {player.team.category && <span className="text-gray-400"> · {player.team.category}</span>}
+          <p className="text-sm text-text-secondary mt-2">
+            {sport.icon} <span className="font-medium text-text-primary">{player.team.name}</span>
+            {player.team.category && <span className="text-text-muted"> · {player.team.category}</span>}
             {' · '}{player.team.club.name}
           </p>
         </div>

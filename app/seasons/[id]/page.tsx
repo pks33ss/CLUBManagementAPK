@@ -86,10 +86,6 @@ export function buildTree(blocks: SeasonBlock[]): BlockWithChildren[] {
   return roots
 }
 
-// ============================================
-// COMPONENTE INTERNO (usa hooks de Next)
-// ============================================
-
 function SeasonDetailContent() {
   const router = useRouter()
   const params = useParams()
@@ -99,7 +95,6 @@ function SeasonDetailContent() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Modales
   const [showBlockModal, setShowBlockModal] = useState(false)
   const [editingBlock, setEditingBlock] = useState<SeasonBlock | null>(null)
   const [parentBlockId, setParentBlockId] = useState<string | null>(null)
@@ -108,7 +103,6 @@ function SeasonDetailContent() {
   const [editingSection, setEditingSection] = useState<SeasonSection | null>(null)
   const [sectionBlockId, setSectionBlockId] = useState<string | null>(null)
 
-  // Acordeón (persistencia en localStorage)
   const [expandedBlocks, setExpandedBlocks] = useState<Record<string, boolean>>({})
 
   const fetchSeason = useCallback(async () => {
@@ -134,7 +128,6 @@ function SeasonDetailContent() {
     fetchSeason()
   }, [seasonId, router, fetchSeason])
 
-  // Cargar estado del acordeón desde localStorage
   useEffect(() => {
     if (!season) return
     const key = `season-expanded-${seasonId}`
@@ -173,7 +166,6 @@ function SeasonDetailContent() {
     localStorage.setItem(`season-expanded-${seasonId}`, JSON.stringify({}))
   }
 
-  // Handlers
   const handleCreateRootBlock = () => {
     setEditingBlock(null)
     setParentBlockId(null)
@@ -287,14 +279,14 @@ function SeasonDetailContent() {
   // ---------- Render ----------
 
   if (loading) {
-    return <div className="text-center py-12 text-gray-500">Cargando planificación...</div>
+    return <div className="text-center py-12 text-text-muted">Cargando planificación...</div>
   }
 
   if (error || !season) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-500 mb-4">{error || 'Planificación no encontrada'}</p>
-        <Link href="/seasons" className="text-blue-600 hover:underline">
+        <p className="text-danger mb-4">{error || 'Planificación no encontrada'}</p>
+        <Link href="/seasons" className="text-brand-primary hover:underline">
           ← Volver a planificaciones
         </Link>
       </div>
@@ -305,7 +297,7 @@ function SeasonDetailContent() {
 
   return (
     <div>
-      <Link href="/seasons" className="text-blue-600 hover:underline inline-block mb-6">
+      <Link href="/seasons" className="text-brand-primary hover:underline inline-block mb-6">
         ← Volver a planificaciones
       </Link>
 
@@ -318,18 +310,18 @@ function SeasonDetailContent() {
       />
 
       {tree.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl shadow">
+        <div className="text-center py-12 bg-surface rounded-xl shadow border border-border-subtle">
           <div className="text-5xl mb-4">📦</div>
-          <h3 className="text-lg font-semibold text-gray-800 mb-2">
+          <h3 className="text-lg font-semibold text-text-primary mb-2">
             No hay bloques todavía
           </h3>
-          <p className="text-gray-500 text-sm mb-4">
+          <p className="text-text-secondary text-sm mb-4">
             Crea el primer bloque de la planificación
           </p>
           {season.canManage && (
             <button
               onClick={handleCreateRootBlock}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg transition"
+              className="bg-brand-primary hover:bg-brand-primary-dark text-bg-base px-6 py-2 rounded-lg transition font-medium"
             >
               ➕ Crear Primer Bloque
             </button>
@@ -358,7 +350,6 @@ function SeasonDetailContent() {
         </div>
       )}
 
-      {/* Modal crear/editar bloque */}
       {showBlockModal && (
         <BlockModal
           seasonId={seasonId}
@@ -372,7 +363,6 @@ function SeasonDetailContent() {
         />
       )}
 
-      {/* Modal crear/editar sección */}
       {showSectionModal && (
         <SectionModal
           blockId={
@@ -391,13 +381,9 @@ function SeasonDetailContent() {
   )
 }
 
-// ============================================
-// ✅ EXPORT POR DEFECTO con Suspense
-// ============================================
-
 export default function SeasonDetailPage() {
   return (
-    <Suspense fallback={<div className="text-center py-12 text-gray-500">Cargando...</div>}>
+    <Suspense fallback={<div className="text-center py-12 text-text-muted">Cargando...</div>}>
       <SeasonDetailContent />
     </Suspense>
   )

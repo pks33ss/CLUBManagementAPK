@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import api from '@/lib/api'
 import type { SeasonSection } from '../page'
+import { Button, Input, Textarea, Modal } from '@/components/ui'
 
 interface Props {
   blockId: string
@@ -17,7 +18,7 @@ export default function SectionModal({ blockId, section, onClose, onSuccess }: P
   const [form, setForm] = useState({
     name: section?.name || '',
     description: section?.description || '',
-    color: section?.color || '#22c55e',
+    color: section?.color || '#00E676',
     startDate: section?.startDate ? section.startDate.slice(0, 10) : '',
     endDate: section?.endDate ? section.endDate.slice(0, 10) : '',
   })
@@ -49,85 +50,55 @@ export default function SectionModal({ blockId, section, onClose, onSuccess }: P
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl max-w-md w-full p-6">
-        <h3 className="text-xl font-bold text-gray-800 mb-4">
-          {isEditing ? '✏️ Editar Sección' : '➕ Nueva Sección'}
-        </h3>
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title={isEditing ? '✏️ Editar Sección' : '➕ Nueva Sección'}
+      size="md"
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Input
+          label="Nombre *"
+          type="text"
+          value={form.name}
+          onChange={(e) => setForm({ ...form, name: e.target.value })}
+          placeholder="Ej: Técnica Ataque, Pretemporada..."
+          required
+          autoFocus
+        />
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nombre *
-            </label>
-            <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              placeholder="Ej: Técnica Ataque, Pretemporada..."
-              required
-              autoFocus
-            />
-          </div>
+        <Textarea
+          label="Contenido"
+          value={form.description}
+          onChange={(e) => setForm({ ...form, description: e.target.value })}
+          rows={6}
+          placeholder="Ej: Objetivos técnicos, ejercicios clave, criterios de evaluación..."
+        />
 
-<div>
-  <label className="block text-sm font-medium text-gray-700 mb-1">
-    Contenido
-  </label>
-  <textarea
-    value={form.description}
-    onChange={(e) => setForm({ ...form, description: e.target.value })}
-    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-    rows={6}
-    placeholder="Ej: Objetivos técnicos, ejercicios clave, criterios de evaluación..."
-  />
-</div>
+        <div className="grid grid-cols-2 gap-4">
+          <Input
+            label="Fecha inicio"
+            type="date"
+            value={form.startDate}
+            onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+          />
+          <Input
+            label="Fecha fin"
+            type="date"
+            value={form.endDate}
+            onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+          />
+        </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Fecha inicio
-              </label>
-              <input
-                type="date"
-                value={form.startDate}
-                onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-                className="w-full px-4 py-2 border rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Fecha fin
-              </label>
-              <input
-                type="date"
-                value={form.endDate}
-                onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-                className="w-full px-4 py-2 border rounded-lg"
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 bg-gray-200 hover:bg-gray-300 py-2 rounded-lg"
-              disabled={saving}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg disabled:opacity-50"
-            >
-              {saving ? 'Guardando...' : isEditing ? 'Guardar' : 'Crear'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="flex gap-3 pt-2">
+          <Button type="button" variant="secondary" onClick={onClose} disabled={saving} className="flex-1">
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={saving} loading={saving} className="flex-1">
+            {saving ? 'Guardando...' : isEditing ? 'Guardar' : 'Crear'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   )
 }

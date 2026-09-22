@@ -12,12 +12,12 @@ interface Props {
 export default function NextMatchCard({ match }: Props) {
   if (!match) {
     return (
-      <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-        <div className="flex items-center gap-2 text-gray-400 mb-2">
+      <div className="bg-surface rounded-xl shadow-sm border border-border-subtle p-6">
+        <div className="flex items-center gap-2 text-text-muted mb-2">
           <span className="text-xl">🏆</span>
           <h3 className="font-semibold">Próximo partido</h3>
         </div>
-        <p className="text-sm text-gray-400">No hay partidos programados</p>
+        <p className="text-sm text-text-muted">No hay partidos programados</p>
       </div>
     )
   }
@@ -34,17 +34,17 @@ export default function NextMatchCard({ match }: Props) {
   }[match.location]
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition">
-      <div className="flex items-center gap-2 text-orange-600 mb-3">
+    <div className="bg-surface rounded-xl shadow-sm border border-border-subtle p-6 hover:border-brand-primary/30 transition">
+      <div className="flex items-center gap-2 text-warning mb-3">
         <span className="text-xl">🏆</span>
         <h3 className="font-semibold text-sm uppercase tracking-wide">
           Próximo partido
         </h3>
       </div>
-      <div className="text-lg font-bold text-gray-800 mb-2">
+      <div className="text-lg font-bold text-text-primary mb-2">
         vs {match.opponent}
       </div>
-      <div className="space-y-1 text-sm text-gray-600">
+      <div className="space-y-1 text-sm text-text-secondary">
         <div className="flex items-center gap-2">
           📅 {date.toLocaleDateString('es-ES', {
             weekday: 'long',
@@ -62,7 +62,7 @@ export default function NextMatchCard({ match }: Props) {
         )}
       </div>
       {daysUntil >= 0 && daysUntil <= 7 && (
-        <div className="mt-3 inline-block bg-orange-100 text-orange-700 text-xs px-3 py-1 rounded-full font-medium">
+        <div className="mt-3 inline-block bg-warning/10 text-warning text-xs px-3 py-1 rounded-full font-medium">
           {daysUntil === 0
             ? '¡Hoy!'
             : daysUntil === 1

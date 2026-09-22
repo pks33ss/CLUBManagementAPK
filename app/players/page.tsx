@@ -6,6 +6,7 @@ import Link from 'next/link'
 import api from '@/lib/api'
 import { getSportIcon, getSportConfig } from '@/lib/sport'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
+import { Button, Card, CardBody, Badge, Input, Select, Modal } from '@/components/ui'
 
 interface Player {
   id: string
@@ -39,12 +40,10 @@ export default function PlayersPage() {
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
   const [groupBy, setGroupBy] = useState<GroupBy>('none')
 
-  // Equipos del club del activeTeam (para el multi-selector)
   const clubTeams = activeTeam
     ? allTeams.filter((t) => t.club?.id === activeTeam.club?.id)
     : []
 
-  // Modal crear jugador
   const [showModal, setShowModal] = useState(false)
   const [newPlayer, setNewPlayer] = useState({
     name: '',
@@ -238,18 +237,17 @@ export default function PlayersPage() {
   // ============================================
 
   if (loadingTeams) {
-    return <div className="text-center py-12 text-gray-500">Cargando jugadores...</div>
+    return <div className="text-center py-12 text-text-muted">Cargando jugadores...</div>
   }
 
-  // Sin equipo activo
   if (!activeTeam) {
     return (
-      <div className="text-center py-16 bg-white rounded-xl shadow">
+      <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
         <div className="text-6xl mb-4">🏃</div>
-        <h3 className="text-xl font-semibold text-gray-700 mb-2">
+        <h3 className="text-xl font-semibold text-text-primary mb-2">
           Selecciona un equipo
         </h3>
-        <p className="text-gray-500 mb-6">
+        <p className="text-text-secondary mb-6">
           Elige un equipo desde el menú superior para ver sus jugadores
         </p>
       </div>
@@ -260,12 +258,12 @@ export default function PlayersPage() {
     <div>
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">🏃 Jugadores</h1>
-          <p className="text-gray-500">
+          <h1 className="text-2xl font-bold text-text-primary">🏃 Jugadores</h1>
+          <p className="text-text-secondary">
             {activeTeam.name} · {activeTeam.club?.name}
           </p>
         </div>
-        <button
+        <Button
           onClick={() => {
             if (clubTeams.length === 0) {
               alert('Primero crea un equipo')
@@ -274,70 +272,70 @@ export default function PlayersPage() {
             setNewPlayer((prev) => ({ ...prev, teamId: activeTeam.id }))
             setShowModal(true)
           }}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition"
           disabled={clubTeams.length === 0}
+          icon={<span className="text-xl">+</span>}
         >
-          <span className="text-xl">+</span> Nuevo Jugador
-        </button>
+          Nuevo Jugador
+        </Button>
       </div>
 
       {/* Selector multi-equipo (solo equipos del club activo) */}
       <div className="team-selector-container relative mb-6 max-w-md">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-text-secondary mb-1">
           Equipos del club
         </label>
         <button
           type="button"
           onClick={() => setShowTeamSelector(!showTeamSelector)}
-          className="w-full border rounded-lg px-4 py-2 text-left flex justify-between items-center hover:bg-gray-50 transition"
+          className="w-full bg-surface-elevated border border-border-subtle rounded-lg px-4 py-2 text-left flex justify-between items-center hover:border-brand-primary/50 transition"
         >
-          <span className={selectedTeams.length === 0 ? 'text-gray-400' : 'text-gray-800'}>
+          <span className={selectedTeams.length === 0 ? 'text-text-muted' : 'text-text-primary'}>
             {getSelectedTeamsText()}
           </span>
-          <span className="text-gray-400">▼</span>
+          <span className="text-text-muted">▼</span>
         </button>
 
         {showTeamSelector && (
-          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-auto">
-            <div className="p-2 border-b border-gray-100 flex gap-2">
+          <div className="absolute z-10 w-full mt-1 bg-surface border border-border-subtle rounded-lg shadow-lg max-h-80 overflow-auto">
+            <div className="p-2 border-b border-border-subtle flex gap-2">
               <button
                 type="button"
                 onClick={selectAllTeams}
-                className="flex-1 text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 py-1.5 rounded transition"
+                className="flex-1 text-xs bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 py-1.5 rounded transition"
               >
                 ✓ Todos
               </button>
               <button
                 type="button"
                 onClick={deselectAllTeams}
-                className="flex-1 text-xs bg-gray-50 text-gray-600 hover:bg-gray-100 py-1.5 rounded transition"
+                className="flex-1 text-xs bg-surface-elevated text-text-secondary hover:bg-border-subtle py-1.5 rounded transition"
               >
                 ✕ Ninguno
               </button>
             </div>
 
             {clubTeams.length === 0 ? (
-              <div className="p-4 text-sm text-gray-500 text-center">
+              <div className="p-4 text-sm text-text-muted text-center">
                 No hay equipos en este club
               </div>
             ) : (
               clubTeams.map((team) => (
                 <label
                   key={team.id}
-                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 cursor-pointer transition"
+                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-surface-elevated cursor-pointer transition"
                 >
                   <input
                     type="checkbox"
                     checked={selectedTeams.includes(team.id)}
                     onChange={() => toggleTeam(team.id)}
-                    className="w-4 h-4"
+                    className="w-4 h-4 accent-brand-primary"
                   />
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-800 flex items-center gap-1">
+                    <p className="text-sm font-medium text-text-primary flex items-center gap-1">
                       <span>{getSportIcon(team.sport)}</span>
                       <span>{team.name}</span>
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-text-muted">
                       {team.category || 'Sin categoría'}
                     </p>
                   </div>
@@ -350,46 +348,45 @@ export default function PlayersPage() {
 
       {/* Barra de ordenación y agrupación */}
       {players.length > 0 && (
-        <div className="bg-white rounded-xl shadow-md p-4 mb-4 flex flex-wrap items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-700">Agrupar por:</span>
-            <div className="flex gap-1">
-              <button
-                onClick={() => setGroupBy('none')}
-                className={`px-3 py-1.5 rounded-lg text-sm transition ${
-                  groupBy === 'none' ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                }`}
-              >
-                Ninguno
-              </button>
-              <button
-                onClick={() => setGroupBy('team')}
-                className={`px-3 py-1.5 rounded-lg text-sm transition ${
-                  groupBy === 'team' ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                }`}
-              >
-                🏆 Equipo
-              </button>
-              <button
-                onClick={() => setGroupBy('position')}
-                className={`px-3 py-1.5 rounded-lg text-sm transition ${
-                  groupBy === 'position' ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                }`}
-              >
-                📍 Posición
-              </button>
+        <Card className="mb-4">
+          <div className="p-4 flex flex-wrap items-center gap-4">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-text-secondary">Agrupar por:</span>
+              <div className="flex gap-1">
+                <Button
+                  variant={groupBy === 'none' ? 'primary' : 'secondary'}
+                  size="sm"
+                  onClick={() => setGroupBy('none')}
+                >
+                  Ninguno
+                </Button>
+                <Button
+                  variant={groupBy === 'team' ? 'primary' : 'secondary'}
+                  size="sm"
+                  onClick={() => setGroupBy('team')}
+                >
+                  🏆 Equipo
+                </Button>
+                <Button
+                  variant={groupBy === 'position' ? 'primary' : 'secondary'}
+                  size="sm"
+                  onClick={() => setGroupBy('position')}
+                >
+                  📍 Posición
+                </Button>
+              </div>
             </div>
           </div>
-        </div>
+        </Card>
       )}
 
       {/* Lista de jugadores */}
       {loadingPlayers ? (
-        <div className="text-center py-12 text-gray-500">Cargando jugadores...</div>
+        <div className="text-center py-12 text-text-muted">Cargando jugadores...</div>
       ) : players.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl shadow">
+        <div className="text-center py-12 bg-surface rounded-xl shadow border border-border-subtle">
           <div className="text-4xl mb-4">🏃</div>
-          <p className="text-gray-500">
+          <p className="text-text-secondary">
             {selectedTeams.length === 0
               ? 'Selecciona al menos un equipo'
               : 'No hay jugadores en los equipos seleccionados'}
@@ -397,14 +394,14 @@ export default function PlayersPage() {
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-t-xl px-6 py-4 border-b border-gray-200">
-            <p className="text-sm text-gray-500">
-              Mostrando <strong>{players.length}</strong> jugadores de{' '}
-              <strong>{selectedTeams.length}</strong> equipos
+          <div className="bg-surface rounded-t-xl px-6 py-4 border border-border-subtle border-b-0">
+            <p className="text-sm text-text-secondary">
+              Mostrando <strong className="text-text-primary">{players.length}</strong> jugadores de{' '}
+              <strong className="text-text-primary">{selectedTeams.length}</strong> equipos
               {groupBy !== 'none' && (
                 <>
                   {' '}
-                  · Agrupados por <strong>{groupBy === 'team' ? 'equipo' : 'posición'}</strong>
+                  · Agrupados por <strong className="text-text-primary">{groupBy === 'team' ? 'equipo' : 'posición'}</strong>
                 </>
               )}
             </p>
@@ -413,18 +410,18 @@ export default function PlayersPage() {
           {groupKeys.map((groupKey, groupIndex) => (
             <div
               key={groupKey}
-              className={`bg-white overflow-hidden ${
-                groupIndex === 0 ? 'rounded-t-none' : ''
+              className={`bg-surface overflow-hidden border border-border-subtle ${
+                groupIndex === 0 ? 'border-t-0' : 'border-t-0'
               } ${groupIndex === groupKeys.length - 1 ? 'rounded-b-xl' : ''} ${
-                groupIndex > 0 ? 'border-t border-gray-100' : ''
+                groupIndex > 0 ? 'border-t-0' : ''
               }`}
             >
               {groupBy !== 'none' && (
-                <div className="bg-gradient-to-r from-blue-50 to-transparent px-6 py-3">
-                  <h2 className="font-semibold text-gray-800 flex items-center gap-2">
+                <div className="bg-brand-primary/5 px-6 py-3 border-b border-border-subtle">
+                  <h2 className="font-semibold text-text-primary flex items-center gap-2">
                     <span>{getGroupIcon(groupBy)}</span>
                     <span>{groupKey || 'Sin definir'}</span>
-                    <span className="text-sm font-normal text-gray-500">
+                    <span className="text-sm font-normal text-text-muted">
                       ({groupedPlayers[groupKey].length} jugadores)
                     </span>
                   </h2>
@@ -432,59 +429,58 @@ export default function PlayersPage() {
               )}
 
               <table className="w-full">
-                <thead className="bg-gray-50">
+                <thead className="bg-surface-elevated">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      <button onClick={() => handleSort('number')} className="flex items-center gap-1 hover:text-gray-800 transition">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">
+                      <button onClick={() => handleSort('number')} className="flex items-center gap-1 hover:text-text-primary transition">
                         # {getSortIcon('number')}
                       </button>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                      <button onClick={() => handleSort('name')} className="flex items-center gap-1 hover:text-gray-800 transition">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">
+                      <button onClick={() => handleSort('name')} className="flex items-center gap-1 hover:text-text-primary transition">
                         Nombre {getSortIcon('name')}
                       </button>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">
                       Posición
                     </th>
                     {groupBy !== 'team' && (
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                        <button onClick={() => handleSort('team')} className="flex items-center gap-1 hover:text-gray-800 transition">
+                      <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">
+                        <button onClick={() => handleSort('team')} className="flex items-center gap-1 hover:text-text-primary transition">
                           Equipo {getSortIcon('team')}
                         </button>
                       </th>
                     )}
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
+                    <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase">
                       Acciones
                     </th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200">
+                <tbody className="divide-y divide-border-subtle">
                   {groupedPlayers[groupKey].map((player: Player) => (
-                    <tr key={player.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-sm font-medium text-gray-700">
+                    <tr key={player.id} className="hover:bg-surface-elevated transition">
+                      <td className="px-6 py-4 text-sm font-medium text-text-secondary">
                         {player.number || '-'}
                       </td>
-                      <td className="px-6 py-4 font-medium text-gray-900">
-                        <Link href={`/players/${player.id}`} className="hover:text-blue-600 transition">
+                      <td className="px-6 py-4 font-medium text-text-primary">
+                        <Link href={`/players/${player.id}`} className="hover:text-brand-primary transition">
                           {player.name} {player.lastName}
                         </Link>
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600">
+                      <td className="px-6 py-4 text-sm text-text-secondary">
                         {player.position || '-'}
                       </td>
                       {groupBy !== 'team' && (
                         <td className="px-6 py-4 text-sm">
-                          <Link
-                            href={`/teams/${player.team?.id}`}
-                            className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 px-2 py-1 rounded-full text-xs font-medium hover:bg-blue-100 transition"
-                          >
-                            {getSportIcon(player.team?.sport)} {player.team?.name || 'Sin equipo'}
+                          <Link href={`/teams/${player.team?.id}`}>
+                            <Badge variant="brand">
+                              {getSportIcon(player.team?.sport)} {player.team?.name || 'Sin equipo'}
+                            </Badge>
                           </Link>
                         </td>
                       )}
                       <td className="px-6 py-4 text-right">
-                        <Link href={`/players/${player.id}`} className="text-blue-600 hover:text-blue-800 transition text-sm">
+                        <Link href={`/players/${player.id}`} className="text-brand-primary hover:text-brand-primary-light transition text-sm">
                           Ver ficha →
                         </Link>
                       </td>
@@ -498,192 +494,160 @@ export default function PlayersPage() {
       )}
 
       {/* MODAL DE CREAR JUGADOR */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-2xl w-full p-6 max-h-[90vh] overflow-auto">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">Añadir Nuevo Jugador</h3>
-            <form onSubmit={createPlayer} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Equipo *</label>
-                <select
-                  value={newPlayer.teamId}
-                  onChange={(e) => setNewPlayer({ ...newPlayer, teamId: e.target.value, position: '' })}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="">Seleccionar equipo...</option>
-                  {clubTeams.map((team) => (
-                    <option key={team.id} value={team.id}>
-                      {getSportIcon(team.sport)} {team.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
+      <Modal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        title="Añadir Nuevo Jugador"
+        size="lg"
+      >
+        <form onSubmit={createPlayer} className="space-y-4">
+          <Select
+            label="Equipo *"
+            value={newPlayer.teamId}
+            onChange={(e) => setNewPlayer({ ...newPlayer, teamId: e.target.value, position: '' })}
+            required
+          >
+            <option value="">Seleccionar equipo...</option>
+            {clubTeams.map((team) => (
+              <option key={team.id} value={team.id}>
+                {getSportIcon(team.sport)} {team.name}
+              </option>
+            ))}
+          </Select>
 
-              <div>
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">📋 Información Personal</h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
-                    <input
-                      type="text"
-                      value={newPlayer.name}
-                      onChange={(e) => setNewPlayer({ ...newPlayer, name: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Apellido *</label>
-                    <input
-                      type="text"
-                      value={newPlayer.lastName}
-                      onChange={(e) => setNewPlayer({ ...newPlayer, lastName: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      required
-                    />
-                  </div>
-                </div>
+          <div>
+            <h4 className="text-sm font-semibold text-text-secondary mb-3">📋 Información Personal</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Nombre *"
+                type="text"
+                value={newPlayer.name}
+                onChange={(e) => setNewPlayer({ ...newPlayer, name: e.target.value })}
+                required
+              />
+              <Input
+                label="Apellido *"
+                type="text"
+                value={newPlayer.lastName}
+                onChange={(e) => setNewPlayer({ ...newPlayer, lastName: e.target.value })}
+                required
+              />
+            </div>
 
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Fecha de nacimiento</label>
-                    <input
-                      type="date"
-                      value={newPlayer.birthDate}
-                      onChange={(e) => setNewPlayer({ ...newPlayer, birthDate: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
-                    <input
-                      type="tel"
-                      value={newPlayer.phone}
-                      onChange={(e) => setNewPlayer({ ...newPlayer, phone: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
+            <div className="grid grid-cols-2 gap-4 mt-4">
+              <Input
+                label="Fecha de nacimiento"
+                type="date"
+                value={newPlayer.birthDate}
+                onChange={(e) => setNewPlayer({ ...newPlayer, birthDate: e.target.value })}
+              />
+              <Input
+                label="Teléfono"
+                type="tel"
+                value={newPlayer.phone}
+                onChange={(e) => setNewPlayer({ ...newPlayer, phone: e.target.value })}
+              />
+            </div>
 
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                  <input
-                    type="email"
-                    value={newPlayer.email}
-                    onChange={(e) => setNewPlayer({ ...newPlayer, email: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+            <div className="mt-4">
+              <Input
+                label="Email"
+                type="email"
+                value={newPlayer.email}
+                onChange={(e) => setNewPlayer({ ...newPlayer, email: e.target.value })}
+              />
+            </div>
 
-                <div className="mt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
-                  <input
-                    type="text"
-                    value={newPlayer.address}
-                    onChange={(e) => setNewPlayer({ ...newPlayer, address: e.target.value })}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-
-              <div className="border-t border-gray-200 pt-4">
-                <h4 className="text-sm font-semibold text-gray-700 mb-2">
-                  {modalSport.icon} Información Deportiva
-                </h4>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Dorsal</label>
-                    <input
-                      type="number"
-                      value={newPlayer.number}
-                      onChange={(e) => setNewPlayer({ ...newPlayer, number: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      min="0"
-                      max="99"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Posición</label>
-                    {modalSport.positions.length > 0 ? (
-                      <select
-                        value={newPlayer.position}
-                        onChange={(e) => setNewPlayer({ ...newPlayer, position: e.target.value })}
-                        className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
-                      >
-                        <option value="">Seleccionar...</option>
-                        {modalSport.positions.map((pos) => (
-                          <option key={pos} value={pos}>{pos}</option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        type="text"
-                        value={newPlayer.position}
-                        onChange={(e) => setNewPlayer({ ...newPlayer, position: e.target.value })}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                        placeholder="Ej: Delantero"
-                      />
-                    )}
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-3 gap-4 mt-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Altura (cm)</label>
-                    <input
-                      type="number"
-                      value={newPlayer.height}
-                      onChange={(e) => setNewPlayer({ ...newPlayer, height: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      min="0"
-                      step="0.1"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Envergadura (cm)</label>
-                    <input
-                      type="number"
-                      value={newPlayer.wingspan}
-                      onChange={(e) => setNewPlayer({ ...newPlayer, wingspan: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      min="0"
-                      step="0.1"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Peso (kg)</label>
-                    <input
-                      type="number"
-                      value={newPlayer.weight}
-                      onChange={(e) => setNewPlayer({ ...newPlayer, weight: e.target.value })}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      min="0"
-                      step="0.1"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 rounded-lg transition"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition"
-                >
-                  Añadir Jugador
-                </button>
-              </div>
-            </form>
+            <div className="mt-4">
+              <Input
+                label="Dirección"
+                type="text"
+                value={newPlayer.address}
+                onChange={(e) => setNewPlayer({ ...newPlayer, address: e.target.value })}
+              />
+            </div>
           </div>
-        </div>
-      )}
+
+          <div className="border-t border-border-subtle pt-4">
+            <h4 className="text-sm font-semibold text-text-secondary mb-3">
+              {modalSport.icon} Información Deportiva
+            </h4>
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Dorsal"
+                type="number"
+                value={newPlayer.number}
+                onChange={(e) => setNewPlayer({ ...newPlayer, number: e.target.value })}
+                min="0"
+                max="99"
+              />
+              <div>
+                {modalSport.positions.length > 0 ? (
+                  <Select
+                    label="Posición"
+                    value={newPlayer.position}
+                    onChange={(e) => setNewPlayer({ ...newPlayer, position: e.target.value })}
+                  >
+                    <option value="">Seleccionar...</option>
+                    {modalSport.positions.map((pos) => (
+                      <option key={pos} value={pos}>{pos}</option>
+                    ))}
+                  </Select>
+                ) : (
+                  <Input
+                    label="Posición"
+                    type="text"
+                    value={newPlayer.position}
+                    onChange={(e) => setNewPlayer({ ...newPlayer, position: e.target.value })}
+                    placeholder="Ej: Delantero"
+                  />
+                )}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4 mt-4">
+              <Input
+                label="Altura (cm)"
+                type="number"
+                value={newPlayer.height}
+                onChange={(e) => setNewPlayer({ ...newPlayer, height: e.target.value })}
+                min="0"
+                step="0.1"
+              />
+              <Input
+                label="Envergadura (cm)"
+                type="number"
+                value={newPlayer.wingspan}
+                onChange={(e) => setNewPlayer({ ...newPlayer, wingspan: e.target.value })}
+                min="0"
+                step="0.1"
+              />
+              <Input
+                label="Peso (kg)"
+                type="number"
+                value={newPlayer.weight}
+                onChange={(e) => setNewPlayer({ ...newPlayer, weight: e.target.value })}
+                min="0"
+                step="0.1"
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-3 pt-4">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setShowModal(false)}
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" className="flex-1">
+              Añadir Jugador
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }

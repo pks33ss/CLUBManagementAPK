@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
+import { Button, Card, CardBody, Input, Textarea, Select } from '@/components/ui'
 
 export default function NewSession() {
   const router = useRouter()
@@ -58,150 +59,106 @@ export default function NewSession() {
     }
   }
 
-  // Asegurar que el teamId se envía correctamente
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setSubmitting(true)
 
     try {
-      // ✅ Asegurar que la fecha está en el formato correcto
       const dateObj = new Date(`${formData.date}T${formData.time}`)
 
-      // ✅ Verificar que la fecha es válida
       if (isNaN(dateObj.getTime())) {
         alert('Por favor, selecciona una fecha y hora válidas')
         setSubmitting(false)
         return
       }
 
-      // ✅ Usar toISOString() para el formato correcto
       const sessionData = {
         title: formData.title,
         description: formData.description || '',
-        date: dateObj.toISOString(), // ✅ Esto produce "2026-08-20T18:00:00.000Z"
+        date: dateObj.toISOString(),
         duration: Number(formData.duration),
         location: formData.location || '',
         teamId: formData.teamId,
       }
 
-      console.log('📝 Datos a enviar:', sessionData) // Debug
-
-      const response = await api.post('/sessions', sessionData)
-      console.log('✅ Sesión creada:', response.data)
+      await api.post('/sessions', sessionData)
       router.push('/sessions')
     } catch (error: any) {
-      console.error('❌ Error completo:', error)
-      if (error.response?.data?.message) {
-        alert(`Error: ${error.response.data.message}`)
-      } else {
-        alert('Error al crear la sesión. Revisa la consola para más detalles.')
-      }
+      console.error('❌ Error:', error)
+      alert(error.response?.data?.message || 'Error al crear la sesión')
     } finally {
       setSubmitting(false)
     }
   }
 
   if (loading) {
-    return <div className="text-center py-12">Cargando...</div>
+    return <div className="text-center py-12 text-text-muted">Cargando...</div>
   }
 
   return (
     <div className="max-w-2xl mx-auto">
-      <Link href="/sessions" className="text-blue-600 hover:underline inline-block mb-6">
+      <Link href="/sessions" className="text-brand-primary hover:underline inline-block mb-6">
         ← Volver a Entrenamientos
       </Link>
 
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <h1 className="text-2xl font-bold text-gray-800 mb-6">📋 Nuevo Entrenamiento</h1>
+      <Card>
+        <CardBody>
+          <h1 className="text-2xl font-bold text-text-primary mb-6">📋 Nuevo Entrenamiento</h1>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Título *
-            </label>
-            <input
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <Input
+              label="Título *"
               type="text"
               value={formData.title}
-              onChange={(e) => setFormData({...formData, title: e.target.value})}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              onChange={(e) => setFormData({ ...formData, title: e.target.value })}
               required
               placeholder="Ej: Entrenamiento táctico"
             />
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Descripción
-            </label>
-            <textarea
+            <Textarea
+              label="Descripción"
               value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
               rows={3}
               placeholder="Descripción de la sesión"
             />
-          </div>
 
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Fecha *
-              </label>
-              <input
+            <div className="grid grid-cols-2 gap-4">
+              <Input
+                label="Fecha *"
                 type="date"
                 value={formData.date}
-                onChange={(e) => setFormData({...formData, date: e.target.value})}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                 required
               />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Hora *
-              </label>
-              <input
+              <Input
+                label="Hora *"
                 type="time"
                 value={formData.time}
-                onChange={(e) => setFormData({...formData, time: e.target.value})}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                onChange={(e) => setFormData({ ...formData, time: e.target.value })}
                 required
               />
             </div>
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Duración (minutos) *
-            </label>
-            <input
+            <Input
+              label="Duración (minutos) *"
               type="number"
               value={formData.duration}
-              onChange={(e) => setFormData({...formData, duration: parseInt(e.target.value) || 0})}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              onChange={(e) => setFormData({ ...formData, duration: parseInt(e.target.value) || 0 })}
               required
               min="1"
             />
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Ubicación
-            </label>
-            <input
+            <Input
+              label="Ubicación"
               type="text"
               value={formData.location}
-              onChange={(e) => setFormData({...formData, location: e.target.value})}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
               placeholder="Ej: Pabellón Municipal"
             />
-          </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Club *
-            </label>
-            <select
-              className="w-full border rounded-lg px-4 py-2"
+            <Select
+              label="Club *"
               value={selectedClub}
               onChange={(e) => {
                 setSelectedClub(e.target.value)
@@ -212,42 +169,40 @@ export default function NewSession() {
               {clubs.map((club) => (
                 <option key={club.id} value={club.id}>{club.name}</option>
               ))}
-            </select>
-          </div>
+            </Select>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Equipo *
-            </label>
-            <select
-              className="w-full border rounded-lg px-4 py-2"
+            <Select
+              label="Equipo *"
               value={formData.teamId}
-              onChange={(e) => setFormData({...formData, teamId: e.target.value})}
+              onChange={(e) => setFormData({ ...formData, teamId: e.target.value })}
               required
             >
               {teams.map((team) => (
                 <option key={team.id} value={team.id}>{team.name}</option>
               ))}
-            </select>
-          </div>
+            </Select>
 
-          <div className="flex gap-3 pt-4">
-            <Link
-              href="/sessions"
-              className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 rounded-lg text-center transition"
-            >
-              Cancelar
-            </Link>
-            <button
-              type="submit"
-              disabled={submitting}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition disabled:opacity-50"
-            >
-              {submitting ? 'Creando...' : 'Crear Sesión'}
-            </button>
-          </div>
-        </form>
-      </div>
+            <div className="flex gap-3 pt-4">
+              <Button
+                type="button"
+                variant="secondary"
+                href="/sessions"
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={submitting}
+                loading={submitting}
+                className="flex-1"
+              >
+                {submitting ? 'Creando...' : 'Crear Sesión'}
+              </Button>
+            </div>
+          </form>
+        </CardBody>
+      </Card>
     </div>
   )
 }

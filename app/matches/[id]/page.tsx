@@ -77,14 +77,14 @@ export default function MatchDetailPage() {
   }, [matchId])
 
   if (loading) {
-    return <div className="text-center py-12 text-gray-500">Cargando partido...</div>
+    return <div className="text-center py-12 text-text-muted">Cargando partido...</div>
   }
 
   if (error || !match) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-500 mb-4">{error || 'Partido no encontrado'}</p>
-        <Link href="/matches" className="text-blue-600 hover:underline">
+        <p className="text-danger mb-4">{error || 'Partido no encontrado'}</p>
+        <Link href="/matches" className="text-brand-primary hover:underline">
           ← Volver a partidos
         </Link>
       </div>
@@ -104,14 +104,14 @@ export default function MatchDetailPage() {
 
   return (
     <div>
-      <Link href="/matches" className="text-blue-600 hover:underline inline-block mb-6">
+      <Link href="/matches" className="text-brand-primary hover:underline inline-block mb-6">
         ← Volver a partidos
       </Link>
 
       <MatchHeader match={match} onUpdate={fetchMatch} />
 
       {/* Tabs */}
-      <div className="border-b border-gray-200 mb-6">
+      <div className="border-b border-border-subtle mb-6">
         <div className="flex gap-1 overflow-x-auto">
           {tabs.map((tab) => (
             <button
@@ -119,8 +119,8 @@ export default function MatchDetailPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`px-4 py-3 text-sm font-medium transition whitespace-nowrap border-b-2 -mb-px ${
                 activeTab === tab.id
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-brand-primary text-brand-primary'
+                  : 'border-transparent text-text-muted hover:text-text-primary hover:border-border-subtle'
               }`}
             >
               {tab.icon} {tab.label}

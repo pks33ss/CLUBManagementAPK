@@ -4,6 +4,7 @@ import { useState } from 'react'
 import api from '@/lib/api'
 import { getSportConfig } from '@/lib/sport'
 import type { MatchDetail } from '../page'
+import { Card, CardBody } from '@/components/ui'
 
 interface Props {
   match: MatchDetail
@@ -63,122 +64,126 @@ export default function StatsTab({ match, onUpdate }: Props) {
 
   if (eligiblePlayers.length === 0) {
     return (
-      <div className="bg-white rounded-xl shadow-md p-6 text-center">
-        <p className="text-gray-500">
-          No hay {sport.playerNamePlural.toLowerCase()} disponibles para registrar estadísticas
-        </p>
-      </div>
+      <Card>
+        <CardBody className="text-center">
+          <p className="text-text-muted">
+            No hay {sport.playerNamePlural.toLowerCase()} disponibles para registrar estadísticas
+          </p>
+        </CardBody>
+      </Card>
     )
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-md p-6">
-      <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
-        <div>
-          <h2 className="text-xl font-semibold text-gray-800">📊 Estadísticas</h2>
-          <div className="flex gap-3 mt-1 text-xs text-gray-500">
-            <span>{sport.icon} {totalTeam.points} pts {sport.teamName.toLowerCase()}</span>
-            <span>💪 {totalTeam.rebounds} reb</span>
-            <span>🎯 {totalTeam.assists} ast</span>
+    <Card>
+      <CardBody>
+        <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
+          <div>
+            <h2 className="text-xl font-semibold text-text-primary">📊 Estadísticas</h2>
+            <div className="flex gap-3 mt-1 text-xs text-text-muted">
+              <span>{sport.icon} {totalTeam.points} pts {sport.teamName.toLowerCase()}</span>
+              <span>💪 {totalTeam.rebounds} reb</span>
+              <span>🎯 {totalTeam.assists} ast</span>
+            </div>
           </div>
         </div>
-      </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">#</th>
-              <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">{sport.playerName}</th>
-              <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Min</th>
-              <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Pts</th>
-              <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Reb</th>
-              <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Ast</th>
-              <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Rob</th>
-              <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Tap</th>
-              <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Per</th>
-              <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Fal</th>
-              <th className="px-3 py-2 text-center text-xs font-medium text-gray-500 uppercase">Acción</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-200">
-            {eligiblePlayers.map((player) => {
-              const stats = statsMap.get(player.id)
-              const isEditing = editing === player.id
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-surface-elevated">
+              <tr>
+                <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase">#</th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase">{sport.playerName}</th>
+                <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">Min</th>
+                <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">Pts</th>
+                <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">Reb</th>
+                <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">Ast</th>
+                <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">Rob</th>
+                <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">Tap</th>
+                <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">Per</th>
+                <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">Fal</th>
+                <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">Acción</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border-subtle">
+              {eligiblePlayers.map((player) => {
+                const stats = statsMap.get(player.id)
+                const isEditing = editing === player.id
 
-              return (
-                <tr key={player.id} className="hover:bg-gray-50">
-                  <td className="px-3 py-2 text-sm text-gray-500">{player.number || '-'}</td>
-                  <td className="px-3 py-2 font-medium text-gray-800 text-sm">
-                    {player.name} {player.lastName}
-                  </td>
+                return (
+                  <tr key={player.id} className="hover:bg-surface-elevated transition">
+                    <td className="px-3 py-2 text-sm text-text-secondary">{player.number || '-'}</td>
+                    <td className="px-3 py-2 font-medium text-text-primary text-sm">
+                      {player.name} {player.lastName}
+                    </td>
 
-                  {isEditing ? (
-                    <>
-                      {(['minutes', 'points', 'rebounds', 'assists', 'steals', 'blocks', 'turnovers', 'fouls'] as const).map((field) => (
-                        <td key={field} className="px-1 py-1">
-                          <input
-                            type="number"
-                            min="0"
-                            value={form[field] ?? 0}
-                            onChange={(e) => setForm({ ...form, [field]: Number(e.target.value) })}
-                            className="w-14 text-center text-sm border rounded px-1 py-1"
-                          />
+                    {isEditing ? (
+                      <>
+                        {(['minutes', 'points', 'rebounds', 'assists', 'steals', 'blocks', 'turnovers', 'fouls'] as const).map((field) => (
+                          <td key={field} className="px-1 py-1">
+                            <input
+                              type="number"
+                              min="0"
+                              value={form[field] ?? 0}
+                              onChange={(e) => setForm({ ...form, [field]: Number(e.target.value) })}
+                              className="w-14 text-center text-sm bg-surface border border-border-subtle text-text-primary rounded px-1 py-1 focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"
+                            />
+                          </td>
+                        ))}
+                        <td className="px-3 py-2 text-center">
+                          <div className="flex gap-1 justify-center">
+                            <button
+                              onClick={() => handleSave(player.id)}
+                              disabled={saving}
+                              className="text-xs bg-brand-primary hover:bg-brand-primary-dark text-bg-base px-2 py-1 rounded disabled:opacity-50 transition"
+                            >
+                              {saving ? '...' : '💾'}
+                            </button>
+                            <button
+                              onClick={() => setEditing(null)}
+                              disabled={saving}
+                              className="text-xs bg-surface-elevated hover:bg-border-subtle text-text-secondary px-2 py-1 rounded disabled:opacity-50 transition"
+                            >
+                              ✕
+                            </button>
+                          </div>
                         </td>
-                      ))}
-                      <td className="px-3 py-2 text-center">
-                        <div className="flex gap-1 justify-center">
+                      </>
+                    ) : (
+                      <>
+                        <td className="px-3 py-2 text-center text-sm text-text-secondary">{stats?.minutes ?? '-'}</td>
+                        <td className="px-3 py-2 text-center text-sm font-semibold text-text-primary">{stats?.points ?? '-'}</td>
+                        <td className="px-3 py-2 text-center text-sm text-text-secondary">{stats?.rebounds ?? '-'}</td>
+                        <td className="px-3 py-2 text-center text-sm text-text-secondary">{stats?.assists ?? '-'}</td>
+                        <td className="px-3 py-2 text-center text-sm text-text-secondary">{stats?.steals ?? '-'}</td>
+                        <td className="px-3 py-2 text-center text-sm text-text-secondary">{stats?.blocks ?? '-'}</td>
+                        <td className="px-3 py-2 text-center text-sm text-text-secondary">{stats?.turnovers ?? '-'}</td>
+                        <td className="px-3 py-2 text-center text-sm text-text-secondary">{stats?.fouls ?? '-'}</td>
+                        <td className="px-3 py-2 text-center">
                           <button
-                            onClick={() => handleSave(player.id)}
-                            disabled={saving}
-                            className="text-xs bg-green-600 hover:bg-green-700 text-white px-2 py-1 rounded disabled:opacity-50"
+                            onClick={() => startEdit(player.id)}
+                            className="text-xs bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary px-2 py-1 rounded transition"
                           >
-                            {saving ? '...' : '💾'}
+                            {stats ? '✏️' : '➕'}
                           </button>
-                          <button
-                            onClick={() => setEditing(null)}
-                            disabled={saving}
-                            className="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 px-2 py-1 rounded disabled:opacity-50"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td className="px-3 py-2 text-center text-sm">{stats?.minutes ?? '-'}</td>
-                      <td className="px-3 py-2 text-center text-sm font-semibold">{stats?.points ?? '-'}</td>
-                      <td className="px-3 py-2 text-center text-sm">{stats?.rebounds ?? '-'}</td>
-                      <td className="px-3 py-2 text-center text-sm">{stats?.assists ?? '-'}</td>
-                      <td className="px-3 py-2 text-center text-sm">{stats?.steals ?? '-'}</td>
-                      <td className="px-3 py-2 text-center text-sm">{stats?.blocks ?? '-'}</td>
-                      <td className="px-3 py-2 text-center text-sm">{stats?.turnovers ?? '-'}</td>
-                      <td className="px-3 py-2 text-center text-sm">{stats?.fouls ?? '-'}</td>
-                      <td className="px-3 py-2 text-center">
-                        <button
-                          onClick={() => startEdit(player.id)}
-                          className="text-xs bg-blue-100 hover:bg-blue-200 text-blue-700 px-2 py-1 rounded"
-                        >
-                          {stats ? '✏️' : '➕'}
-                        </button>
-                      </td>
-                    </>
-                  )}
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      {editing && (
-        <div className="mt-4 p-3 bg-blue-50 rounded-lg border border-blue-100">
-          <p className="text-xs text-blue-700 mb-2">
-            💡 También puedes editar los tiros (TC, 3P, TL) en la edición avanzada (próximamente)
-          </p>
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
         </div>
-      )}
-    </div>
+
+        {editing && (
+          <div className="mt-4 p-3 bg-brand-primary/5 rounded-lg border border-brand-primary/20">
+            <p className="text-xs text-brand-primary">
+              💡 También puedes editar los tiros (TC, 3P, TL) en la edición avanzada (próximamente)
+            </p>
+          </div>
+        )}
+      </CardBody>
+    </Card>
   )
 }

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
+import { Button, Card, CardBody, Badge, Input, Textarea, Select, Modal } from '@/components/ui'
 
 interface Match {
   id: string
@@ -47,7 +48,6 @@ export default function TeamMatches() {
   const [error, setError] = useState('')
   const [filter, setFilter] = useState<'all' | 'scheduled' | 'finished'>('all')
 
-  // Modal crear partido
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [newMatch, setNewMatch] = useState({
     date: '',
@@ -147,14 +147,14 @@ export default function TeamMatches() {
     }
   }
 
-  const getStatusColor = (status: string) => {
+  const getStatusVariant = (status: string): 'info' | 'warning' | 'success' | 'danger' | 'neutral' => {
     switch (status) {
-      case 'SCHEDULED': return 'bg-blue-100 text-blue-800'
-      case 'IN_PROGRESS': return 'bg-yellow-100 text-yellow-800'
-      case 'FINISHED': return 'bg-green-100 text-green-800'
-      case 'CANCELLED': return 'bg-red-100 text-red-800'
-      case 'POSTPONED': return 'bg-orange-100 text-orange-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'SCHEDULED': return 'info'
+      case 'IN_PROGRESS': return 'warning'
+      case 'FINISHED': return 'success'
+      case 'CANCELLED': return 'danger'
+      case 'POSTPONED': return 'warning'
+      default: return 'neutral'
     }
   }
 
@@ -171,11 +171,20 @@ export default function TeamMatches() {
 
   const getResultColor = (match: Match) => {
     if (match.status !== 'FINISHED' || match.teamScore === null || match.opponentScore === null) {
-      return 'text-gray-500'
+      return 'text-text-muted'
     }
-    if (match.teamScore > match.opponentScore) return 'text-green-600'
-    if (match.teamScore < match.opponentScore) return 'text-red-600'
-    return 'text-yellow-600'
+    if (match.teamScore > match.opponentScore) return 'text-success'
+    if (match.teamScore < match.opponentScore) return 'text-danger'
+    return 'text-warning'
+  }
+
+  const getResultVariant = (match: Match): 'success' | 'danger' | 'warning' | null => {
+    if (match.status !== 'FINISHED' || match.teamScore === null || match.opponentScore === null) {
+      return null
+    }
+    if (match.teamScore > match.opponentScore) return 'success'
+    if (match.teamScore < match.opponentScore) return 'danger'
+    return 'warning'
   }
 
   const getResultText = (match: Match) => {
@@ -206,14 +215,14 @@ export default function TeamMatches() {
   })
 
   if (loading) {
-    return <div className="text-center py-12">Cargando partidos...</div>
+    return <div className="text-center py-12 text-text-muted">Cargando partidos...</div>
   }
 
   if (error) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-500">{error}</p>
-        <Link href={`/teams/${teamId}`} className="text-blue-600 hover:underline mt-4 inline-block">
+        <p className="text-danger">{error}</p>
+        <Link href={`/teams/${teamId}`} className="text-brand-primary hover:underline mt-4 inline-block">
           ← Volver al equipo
         </Link>
       </div>
@@ -222,317 +231,277 @@ export default function TeamMatches() {
 
   return (
     <div>
-      <Link href={`/teams/${teamId}`} className="text-blue-600 hover:underline inline-block mb-6">
+      <Link href={`/teams/${teamId}`} className="text-brand-primary hover:underline inline-block mb-6">
         ← Volver al equipo
       </Link>
 
-      {/* Cabecera */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">🏆 Partidos</h1>
-          <p className="text-gray-500">{team?.name} • {team?.club?.name}</p>
+          <h1 className="text-2xl font-bold text-text-primary">🏆 Partidos</h1>
+          <p className="text-text-secondary">{team?.name} • {team?.club?.name}</p>
         </div>
-        <button
+        <Button
           onClick={() => setShowCreateModal(true)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition"
+          icon={<span className="text-xl">+</span>}
         >
-          <span className="text-xl">+</span> Nuevo Partido
-        </button>
+          Nuevo Partido
+        </Button>
       </div>
 
       {/* Estadísticas del equipo */}
       {teamStats && teamStats.totalMatches > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-          <div className="bg-white rounded-xl shadow-md p-4 text-center">
-            <p className="text-3xl font-bold text-gray-800">{teamStats.totalMatches}</p>
-            <p className="text-sm text-gray-500">Partidos</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-md p-4 text-center">
-            <p className="text-3xl font-bold text-green-600">{teamStats.wins}</p>
-            <p className="text-sm text-gray-500">Victorias</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-md p-4 text-center">
-            <p className="text-3xl font-bold text-red-600">{teamStats.losses}</p>
-            <p className="text-sm text-gray-500">Derrotas</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-md p-4 text-center">
-            <p className="text-3xl font-bold text-blue-600">{teamStats.winRate}%</p>
-            <p className="text-sm text-gray-500">% Victorias</p>
-          </div>
-          <div className="bg-white rounded-xl shadow-md p-4 text-center">
-            <p className="text-3xl font-bold text-gray-800">{teamStats.avgPoints}</p>
-            <p className="text-sm text-gray-500">Puntos/Partido</p>
-          </div>
+          <Card>
+            <CardBody className="text-center p-4">
+              <p className="text-3xl font-bold text-text-primary">{teamStats.totalMatches}</p>
+              <p className="text-sm text-text-muted">Partidos</p>
+            </CardBody>
+          </Card>
+          <Card>
+            <CardBody className="text-center p-4">
+              <p className="text-3xl font-bold text-success">{teamStats.wins}</p>
+              <p className="text-sm text-text-muted">Victorias</p>
+            </CardBody>
+          </Card>
+          <Card>
+            <CardBody className="text-center p-4">
+              <p className="text-3xl font-bold text-danger">{teamStats.losses}</p>
+              <p className="text-sm text-text-muted">Derrotas</p>
+            </CardBody>
+          </Card>
+          <Card>
+            <CardBody className="text-center p-4">
+              <p className="text-3xl font-bold text-brand-primary">{teamStats.winRate}%</p>
+              <p className="text-sm text-text-muted">% Victorias</p>
+            </CardBody>
+          </Card>
+          <Card>
+            <CardBody className="text-center p-4">
+              <p className="text-3xl font-bold text-text-primary">{teamStats.avgPoints}</p>
+              <p className="text-sm text-text-muted">Puntos/Partido</p>
+            </CardBody>
+          </Card>
         </div>
       )}
 
       {/* Filtros */}
-      <div className="bg-white rounded-xl shadow-md p-4 mb-4 flex flex-wrap items-center gap-3">
-        <span className="text-sm font-medium text-gray-700">Filtrar:</span>
-        <div className="flex gap-1">
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-3 py-1.5 rounded-lg text-sm transition ${
-              filter === 'all'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-            }`}
-          >
-            Todos ({matches.length})
-          </button>
-          <button
-            onClick={() => setFilter('scheduled')}
-            className={`px-3 py-1.5 rounded-lg text-sm transition ${
-              filter === 'scheduled'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-            }`}
-          >
-            📅 Programados ({matches.filter(m => m.status === 'SCHEDULED' || m.status === 'POSTPONED').length})
-          </button>
-          <button
-            onClick={() => setFilter('finished')}
-            className={`px-3 py-1.5 rounded-lg text-sm transition ${
-              filter === 'finished'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-            }`}
-          >
-            ✅ Finalizados ({matches.filter(m => m.status === 'FINISHED').length})
-          </button>
-        </div>
-      </div>
+      <Card className="mb-4">
+        <CardBody className="flex flex-wrap items-center gap-3 p-4">
+          <span className="text-sm font-medium text-text-secondary">Filtrar:</span>
+          <div className="flex gap-1 flex-wrap">
+            <Button
+              variant={filter === 'all' ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => setFilter('all')}
+            >
+              Todos ({matches.length})
+            </Button>
+            <Button
+              variant={filter === 'scheduled' ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => setFilter('scheduled')}
+            >
+              📅 Programados ({matches.filter(m => m.status === 'SCHEDULED' || m.status === 'POSTPONED').length})
+            </Button>
+            <Button
+              variant={filter === 'finished' ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => setFilter('finished')}
+            >
+              ✅ Finalizados ({matches.filter(m => m.status === 'FINISHED').length})
+            </Button>
+          </div>
+        </CardBody>
+      </Card>
 
       {/* Lista de partidos */}
       {filteredMatches.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl shadow">
-          <div className="text-4xl mb-4">🏆</div>
-          <p className="text-gray-500">
-            {matches.length === 0
-              ? 'No hay partidos registrados para este equipo'
-              : 'No hay partidos que coincidan con el filtro'}
-          </p>
-          {matches.length === 0 && (
-            <button
-              onClick={() => setShowCreateModal(true)}
-              className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
-            >
-              Crear Primer Partido
-            </button>
-          )}
-        </div>
+        <Card>
+          <CardBody className="text-center py-12">
+            <div className="text-4xl mb-4">🏆</div>
+            <p className="text-text-secondary">
+              {matches.length === 0
+                ? 'No hay partidos registrados para este equipo'
+                : 'No hay partidos que coincidan con el filtro'}
+            </p>
+            {matches.length === 0 && (
+              <Button
+                onClick={() => setShowCreateModal(true)}
+                className="mt-4"
+              >
+                Crear Primer Partido
+              </Button>
+            )}
+          </CardBody>
+        </Card>
       ) : (
         <div className="space-y-3">
-          {filteredMatches.map((match) => (
-            <Link
-              key={match.id}
-              href={`/matches/${match.id}`}
-              className="block bg-white rounded-xl shadow-md hover:shadow-lg transition-all p-5 border border-gray-100 hover:border-blue-200"
-            >
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                {/* Información principal */}
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(match.status)}`}>
-                      {getStatusText(match.status)}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {getTypeText(match.type)}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {getLocationText(match.location)}
-                    </span>
+          {filteredMatches.map((match) => {
+            const resultVariant = getResultVariant(match)
+            return (
+              <Card key={match.id} hover>
+                <Link href={`/matches/${match.id}`} className="block p-5">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <Badge variant={getStatusVariant(match.status)}>
+                          {getStatusText(match.status)}
+                        </Badge>
+                        <Badge variant="neutral">{getTypeText(match.type)}</Badge>
+                        <Badge variant="neutral">{getLocationText(match.location)}</Badge>
+                      </div>
+                      <h3 className="text-lg font-bold text-text-primary">
+                        {match.opponent}
+                      </h3>
+                      <p className="text-sm text-text-secondary mt-1">
+                        📅 {formatDate(match.date)}
+                      </p>
+                      {(match.venue || match.competition) && (
+                        <p className="text-xs text-text-muted mt-1">
+                          {match.venue && `📍 ${match.venue}`}
+                          {match.venue && match.competition && ' • '}
+                          {match.competition && `🏆 ${match.competition}`}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col items-center md:items-end gap-1">
+                      {match.status === 'FINISHED' && match.teamScore !== null && match.opponentScore !== null ? (
+                        <>
+                          <p className={`text-3xl font-bold ${getResultColor(match)}`}>
+                            {match.teamScore} - {match.opponentScore}
+                          </p>
+                          {resultVariant && (
+                            <Badge variant={resultVariant}>{getResultText(match)}</Badge>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-sm text-text-muted">
+                          Sin resultado
+                        </p>
+                      )}
+                    </div>
                   </div>
-                  <h3 className="text-lg font-bold text-gray-800">
-                    {match.opponent}
-                  </h3>
-                  <p className="text-sm text-gray-500 mt-1">
-                    📅 {formatDate(match.date)}
-                  </p>
-                  {(match.venue || match.competition) && (
-                    <p className="text-xs text-gray-400 mt-1">
-                      {match.venue && `📍 ${match.venue}`}
-                      {match.venue && match.competition && ' • '}
-                      {match.competition && `🏆 ${match.competition}`}
-                    </p>
-                  )}
-                </div>
 
-                {/* Resultado */}
-                <div className="flex flex-col items-center md:items-end">
-                  {match.status === 'FINISHED' && match.teamScore !== null && match.opponentScore !== null ? (
-                    <>
-                      <p className={`text-3xl font-bold ${getResultColor(match)}`}>
-                        {match.teamScore} - {match.opponentScore}
-                      </p>
-                      <p className={`text-sm font-medium ${getResultColor(match)}`}>
-                        {getResultText(match)}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-sm text-gray-400">
-                      Sin resultado
-                    </p>
+                  {match._count && (
+                    <div className="flex gap-3 mt-3 pt-3 border-t border-border-subtle">
+                      <span className="text-xs text-text-muted">
+                        👥 {match._count.callups} convocados
+                      </span>
+                      <span className="text-xs text-text-muted">
+                        📊 {match._count.playerStats} con estadísticas
+                      </span>
+                    </div>
                   )}
-                </div>
-              </div>
-
-              {/* Contadores */}
-              {match._count && (
-                <div className="flex gap-3 mt-3 pt-3 border-t border-gray-100">
-                  <span className="text-xs text-gray-500">
-                    👥 {match._count.callups} convocados
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    📊 {match._count.playerStats} con estadísticas
-                  </span>
-                </div>
-              )}
-            </Link>
-          ))}
+                </Link>
+              </Card>
+            )
+          })}
         </div>
       )}
 
-      {/* MODAL DE CREAR PARTIDO */}
-      {showCreateModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-lg w-full p-6 max-h-[90vh] overflow-auto">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">🏆 Nuevo Partido</h3>
-            <form onSubmit={createMatch} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Rival *
-                </label>
-                <input
-                  type="text"
-                  value={newMatch.opponent}
-                  onChange={(e) => setNewMatch({...newMatch, opponent: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="Ej: CB Madrid"
-                  required
-                />
-              </div>
+      {/* MODAL CREAR PARTIDO */}
+      <Modal
+        isOpen={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        title="🏆 Nuevo Partido"
+        size="md"
+      >
+        <form onSubmit={createMatch} className="space-y-4">
+          <Input
+            label="Rival *"
+            type="text"
+            value={newMatch.opponent}
+            onChange={(e) => setNewMatch({ ...newMatch, opponent: e.target.value })}
+            placeholder="Ej: CB Madrid"
+            required
+          />
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Fecha *
-                  </label>
-                  <input
-                    type="date"
-                    value={newMatch.date}
-                    onChange={(e) => setNewMatch({...newMatch, date: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Hora *
-                  </label>
-                  <input
-                    type="time"
-                    value={newMatch.time}
-                    onChange={(e) => setNewMatch({...newMatch, time: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Ubicación
-                  </label>
-                  <select
-                    value={newMatch.location}
-                    onChange={(e) => setNewMatch({...newMatch, location: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="HOME">🏠 Casa</option>
-                    <option value="AWAY">✈️ Fuera</option>
-                    <option value="NEUTRAL">⚖️ Neutral</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Tipo
-                  </label>
-                  <select
-                    value={newMatch.type}
-                    onChange={(e) => setNewMatch({...newMatch, type: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="LEAGUE">🏆 Liga</option>
-                    <option value="FRIENDLY">🤝 Amistoso</option>
-                    <option value="CUP">🏅 Copa</option>
-                    <option value="PLAYOFF">🔥 Playoff</option>
-                    <option value="TOURNAMENT">🎯 Torneo</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Pabellón / Ubicación
-                </label>
-                <input
-                  type="text"
-                  value={newMatch.venue}
-                  onChange={(e) => setNewMatch({...newMatch, venue: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="Ej: Pabellón Municipal"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Competición
-                </label>
-                <input
-                  type="text"
-                  value={newMatch.competition}
-                  onChange={(e) => setNewMatch({...newMatch, competition: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="Ej: Liga Local Senior"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Notas
-                </label>
-                <textarea
-                  value={newMatch.notes}
-                  onChange={(e) => setNewMatch({...newMatch, notes: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  rows={2}
-                  placeholder="Notas adicionales"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowCreateModal(false)}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 rounded-lg transition"
-                  disabled={creating}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition disabled:opacity-50"
-                  disabled={creating}
-                >
-                  {creating ? 'Creando...' : 'Crear Partido'}
-                </button>
-              </div>
-            </form>
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Fecha *"
+              type="date"
+              value={newMatch.date}
+              onChange={(e) => setNewMatch({ ...newMatch, date: e.target.value })}
+              required
+            />
+            <Input
+              label="Hora *"
+              type="time"
+              value={newMatch.time}
+              onChange={(e) => setNewMatch({ ...newMatch, time: e.target.value })}
+              required
+            />
           </div>
-        </div>
-      )}
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Ubicación"
+              value={newMatch.location}
+              onChange={(e) => setNewMatch({ ...newMatch, location: e.target.value })}
+            >
+              <option value="HOME">🏠 Casa</option>
+              <option value="AWAY">✈️ Fuera</option>
+              <option value="NEUTRAL">⚖️ Neutral</option>
+            </Select>
+            <Select
+              label="Tipo"
+              value={newMatch.type}
+              onChange={(e) => setNewMatch({ ...newMatch, type: e.target.value })}
+            >
+              <option value="LEAGUE">🏆 Liga</option>
+              <option value="FRIENDLY">🤝 Amistoso</option>
+              <option value="CUP">🏅 Copa</option>
+              <option value="PLAYOFF">🔥 Playoff</option>
+              <option value="TOURNAMENT">🎯 Torneo</option>
+            </Select>
+          </div>
+
+          <Input
+            label="Pabellón / Ubicación"
+            type="text"
+            value={newMatch.venue}
+            onChange={(e) => setNewMatch({ ...newMatch, venue: e.target.value })}
+            placeholder="Ej: Pabellón Municipal"
+          />
+
+          <Input
+            label="Competición"
+            type="text"
+            value={newMatch.competition}
+            onChange={(e) => setNewMatch({ ...newMatch, competition: e.target.value })}
+            placeholder="Ej: Liga Local Senior"
+          />
+
+          <Textarea
+            label="Notas"
+            value={newMatch.notes}
+            onChange={(e) => setNewMatch({ ...newMatch, notes: e.target.value })}
+            rows={2}
+            placeholder="Notas adicionales"
+          />
+
+          <div className="flex gap-3 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setShowCreateModal(false)}
+              disabled={creating}
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              disabled={creating}
+              loading={creating}
+              className="flex-1"
+            >
+              {creating ? 'Creando...' : 'Crear Partido'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }

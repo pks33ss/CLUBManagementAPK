@@ -6,6 +6,7 @@ import Link from 'next/link'
 import api from '@/lib/api'
 import { getSportIcon } from '@/lib/sport'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
+import { Button, Card, CardBody, Badge } from '@/components/ui'
 
 interface Match {
   id: string
@@ -96,14 +97,15 @@ export default function AllMatches() {
     }
   }
 
-  const getStatusColor = (status: string) => {
+  // ✅ Devuelve la variante del Badge según el estado del partido
+  const getStatusVariant = (status: string): 'info' | 'warning' | 'success' | 'danger' | 'neutral' => {
     switch (status) {
-      case 'SCHEDULED': return 'bg-blue-100 text-blue-800'
-      case 'IN_PROGRESS': return 'bg-yellow-100 text-yellow-800'
-      case 'FINISHED': return 'bg-green-100 text-green-800'
-      case 'CANCELLED': return 'bg-red-100 text-red-800'
-      case 'POSTPONED': return 'bg-orange-100 text-orange-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'SCHEDULED': return 'info'
+      case 'IN_PROGRESS': return 'warning'
+      case 'FINISHED': return 'success'
+      case 'CANCELLED': return 'danger'
+      case 'POSTPONED': return 'warning'
+      default: return 'neutral'
     }
   }
 
@@ -120,11 +122,20 @@ export default function AllMatches() {
 
   const getResultColor = (match: Match) => {
     if (match.status !== 'FINISHED' || match.teamScore === null || match.opponentScore === null) {
-      return 'text-gray-500'
+      return 'text-text-muted'
     }
-    if (match.teamScore > match.opponentScore) return 'text-green-600'
-    if (match.teamScore < match.opponentScore) return 'text-red-600'
-    return 'text-yellow-600'
+    if (match.teamScore > match.opponentScore) return 'text-success'
+    if (match.teamScore < match.opponentScore) return 'text-danger'
+    return 'text-warning'
+  }
+
+  const getResultVariant = (match: Match): 'success' | 'danger' | 'warning' | null => {
+    if (match.status !== 'FINISHED' || match.teamScore === null || match.opponentScore === null) {
+      return null
+    }
+    if (match.teamScore > match.opponentScore) return 'success'
+    if (match.teamScore < match.opponentScore) return 'danger'
+    return 'warning'
   }
 
   const getResultText = (match: Match) => {
@@ -159,18 +170,18 @@ export default function AllMatches() {
   // ============================================
 
   if (loadingTeams || loading) {
-    return <div className="text-center py-12 text-gray-500">Cargando partidos...</div>
+    return <div className="text-center py-12 text-text-muted">Cargando partidos...</div>
   }
 
   // Sin equipo activo
   if (!activeTeam) {
     return (
-      <div className="text-center py-16 bg-white rounded-xl shadow">
+      <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
         <div className="text-6xl mb-4">🏆</div>
-        <h3 className="text-xl font-semibold text-gray-700 mb-2">
+        <h3 className="text-xl font-semibold text-text-primary mb-2">
           Selecciona un equipo
         </h3>
-        <p className="text-gray-500 mb-6">
+        <p className="text-text-secondary mb-6">
           Elige un equipo desde el menú superior para ver sus partidos
         </p>
       </div>
@@ -182,8 +193,8 @@ export default function AllMatches() {
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">🏆 Partidos</h1>
-          <p className="text-gray-500">
+          <h1 className="text-2xl font-bold text-text-primary">🏆 Partidos</h1>
+          <p className="text-text-secondary">
             {activeTeam.name} · {activeTeam.club?.name}
           </p>
         </div>
@@ -191,131 +202,125 @@ export default function AllMatches() {
 
       {/* Filtros */}
       {matches.length > 0 && (
-        <div className="bg-white rounded-xl shadow-md p-4 mb-4 flex flex-wrap items-center gap-3">
-          <span className="text-sm font-medium text-gray-700">Filtrar:</span>
-          <div className="flex gap-1">
-            <button
-              onClick={() => setFilter('all')}
-              className={`px-3 py-1.5 rounded-lg text-sm transition ${
-                filter === 'all'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-              }`}
+        <Card className="mb-4">
+          <div className="p-4 flex flex-wrap items-center gap-3">
+            <span className="text-sm font-medium text-text-secondary">Filtrar:</span>
+            <div className="flex gap-1">
+              <Button
+                variant={filter === 'all' ? 'primary' : 'secondary'}
+                size="sm"
+                onClick={() => setFilter('all')}
+              >
+                Todos ({matches.length})
+              </Button>
+              <Button
+                variant={filter === 'scheduled' ? 'primary' : 'secondary'}
+                size="sm"
+                onClick={() => setFilter('scheduled')}
+              >
+                📅 Programados
+              </Button>
+              <Button
+                variant={filter === 'finished' ? 'primary' : 'secondary'}
+                size="sm"
+                onClick={() => setFilter('finished')}
+              >
+                ✅ Finalizados
+              </Button>
+            </div>
+            <Link
+              href={`/teams/${activeTeam.id}/matches`}
+              className="ml-auto text-sm text-brand-primary hover:underline"
             >
-              Todos ({matches.length})
-            </button>
-            <button
-              onClick={() => setFilter('scheduled')}
-              className={`px-3 py-1.5 rounded-lg text-sm transition ${
-                filter === 'scheduled'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-              }`}
-            >
-              📅 Programados
-            </button>
-            <button
-              onClick={() => setFilter('finished')}
-              className={`px-3 py-1.5 rounded-lg text-sm transition ${
-                filter === 'finished'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-              }`}
-            >
-              ✅ Finalizados
-            </button>
+              Ver detalle del equipo →
+            </Link>
           </div>
-          <Link
-            href={`/teams/${activeTeam.id}/matches`}
-            className="ml-auto text-sm text-blue-600 hover:underline"
-          >
-            Ver detalle del equipo →
-          </Link>
-        </div>
+        </Card>
       )}
 
       {/* Lista de partidos */}
       {filteredMatches.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl shadow">
+        <div className="text-center py-12 bg-surface rounded-xl shadow border border-border-subtle">
           <div className="text-4xl mb-4">🏆</div>
-          <p className="text-gray-500">
+          <p className="text-text-secondary">
             {matches.length === 0
               ? 'No hay partidos registrados para este equipo'
               : 'No hay partidos que coincidan con el filtro'}
           </p>
-          <Link
+          <Button
             href={`/teams/${activeTeam.id}/matches`}
-            className="mt-4 inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
+            className="mt-4"
           >
             Crear Partido
-          </Link>
+          </Button>
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredMatches.map((match) => (
-            <Link
-              key={match.id}
-              href={`/matches/${match.id}`}
-              className="block bg-white rounded-xl shadow-md hover:shadow-lg transition-all p-5 border border-gray-100 hover:border-blue-200"
-            >
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2 flex-wrap">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(match.status)}`}>
-                      {getStatusText(match.status)}
-                    </span>
-                    <span className="text-xs text-gray-500">{getTypeText(match.type)}</span>
-                    <span className="text-xs text-gray-500">{getLocationText(match.location)}</span>
-                    <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full font-medium">
-                      {getSportIcon(match.team?.sport)} {match.team?.name}
-                    </span>
+          {filteredMatches.map((match) => {
+            const resultVariant = getResultVariant(match)
+            return (
+              <Card key={match.id} hover>
+                <Link href={`/matches/${match.id}`} className="block p-5">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-2 flex-wrap">
+                        <Badge variant={getStatusVariant(match.status)}>
+                          {getStatusText(match.status)}
+                        </Badge>
+                        <Badge variant="neutral">{getTypeText(match.type)}</Badge>
+                        <Badge variant="neutral">{getLocationText(match.location)}</Badge>
+                        <Badge variant="brand">
+                          {getSportIcon(match.team?.sport)} {match.team?.name}
+                        </Badge>
+                      </div>
+                      <h3 className="text-lg font-bold text-text-primary">{match.opponent}</h3>
+                      <p className="text-sm text-text-secondary mt-1">📅 {formatDate(match.date)}</p>
+                      {(match.venue || match.competition) && (
+                        <p className="text-xs text-text-muted mt-1">
+                          {match.venue && `📍 ${match.venue}`}
+                          {match.venue && match.competition && ' • '}
+                          {match.competition && `🏆 ${match.competition}`}
+                        </p>
+                      )}
+                      {match.notes && (
+                        <p className="text-xs text-text-secondary mt-2 italic line-clamp-2">
+                          📝 {match.notes}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="flex flex-col items-center md:items-end gap-1">
+                      {match.status === 'FINISHED' &&
+                      match.teamScore !== null &&
+                      match.opponentScore !== null ? (
+                        <>
+                          <p className={`text-3xl font-bold ${getResultColor(match)}`}>
+                            {match.teamScore} - {match.opponentScore}
+                          </p>
+                          {resultVariant && (
+                            <Badge variant={resultVariant}>{getResultText(match)}</Badge>
+                          )}
+                        </>
+                      ) : (
+                        <p className="text-sm text-text-muted">Sin resultado</p>
+                      )}
+                    </div>
                   </div>
-                  <h3 className="text-lg font-bold text-gray-800">{match.opponent}</h3>
-                  <p className="text-sm text-gray-500 mt-1">📅 {formatDate(match.date)}</p>
-                  {(match.venue || match.competition) && (
-                    <p className="text-xs text-gray-400 mt-1">
-                      {match.venue && `📍 ${match.venue}`}
-                      {match.venue && match.competition && ' • '}
-                      {match.competition && `🏆 ${match.competition}`}
-                    </p>
-                  )}
-                  {match.notes && (
-                    <p className="text-xs text-gray-500 mt-2 italic line-clamp-2">
-                      📝 {match.notes}
-                    </p>
-                  )}
-                </div>
 
-                <div className="flex flex-col items-center md:items-end">
-                  {match.status === 'FINISHED' &&
-                  match.teamScore !== null &&
-                  match.opponentScore !== null ? (
-                    <>
-                      <p className={`text-3xl font-bold ${getResultColor(match)}`}>
-                        {match.teamScore} - {match.opponentScore}
-                      </p>
-                      <p className={`text-sm font-medium ${getResultColor(match)}`}>
-                        {getResultText(match)}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-sm text-gray-400">Sin resultado</p>
+                  {match._count && (
+                    <div className="flex gap-3 mt-3 pt-3 border-t border-border-subtle">
+                      <span className="text-xs text-text-muted">
+                        👥 {match._count.callups} convocados
+                      </span>
+                      <span className="text-xs text-text-muted">
+                        📊 {match._count.playerStats} con estadísticas
+                      </span>
+                    </div>
                   )}
-                </div>
-              </div>
-
-              {match._count && (
-                <div className="flex gap-3 mt-3 pt-3 border-t border-gray-100">
-                  <span className="text-xs text-gray-500">
-                    👥 {match._count.callups} convocados
-                  </span>
-                  <span className="text-xs text-gray-500">
-                    📊 {match._count.playerStats} con estadísticas
-                  </span>
-                </div>
-              )}
-            </Link>
-          ))}
+                </Link>
+              </Card>
+            )
+          })}
         </div>
       )}
     </div>

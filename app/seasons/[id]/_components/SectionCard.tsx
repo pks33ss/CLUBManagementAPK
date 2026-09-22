@@ -13,7 +13,7 @@ interface Props {
 
 export default function SectionCard({ section, canManage, onEdit, onDelete, onMove }: Props) {
   return (
-    <div className="bg-green-50 border-2 border-green-300 rounded-lg px-3 py-2 flex flex-col gap-1 group hover:shadow-md transition min-w-[180px] max-w-[280px] shrink-0">
+    <div className="bg-brand-primary/5 border-2 border-brand-primary/30 rounded-lg px-3 py-2 flex flex-col gap-1 group hover:border-brand-primary/50 transition min-w-[180px] max-w-[280px] shrink-0">
       {/* Header: nombre + acciones */}
       <div className="flex items-center gap-2">
         <span className="text-base shrink-0">📄</span>
@@ -25,36 +25,49 @@ export default function SectionCard({ section, canManage, onEdit, onDelete, onMo
               const api = (await import('@/lib/api')).default
               await api.put(`/seasons/sections/${section.id}`, { name })
             }}
-            className="text-sm font-semibold text-green-900"
+            className="text-sm font-semibold text-brand-primary"
           />
         </div>
 
+        {/* Acciones: SIEMPRE visibles en móvil, hover en desktop */}
         {canManage && (
-          <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition shrink-0">
+          <div className="flex gap-0.5 shrink-0 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition">
             <button
-              onClick={() => onMove(section, 'up')}
-              className="p-1 rounded hover:bg-white/60 text-gray-500 text-xs"
+              onClick={(e) => {
+                e.stopPropagation()
+                onMove(section, 'up')
+              }}
+              className="p-1 rounded hover:bg-surface-elevated text-text-muted text-xs transition"
               title="Mover izquierda"
             >
               ⬅️
             </button>
             <button
-              onClick={() => onMove(section, 'down')}
-              className="p-1 rounded hover:bg-white/60 text-gray-500 text-xs"
+              onClick={(e) => {
+                e.stopPropagation()
+                onMove(section, 'down')
+              }}
+              className="p-1 rounded hover:bg-surface-elevated text-text-muted text-xs transition"
               title="Mover derecha"
             >
               ➡️
             </button>
             <button
-              onClick={() => onEdit(section)}
-              className="p-1 rounded hover:bg-white/60 text-blue-600 text-xs"
+              onClick={(e) => {
+                e.stopPropagation()
+                onEdit(section)
+              }}
+              className="p-1 rounded hover:bg-surface-elevated text-brand-primary text-xs transition"
               title="Editar"
             >
               ✏️
             </button>
             <button
-              onClick={() => onDelete(section)}
-              className="p-1 rounded hover:bg-white/60 text-red-500 text-xs"
+              onClick={(e) => {
+                e.stopPropagation()
+                onDelete(section)
+              }}
+              className="p-1 rounded hover:bg-surface-elevated text-danger text-xs transition"
               title="Eliminar"
             >
               ✕
@@ -65,7 +78,7 @@ export default function SectionCard({ section, canManage, onEdit, onDelete, onMo
 
       {/* Contenido (texto completo, sin truncar) */}
       {section.description && (
-        <p className="text-xs text-gray-700 whitespace-pre-wrap break-words">
+        <p className="text-xs text-text-secondary whitespace-pre-wrap break-words">
           {section.description}
         </p>
       )}

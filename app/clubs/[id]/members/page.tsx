@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
+import { Button, Card, CardBody, Badge, Input, Select, Modal } from '@/components/ui'
 
 interface Member {
   id: string
@@ -25,9 +26,6 @@ export default function ClubMembers() {
   const params = useParams()
   const clubId = params.id as string
 
-  // ============================================
-  // ESTADOS
-  // ============================================
   const [members, setMembers] = useState<Member[]>([])
   const [teams, setTeams] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
@@ -40,11 +38,10 @@ export default function ClubMembers() {
   const [inviteRole, setInviteRole] = useState('COACH')
   const [inviting, setInviting] = useState(false)
 
-  // ✅ Estados para gestión de equipos
-const [showTeamsModal, setShowTeamsModal] = useState(false)
-const [selectedMemberForTeams, setSelectedMemberForTeams] = useState<Member | null>(null)
-const [memberTeams, setMemberTeams] = useState<any[]>([])
-const [loadingMemberTeams, setLoadingMemberTeams] = useState(false)
+  const [showTeamsModal, setShowTeamsModal] = useState(false)
+  const [selectedMemberForTeams, setSelectedMemberForTeams] = useState<Member | null>(null)
+  const [memberTeams, setMemberTeams] = useState<any[]>([])
+  const [loadingMemberTeams, setLoadingMemberTeams] = useState(false)
 
   const [showRoleModal, setShowRoleModal] = useState(false)
   const [selectedMember, setSelectedMember] = useState<Member | null>(null)
@@ -56,9 +53,6 @@ const [loadingMemberTeams, setLoadingMemberTeams] = useState(false)
   const [newPassword, setNewPassword] = useState('')
   const [resetting, setResetting] = useState(false)
 
-  // ============================================
-  // EFECTOS
-  // ============================================
   useEffect(() => {
     const userStr = localStorage.getItem('user')
     if (!userStr) {
@@ -70,9 +64,6 @@ const [loadingMemberTeams, setLoadingMemberTeams] = useState(false)
     fetchTeams()
   }, [clubId])
 
-  // ============================================
-  // FUNCIONES
-  // ============================================
   const fetchMembers = async () => {
     try {
       const response = await api.get(`/clubs/${clubId}/members`)
@@ -147,40 +138,38 @@ const [loadingMemberTeams, setLoadingMemberTeams] = useState(false)
     }
   }
 
-  // ✅ Funciones para gestión de equipos
-const openTeamsModal = async (member: Member) => {
-  setSelectedMemberForTeams(member)
-  setShowTeamsModal(true)
-  setLoadingMemberTeams(true)
+  const openTeamsModal = async (member: Member) => {
+    setSelectedMemberForTeams(member)
+    setShowTeamsModal(true)
+    setLoadingMemberTeams(true)
 
-  try {
-    const response = await api.get(`/clubs/${clubId}/members/${member.id}/teams`)
-    setMemberTeams(response.data)
-  } catch (error) {
-    console.error('Error:', error)
-    alert('Error al cargar los equipos del miembro')
-  } finally {
-    setLoadingMemberTeams(false)
-  }
-}
-
-const toggleTeamAssignment = async (teamId: string, isAssigned: boolean) => {
-  if (!selectedMemberForTeams) return
-
-  try {
-    if (isAssigned) {
-      await api.delete(`/clubs/${clubId}/members/${selectedMemberForTeams.id}/teams/${teamId}`)
-    } else {
-      await api.post(`/clubs/${clubId}/members/${selectedMemberForTeams.id}/teams`, { teamId })
+    try {
+      const response = await api.get(`/clubs/${clubId}/members/${member.id}/teams`)
+      setMemberTeams(response.data)
+    } catch (error) {
+      console.error('Error:', error)
+      alert('Error al cargar los equipos del miembro')
+    } finally {
+      setLoadingMemberTeams(false)
     }
-    // Recargar la lista de equipos del miembro
-    const response = await api.get(`/clubs/${clubId}/members/${selectedMemberForTeams.id}/teams`)
-    setMemberTeams(response.data)
-  } catch (error: any) {
-    console.error('Error:', error)
-    alert(error.response?.data?.message || 'Error al actualizar la asignación')
   }
-}
+
+  const toggleTeamAssignment = async (teamId: string, isAssigned: boolean) => {
+    if (!selectedMemberForTeams) return
+
+    try {
+      if (isAssigned) {
+        await api.delete(`/clubs/${clubId}/members/${selectedMemberForTeams.id}/teams/${teamId}`)
+      } else {
+        await api.post(`/clubs/${clubId}/members/${selectedMemberForTeams.id}/teams`, { teamId })
+      }
+      const response = await api.get(`/clubs/${clubId}/members/${selectedMemberForTeams.id}/teams`)
+      setMemberTeams(response.data)
+    } catch (error: any) {
+      console.error('Error:', error)
+      alert(error.response?.data?.message || 'Error al actualizar la asignación')
+    }
+  }
 
   const removeMember = async (memberId: string, userName: string) => {
     if (!confirm(`¿Eliminar a ${userName} del club?`)) return
@@ -225,12 +214,12 @@ const toggleTeamAssignment = async (teamId: string, isAssigned: boolean) => {
     }
   }
 
-  const getRoleColor = (role: string) => {
+  const getRoleVariant = (role: string): 'brand' | 'info' | 'success' | 'neutral' => {
     switch (role) {
-      case 'ADMIN_CLUB': return 'bg-purple-100 text-purple-800'
-      case 'COACH': return 'bg-blue-100 text-blue-800'
-      case 'ASSISTANT': return 'bg-green-100 text-green-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'ADMIN_CLUB': return 'brand'
+      case 'COACH': return 'info'
+      case 'ASSISTANT': return 'success'
+      default: return 'neutral'
     }
   }
 
@@ -243,21 +232,17 @@ const toggleTeamAssignment = async (teamId: string, isAssigned: boolean) => {
     }
   }
 
-  // ✅ DECLARAR isAdmin ANTES del return
   const isAdmin = userRole === 'ADMIN_CLUB'
 
-  // ============================================
-  // RENDER
-  // ============================================
   if (loading) {
-    return <div className="text-center py-12">Cargando miembros...</div>
+    return <div className="text-center py-12 text-text-muted">Cargando miembros...</div>
   }
 
   if (error) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-500">{error}</p>
-        <Link href="/dashboard" className="text-blue-600 hover:underline mt-4 inline-block">
+        <p className="text-danger">{error}</p>
+        <Link href="/dashboard" className="text-brand-primary hover:underline mt-4 inline-block">
           ← Volver al dashboard
         </Link>
       </div>
@@ -266,470 +251,450 @@ const toggleTeamAssignment = async (teamId: string, isAssigned: boolean) => {
 
   return (
     <div>
-      <Link href={`/clubs/${clubId}`} className="text-blue-600 hover:underline inline-block mb-6">
+      <Link href={`/clubs/${clubId}`} className="text-brand-primary hover:underline inline-block mb-6">
         ← Volver al club
       </Link>
 
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">👥 Miembros del Club</h1>
-          <p className="text-gray-500">Gestiona los miembros y sus roles</p>
+          <h1 className="text-2xl font-bold text-text-primary">👥 Miembros del Club</h1>
+          <p className="text-text-secondary">Gestiona los miembros y sus roles</p>
         </div>
         {isAdmin && (
-          <button
+          <Button
             onClick={() => setShowInviteModal(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition"
+            icon={<span className="text-xl">+</span>}
           >
-            <span className="text-xl">+</span> Invitar Miembro
-          </button>
+            Invitar Miembro
+          </Button>
         )}
       </div>
 
-{/* TABLA DE MIEMBROS - Responsive */}
-<div className="bg-white rounded-xl shadow-md overflow-hidden">
-  {/* === Vista desktop: tabla === */}
-  <div className="hidden md:block">
-    <table className="w-full">
-      <thead className="bg-gray-50">
-        <tr>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Usuario</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Rol</th>
-          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Desde</th>
-          {isAdmin && (
-            <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
-          )}
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-gray-200">
-        {members.map((member) => (
-          <tr key={member.id} className="hover:bg-gray-50">
-            <td className="px-6 py-4">
-              <p className="font-medium text-gray-900">
-                {member.user.name} {member.user.lastName}
-              </p>
-            </td>
-            <td className="px-6 py-4 text-sm text-gray-600">
-              {member.user.email}
-            </td>
-            <td className="px-6 py-4">
-              <span className={`px-2 py-1 rounded-full text-xs font-medium ${getRoleColor(member.role)}`}>
-                {getRoleText(member.role)}
-              </span>
-            </td>
-            <td className="px-6 py-4 text-sm text-gray-600">
-              {new Date(member.joinedAt).toLocaleDateString('es-ES')}
-            </td>
-            {isAdmin && (
-              <td className="px-6 py-4 text-right">
-                <div className="flex gap-2 justify-end">
+      {/* TABLA DE MIEMBROS */}
+      <Card>
+        {/* Vista desktop: tabla */}
+        <div className="hidden md:block">
+          <table className="w-full">
+            <thead className="bg-surface-elevated">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">Usuario</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">Email</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">Rol</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">Desde</th>
+                {isAdmin && (
+                  <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase">Acciones</th>
+                )}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border-subtle">
+              {members.map((member) => (
+                <tr key={member.id} className="hover:bg-surface-elevated transition">
+                  <td className="px-6 py-4">
+                    <p className="font-medium text-text-primary">
+                      {member.user.name} {member.user.lastName}
+                    </p>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-text-secondary">
+                    {member.user.email}
+                  </td>
+                  <td className="px-6 py-4">
+                    <Badge variant={getRoleVariant(member.role)}>
+                      {getRoleText(member.role)}
+                    </Badge>
+                  </td>
+                  <td className="px-6 py-4 text-sm text-text-secondary">
+                    {new Date(member.joinedAt).toLocaleDateString('es-ES')}
+                  </td>
+                  {isAdmin && (
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex gap-2 justify-end">
+                        <button
+                          onClick={() => openRoleModal(member)}
+                          className="text-xs px-3 py-1 rounded-full font-medium transition hover:opacity-80 bg-surface-elevated text-text-secondary"
+                          disabled={member.userId === currentUser?.id}
+                          title="Cambiar rol"
+                        >
+                          {getRoleText(member.role)} ✏️
+                        </button>
+                        <button
+                          onClick={() => openTeamsModal(member)}
+                          className="text-warning hover:text-warning/80 p-1"
+                          disabled={member.userId === currentUser?.id}
+                          title="Gestionar equipos"
+                        >
+                          🏀
+                        </button>
+                        <button
+                          onClick={() => openResetPasswordModal(member)}
+                          className="text-warning hover:text-warning/80 p-1"
+                          disabled={member.userId === currentUser?.id}
+                          title="Resetear contraseña"
+                        >
+                          🔑
+                        </button>
+                        <button
+                          onClick={() => removeMember(member.id, `${member.user.name} ${member.user.lastName}`)}
+                          className="text-danger hover:text-danger/80 p-1"
+                          disabled={member.userId === currentUser?.id}
+                          title="Eliminar miembro"
+                        >
+                          🗑️
+                        </button>
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Vista móvil: cards */}
+        <div className="md:hidden divide-y divide-border-subtle">
+          {members.map((member) => (
+            <div key={member.id} className="p-4 space-y-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-text-primary truncate">
+                    {member.user.name} {member.user.lastName}
+                  </p>
+                  <p className="text-xs text-text-muted truncate">{member.user.email}</p>
+                  <p className="text-xs text-text-muted mt-0.5">
+                    Desde {new Date(member.joinedAt).toLocaleDateString('es-ES')}
+                  </p>
+                </div>
+                <Badge variant={getRoleVariant(member.role)}>
+                  {getRoleText(member.role)}
+                </Badge>
+              </div>
+
+              {isAdmin && member.userId !== currentUser?.id && (
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-border-subtle">
                   <button
                     onClick={() => openRoleModal(member)}
-                    className={`text-xs px-3 py-1 rounded-full font-medium transition hover:opacity-80 ${getRoleColor(member.role)}`}
-                    disabled={member.userId === currentUser?.id}
-                    title="Cambiar rol"
+                    className="flex-1 min-w-[120px] text-xs bg-surface-elevated hover:bg-border-subtle text-text-secondary px-3 py-2 rounded-lg font-medium transition"
                   >
-                    {getRoleText(member.role)} ✏️
+                    ✏️ Cambiar rol
                   </button>
                   <button
                     onClick={() => openTeamsModal(member)}
-                    className="text-orange-500 hover:text-orange-700 p-1"
-                    disabled={member.userId === currentUser?.id}
-                    title="Gestionar equipos"
+                    className="flex-1 min-w-[120px] text-xs bg-warning/10 hover:bg-warning/20 text-warning px-3 py-2 rounded-lg font-medium transition"
                   >
-                    🏀
+                    🏀 Equipos
                   </button>
                   <button
                     onClick={() => openResetPasswordModal(member)}
-                    className="text-yellow-500 hover:text-yellow-700 p-1"
-                    disabled={member.userId === currentUser?.id}
-                    title="Resetear contraseña"
+                    className="flex-1 min-w-[120px] text-xs bg-warning/10 hover:bg-warning/20 text-warning px-3 py-2 rounded-lg font-medium transition"
                   >
-                    🔑
+                    🔑 Contraseña
                   </button>
                   <button
                     onClick={() => removeMember(member.id, `${member.user.name} ${member.user.lastName}`)}
-                    className="text-red-500 hover:text-red-700 p-1"
-                    disabled={member.userId === currentUser?.id}
-                    title="Eliminar miembro"
+                    className="flex-1 min-w-[120px] text-xs bg-danger/10 hover:bg-danger/20 text-danger px-3 py-2 rounded-lg font-medium transition"
                   >
-                    🗑️
+                    🗑️ Eliminar
                   </button>
                 </div>
-              </td>
-            )}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
+              )}
 
-  {/* === Vista móvil: cards === */}
-  <div className="md:hidden divide-y divide-gray-200">
-    {members.map((member) => (
-      <div key={member.id} className="p-4 space-y-3">
-        {/* Cabecera: nombre + rol */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <p className="font-medium text-gray-900 truncate">
-              {member.user.name} {member.user.lastName}
-            </p>
-            <p className="text-xs text-gray-500 truncate">{member.user.email}</p>
-            <p className="text-xs text-gray-400 mt-0.5">
-              Desde {new Date(member.joinedAt).toLocaleDateString('es-ES')}
-            </p>
-          </div>
-          <span className={`px-2 py-1 rounded-full text-xs font-medium shrink-0 ${getRoleColor(member.role)}`}>
-            {getRoleText(member.role)}
-          </span>
+              {isAdmin && member.userId === currentUser?.id && (
+                <p className="text-xs text-text-muted italic pt-2 border-t border-border-subtle">
+                  No puedes modificar tu propio rol
+                </p>
+              )}
+            </div>
+          ))}
         </div>
-
-        {/* Acciones en móvil */}
-        {isAdmin && member.userId !== currentUser?.id && (
-          <div className="flex flex-wrap gap-2 pt-2 border-t border-gray-100">
-            <button
-              onClick={() => openRoleModal(member)}
-              className="flex-1 min-w-[120px] text-xs bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-2 rounded-lg font-medium transition"
-            >
-              ✏️ Cambiar rol
-            </button>
-            <button
-              onClick={() => openTeamsModal(member)}
-              className="flex-1 min-w-[120px] text-xs bg-orange-50 hover:bg-orange-100 text-orange-700 px-3 py-2 rounded-lg font-medium transition"
-            >
-              🏀 Equipos
-            </button>
-            <button
-              onClick={() => openResetPasswordModal(member)}
-              className="flex-1 min-w-[120px] text-xs bg-yellow-50 hover:bg-yellow-100 text-yellow-700 px-3 py-2 rounded-lg font-medium transition"
-            >
-              🔑 Contraseña
-            </button>
-            <button
-              onClick={() => removeMember(member.id, `${member.user.name} ${member.user.lastName}`)}
-              className="flex-1 min-w-[120px] text-xs bg-red-50 hover:bg-red-100 text-red-700 px-3 py-2 rounded-lg font-medium transition"
-            >
-              🗑️ Eliminar
-            </button>
-          </div>
-        )}
-
-        {/* Mensaje si es el propio usuario */}
-        {isAdmin && member.userId === currentUser?.id && (
-          <p className="text-xs text-gray-400 italic pt-2 border-t border-gray-100">
-            No puedes modificar tu propio rol
-          </p>
-        )}
-      </div>
-    ))}
-  </div>
-</div>
+      </Card>
 
       {/* GESTIÓN DE EQUIPOS Y ENTRENADORES */}
       {isAdmin && (
-        <div className="bg-white rounded-xl shadow-md p-6 mt-6">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">
-            🏆 Gestión de Equipos y Entrenadores
-          </h2>
+        <Card className="mt-6">
+          <CardBody>
+            <h2 className="text-xl font-semibold text-text-primary mb-4">
+              🏆 Gestión de Equipos y Entrenadores
+            </h2>
 
-          {teams.length === 0 ? (
-            <p className="text-gray-500 text-center py-4">
-              No hay equipos en este club
-            </p>
-          ) : (
-            <div className="space-y-4">
-              {teams.map((team) => (
-                <div key={team.id} className="border rounded-lg p-4">
-                  <div className="flex justify-between items-center mb-3">
-                    <h3 className="font-medium text-gray-800">
-                      🏆 {team.name}
-                    </h3>
-                    <Link
-                      href={`/teams/${team.id}/members`}
-                      className="text-sm text-blue-600 hover:underline"
-                    >
-                      Gestionar miembros →
-                    </Link>
-                  </div>
-
-                  {team.members.length === 0 ? (
-                    <p className="text-sm text-gray-500">
-                      No hay entrenadores asignados a este equipo
-                    </p>
-                  ) : (
-                    <div className="flex flex-wrap gap-2">
-                      {team.members.map((member: any) => (
-                        <div
-                          key={member.id}
-                          className="bg-blue-50 rounded-full px-3 py-1 text-sm flex items-center gap-2"
-                        >
-                          <span>{member.user.name} {member.user.lastName}</span>
-                          <span className="text-xs text-blue-600">
-                            {member.role === 'COACH' ? '🏆' : '🤝'}
-                          </span>
-                        </div>
-                      ))}
+            {teams.length === 0 ? (
+              <p className="text-text-muted text-center py-4">
+                No hay equipos en este club
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {teams.map((team) => (
+                  <div key={team.id} className="border border-border-subtle rounded-lg p-4">
+                    <div className="flex justify-between items-center mb-3 flex-wrap gap-2">
+                      <h3 className="font-medium text-text-primary">
+                        🏆 {team.name}
+                      </h3>
+                      <Link
+                        href={`/teams/${team.id}/members`}
+                        className="text-sm text-brand-primary hover:underline"
+                      >
+                        Gestionar miembros →
+                      </Link>
                     </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+
+                    {team.members.length === 0 ? (
+                      <p className="text-sm text-text-muted">
+                        No hay entrenadores asignados a este equipo
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {team.members.map((member: any) => (
+                          <div
+                            key={member.id}
+                            className="bg-brand-primary/10 rounded-full px-3 py-1 text-sm flex items-center gap-2"
+                          >
+                            <span className="text-text-primary">{member.user.name} {member.user.lastName}</span>
+                            <span className="text-xs text-brand-primary">
+                              {member.role === 'COACH' ? '🏆' : '🤝'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardBody>
+        </Card>
       )}
 
       {/* MODAL DE INVITAR */}
-      {showInviteModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">Invitar Miembro al Club</h3>
-            <form onSubmit={inviteMember} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email del usuario *</label>
-                <input
-                  type="email"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="usuario@email.com"
-                  required
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  El usuario debe estar registrado en la app
-                </p>
-              </div>
+      <Modal
+        isOpen={showInviteModal}
+        onClose={() => setShowInviteModal(false)}
+        title="Invitar Miembro al Club"
+        size="md"
+      >
+        <form onSubmit={inviteMember} className="space-y-4">
+          <Input
+            label="Email del usuario *"
+            type="email"
+            value={inviteEmail}
+            onChange={(e) => setInviteEmail(e.target.value)}
+            placeholder="usuario@email.com"
+            required
+            helperText="El usuario debe estar registrado en la app"
+          />
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Rol en el club *</label>
-                <select
-                  value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  <option value="COACH">🏆 Entrenador</option>
-                  <option value="ASSISTANT">🤝 Asistente</option>
-                  <option value="ADMIN_CLUB">🏛️ Admin Club</option>
-                </select>
-              </div>
+          <Select
+            label="Rol en el club *"
+            value={inviteRole}
+            onChange={(e) => setInviteRole(e.target.value)}
+            required
+          >
+            <option value="COACH">🏆 Entrenador</option>
+            <option value="ASSISTANT">🤝 Asistente</option>
+            <option value="ADMIN_CLUB">🏛️ Admin Club</option>
+          </Select>
 
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowInviteModal(false)}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 rounded-lg transition"
-                  disabled={inviting}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={inviting}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition disabled:opacity-50"
-                >
-                  {inviting ? 'Invitando...' : 'Invitar'}
-                </button>
-              </div>
-            </form>
+          <div className="flex gap-3 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setShowInviteModal(false)}
+              disabled={inviting}
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              disabled={inviting}
+              loading={inviting}
+              className="flex-1"
+            >
+              {inviting ? 'Invitando...' : 'Invitar'}
+            </Button>
           </div>
-        </div>
-      )}
+        </form>
+      </Modal>
 
       {/* MODAL DE CAMBIAR ROL */}
-      {showRoleModal && selectedMember && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">
-              Cambiar Rol de {selectedMember.user.name} {selectedMember.user.lastName}
-            </h3>
-
-            <div className="space-y-3">
-              <label className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition ${
-                selectedRole === 'ADMIN_CLUB' ? 'border-purple-500 bg-purple-50' : 'border-gray-200 hover:bg-gray-50'
-              }`}>
-                <input
-                  type="radio"
-                  name="role"
-                  value="ADMIN_CLUB"
-                  checked={selectedRole === 'ADMIN_CLUB'}
-                  onChange={(e) => setSelectedRole(e.target.value)}
-                  className="w-4 h-4"
-                />
-                <div>
-                  <p className="font-medium">🏛️ Admin Club</p>
-                  <p className="text-xs text-gray-500">Puede gestionar todo el club</p>
-                </div>
-              </label>
-
-              <label className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition ${
-                selectedRole === 'COACH' ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'
-              }`}>
-                <input
-                  type="radio"
-                  name="role"
-                  value="COACH"
-                  checked={selectedRole === 'COACH'}
-                  onChange={(e) => setSelectedRole(e.target.value)}
-                  className="w-4 h-4"
-                />
-                <div>
-                  <p className="font-medium">🏆 Entrenador</p>
-                  <p className="text-xs text-gray-500">Puede gestionar sus equipos</p>
-                </div>
-              </label>
-
-              <label className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition ${
-                selectedRole === 'ASSISTANT' ? 'border-green-500 bg-green-50' : 'border-gray-200 hover:bg-gray-50'
-              }`}>
-                <input
-                  type="radio"
-                  name="role"
-                  value="ASSISTANT"
-                  checked={selectedRole === 'ASSISTANT'}
-                  onChange={(e) => setSelectedRole(e.target.value)}
-                  className="w-4 h-4"
-                />
-                <div>
-                  <p className="font-medium">🤝 Asistente</p>
-                  <p className="text-xs text-gray-500">Puede ver y ayudar</p>
-                </div>
-              </label>
-            </div>
-
-            <div className="flex gap-3 pt-6">
-              <button
-                onClick={() => {
-                  setShowRoleModal(false)
-                  setSelectedMember(null)
-                }}
-                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 rounded-lg transition"
-                disabled={savingRole}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={saveRole}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition disabled:opacity-50"
-                disabled={savingRole}
-              >
-                {savingRole ? 'Guardando...' : 'Guardar Cambios'}
-              </button>
-            </div>
-          </div>
+      <Modal
+        isOpen={showRoleModal && !!selectedMember}
+        onClose={() => {
+          setShowRoleModal(false)
+          setSelectedMember(null)
+        }}
+        title={selectedMember ? `Cambiar Rol de ${selectedMember.user.name} ${selectedMember.user.lastName}` : ''}
+        size="md"
+      >
+        <div className="space-y-3">
+          {[
+            { value: 'ADMIN_CLUB', emoji: '🏛️', label: 'Admin Club', desc: 'Puede gestionar todo el club' },
+            { value: 'COACH', emoji: '🏆', label: 'Entrenador', desc: 'Puede gestionar sus equipos' },
+            { value: 'ASSISTANT', emoji: '🤝', label: 'Asistente', desc: 'Puede ver y ayudar' },
+          ].map((role) => (
+            <label
+              key={role.value}
+              className={`flex items-center gap-3 p-4 border-2 rounded-lg cursor-pointer transition ${
+                selectedRole === role.value
+                  ? 'border-brand-primary bg-brand-primary/5'
+                  : 'border-border-subtle hover:bg-surface-elevated'
+              }`}
+            >
+              <input
+                type="radio"
+                name="role"
+                value={role.value}
+                checked={selectedRole === role.value}
+                onChange={(e) => setSelectedRole(e.target.value)}
+                className="w-4 h-4 accent-brand-primary"
+              />
+              <div>
+                <p className="font-medium text-text-primary">{role.emoji} {role.label}</p>
+                <p className="text-xs text-text-muted">{role.desc}</p>
+              </div>
+            </label>
+          ))}
         </div>
-      )}
+
+        <div className="flex gap-3 pt-6">
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setShowRoleModal(false)
+              setSelectedMember(null)
+            }}
+            disabled={savingRole}
+            className="flex-1"
+          >
+            Cancelar
+          </Button>
+          <Button
+            onClick={saveRole}
+            disabled={savingRole}
+            loading={savingRole}
+            className="flex-1"
+          >
+            {savingRole ? 'Guardando...' : 'Guardar Cambios'}
+          </Button>
+        </div>
+      </Modal>
 
       {/* MODAL DE RESETEAR CONTRASEÑA */}
-      {showResetPasswordModal && resetMember && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">🔑 Resetear Contraseña</h3>
-
-            <p className="text-sm text-gray-600 mb-4">
-              Vas a resetear la contraseña de <strong>{resetMember.user.name} {resetMember.user.lastName}</strong> ({resetMember.user.email})
+      <Modal
+        isOpen={showResetPasswordModal && !!resetMember}
+        onClose={() => {
+          setShowResetPasswordModal(false)
+          setResetMember(null)
+          setNewPassword('')
+        }}
+        title="🔑 Resetear Contraseña"
+        size="md"
+      >
+        {resetMember && (
+          <>
+            <p className="text-sm text-text-secondary mb-4">
+              Vas a resetear la contraseña de <strong className="text-text-primary">{resetMember.user.name} {resetMember.user.lastName}</strong> ({resetMember.user.email})
             </p>
 
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nueva contraseña *</label>
-                <input
-                  type="text"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="Mínimo 6 caracteres"
-                  minLength={6}
-                  required
-                />
-              </div>
-            </div>
+            <Input
+              label="Nueva contraseña *"
+              type="text"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              placeholder="Mínimo 6 caracteres"
+              minLength={6}
+              required
+            />
 
             <div className="flex gap-3 pt-6">
-              <button
+              <Button
+                variant="secondary"
                 onClick={() => {
                   setShowResetPasswordModal(false)
                   setResetMember(null)
                   setNewPassword('')
                 }}
-                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 rounded-lg transition"
                 disabled={resetting}
+                className="flex-1"
               >
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button
                 onClick={resetPassword}
-                className="flex-1 bg-yellow-500 hover:bg-yellow-600 text-white py-2 rounded-lg transition disabled:opacity-50"
                 disabled={resetting || newPassword.length < 6}
+                loading={resetting}
+                className="flex-1"
               >
                 {resetting ? 'Reseteando...' : '🔑 Resetear'}
-              </button>
+              </Button>
             </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
+
       {/* MODAL DE GESTIÓN DE EQUIPOS */}
-{showTeamsModal && selectedMemberForTeams && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-    <div className="bg-white rounded-xl max-w-md w-full p-6 max-h-[90vh] overflow-auto">
-      <h3 className="text-xl font-bold text-gray-800 mb-2">
-        🏆 Equipos de {selectedMemberForTeams.user.name} {selectedMemberForTeams.user.lastName}
-      </h3>
-      <p className="text-sm text-gray-500 mb-4">
-        Asigna los equipos a los que este entrenador tendrá acceso
-      </p>
+      <Modal
+        isOpen={showTeamsModal && !!selectedMemberForTeams}
+        onClose={() => {
+          setShowTeamsModal(false)
+          setSelectedMemberForTeams(null)
+          setMemberTeams([])
+        }}
+        title={selectedMemberForTeams ? `🏆 Equipos de ${selectedMemberForTeams.user.name} ${selectedMemberForTeams.user.lastName}` : ''}
+        size="md"
+      >
+        <p className="text-sm text-text-muted mb-4">
+          Asigna los equipos a los que este entrenador tendrá acceso
+        </p>
 
-      {loadingMemberTeams ? (
-        <div className="text-center py-8">Cargando equipos...</div>
-      ) : memberTeams.length === 0 ? (
-        <div className="text-center py-8 text-gray-500">
-          No hay equipos en este club
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {memberTeams.map((team) => (
-            <label
-              key={team.id}
-              className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition ${
-                team.isAssigned ? 'border-blue-500 bg-blue-50' : 'border-gray-200 hover:bg-gray-50'
-              }`}
-            >
-              <input
-                type="checkbox"
-                checked={team.isAssigned}
-                onChange={() => toggleTeamAssignment(team.id, team.isAssigned)}
-                className="w-5 h-5"
-              />
-              <div className="flex-1">
-                <p className="font-medium text-gray-800">{team.name}</p>
-                <p className="text-xs text-gray-500">
-                  {team.category || 'Sin categoría'}
-                </p>
-              </div>
-              {team.isAssigned && (
-                <span className="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded-full">
-                  Asignado
-                </span>
-              )}
-            </label>
-          ))}
-        </div>
-      )}
+        {loadingMemberTeams ? (
+          <div className="text-center py-8 text-text-muted">Cargando equipos...</div>
+        ) : memberTeams.length === 0 ? (
+          <div className="text-center py-8 text-text-muted">
+            No hay equipos en este club
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {memberTeams.map((team) => (
+              <label
+                key={team.id}
+                className={`flex items-center gap-3 p-3 border-2 rounded-lg cursor-pointer transition ${
+                  team.isAssigned
+                    ? 'border-brand-primary bg-brand-primary/5'
+                    : 'border-border-subtle hover:bg-surface-elevated'
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={team.isAssigned}
+                  onChange={() => toggleTeamAssignment(team.id, team.isAssigned)}
+                  className="w-5 h-5 accent-brand-primary"
+                />
+                <div className="flex-1">
+                  <p className="font-medium text-text-primary">{team.name}</p>
+                  <p className="text-xs text-text-muted">
+                    {team.category || 'Sin categoría'}
+                  </p>
+                </div>
+                {team.isAssigned && (
+                  <Badge variant="brand">Asignado</Badge>
+                )}
+              </label>
+            ))}
+          </div>
+        )}
 
-      <div className="flex gap-3 pt-6">
-        <button
-          onClick={() => {
-            setShowTeamsModal(false)
-            setSelectedMemberForTeams(null)
-            setMemberTeams([])
-          }}
-          className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 rounded-lg transition"
-        >
-          Cerrar
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+        <div className="flex gap-3 pt-6">
+          <Button
+            variant="secondary"
+            onClick={() => {
+              setShowTeamsModal(false)
+              setSelectedMemberForTeams(null)
+              setMemberTeams([])
+            }}
+            className="flex-1"
+          >
+            Cerrar
+          </Button>
+        </div>
+      </Modal>
     </div>
   )
 }

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import api from '@/lib/api'
 import TacticalBoard from '@/components/TacticalBoard'
 import { getSportIcon, getSportConfig } from '@/lib/sport'
+import { Button, Card, CardBody, Badge, Input, Textarea, Select, Modal } from '@/components/ui'
 
 interface SessionDetail {
   id: string
@@ -85,7 +86,7 @@ export default function SessionDetail() {
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
-const [deleting, setDeleting] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   const [showEditModal, setShowEditModal] = useState(false)
   const [editForm, setEditForm] = useState({
@@ -108,24 +109,19 @@ const [deleting, setDeleting] = useState(false)
   })
   const [addingExercise, setAddingExercise] = useState(false)
 
-  // Estados para la pizarra táctica
   const [showTacticalBoard, setShowTacticalBoard] = useState(false)
   const [boardImage, setBoardImage] = useState<string | null>(null)
 
-  // Estados para imagen subida desde archivo
   const [uploadedImage, setUploadedImage] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // Estados para links
   const [exerciseLinks, setExerciseLinks] = useState<{ url: string; title: string }[]>([])
   const [newLink, setNewLink] = useState({ url: '', title: '' })
 
-  // Estados para editar ejercicio
   const [showEditExerciseModal, setShowEditExerciseModal] = useState(false)
   const [editingExercise, setEditingExercise] = useState<any>(null)
   const [updatingExercise, setUpdatingExercise] = useState(false)
 
-  // Estados para media en edición
   const [editingLinks, setEditingLinks] = useState<{ id?: string; url: string; title: string; isNew?: boolean }[]>([])
   const [editingNewLink, setEditingNewLink] = useState({ url: '', title: '' })
   const [editingBoardImage, setEditingBoardImage] = useState<string | null>(null)
@@ -219,18 +215,20 @@ const [deleting, setDeleting] = useState(false)
       setUpdatingSession(false)
     }
   }
-const handleDelete = async () => {
-  setDeleting(true)
-  try {
-    await api.delete(`/sessions/${sessionId}`)
-    router.push('/sessions')
-  } catch (err) {
-    console.error(err)
-    alert('Error al eliminar el entrenamiento')
-    setDeleting(false)
-    setShowDeleteModal(false)
+
+  const handleDelete = async () => {
+    setDeleting(true)
+    try {
+      await api.delete(`/sessions/${sessionId}`)
+      router.push('/sessions')
+    } catch (err) {
+      console.error(err)
+      alert('Error al eliminar el entrenamiento')
+      setDeleting(false)
+      setShowDeleteModal(false)
+    }
   }
-}
+
   // ============================================
   // FUNCIONES DE EJERCICIOS
   // ============================================
@@ -581,65 +579,61 @@ const handleDelete = async () => {
   // FUNCIONES DE ASISTENCIA
   // ============================================
 
-const updateAttendance = async (playerId: string, status: string) => {
-  setUpdating(true)
-  try {
-    if (status === 'PENDING') {
-      // Desmarcar = eliminar la asistencia
-      await api.delete(`/attendance/session/${sessionId}/player/${playerId}`)
-    } else {
-      // Marcar = upsert
-      await api.post(`/attendance/session/${sessionId}/player/${playerId}`, {
-        status,
-      })
-    }
+  const updateAttendance = async (playerId: string, status: string) => {
+    setUpdating(true)
+    try {
+      if (status === 'PENDING') {
+        await api.delete(`/attendance/session/${sessionId}/player/${playerId}`)
+      } else {
+        await api.post(`/attendance/session/${sessionId}/player/${playerId}`, {
+          status,
+        })
+      }
 
-    setPlayers(prev =>
-      prev.map(p =>
-        p.id === playerId ? { ...p, status } : p
+      setPlayers(prev =>
+        prev.map(p =>
+          p.id === playerId ? { ...p, status } : p
+        )
       )
-    )
-  } catch (error) {
-    console.error('Error updating attendance:', error)
-    alert('Error al actualizar la asistencia')
-  } finally {
-    setUpdating(false)
+    } catch (error) {
+      console.error('Error updating attendance:', error)
+      alert('Error al actualizar la asistencia')
+    } finally {
+      setUpdating(false)
+    }
   }
-}
-
-
 
   // ============================================
   // FUNCIONES DE UTILIDAD
   // ============================================
 
-  const getCategoryColor = (category: string) => {
+  const getCategoryVariant = (category: string): 'info' | 'success' | 'warning' | 'danger' | 'neutral' => {
     switch (category) {
-      case 'CALENTAMIENTO': return 'bg-blue-100 text-blue-800'
-      case 'TÉCNICA': return 'bg-green-100 text-green-800'
-      case 'TÁCTICA': return 'bg-purple-100 text-purple-800'
-      case 'FÍSICO': return 'bg-orange-100 text-orange-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'CALENTAMIENTO': return 'info'
+      case 'TÉCNICA': return 'success'
+      case 'TÁCTICA': return 'warning'
+      case 'FÍSICO': return 'danger'
+      default: return 'neutral'
     }
   }
 
-  const getDifficultyColor = (difficulty: string) => {
+  const getDifficultyVariant = (difficulty: string): 'success' | 'warning' | 'danger' | 'neutral' => {
     switch (difficulty) {
-      case 'FÁCIL': return 'bg-green-100 text-green-800'
-      case 'MEDIO': return 'bg-yellow-100 text-yellow-800'
-      case 'DIFÍCIL': return 'bg-red-100 text-red-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'FÁCIL': return 'success'
+      case 'MEDIO': return 'warning'
+      case 'DIFÍCIL': return 'danger'
+      default: return 'neutral'
     }
   }
 
-  const getStatusColor = (status: string) => {
+  const getStatusVariant = (status: string): 'success' | 'danger' | 'warning' | 'info' | 'neutral' => {
     switch (status) {
-      case 'PRESENT': return 'bg-green-100 text-green-800'
-      case 'ABSENT': return 'bg-red-100 text-red-800'
-      case 'LATE': return 'bg-yellow-100 text-yellow-800'
-      case 'EXCUSED': return 'bg-blue-100 text-blue-800'
-      case 'PENDING': return 'bg-gray-100 text-gray-500'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'PRESENT': return 'success'
+      case 'ABSENT': return 'danger'
+      case 'LATE': return 'warning'
+      case 'EXCUSED': return 'info'
+      case 'PENDING': return 'neutral'
+      default: return 'neutral'
     }
   }
 
@@ -665,14 +659,14 @@ const updateAttendance = async (playerId: string, status: string) => {
   }
 
   if (loading) {
-    return <div className="text-center py-12">Cargando entrenamiento...</div>
+    return <div className="text-center py-12 text-text-muted">Cargando entrenamiento...</div>
   }
 
   if (!session) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-500">Entrenamiento no encontrado</p>
-        <Link href="/sessions" className="text-blue-600 hover:underline mt-4 inline-block">
+        <p className="text-danger">Entrenamiento no encontrado</p>
+        <Link href="/sessions" className="text-brand-primary hover:underline mt-4 inline-block">
           ← Volver a entrenamientos
         </Link>
       </div>
@@ -689,864 +683,832 @@ const updateAttendance = async (playerId: string, status: string) => {
   }
 
   const sortedExercises = [...(session.exercises || [])].sort((a, b) => (a.order || 0) - (b.order || 0))
+  const sportConfig = getSportConfig(session.team?.sport)
 
   return (
     <div>
-      <Link href="/sessions" className="text-blue-600 hover:underline inline-block mb-6">
+      <Link href="/sessions" className="text-brand-primary hover:underline inline-block mb-6">
         ← Volver a entrenamientos
       </Link>
 
       {/* INFORMACIÓN DEL ENTRENAMIENTO */}
-      <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">{session.title}</h1>
-            <p className="text-gray-500 mt-1">{formatDate(session.date)}</p>
-            <p className="text-sm text-gray-400">
-              ⏱️ {session.duration} min • 📍 {session.location || 'Sin ubicación'}
-            </p>
-            <p className="text-sm text-gray-400 mt-1">
-  {getSportIcon(session.team?.sport)} {session.team.name} • {session.team.club.name}
-</p>
-            {session.description && (
-              <p className="text-gray-600 mt-2">{session.description}</p>
-            )}
+      <Card className="mb-6">
+        <CardBody>
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+            <div>
+              <h1 className="text-2xl font-bold text-text-primary">{session.title}</h1>
+              <p className="text-text-secondary mt-1">{formatDate(session.date)}</p>
+              <p className="text-sm text-text-muted">
+                ⏱️ {session.duration} min • 📍 {session.location || 'Sin ubicación'}
+              </p>
+              <p className="text-sm text-text-muted mt-1">
+                {getSportIcon(session.team?.sport)} {session.team.name} • {session.team.club.name}
+              </p>
+              {session.description && (
+                <p className="text-text-secondary mt-2">{session.description}</p>
+              )}
+            </div>
+            <div className="flex flex-col items-end gap-2">
+              <div className="text-right">
+                <p className="text-sm text-text-muted">Creado por</p>
+                <p className="font-medium text-text-primary">{session.createdBy.name} {session.createdBy.lastName}</p>
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={openEditModal}>
+                  ✏️ Editar Entrenamiento
+                </Button>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  onClick={() => setShowDeleteModal(true)}
+                >
+                  🗑️ Eliminar
+                </Button>
+              </div>
+            </div>
           </div>
-<div className="flex flex-col items-end gap-2">
-  <div className="text-right">
-    <p className="text-sm text-gray-500">Creado por</p>
-    <p className="font-medium">{session.createdBy.name} {session.createdBy.lastName}</p>
-  </div>
-  <div className="flex gap-2">
-    <button
-      onClick={openEditModal}
-      className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition text-sm"
-    >
-      ✏️ Editar Entrenamiento
-    </button>
-    <button
-      onClick={() => setShowDeleteModal(true)}
-      className="bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2 rounded-lg transition text-sm"
-    >
-      🗑️ Eliminar
-    </button>
-  </div>
-</div>
-        </div>
 
-        <div className="grid grid-cols-5 gap-2 mt-4 pt-4 border-t border-gray-200">
-          <div className="text-center">
-            <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
-            <p className="text-xs text-gray-500">Total</p>
+          <div className="grid grid-cols-5 gap-2 mt-4 pt-4 border-t border-border-subtle">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-text-primary">{stats.total}</p>
+              <p className="text-xs text-text-muted">Total</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-success">{stats.present}</p>
+              <p className="text-xs text-text-muted">Presentes</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-danger">{stats.absent}</p>
+              <p className="text-xs text-text-muted">Ausentes</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-warning">{stats.late}</p>
+              <p className="text-xs text-text-muted">Tarde</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-info">{stats.excused}</p>
+              <p className="text-xs text-text-muted">Justificados</p>
+            </div>
           </div>
-          <div className="text-center">
-            <p className="text-2xl font-bold text-green-600">{stats.present}</p>
-            <p className="text-xs text-gray-500">Presentes</p>
-          </div>
-          <div className="text-center">
-            <p className="text-2xl font-bold text-red-600">{stats.absent}</p>
-            <p className="text-xs text-gray-500">Ausentes</p>
-          </div>
-          <div className="text-center">
-            <p className="text-2xl font-bold text-yellow-600">{stats.late}</p>
-            <p className="text-xs text-gray-500">Tarde</p>
-          </div>
-          <div className="text-center">
-            <p className="text-2xl font-bold text-blue-600">{stats.excused}</p>
-            <p className="text-xs text-gray-500">Justificados</p>
-          </div>
-        </div>
-      </div>
+        </CardBody>
+      </Card>
 
       {/* EJERCICIOS */}
-      <div className="bg-white rounded-xl shadow-md p-6 mb-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-semibold text-gray-800">
-            🏋️ Ejercicios ({sortedExercises.length})
-          </h2>
-          <button
-            onClick={() => setShowExerciseModal(true)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition text-sm"
-          >
-            <span className="text-xl">+</span> Añadir Ejercicio
-          </button>
-        </div>
+      <Card className="mb-6">
+        <CardBody>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold text-text-primary">
+              🏋️ Ejercicios ({sortedExercises.length})
+            </h2>
+            <Button
+              size="sm"
+              onClick={() => setShowExerciseModal(true)}
+              icon={<span className="text-xl">+</span>}
+            >
+              Añadir Ejercicio
+            </Button>
+          </div>
 
-        {sortedExercises.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">
-            No hay ejercicios en este entrenamiento
-          </p>
-        ) : (
-          <div className="space-y-3">
-            {sortedExercises.map((exercise, index) => (
-              <div
-                key={exercise.id}
-                className="bg-gray-50 rounded-lg p-4 border border-gray-100 hover:border-blue-200 transition"
-              >
-                <div className="flex justify-between items-start gap-4 mb-3">
-                  <div className="flex-1">
-                    <p className="font-medium text-gray-800">
-                      {index + 1}. {exercise.name}
-                    </p>
-                    {exercise.description && (
-                      <p className="text-sm text-gray-500 mt-1">{exercise.description}</p>
-                    )}
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {exercise.category && (
-                        <span className={`text-xs px-2 py-1 rounded-full ${getCategoryColor(exercise.category)}`}>
-                          {exercise.category}
-                        </span>
+          {sortedExercises.length === 0 ? (
+            <p className="text-text-muted text-center py-8">
+              No hay ejercicios en este entrenamiento
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {sortedExercises.map((exercise, index) => (
+                <div
+                  key={exercise.id}
+                  className="bg-surface-elevated rounded-lg p-4 border border-border-subtle hover:border-brand-primary/50 transition"
+                >
+                  <div className="flex justify-between items-start gap-4 mb-3">
+                    <div className="flex-1">
+                      <p className="font-medium text-text-primary">
+                        {index + 1}. {exercise.name}
+                      </p>
+                      {exercise.description && (
+                        <p className="text-sm text-text-secondary mt-1">{exercise.description}</p>
                       )}
-                      {exercise.difficulty && (
-                        <span className={`text-xs px-2 py-1 rounded-full ${getDifficultyColor(exercise.difficulty)}`}>
-                          {exercise.difficulty}
-                        </span>
-                      )}
-                      {exercise.duration && (
-                        <span className="text-xs bg-gray-200 text-gray-700 px-2 py-1 rounded-full">
-                          ⏱️ {exercise.duration} min
-                        </span>
-                      )}
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {exercise.category && (
+                          <Badge variant={getCategoryVariant(exercise.category)}>
+                            {exercise.category}
+                          </Badge>
+                        )}
+                        {exercise.difficulty && (
+                          <Badge variant={getDifficultyVariant(exercise.difficulty)}>
+                            {exercise.difficulty}
+                          </Badge>
+                        )}
+                        {exercise.duration && (
+                          <Badge variant="neutral">
+                            ⏱️ {exercise.duration} min
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button
+                        onClick={() => moveExercise(exercise.id, 'up')}
+                        disabled={index === 0}
+                        className={`p-2 rounded transition ${
+                          index === 0
+                            ? 'text-text-muted/30 cursor-not-allowed'
+                            : 'text-text-muted hover:text-brand-primary hover:bg-brand-primary/10'
+                        }`}
+                        title="Mover arriba"
+                      >
+                        ⬆️
+                      </button>
+
+                      <button
+                        onClick={() => moveExercise(exercise.id, 'down')}
+                        disabled={index === sortedExercises.length - 1}
+                        className={`p-2 rounded transition ${
+                          index === sortedExercises.length - 1
+                            ? 'text-text-muted/30 cursor-not-allowed'
+                            : 'text-text-muted hover:text-brand-primary hover:bg-brand-primary/10'
+                        }`}
+                        title="Mover abajo"
+                      >
+                        ⬇️
+                      </button>
+
+                      <button
+                        onClick={() => openEditExerciseModal(exercise)}
+                        className="p-2 rounded text-brand-primary hover:text-brand-primary-light hover:bg-brand-primary/10 transition"
+                        title="Editar ejercicio"
+                      >
+                        ✏️
+                      </button>
+
+                      <button
+                        onClick={() => removeExercise(exercise.id)}
+                        className="p-2 rounded text-danger/70 hover:text-danger hover:bg-danger/10 transition"
+                        title="Eliminar ejercicio"
+                      >
+                        🗑️
+                      </button>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <button
-                      onClick={() => moveExercise(exercise.id, 'up')}
-                      disabled={index === 0}
-                      className={`p-2 rounded transition ${
-                        index === 0
-                          ? 'text-gray-300 cursor-not-allowed'
-                          : 'text-gray-500 hover:text-blue-600 hover:bg-blue-50'
-                      }`}
-                      title="Mover arriba"
-                    >
-                      ⬆️
-                    </button>
-
-                    <button
-                      onClick={() => moveExercise(exercise.id, 'down')}
-                      disabled={index === sortedExercises.length - 1}
-                      className={`p-2 rounded transition ${
-                        index === sortedExercises.length - 1
-                          ? 'text-gray-300 cursor-not-allowed'
-                          : 'text-gray-500 hover:text-blue-600 hover:bg-blue-50'
-                      }`}
-                      title="Mover abajo"
-                    >
-                      ⬇️
-                    </button>
-
-                    <button
-                      onClick={() => openEditExerciseModal(exercise)}
-                      className="p-2 rounded text-blue-500 hover:text-blue-700 hover:bg-blue-50 transition"
-                      title="Editar ejercicio"
-                    >
-                      ✏️
-                    </button>
-
-                    <button
-                      onClick={() => removeExercise(exercise.id)}
-                      className="p-2 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition"
-                      title="Eliminar ejercicio"
-                    >
-                      🗑️
-                    </button>
-                  </div>
-                </div>
-
-                {exercise.media && exercise.media.length > 0 && (
-                  <div className="mt-3 space-y-3 border-t border-gray-200 pt-3">
-                    {exercise.media.map((media) => (
-                      <div key={media.id}>
-                        {media.type === 'IMAGE' && (
-                          <div className="bg-white rounded-lg p-2 border border-gray-200">
-                            <img
-                              src={media.url}
-                              alt={media.title || 'Imagen del ejercicio'}
-                              className="w-full max-w-2xl rounded-lg"
-                            />
-                            {media.title && (
-                              <p className="text-xs text-gray-500 mt-1">{media.title}</p>
-                            )}
-                          </div>
-                        )}
-                        {media.type === 'LINK' && (
-                          <a
-                            href={media.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="bg-white rounded-lg p-3 border border-gray-200 hover:border-blue-300 transition flex items-center gap-3"
-                          >
-                            <span className="text-blue-600 text-xl">🔗</span>
-                            <div className="flex-1 min-w-0">
-                              <p className="text-sm font-medium text-gray-800 truncate">
-                                {media.title || media.url}
-                              </p>
-                              <p className="text-xs text-gray-500 truncate">
-                                {media.url}
-                              </p>
+                  {exercise.media && exercise.media.length > 0 && (
+                    <div className="mt-3 space-y-3 border-t border-border-subtle pt-3">
+                      {exercise.media.map((media) => (
+                        <div key={media.id}>
+                          {media.type === 'IMAGE' && (
+                            <div className="bg-surface rounded-lg p-2 border border-border-subtle">
+                              <img
+                                src={media.url}
+                                alt={media.title || 'Imagen del ejercicio'}
+                                className="w-full max-w-2xl rounded-lg"
+                              />
+                              {media.title && (
+                                <p className="text-xs text-text-muted mt-1">{media.title}</p>
+                              )}
                             </div>
-                          </a>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* CONTROL DE ASISTENCIA */}
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">
-  👥 Control de Asistencia
-</h2>
-<p className="text-xs text-gray-500 -mt-3 mb-4">
-  {getSportConfig(session.team?.sport).icon} {getSportConfig(session.team?.sport).playerNamePlural} · {getSportConfig(session.team?.sport).teamName}: {session.team.name}
-</p>
-
-        {players.length === 0 ? (
-          <p className="text-gray-500 text-center py-8">
-            No hay jugadores en este equipo
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">#</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Jugador</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Estado</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Acciones</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-200">
-                {players.map((player) => (
-                  <tr key={player.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 text-sm text-gray-500">
-                      {player.number || '-'}
-                    </td>
-                    <td className="px-4 py-3 font-medium text-gray-900">
-                      {player.name} {player.lastName}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(player.status)}`}>
-                        {getStatusText(player.status)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex gap-1 justify-center">
-                        <button
-                          onClick={() => updateAttendance(player.id, 'PRESENT')}
-                          className={`px-2 py-1 rounded text-xs transition ${
-                            player.status === 'PRESENT'
-                              ? 'bg-green-600 text-white'
-                              : 'bg-gray-200 hover:bg-green-100 text-gray-700'
-                          }`}
-                          disabled={updating}
-                        >
-                          ✅
-                        </button>
-                        <button
-                          onClick={() => updateAttendance(player.id, 'ABSENT')}
-                          className={`px-2 py-1 rounded text-xs transition ${
-                            player.status === 'ABSENT'
-                              ? 'bg-red-600 text-white'
-                              : 'bg-gray-200 hover:bg-red-100 text-gray-700'
-                          }`}
-                          disabled={updating}
-                        >
-                          ❌
-                        </button>
-                        <button
-                          onClick={() => updateAttendance(player.id, 'LATE')}
-                          className={`px-2 py-1 rounded text-xs transition ${
-                            player.status === 'LATE'
-                              ? 'bg-yellow-600 text-white'
-                              : 'bg-gray-200 hover:bg-yellow-100 text-gray-700'
-                          }`}
-                          disabled={updating}
-                        >
-                          ⏰
-                        </button>
-                        <button
-                          onClick={() => updateAttendance(player.id, 'EXCUSED')}
-                          className={`px-2 py-1 rounded text-xs transition ${
-                            player.status === 'EXCUSED'
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-gray-200 hover:bg-blue-100 text-gray-700'
-                          }`}
-                          disabled={updating}
-                        >
-                          📝
-                        </button>
-                        <button
-  onClick={() => updateAttendance(player.id, 'PENDING')}
-  className={`px-2 py-1 rounded text-xs transition ${
-    player.status === 'PENDING'
-      ? 'bg-gray-600 text-white'
-      : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
-  }`}
-  disabled={updating}
-  title="Desmarcar (volver a pendiente)"
->
-  ⏳
-</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-
-        {updating && (
-          <div className="text-center text-sm text-gray-500 mt-4">
-            Actualizando asistencia...
-          </div>
-        )}
-      </div>
-
-      {/* MODAL DE EDITAR ENTRENAMIENTO */}
-      {showEditModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6 max-h-[90vh] overflow-auto">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">
-              ✏️ Editar Entrenamiento
-            </h3>
-            <form onSubmit={updateSession} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Título *</label>
-                <input
-                  type="text"
-                  value={editForm.title}
-                  onChange={(e) => setEditForm({...editForm, title: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
-                <textarea
-                  value={editForm.description}
-                  onChange={(e) => setEditForm({...editForm, description: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  rows={3}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Fecha *</label>
-                  <input
-                    type="date"
-                    value={editForm.date}
-                    onChange={(e) => setEditForm({...editForm, date: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Hora *</label>
-                  <input
-                    type="time"
-                    value={editForm.time}
-                    onChange={(e) => setEditForm({...editForm, time: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Duración (min) *</label>
-                <input
-                  type="number"
-                  value={editForm.duration}
-                  onChange={(e) => setEditForm({...editForm, duration: parseInt(e.target.value) || 0})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  required
-                  min="1"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Ubicación</label>
-                <input
-                  type="text"
-                  value={editForm.location}
-                  onChange={(e) => setEditForm({...editForm, location: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="Ej: Pabellón Municipal"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowEditModal(false)}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 rounded-lg transition"
-                  disabled={updatingSession}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={updatingSession}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition disabled:opacity-50"
-                >
-                  {updatingSession ? 'Guardando...' : 'Guardar Cambios'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL DE EDITAR EJERCICIO */}
-      {showEditExerciseModal && editingExercise && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6 max-h-[90vh] overflow-auto">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">
-              ✏️ Editar Ejercicio
-            </h3>
-            <form onSubmit={updateExercise} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre *</label>
-                <input
-                  type="text"
-                  value={editingExercise.name}
-                  onChange={(e) => setEditingExercise({...editingExercise, name: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
-                <textarea
-                  value={editingExercise.description}
-                  onChange={(e) => setEditingExercise({...editingExercise, description: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  rows={3}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
-                  <select
-                    value={editingExercise.category}
-                    onChange={(e) => setEditingExercise({...editingExercise, category: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Seleccionar...</option>
-                    <option value="CALENTAMIENTO">Calentamiento</option>
-                    <option value="TÉCNICA">Técnica</option>
-                    <option value="TÁCTICA">Táctica</option>
-                    <option value="FÍSICO">Físico</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Duración (min)</label>
-                  <input
-                    type="number"
-                    value={editingExercise.duration}
-                    onChange={(e) => setEditingExercise({...editingExercise, duration: parseInt(e.target.value) || 0})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    min="1"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Dificultad</label>
-                <select
-                  value={editingExercise.difficulty}
-                  onChange={(e) => setEditingExercise({...editingExercise, difficulty: e.target.value})}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Seleccionar...</option>
-                  <option value="FÁCIL">Fácil</option>
-                  <option value="MEDIO">Medio</option>
-                  <option value="DIFÍCIL">Difícil</option>
-                </select>
-              </div>
-
-              <div className="border-t border-gray-200 pt-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  🔗 Links del ejercicio
-                </label>
-
-                {editingLinks.length > 0 && (
-                  <div className="space-y-2 mb-3">
-                    {editingLinks.map((link, index) => (
-                      <div key={index} className="flex items-center gap-2 bg-orange-50 rounded-lg p-2">
-                        <span className="text-orange-600">🔗</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-800 truncate">
-                            {link.title}
-                            {link.isNew && <span className="text-xs text-green-600 ml-2">(nuevo)</span>}
-                          </p>
-                          <p className="text-xs text-gray-500 truncate">{link.url}</p>
+                          )}
+                          {media.type === 'LINK' && (
+                            <a
+                              href={media.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="bg-surface rounded-lg p-3 border border-border-subtle hover:border-brand-primary/50 transition flex items-center gap-3"
+                            >
+                              <span className="text-brand-primary text-xl">🔗</span>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-text-primary truncate">
+                                  {media.title || media.url}
+                                </p>
+                                <p className="text-xs text-text-muted truncate">
+                                  {media.url}
+                                </p>
+                              </div>
+                            </a>
+                          )}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => removeLinkFromEditingList(index)}
-                          className="text-red-500 hover:text-red-700 p-1"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                <div className="space-y-2">
-                  <input
-                    type="url"
-                    value={editingNewLink.url}
-                    onChange={(e) => setEditingNewLink({...editingNewLink, url: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    placeholder="https://youtube.com/watch?v=..."
-                  />
-                  <input
-                    type="text"
-                    value={editingNewLink.title}
-                    onChange={(e) => setEditingNewLink({...editingNewLink, title: e.target.value})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    placeholder="Título (opcional)"
-                  />
-                  <button
-                    type="button"
-                    onClick={addLinkToEditingList}
-                    className="w-full bg-orange-600 hover:bg-orange-700 text-white py-2 rounded-lg transition"
-                  >
-                    ➕ Añadir link
-                  </button>
-                </div>
-              </div>
-
-              {editingBoardImage && (
-                <div className="border-t border-gray-200 pt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    📸 Imagen actual
-                  </label>
-                  <div className="relative">
-                    <img
-                      src={editingBoardImage}
-                      alt="Imagen del ejercicio"
-                      className="w-full rounded-lg border border-gray-200"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => removeExistingImage(editingExercise.id)}
-                      className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              <div className="border-t border-gray-200 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setEditingShowTacticalBoard(true)}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg transition"
-                >
-                  🎨 {editingBoardImage ? 'Cambiar dibujo en pizarra' : 'Dibujar en pizarra táctica'}
-                </button>
-
-                <div className="mt-3">
-                  <input
-                    ref={editingFileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleEditFileUpload}
-                    className="hidden"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => editingFileInputRef.current?.click()}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition"
-                  >
-                    📸 {editingUploadedImage ? 'Cambiar imagen' : 'Subir nueva imagen'}
-                  </button>
-
-                  {editingUploadedImage && (
-                    <div className="mt-3">
-                      <p className="text-xs text-gray-500 mb-2">Nueva imagen:</p>
-                      <div className="relative">
-                        <img
-                          src={editingUploadedImage}
-                          alt="Nueva imagen"
-                          className="w-full rounded-lg border border-gray-200"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setEditingUploadedImage(null)}
-                          className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center"
-                        >
-                          ✕
-                        </button>
-                      </div>
+                      ))}
                     </div>
                   )}
                 </div>
-              </div>
+              ))}
+            </div>
+          )}
+        </CardBody>
+      </Card>
 
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowEditExerciseModal(false)
-                    setEditingExercise(null)
-                  }}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 rounded-lg transition"
-                  disabled={updatingExercise}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={updatingExercise}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition disabled:opacity-50"
-                >
-                  {updatingExercise ? 'Guardando...' : 'Guardar Cambios'}
-                </button>
-              </div>
-            </form>
+      {/* CONTROL DE ASISTENCIA */}
+      <Card>
+        <CardBody>
+          <h2 className="text-xl font-semibold text-text-primary mb-2">
+            👥 Control de Asistencia
+          </h2>
+          <p className="text-xs text-text-muted mb-4">
+            {sportConfig.icon} {sportConfig.playerNamePlural} · {sportConfig.teamName}: {session.team.name}
+          </p>
+
+          {players.length === 0 ? (
+            <p className="text-text-muted text-center py-8">
+              No hay jugadores en este equipo
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-surface-elevated">
+                  <tr>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-text-muted uppercase">#</th>
+                    <th className="px-4 py-3 text-left text-xs font-medium text-text-muted uppercase">Jugador</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-text-muted uppercase">Estado</th>
+                    <th className="px-4 py-3 text-center text-xs font-medium text-text-muted uppercase">Acciones</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border-subtle">
+                  {players.map((player) => (
+                    <tr key={player.id} className="hover:bg-surface-elevated transition">
+                      <td className="px-4 py-3 text-sm text-text-secondary">
+                        {player.number || '-'}
+                      </td>
+                      <td className="px-4 py-3 font-medium text-text-primary">
+                        {player.name} {player.lastName}
+                      </td>
+                      <td className="px-4 py-3 text-center">
+                        <Badge variant={getStatusVariant(player.status)}>
+                          {getStatusText(player.status)}
+                        </Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-1 justify-center">
+                          <button
+                            onClick={() => updateAttendance(player.id, 'PRESENT')}
+                            className={`px-2 py-1 rounded text-xs transition ${
+                              player.status === 'PRESENT'
+                                ? 'bg-success text-bg-base'
+                                : 'bg-surface-elevated hover:bg-success/20 text-text-secondary'
+                            }`}
+                            disabled={updating}
+                          >
+                            ✅
+                          </button>
+                          <button
+                            onClick={() => updateAttendance(player.id, 'ABSENT')}
+                            className={`px-2 py-1 rounded text-xs transition ${
+                              player.status === 'ABSENT'
+                                ? 'bg-danger text-white'
+                                : 'bg-surface-elevated hover:bg-danger/20 text-text-secondary'
+                            }`}
+                            disabled={updating}
+                          >
+                            ❌
+                          </button>
+                          <button
+                            onClick={() => updateAttendance(player.id, 'LATE')}
+                            className={`px-2 py-1 rounded text-xs transition ${
+                              player.status === 'LATE'
+                                ? 'bg-warning text-bg-base'
+                                : 'bg-surface-elevated hover:bg-warning/20 text-text-secondary'
+                            }`}
+                            disabled={updating}
+                          >
+                            ⏰
+                          </button>
+                          <button
+                            onClick={() => updateAttendance(player.id, 'EXCUSED')}
+                            className={`px-2 py-1 rounded text-xs transition ${
+                              player.status === 'EXCUSED'
+                                ? 'bg-info text-bg-base'
+                                : 'bg-surface-elevated hover:bg-info/20 text-text-secondary'
+                            }`}
+                            disabled={updating}
+                          >
+                            📝
+                          </button>
+                          <button
+                            onClick={() => updateAttendance(player.id, 'PENDING')}
+                            className={`px-2 py-1 rounded text-xs transition ${
+                              player.status === 'PENDING'
+                                ? 'bg-text-muted text-bg-base'
+                                : 'bg-surface-elevated hover:bg-border-subtle text-text-secondary'
+                            }`}
+                            disabled={updating}
+                            title="Desmarcar (volver a pendiente)"
+                          >
+                            ⏳
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {updating && (
+            <div className="text-center text-sm text-text-muted mt-4">
+              Actualizando asistencia...
+            </div>
+          )}
+        </CardBody>
+      </Card>
+            {/* MODAL DE EDITAR ENTRENAMIENTO */}
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        title="✏️ Editar Entrenamiento"
+        size="md"
+      >
+        <form onSubmit={updateSession} className="space-y-4">
+          <Input
+            label="Título *"
+            type="text"
+            value={editForm.title}
+            onChange={(e) => setEditForm({ ...editForm, title: e.target.value })}
+            required
+          />
+
+          <Textarea
+            label="Descripción"
+            value={editForm.description}
+            onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+            rows={3}
+          />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              label="Fecha *"
+              type="date"
+              value={editForm.date}
+              onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+              required
+            />
+            <Input
+              label="Hora *"
+              type="time"
+              value={editForm.time}
+              onChange={(e) => setEditForm({ ...editForm, time: e.target.value })}
+              required
+            />
           </div>
-        </div>
-      )}
 
-      {/* MODAL DE AÑADIR EJERCICIO */}
-      {showExerciseModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6 max-h-[90vh] overflow-auto">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">
-              Añadir Ejercicio
-            </h3>
-            <form onSubmit={addExercise} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del Ejercicio *</label>
-                <input
+          <Input
+            label="Duración (min) *"
+            type="number"
+            value={editForm.duration}
+            onChange={(e) => setEditForm({ ...editForm, duration: parseInt(e.target.value) || 0 })}
+            required
+            min="1"
+          />
+
+          <Input
+            label="Ubicación"
+            type="text"
+            value={editForm.location}
+            onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
+            placeholder="Ej: Pabellón Municipal"
+          />
+
+          <div className="flex gap-3 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setShowEditModal(false)}
+              disabled={updatingSession}
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              disabled={updatingSession}
+              loading={updatingSession}
+              className="flex-1"
+            >
+              {updatingSession ? 'Guardando...' : 'Guardar Cambios'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
+      {/* MODAL DE EDITAR EJERCICIO */}
+      <Modal
+        isOpen={showEditExerciseModal && !!editingExercise}
+        onClose={() => {
+          setShowEditExerciseModal(false)
+          setEditingExercise(null)
+        }}
+        title="✏️ Editar Ejercicio"
+        size="md"
+      >
+        {editingExercise && (
+          <form onSubmit={updateExercise} className="space-y-4">
+            <Input
+              label="Nombre *"
+              type="text"
+              value={editingExercise.name}
+              onChange={(e) => setEditingExercise({ ...editingExercise, name: e.target.value })}
+              required
+            />
+
+            <Textarea
+              label="Descripción"
+              value={editingExercise.description}
+              onChange={(e) => setEditingExercise({ ...editingExercise, description: e.target.value })}
+              rows={3}
+            />
+
+            <div className="grid grid-cols-2 gap-4">
+              <Select
+                label="Categoría"
+                value={editingExercise.category}
+                onChange={(e) => setEditingExercise({ ...editingExercise, category: e.target.value })}
+              >
+                <option value="">Seleccionar...</option>
+                <option value="CALENTAMIENTO">Calentamiento</option>
+                <option value="TÉCNICA">Técnica</option>
+                <option value="TÁCTICA">Táctica</option>
+                <option value="FÍSICO">Físico</option>
+              </Select>
+              <Input
+                label="Duración (min)"
+                type="number"
+                value={editingExercise.duration}
+                onChange={(e) => setEditingExercise({ ...editingExercise, duration: parseInt(e.target.value) || 0 })}
+                min="1"
+              />
+            </div>
+
+            <Select
+              label="Dificultad"
+              value={editingExercise.difficulty}
+              onChange={(e) => setEditingExercise({ ...editingExercise, difficulty: e.target.value })}
+            >
+              <option value="">Seleccionar...</option>
+              <option value="FÁCIL">Fácil</option>
+              <option value="MEDIO">Medio</option>
+              <option value="DIFÍCIL">Difícil</option>
+            </Select>
+
+            {/* Links */}
+            <div className="border-t border-border-subtle pt-4">
+              <label className="block text-sm font-medium text-text-secondary mb-2">
+                🔗 Links del ejercicio
+              </label>
+
+              {editingLinks.length > 0 && (
+                <div className="space-y-2 mb-3">
+                  {editingLinks.map((link, index) => (
+                    <div key={index} className="flex items-center gap-2 bg-warning/10 rounded-lg p-2">
+                      <span className="text-warning">🔗</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-text-primary truncate">
+                          {link.title}
+                          {link.isNew && <span className="text-xs text-success ml-2">(nuevo)</span>}
+                        </p>
+                        <p className="text-xs text-text-muted truncate">{link.url}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeLinkFromEditingList(index)}
+                        className="text-danger hover:text-danger/80 p-1"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Input
+                  type="url"
+                  value={editingNewLink.url}
+                  onChange={(e) => setEditingNewLink({ ...editingNewLink, url: e.target.value })}
+                  placeholder="https://youtube.com/watch?v=..."
+                />
+                <Input
                   type="text"
-                  value={newExercise.name}
-                  onChange={(e) => setNewExercise({...newExercise, name: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  required
-                  placeholder="Ej: Calentamiento dinámico"
+                  value={editingNewLink.title}
+                  onChange={(e) => setEditingNewLink({ ...editingNewLink, title: e.target.value })}
+                  placeholder="Título (opcional)"
                 />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
-                <textarea
-                  value={newExercise.description}
-                  onChange={(e) => setNewExercise({...newExercise, description: e.target.value})}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  rows={3}
-                  placeholder="Descripción del ejercicio"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Categoría</label>
-                  <select
-                    value={newExercise.category}
-                    onChange={(e) => setNewExercise({...newExercise, category: e.target.value})}
-                    className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
-                  >
-                    <option value="">Seleccionar...</option>
-                    <option value="CALENTAMIENTO">Calentamiento</option>
-                    <option value="TÉCNICA">Técnica</option>
-                    <option value="TÁCTICA">Táctica</option>
-                    <option value="FÍSICO">Físico</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Duración (min)</label>
-                  <input
-                    type="number"
-                    value={newExercise.duration}
-                    onChange={(e) => setNewExercise({...newExercise, duration: parseInt(e.target.value) || 0})}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    min="1"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Dificultad</label>
-                <select
-                  value={newExercise.difficulty}
-                  onChange={(e) => setNewExercise({...newExercise, difficulty: e.target.value})}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Seleccionar...</option>
-                  <option value="FÁCIL">Fácil</option>
-                  <option value="MEDIO">Medio</option>
-                  <option value="DIFÍCIL">Difícil</option>
-                </select>
-              </div>
-
-              <div className="border-t border-gray-200 pt-4">
-                <button
+                <Button
                   type="button"
-                  onClick={() => setShowTacticalBoard(true)}
-                  className="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg transition"
+                  variant="secondary"
+                  onClick={addLinkToEditingList}
+                  className="w-full"
                 >
-                  🎨 {boardImage ? 'Editar dibujo en pizarra' : 'Dibujar en pizarra táctica'}
-                </button>
+                  ➕ Añadir link
+                </Button>
+              </div>
+            </div>
 
-                {boardImage && (
+            {/* Imagen actual */}
+            {editingBoardImage && (
+              <div className="border-t border-border-subtle pt-4">
+                <label className="block text-sm font-medium text-text-secondary mb-2">
+                  📸 Imagen actual
+                </label>
+                <div className="relative">
+                  <img
+                    src={editingBoardImage}
+                    alt="Imagen del ejercicio"
+                    className="w-full rounded-lg border border-border-subtle"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeExistingImage(editingExercise.id)}
+                    className="absolute top-2 right-2 bg-danger hover:bg-danger/80 text-white rounded-full w-8 h-8 flex items-center justify-center"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Pizarra + Imagen */}
+            <div className="border-t border-border-subtle pt-4 space-y-3">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setEditingShowTacticalBoard(true)}
+                className="w-full"
+              >
+                🎨 {editingBoardImage ? 'Cambiar dibujo en pizarra' : 'Dibujar en pizarra táctica'}
+              </Button>
+
+              <div>
+                <input
+                  ref={editingFileInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={handleEditFileUpload}
+                  className="hidden"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => editingFileInputRef.current?.click()}
+                  className="w-full"
+                >
+                  📸 {editingUploadedImage ? 'Cambiar imagen' : 'Subir nueva imagen'}
+                </Button>
+
+                {editingUploadedImage && (
                   <div className="mt-3">
-                    <p className="text-xs text-gray-500 mb-2">Vista previa:</p>
+                    <p className="text-xs text-text-muted mb-2">Nueva imagen:</p>
                     <div className="relative">
                       <img
-                        src={boardImage}
-                        alt="Pizarra táctica"
-                        className="w-full rounded-lg border border-gray-200"
+                        src={editingUploadedImage}
+                        alt="Nueva imagen"
+                        className="w-full rounded-lg border border-border-subtle"
                       />
                       <button
                         type="button"
-                        onClick={() => setBoardImage(null)}
-                        className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center"
+                        onClick={() => setEditingUploadedImage(null)}
+                        className="absolute top-2 right-2 bg-danger hover:bg-danger/80 text-white rounded-full w-8 h-8 flex items-center justify-center"
                       >
                         ✕
                       </button>
                     </div>
                   </div>
                 )}
+              </div>
+            </div>
 
-                <div className="mt-3">
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    onChange={handleFileUpload}
-                    className="hidden"
+            <div className="flex gap-3 pt-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setShowEditExerciseModal(false)
+                  setEditingExercise(null)
+                }}
+                disabled={updatingExercise}
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+              <Button
+                type="submit"
+                disabled={updatingExercise}
+                loading={updatingExercise}
+                className="flex-1"
+              >
+                {updatingExercise ? 'Guardando...' : 'Guardar Cambios'}
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      {/* MODAL DE AÑADIR EJERCICIO */}
+      <Modal
+        isOpen={showExerciseModal}
+        onClose={() => setShowExerciseModal(false)}
+        title="Añadir Ejercicio"
+        size="md"
+      >
+        <form onSubmit={addExercise} className="space-y-4">
+          <Input
+            label="Nombre del Ejercicio *"
+            type="text"
+            value={newExercise.name}
+            onChange={(e) => setNewExercise({ ...newExercise, name: e.target.value })}
+            required
+            placeholder="Ej: Calentamiento dinámico"
+          />
+
+          <Textarea
+            label="Descripción"
+            value={newExercise.description}
+            onChange={(e) => setNewExercise({ ...newExercise, description: e.target.value })}
+            rows={3}
+            placeholder="Descripción del ejercicio"
+          />
+
+          <div className="grid grid-cols-2 gap-4">
+            <Select
+              label="Categoría"
+              value={newExercise.category}
+              onChange={(e) => setNewExercise({ ...newExercise, category: e.target.value })}
+            >
+              <option value="">Seleccionar...</option>
+              <option value="CALENTAMIENTO">Calentamiento</option>
+              <option value="TÉCNICA">Técnica</option>
+              <option value="TÁCTICA">Táctica</option>
+              <option value="FÍSICO">Físico</option>
+            </Select>
+            <Input
+              label="Duración (min)"
+              type="number"
+              value={newExercise.duration}
+              onChange={(e) => setNewExercise({ ...newExercise, duration: parseInt(e.target.value) || 0 })}
+              min="1"
+            />
+          </div>
+
+          <Select
+            label="Dificultad"
+            value={newExercise.difficulty}
+            onChange={(e) => setNewExercise({ ...newExercise, difficulty: e.target.value })}
+          >
+            <option value="">Seleccionar...</option>
+            <option value="FÁCIL">Fácil</option>
+            <option value="MEDIO">Medio</option>
+            <option value="DIFÍCIL">Difícil</option>
+          </Select>
+
+          <div className="border-t border-border-subtle pt-4 space-y-3">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setShowTacticalBoard(true)}
+              className="w-full"
+            >
+              🎨 {boardImage ? 'Editar dibujo en pizarra' : 'Dibujar en pizarra táctica'}
+            </Button>
+
+            {boardImage && (
+              <div className="mt-3">
+                <p className="text-xs text-text-muted mb-2">Vista previa:</p>
+                <div className="relative">
+                  <img
+                    src={boardImage}
+                    alt="Pizarra táctica"
+                    className="w-full rounded-lg border border-border-subtle"
                   />
                   <button
                     type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition"
+                    onClick={() => setBoardImage(null)}
+                    className="absolute top-2 right-2 bg-danger hover:bg-danger/80 text-white rounded-full w-8 h-8 flex items-center justify-center"
                   >
-                    📸 {uploadedImage ? 'Cambiar imagen' : 'Subir imagen desde dispositivo'}
+                    ✕
                   </button>
-
-                  {uploadedImage && (
-                    <div className="mt-3">
-                      <p className="text-xs text-gray-500 mb-2">Vista previa:</p>
-                      <div className="relative">
-                        <img
-                          src={uploadedImage}
-                          alt="Imagen subida"
-                          className="w-full rounded-lg border border-gray-200"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => setUploadedImage(null)}
-                          className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white rounded-full w-8 h-8 flex items-center justify-center"
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    </div>
-                  )}
                 </div>
+              </div>
+            )}
 
-                <div className="mt-4 border-t border-gray-200 pt-4">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    🔗 Añadir link a vídeo o recurso
-                  </label>
+            <div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileUpload}
+                className="hidden"
+              />
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full"
+              >
+                📸 {uploadedImage ? 'Cambiar imagen' : 'Subir imagen desde dispositivo'}
+              </Button>
 
-                  <div className="space-y-2">
-                    <input
-                      type="url"
-                      value={newLink.url}
-                      onChange={(e) => setNewLink({...newLink, url: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      placeholder="https://youtube.com/watch?v=..."
-                    />
-                    <input
-                      type="text"
-                      value={newLink.title}
-                      onChange={(e) => setNewLink({...newLink, title: e.target.value})}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                      placeholder="Título del link (opcional)"
+              {uploadedImage && (
+                <div className="mt-3">
+                  <p className="text-xs text-text-muted mb-2">Vista previa:</p>
+                  <div className="relative">
+                    <img
+                      src={uploadedImage}
+                      alt="Imagen subida"
+                      className="w-full rounded-lg border border-border-subtle"
                     />
                     <button
                       type="button"
-                      onClick={addLinkToExercise}
-                      className="w-full bg-orange-600 hover:bg-orange-700 text-white py-2 rounded-lg transition"
+                      onClick={() => setUploadedImage(null)}
+                      className="absolute top-2 right-2 bg-danger hover:bg-danger/80 text-white rounded-full w-8 h-8 flex items-center justify-center"
                     >
-                      ➕ Añadir link a la lista
+                      ✕
                     </button>
                   </div>
-
-                  {exerciseLinks.length > 0 && (
-                    <div className="mt-3 space-y-2">
-                      <p className="text-xs text-gray-500">Links añadidos:</p>
-                      {exerciseLinks.map((link, index) => (
-                        <div key={index} className="flex items-center gap-2 bg-orange-50 rounded-lg p-2">
-                          <span className="text-orange-600">🔗</span>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-800 truncate">{link.title}</p>
-                            <p className="text-xs text-gray-500 truncate">{link.url}</p>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => removeLinkFromExercise(index)}
-                            className="text-red-500 hover:text-red-700 p-1"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
                 </div>
+              )}
+            </div>
+
+            {/* Links */}
+            <div className="border-t border-border-subtle pt-4">
+              <label className="block text-sm font-medium text-text-secondary mb-2">
+                🔗 Añadir link a vídeo o recurso
+              </label>
+
+              <div className="space-y-2">
+                <Input
+                  type="url"
+                  value={newLink.url}
+                  onChange={(e) => setNewLink({ ...newLink, url: e.target.value })}
+                  placeholder="https://youtube.com/watch?v=..."
+                />
+                <Input
+                  type="text"
+                  value={newLink.title}
+                  onChange={(e) => setNewLink({ ...newLink, title: e.target.value })}
+                  placeholder="Título del link (opcional)"
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={addLinkToExercise}
+                  className="w-full"
+                >
+                  ➕ Añadir link a la lista
+                </Button>
               </div>
 
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowExerciseModal(false)}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 rounded-lg transition"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={addingExercise}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition disabled:opacity-50"
-                >
-                  {addingExercise ? 'Añadiendo...' : 'Añadir Ejercicio'}
-                </button>
-              </div>
-            </form>
+              {exerciseLinks.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  <p className="text-xs text-text-muted">Links añadidos:</p>
+                  {exerciseLinks.map((link, index) => (
+                    <div key={index} className="flex items-center gap-2 bg-warning/10 rounded-lg p-2">
+                      <span className="text-warning">🔗</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-text-primary truncate">{link.title}</p>
+                        <p className="text-xs text-text-muted truncate">{link.url}</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeLinkFromExercise(index)}
+                        className="text-danger hover:text-danger/80 p-1"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
+
+          <div className="flex gap-3 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setShowExerciseModal(false)}
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              disabled={addingExercise}
+              loading={addingExercise}
+              className="flex-1"
+            >
+              {addingExercise ? 'Añadiendo...' : 'Añadir Ejercicio'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* MODAL DE LA PIZARRA TÁCTICA */}
       {showTacticalBoard && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-[60]">
-          <div className="bg-white rounded-xl max-w-4xl w-full p-6 max-h-[90vh] overflow-auto">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[60]">
+          <div className="bg-surface border border-border-subtle rounded-xl max-w-4xl w-full p-6 max-h-[90vh] overflow-auto">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-gray-800">🎨 Pizarra Táctica</h3>
+              <h3 className="text-xl font-bold text-text-primary">🎨 Pizarra Táctica</h3>
               <button
                 onClick={() => setShowTacticalBoard(false)}
-                className="text-gray-500 hover:text-gray-700 text-2xl"
+                className="text-text-muted hover:text-text-primary text-2xl"
               >
                 ✕
               </button>
@@ -1566,13 +1528,13 @@ const updateAttendance = async (playerId: string, status: string) => {
 
       {/* MODAL DE LA PIZARRA TÁCTICA (EDICIÓN) */}
       {editingShowTacticalBoard && (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center p-4 z-[70]">
-          <div className="bg-white rounded-xl max-w-4xl w-full p-6 max-h-[90vh] overflow-auto">
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[70]">
+          <div className="bg-surface border border-border-subtle rounded-xl max-w-4xl w-full p-6 max-h-[90vh] overflow-auto">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-bold text-gray-800">🎨 Pizarra Táctica</h3>
+              <h3 className="text-xl font-bold text-text-primary">🎨 Pizarra Táctica</h3>
               <button
                 onClick={() => setEditingShowTacticalBoard(false)}
-                className="text-gray-500 hover:text-gray-700 text-2xl"
+                className="text-text-muted hover:text-text-primary text-2xl"
               >
                 ✕
               </button>
@@ -1589,35 +1551,39 @@ const updateAttendance = async (playerId: string, status: string) => {
           </div>
         </div>
       )}
+
       {/* MODAL ELIMINAR ENTRENAMIENTO */}
-{showDeleteModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-    <div className="bg-white rounded-xl max-w-md w-full p-6">
-      <h3 className="text-xl font-bold text-gray-800 mb-2">🗑️ Eliminar Entrenamiento</h3>
-      <p className="text-gray-600 mb-6">
-        ¿Seguro que quieres eliminar el entrenamiento <strong>"{session.title}"</strong>?
-        Se eliminarán también los ejercicios y las asistencias asociadas.
-        Esta acción no se puede deshacer.
-      </p>
-      <div className="flex gap-3">
-        <button
-          onClick={() => setShowDeleteModal(false)}
-          className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 rounded-lg transition"
-          disabled={deleting}
-        >
-          Cancelar
-        </button>
-        <button
-          onClick={handleDelete}
-          disabled={deleting}
-          className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg transition disabled:opacity-50"
-        >
-          {deleting ? 'Eliminando...' : 'Sí, eliminar'}
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="🗑️ Eliminar Entrenamiento"
+        size="sm"
+      >
+        <p className="text-text-secondary mb-6">
+          ¿Seguro que quieres eliminar el entrenamiento <strong className="text-text-primary">"{session.title}"</strong>?
+          Se eliminarán también los ejercicios y las asistencias asociadas.
+          Esta acción no se puede deshacer.
+        </p>
+        <div className="flex gap-3">
+          <Button
+            variant="secondary"
+            onClick={() => setShowDeleteModal(false)}
+            disabled={deleting}
+            className="flex-1"
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="danger"
+            onClick={handleDelete}
+            disabled={deleting}
+            loading={deleting}
+            className="flex-1"
+          >
+            {deleting ? 'Eliminando...' : 'Sí, eliminar'}
+          </Button>
+        </div>
+      </Modal>
     </div>
   )
 }

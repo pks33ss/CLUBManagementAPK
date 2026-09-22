@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
 import { getSportIcon } from '@/lib/sport'
+import { Logo } from '@/components/ui/Logo'
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -54,8 +55,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         : pathname === href || pathname.startsWith(href + '/')
     return `${base} ${
       isActive
-        ? 'text-blue-600 font-semibold'
-        : 'text-gray-600 hover:text-gray-900'
+        ? 'bg-brand-primary/10 text-brand-primary font-semibold'
+        : 'text-text-secondary hover:text-text-primary hover:bg-surface-elevated'
     }`
   }
 
@@ -80,18 +81,18 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-bg-base">
       {/* ============================================ */}
       {/* BARRA SUPERIOR                                */}
       {/* ============================================ */}
-      <nav className="bg-white shadow-sm border-b sticky top-0 z-30">
+      <nav className="bg-surface border-b border-border-subtle sticky top-0 z-30">
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 gap-4">
             {/* IZQUIERDA: hamburguesa + equipo activo */}
             <div className="flex items-center gap-3 min-w-0">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="p-2 rounded-lg hover:bg-gray-100 transition text-gray-700"
+                className="p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary"
                 title="Menú"
               >
                 <svg
@@ -115,7 +116,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                     <img
                       src={activeTeam.club.logo}
                       alt={activeTeam.club.name}
-                      className="w-8 h-8 rounded-lg object-cover border border-gray-200 shrink-0"
+                      className="w-8 h-8 rounded-lg object-cover border border-border-subtle shrink-0"
                     />
                   ) : (
                     <span className="text-xl shrink-0">
@@ -123,10 +124,10 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                     </span>
                   )}
                   <div className="hidden md:block min-w-0">
-                    <div className="text-xs text-gray-500 truncate">
+                    <div className="text-xs text-text-muted truncate">
                       {activeTeam.club?.name || 'Sin club'}
                     </div>
-                    <div className="text-sm font-semibold text-gray-800 truncate">
+                    <div className="text-sm font-semibold text-text-primary truncate">
                       {activeTeam.name}
                     </div>
                   </div>
@@ -134,57 +135,57 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
               )}
             </div>
 
-{/* CENTRO: secciones del equipo activo (solo desktop) */}
-{activeTeam && (
-  <div className="hidden lg:flex items-center gap-1 flex-1 justify-center overflow-x-auto">
-    <Link href="/home" className={linkClass('/home', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
-      🏠 Inicio
-    </Link>
-    <Link href="/sessions" className={linkClass('/sessions', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
-      🏋️ Entrenamientos
-    </Link>
-    <Link href="/matches" className={linkClass('/matches', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
-      🏆 Partidos
-    </Link>
-    <Link href="/calendar" className={linkClass('/calendar', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
-      📅 Calendario
-    </Link>
-    <Link href="/players" className={linkClass('/players', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
-      👥 Jugadores
-    </Link>
-    <Link href="/attendance/overview" className={linkClass('/attendance', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
-      📊 Asistencias
-    </Link>
-    <Link href="/seasons" className={linkClass('/seasons', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
-      📋 Planificación
-    </Link>
-  </div>
-)}
+            {/* CENTRO: secciones del equipo activo (solo desktop) */}
+            {activeTeam && (
+              <div className="hidden lg:flex items-center gap-1 flex-1 justify-center overflow-x-auto">
+                <Link href="/home" className={linkClass('/home', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
+                  🏠 Inicio
+                </Link>
+                <Link href="/sessions" className={linkClass('/sessions', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
+                  🏋️ Entrenamientos
+                </Link>
+                <Link href="/matches" className={linkClass('/matches', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
+                  🏆 Partidos
+                </Link>
+                <Link href="/calendar" className={linkClass('/calendar', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
+                  📅 Calendario
+                </Link>
+                <Link href="/players" className={linkClass('/players', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
+                  👥 Jugadores
+                </Link>
+                <Link href="/attendance/overview" className={linkClass('/attendance', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
+                  📊 Asistencias
+                </Link>
+                <Link href="/seasons" className={linkClass('/seasons', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
+                  📋 Planificación
+                </Link>
+              </div>
+            )}
 
             {/* DERECHA: usuario + rol + logout */}
             <div className="flex items-center gap-3 shrink-0">
               {currentUser && (
                 <Link
                   href="/profile"
-                  className="flex items-center gap-2 hover:bg-gray-50 rounded-lg p-2 transition"
+                  className="flex items-center gap-2 hover:bg-surface-elevated rounded-lg p-2 transition"
                   title="Perfil"
                 >
                   {currentUser.avatar ? (
                     <img
                       src={currentUser.avatar}
                       alt="Avatar"
-                      className="w-9 h-9 rounded-full object-cover border-2 border-blue-200"
+                      className="w-9 h-9 rounded-full object-cover border-2 border-brand-primary/30"
                     />
                   ) : (
-                    <div className="w-9 h-9 rounded-full bg-blue-600 text-white flex items-center justify-center font-bold text-sm border-2 border-blue-200">
+                    <div className="w-9 h-9 rounded-full bg-brand-primary text-bg-base flex items-center justify-center font-bold text-sm border-2 border-brand-primary/30">
                       {currentUser.name?.charAt(0)?.toUpperCase() || '?'}
                     </div>
                   )}
                   <div className="text-right hidden md:block">
-                    <p className="text-sm font-medium text-gray-800 leading-tight">
+                    <p className="text-sm font-medium text-text-primary leading-tight">
                       {currentUser.name} {currentUser.lastName}
                     </p>
-                    <p className="text-xs text-gray-500 leading-tight">
+                    <p className="text-xs text-text-muted leading-tight">
                       {currentUser.role === 'SUPER_ADMIN'
                         ? '👑 Super Admin'
                         : '👤 Usuario'}
@@ -195,7 +196,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
               <button
                 onClick={handleLogout}
-                className="bg-red-50 text-red-600 px-3 py-2 rounded-lg hover:bg-red-100 transition text-sm hidden md:block"
+                className="bg-danger/10 text-danger px-3 py-2 rounded-lg hover:bg-danger/20 transition text-sm hidden md:block"
               >
                 Salir
               </button>
@@ -203,11 +204,12 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </nav>
- {/* ============================================ */}
+
+      {/* ============================================ */}
       {/* BARRA DE SECCIONES (solo móvil)               */}
       {/* ============================================ */}
       {activeTeam && (
-        <div className="lg:hidden bg-white border-b border-gray-200 overflow-x-auto">
+        <div className="lg:hidden bg-surface border-b border-border-subtle overflow-x-auto">
           <div className="flex items-center gap-1 px-2 py-2">
             <Link
               href="/home"
@@ -290,21 +292,20 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         <>
           {/* Overlay */}
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-40"
+            className="fixed inset-0 bg-black/70 z-40"
             onClick={() => setSidebarOpen(false)}
           />
 
           {/* Sidebar */}
-          <div className="fixed top-0 left-0 h-full w-80 max-w-[85vw] bg-white shadow-2xl z-50 flex flex-col">
+          <div className="fixed top-0 left-0 h-full w-80 max-w-[85vw] bg-surface shadow-2xl z-50 flex flex-col border-r border-border-subtle">
             {/* Header */}
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">🏀</span>
-                <span className="font-bold text-lg text-gray-800">Training Pro</span>
-              </div>
+            <div className="p-4 border-b border-border-subtle flex items-center justify-between">
+<div className="flex items-center">
+  <Logo variant="mark" size="md" />
+</div>
               <button
                 onClick={() => setSidebarOpen(false)}
-                className="p-2 rounded-lg hover:bg-gray-100 transition text-gray-500"
+                className="p-2 rounded-lg hover:bg-surface-elevated transition text-text-muted hover:text-text-primary"
               >
                 <svg
                   className="w-5 h-5"
@@ -326,13 +327,13 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             <div className="flex-1 overflow-y-auto p-4 space-y-6">
               {/* ---- SECCIÓN FAVORITOS ---- */}
               <div>
-                <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2 px-1">
+                <h3 className="text-xs font-semibold text-text-muted uppercase mb-2 px-1">
                   ⭐ Mis equipos favoritos
                 </h3>
                 {loadingTeams ? (
-                  <p className="text-xs text-gray-400 px-1">Cargando...</p>
+                  <p className="text-xs text-text-muted px-1">Cargando...</p>
                 ) : favorites.length === 0 ? (
-                  <p className="text-xs text-gray-400 px-1">
+                  <p className="text-xs text-text-muted px-1">
                     No tienes equipos favoritos. Marca uno con la ⭐.
                   </p>
                 ) : (
@@ -341,10 +342,10 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                       <button
                         key={team.id}
                         onClick={() => handleTeamSelect(team)}
-                        className={`w-full flex items-center gap-2 p-2 rounded-lg transition text-left ${
+                        className={`w-full flex items-center gap-2 p-2 rounded-lg transition text-left border-2 ${
                           activeTeam?.id === team.id
-                            ? 'bg-blue-50 border-2 border-blue-300'
-                            : 'hover:bg-gray-50 border-2 border-transparent'
+                            ? 'bg-brand-primary/10 border-brand-primary/50'
+                            : 'hover:bg-surface-elevated border-transparent'
                         }`}
                       >
                         {team.club?.logo ? (
@@ -359,16 +360,16 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                           </span>
                         )}
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-800 truncate">
+                          <p className="text-sm font-medium text-text-primary truncate">
                             {team.name}
                           </p>
-                          <p className="text-xs text-gray-500 truncate">
+                          <p className="text-xs text-text-muted truncate">
                             {team.club?.name}
                           </p>
                         </div>
                         <span
                           onClick={(e) => handleToggleFavorite(e, team.id)}
-                          className="text-yellow-500 hover:text-yellow-600 text-lg cursor-pointer shrink-0"
+                          className="text-warning hover:text-warning/80 text-lg cursor-pointer shrink-0"
                           title="Quitar de favoritos"
                         >
                           ⭐
@@ -381,13 +382,13 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
               {/* ---- SECCIÓN TODOS LOS EQUIPOS ---- */}
               <div>
-                <h3 className="text-xs font-semibold text-gray-500 uppercase mb-2 px-1">
+                <h3 className="text-xs font-semibold text-text-muted uppercase mb-2 px-1">
                   👥 Todos mis equipos
                 </h3>
                 {loadingTeams ? (
-                  <p className="text-xs text-gray-400 px-1">Cargando...</p>
+                  <p className="text-xs text-text-muted px-1">Cargando...</p>
                 ) : allTeams.length === 0 ? (
-                  <p className="text-xs text-gray-400 px-1">
+                  <p className="text-xs text-text-muted px-1">
                     No tienes equipos todavía
                   </p>
                 ) : (
@@ -398,10 +399,10 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                         <button
                           key={team.id}
                           onClick={() => handleTeamSelect(team)}
-                          className={`w-full flex items-center gap-2 p-2 rounded-lg transition text-left ${
+                          className={`w-full flex items-center gap-2 p-2 rounded-lg transition text-left border-2 ${
                             activeTeam?.id === team.id
-                              ? 'bg-blue-50 border-2 border-blue-300'
-                              : 'hover:bg-gray-50 border-2 border-transparent'
+                              ? 'bg-brand-primary/10 border-brand-primary/50'
+                              : 'hover:bg-surface-elevated border-transparent'
                           }`}
                         >
                           {team.club?.logo ? (
@@ -416,10 +417,10 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                             </span>
                           )}
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-gray-800 truncate">
+                            <p className="text-sm font-medium text-text-primary truncate">
                               {team.name}
                             </p>
-                            <p className="text-xs text-gray-500 truncate">
+                            <p className="text-xs text-text-muted truncate">
                               {team.club?.name}
                             </p>
                           </div>
@@ -427,8 +428,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                             onClick={(e) => handleToggleFavorite(e, team.id)}
                             className={`text-lg cursor-pointer shrink-0 transition ${
                               fav
-                                ? 'text-yellow-500 hover:text-yellow-600'
-                                : 'text-gray-300 hover:text-yellow-400'
+                                ? 'text-warning hover:text-warning/80'
+                                : 'text-text-muted hover:text-warning'
                             }`}
                             title={fav ? 'Quitar de favoritos' : 'Añadir a favoritos'}
                           >
@@ -442,35 +443,35 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
 
-{/* Footer del sidebar */}
-<div className="p-4 border-t border-gray-200 space-y-1">
-  <Link
-    href="/dashboard"
-    onClick={() => setSidebarOpen(false)}
-    className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition text-gray-700"
-  >
-    <span className="text-lg">🏛️</span>
-    <span className="text-sm font-medium">Mis Clubs</span>
-  </Link>
-  <Link
-    href="/profile"
-    onClick={() => setSidebarOpen(false)}
-    className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-50 transition text-gray-700"
-  >
-    <span className="text-lg">⚙️</span>
-    <span className="text-sm font-medium">Configuración</span>
-  </Link>
-  <button
-    onClick={() => {
-      setSidebarOpen(false)
-      handleLogout()
-    }}
-    className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-red-50 transition text-red-600"
-  >
-    <span className="text-lg">🚪</span>
-    <span className="text-sm font-medium">Cerrar Sesión</span>
-  </button>
-</div>
+            {/* Footer del sidebar */}
+            <div className="p-4 border-t border-border-subtle space-y-1">
+              <Link
+                href="/dashboard"
+                onClick={() => setSidebarOpen(false)}
+                className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary"
+              >
+                <span className="text-lg">🏛️</span>
+                <span className="text-sm font-medium">Mis Clubs</span>
+              </Link>
+              <Link
+                href="/profile"
+                onClick={() => setSidebarOpen(false)}
+                className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary"
+              >
+                <span className="text-lg">⚙️</span>
+                <span className="text-sm font-medium">Configuración</span>
+              </Link>
+              <button
+                onClick={() => {
+                  setSidebarOpen(false)
+                  handleLogout()
+                }}
+                className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-danger/10 transition text-danger"
+              >
+                <span className="text-lg">🚪</span>
+                <span className="text-sm font-medium">Cerrar Sesión</span>
+              </button>
+            </div>
           </div>
         </>
       )}

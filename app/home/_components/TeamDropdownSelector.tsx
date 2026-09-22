@@ -26,7 +26,6 @@ export default function TeamDropdownSelector({ teams, currentTeamId, onChange }:
 
   if (!current) return null
 
-  // Agrupar por club
   const grouped = teams.reduce((acc: Record<string, Team[]>, team) => {
     const key = team.club?.name || 'Sin club'
     if (!acc[key]) acc[key] = []
@@ -38,7 +37,7 @@ export default function TeamDropdownSelector({ teams, currentTeamId, onChange }:
     <div className="relative">
       <button
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 bg-white border border-gray-200 rounded-lg px-3 py-2 hover:border-blue-300 transition shadow-sm"
+        className="flex items-center gap-2 bg-surface-elevated border border-border-subtle rounded-lg px-3 py-2 hover:border-brand-primary/50 transition"
       >
         {current.club?.logo ? (
           <img
@@ -50,15 +49,15 @@ export default function TeamDropdownSelector({ teams, currentTeamId, onChange }:
           <span className="text-base">{getSportIcon(current.sport)}</span>
         )}
         <div className="text-left min-w-0">
-          <div className="text-sm font-medium text-gray-800 truncate max-w-[150px]">
+          <div className="text-sm font-medium text-text-primary truncate max-w-[150px]">
             {current.name}
           </div>
-          <div className="text-xs text-gray-500 truncate max-w-[150px]">
+          <div className="text-xs text-text-muted truncate max-w-[150px]">
             {current.club?.name}
           </div>
         </div>
         <svg
-          className={`w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
+          className={`w-4 h-4 text-text-muted transition-transform ${open ? 'rotate-180' : ''}`}
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -75,10 +74,10 @@ export default function TeamDropdownSelector({ teams, currentTeamId, onChange }:
       {open && (
         <>
           <div className="fixed inset-0 z-10" onClick={() => setOpen(false)} />
-          <div className="absolute right-0 mt-2 w-72 bg-white border border-gray-200 rounded-lg shadow-lg z-20 max-h-96 overflow-y-auto">
+          <div className="absolute right-0 mt-2 w-72 bg-surface border border-border-subtle rounded-lg shadow-lg z-20 max-h-96 overflow-y-auto">
             {Object.entries(grouped).map(([clubName, clubTeams]) => (
               <div key={clubName}>
-                <div className="px-4 py-1.5 bg-gray-50 text-xs font-semibold text-gray-500 uppercase sticky top-0">
+                <div className="px-4 py-1.5 bg-surface-elevated text-xs font-semibold text-text-muted uppercase sticky top-0">
                   {clubName}
                 </div>
                 {clubTeams.map((team) => (
@@ -88,8 +87,8 @@ export default function TeamDropdownSelector({ teams, currentTeamId, onChange }:
                       onChange(team)
                       setOpen(false)
                     }}
-                    className={`w-full text-left px-4 py-2.5 hover:bg-blue-50 transition flex items-center gap-2 ${
-                      team.id === currentTeamId ? 'bg-blue-50' : ''
+                    className={`w-full text-left px-4 py-2.5 hover:bg-surface-elevated transition flex items-center gap-2 ${
+                      team.id === currentTeamId ? 'bg-brand-primary/10' : ''
                     }`}
                   >
                     {team.club?.logo ? (
@@ -104,12 +103,12 @@ export default function TeamDropdownSelector({ teams, currentTeamId, onChange }:
                       </span>
                     )}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-800 truncate">
+                      <p className="text-sm font-medium text-text-primary truncate">
                         {team.name}
                       </p>
                     </div>
                     {team.id === currentTeamId && (
-                      <span className="text-blue-600 text-sm shrink-0">✓</span>
+                      <span className="text-brand-primary text-sm shrink-0">✓</span>
                     )}
                   </button>
                 ))}

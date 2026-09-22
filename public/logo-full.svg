@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 350" fill="none">
+  <!-- Letra F -->
+  <path d="M75 75 h130 v30 h-100 v40 h90 v30 h-90 v90 h-30 z" fill="#FFFFFF"/>
+  
+  <!-- Letra P -->
+  <path d="M225 75 v220 h30 v-90 h35 c40 0 65 -25 65 -65 s-25 -65 -65 -65 z M255 105 h35 c22 0 35 8 35 35 s-13 35 -35 35 h-35 z" fill="#FFFFFF"/>
+  
+  <!-- Rayo (color dinámico) -->
+  <path d="M395 30 L345 130 L385 130 L335 250 L425 115 L385 115 Z" fill="var(--brand-primary, #00E676)"/>
+  
+  <!-- Letra M -->
+  <path d="M445 75 v220 h30 v-160 l45 100 l45 -100 v160 h30 v-220 h-30 l-45 100 l-45 -100 z" fill="#FFFFFF"/>
+  
+  <!-- Texto SPORTS -->
+  <text x="300" y="325" text-anchor="middle" font-family="Inter, -apple-system, system-ui, sans-serif" font-weight="900" font-size="48" letter-spacing="10" fill="#FFFFFF">SPORTS</text>
+</svg>

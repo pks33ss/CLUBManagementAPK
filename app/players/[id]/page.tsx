@@ -71,14 +71,14 @@ export default function PlayerDetailPage() {
   }, [playerId])
 
   if (loading) {
-    return <div className="text-center py-12 text-gray-500">Cargando ficha del jugador...</div>
+    return <div className="text-center py-12 text-text-muted">Cargando ficha del jugador...</div>
   }
 
   if (error || !player) {
     return (
       <div className="text-center py-12">
-        <p className="text-red-500 mb-4">{error || 'Jugador no encontrado'}</p>
-        <Link href="/players" className="text-blue-600 hover:underline">
+        <p className="text-danger mb-4">{error || 'Jugador no encontrado'}</p>
+        <Link href="/players" className="text-brand-primary hover:underline">
           ← Volver a jugadores
         </Link>
       </div>
@@ -95,14 +95,14 @@ export default function PlayerDetailPage() {
 
   return (
     <div>
-      <Link href="/players" className="text-blue-600 hover:underline inline-block mb-6">
+      <Link href="/players" className="text-brand-primary hover:underline inline-block mb-6">
         ← Volver a jugadores
       </Link>
 
       <PlayerHeader player={player} />
 
       {/* Tabs */}
-      <div className="border-b border-gray-200 mb-6">
+      <div className="border-b border-border-subtle mb-6">
         <div className="flex gap-1 overflow-x-auto">
           {tabs.map((tab) => (
             <button
@@ -110,8 +110,8 @@ export default function PlayerDetailPage() {
               onClick={() => setActiveTab(tab.id)}
               className={`px-4 py-3 text-sm font-medium transition whitespace-nowrap border-b-2 -mb-px ${
                 activeTab === tab.id
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-brand-primary text-brand-primary'
+                  : 'border-transparent text-text-muted hover:text-text-primary hover:border-border-subtle'
               }`}
             >
               {tab.icon} {tab.label}
@@ -122,7 +122,7 @@ export default function PlayerDetailPage() {
 
       {/* Contenido */}
       <div>
-        {activeTab === 'stats' && <PlayerStatsTab playerId={player.id} />}
+        {activeTab === 'stats' && <PlayerStatsTab playerId={player.id} sport={player.team?.sport} />}
         {activeTab === 'matches' && <PlayerMatchesTab playerId={player.id} />}
         {activeTab === 'attendance' && <PlayerAttendanceTab playerId={player.id} />}
         {activeTab === 'info' && (

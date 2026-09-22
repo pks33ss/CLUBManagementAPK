@@ -11,7 +11,7 @@ export default function ClubsPage() {
   }, [router])
 
   return (
-    <div className="text-center py-12 text-gray-500">
+    <div className="text-center py-12 text-text-muted">
       Redirigiendo a Mis Clubs...
     </div>
   )

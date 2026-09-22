@@ -88,18 +88,18 @@ export default function SessionsPage() {
   // ============================================
 
   if (loadingTeams || loading) {
-    return <div className="text-center py-12 text-gray-500">Cargando sesiones...</div>
+    return <div className="text-center py-12 text-text-muted">Cargando sesiones...</div>
   }
 
   // Sin equipo activo
   if (!activeTeam) {
     return (
-      <div className="text-center py-16 bg-white rounded-xl shadow">
+      <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
         <div className="text-6xl mb-4">📋</div>
-        <h3 className="text-xl font-semibold text-gray-700 mb-2">
+        <h3 className="text-xl font-semibold text-text-primary mb-2">
           Selecciona un equipo
         </h3>
-        <p className="text-gray-500 mb-6">
+        <p className="text-text-secondary mb-6">
           Elige un equipo desde el menú superior para ver sus entrenamientos
         </p>
       </div>
@@ -111,16 +111,16 @@ export default function SessionsPage() {
       {/* Header */}
       <div className="flex justify-between items-center mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">
+          <h1 className="text-2xl font-bold text-text-primary">
             📋 Entrenamientos · {sport.icon}
           </h1>
-          <p className="text-gray-500">
+          <p className="text-text-secondary">
             {activeTeam.name} · {activeTeam.club?.name}
           </p>
         </div>
         <Link
           href="/sessions/new"
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition"
+          className="bg-brand-primary hover:bg-brand-primary-dark text-bg-base px-4 py-2 rounded-lg flex items-center gap-2 transition font-medium"
         >
           <span className="text-xl">+</span> Nueva Sesión
         </Link>
@@ -128,14 +128,14 @@ export default function SessionsPage() {
 
       {/* Lista de sesiones */}
       {sessions.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl shadow">
+        <div className="text-center py-12 bg-surface rounded-xl shadow border border-border-subtle">
           <div className="text-4xl mb-4">📋</div>
-          <p className="text-gray-500">
+          <p className="text-text-secondary">
             No hay sesiones programadas para este {sport.teamName.toLowerCase()}
           </p>
           <Link
             href="/sessions/new"
-            className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition inline-block"
+            className="mt-4 bg-brand-primary text-bg-base px-6 py-2 rounded-lg hover:bg-brand-primary-dark transition inline-block font-medium"
           >
             Crear Primera Sesión
           </Link>
@@ -149,26 +149,26 @@ export default function SessionsPage() {
               <Link
                 key={session.id}
                 href={`/sessions/${session.id}`}
-                className="bg-white rounded-xl shadow-md hover:shadow-lg transition p-6 border border-gray-100 hover:border-blue-200"
+                className="bg-surface rounded-xl shadow-md hover:shadow-lg transition p-6 border border-border-subtle hover:border-brand-primary/50"
               >
                 <div>
                   <div className="flex items-center gap-2 mb-1">
                     <span className="text-xl">{sessionSport.icon}</span>
-                    <h3 className="text-lg font-semibold text-gray-800">
+                    <h3 className="text-lg font-semibold text-text-primary">
                       {session.title}
                     </h3>
                   </div>
-                  <p className="text-sm text-gray-500 mt-1">
+                  <p className="text-sm text-text-secondary mt-1">
                     {formatDate(session.date)}
                   </p>
-                  <p className="text-sm text-gray-500">
+                  <p className="text-sm text-text-secondary">
                     ⏱️ {session.duration} min
                   </p>
                   {session.location && (
-                    <p className="text-sm text-gray-400">📍 {session.location}</p>
+                    <p className="text-sm text-text-muted">📍 {session.location}</p>
                   )}
                   <div className="flex gap-2 mt-3 flex-wrap">
-                    <span className="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-full">
+                    <span className="bg-brand-primary/10 text-brand-primary text-xs px-2 py-1 rounded-full font-medium">
                       🏋️ {session.exercises?.length || 0} ejercicios
                     </span>
                     <span

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import api from '@/lib/api'
+import { Button, Card, CardBody, Badge, Input, Select, Modal } from '@/components/ui'
 import type { PlayerDetail } from '../page'
 
 interface Props {
@@ -90,157 +91,155 @@ export default function PlayerTutorsTab({ player, onUpdate }: Props) {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-md p-6">
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold text-gray-800">
-          👨‍👩‍👧 Tutores ({player.tutors?.length || 0})
-        </h2>
-        <button
-          onClick={openAddTutorModal}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition text-sm"
-        >
-          <span className="text-xl">+</span> Añadir Tutor
-        </button>
-      </div>
+    <Card>
+      <CardBody>
+        <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
+          <h2 className="text-xl font-semibold text-text-primary">
+            👨‍👩‍👧 Tutores ({player.tutors?.length || 0})
+          </h2>
+          <Button
+            onClick={openAddTutorModal}
+            icon={<span className="text-xl">+</span>}
+            size="sm"
+          >
+            Añadir Tutor
+          </Button>
+        </div>
 
-      {!player.tutors || player.tutors.length === 0 ? (
-        <p className="text-gray-500 text-center py-8">
-          No hay tutores registrados para este jugador
-        </p>
-      ) : (
-        <div className="space-y-3">
-          {player.tutors.map((tutor: any) => (
-            <div key={tutor.id} className="bg-gray-50 rounded-lg p-4 border border-gray-100 hover:border-blue-200 transition">
-              <div className="flex justify-between items-start gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-medium text-gray-800">{tutor.name} {tutor.lastName}</p>
-                    {tutor.isEmergencyContact && (
-                      <span className="bg-red-100 text-red-700 text-xs px-2 py-0.5 rounded-full">🚨 Emergencia</span>
-                    )}
-                    {tutor.canPickUp && (
-                      <span className="bg-green-100 text-green-700 text-xs px-2 py-0.5 rounded-full">✅ Puede recoger</span>
-                    )}
+        {!player.tutors || player.tutors.length === 0 ? (
+          <p className="text-text-muted text-center py-8">
+            No hay tutores registrados para este jugador
+          </p>
+        ) : (
+          <div className="space-y-3">
+            {player.tutors.map((tutor: any) => (
+              <div key={tutor.id} className="bg-surface-elevated rounded-lg p-4 border border-border-subtle hover:border-brand-primary/50 transition">
+                <div className="flex justify-between items-start gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-medium text-text-primary">{tutor.name} {tutor.lastName}</p>
+                      {tutor.isEmergencyContact && (
+                        <Badge variant="danger">🚨 Emergencia</Badge>
+                      )}
+                      {tutor.canPickUp && (
+                        <Badge variant="success">✅ Puede recoger</Badge>
+                      )}
+                    </div>
+                    <p className="text-sm text-text-secondary mt-1">{getRelationshipText(tutor.relationship)}</p>
+                    <div className="flex flex-wrap gap-4 mt-2 text-sm text-text-secondary">
+                      {tutor.phone && <span>📞 {tutor.phone}</span>}
+                      {tutor.email && <span>✉️ {tutor.email}</span>}
+                      {tutor.userId && <span className="text-brand-primary">👤 Tiene cuenta</span>}
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-500 mt-1">{getRelationshipText(tutor.relationship)}</p>
-                  <div className="flex flex-wrap gap-4 mt-2 text-sm text-gray-600">
-                    {tutor.phone && <span>📞 {tutor.phone}</span>}
-                    {tutor.email && <span>✉️ {tutor.email}</span>}
-                    {tutor.userId && <span className="text-blue-600">👤 Tiene cuenta</span>}
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => openEditTutorModal(tutor)}
+                      className="p-2 rounded text-brand-primary hover:text-brand-primary-light hover:bg-brand-primary/10 transition"
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      onClick={() => deleteTutor(tutor.id, `${tutor.name} ${tutor.lastName}`)}
+                      className="p-2 rounded text-danger/70 hover:text-danger hover:bg-danger/10 transition"
+                    >
+                      🗑️
+                    </button>
                   </div>
-                </div>
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => openEditTutorModal(tutor)}
-                    className="p-2 rounded text-blue-500 hover:text-blue-700 hover:bg-blue-50 transition"
-                  >
-                    ✏️
-                  </button>
-                  <button
-                    onClick={() => deleteTutor(tutor.id, `${tutor.name} ${tutor.lastName}`)}
-                    className="p-2 rounded text-red-400 hover:text-red-600 hover:bg-red-50 transition"
-                  >
-                    🗑️
-                  </button>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </CardBody>
 
       {/* Modal tutor */}
-      {showTutorModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6 max-h-[90vh] overflow-auto">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">
-              {editingTutor ? '✏️ Editar Tutor' : '➕ Añadir Tutor'}
-            </h3>
-            <form onSubmit={saveTutor} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <input
-                  type="text"
-                  value={newTutor.name}
-                  onChange={(e) => setNewTutor({ ...newTutor, name: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg"
-                  placeholder="Nombre *"
-                  required
-                />
-                <input
-                  type="text"
-                  value={newTutor.lastName}
-                  onChange={(e) => setNewTutor({ ...newTutor, lastName: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg"
-                  placeholder="Apellido *"
-                  required
-                />
-              </div>
-              <select
-                value={newTutor.relationship}
-                onChange={(e) => setNewTutor({ ...newTutor, relationship: e.target.value })}
-                className="w-full border rounded-lg px-4 py-2"
-                required
-              >
-                <option value="padre">👨 Padre</option>
-                <option value="madre">👩 Madre</option>
-                <option value="tutor_legal">⚖️ Tutor legal</option>
-                <option value="otro">👤 Otro</option>
-              </select>
-              <input
-                type="tel"
-                value={newTutor.phone}
-                onChange={(e) => setNewTutor({ ...newTutor, phone: e.target.value })}
-                className="w-full px-4 py-2 border rounded-lg"
-                placeholder="Teléfono"
-              />
-              <input
-                type="email"
-                value={newTutor.email}
-                onChange={(e) => setNewTutor({ ...newTutor, email: e.target.value })}
-                className="w-full px-4 py-2 border rounded-lg"
-                placeholder="Email"
-              />
-              <div className="flex flex-col gap-2">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={newTutor.canPickUp}
-                    onChange={(e) => setNewTutor({ ...newTutor, canPickUp: e.target.checked })}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm">✅ Puede recoger al jugador</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={newTutor.isEmergencyContact}
-                    onChange={(e) => setNewTutor({ ...newTutor, isEmergencyContact: e.target.checked })}
-                    className="w-4 h-4"
-                  />
-                  <span className="text-sm">🚨 Contacto de emergencia</span>
-                </label>
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowTutorModal(false)}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 py-2 rounded-lg"
-                  disabled={savingTutor}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingTutor}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg disabled:opacity-50"
-                >
-                  {savingTutor ? 'Guardando...' : editingTutor ? 'Guardar' : 'Añadir'}
-                </button>
-              </div>
-            </form>
+      <Modal
+        isOpen={showTutorModal}
+        onClose={() => setShowTutorModal(false)}
+        title={editingTutor ? '✏️ Editar Tutor' : '➕ Añadir Tutor'}
+        size="md"
+      >
+        <form onSubmit={saveTutor} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <Input
+              type="text"
+              value={newTutor.name}
+              onChange={(e) => setNewTutor({ ...newTutor, name: e.target.value })}
+              placeholder="Nombre *"
+              required
+            />
+            <Input
+              type="text"
+              value={newTutor.lastName}
+              onChange={(e) => setNewTutor({ ...newTutor, lastName: e.target.value })}
+              placeholder="Apellido *"
+              required
+            />
           </div>
-        </div>
-      )}
-    </div>
+          <Select
+            value={newTutor.relationship}
+            onChange={(e) => setNewTutor({ ...newTutor, relationship: e.target.value })}
+            required
+          >
+            <option value="padre">👨 Padre</option>
+            <option value="madre">👩 Madre</option>
+            <option value="tutor_legal">⚖️ Tutor legal</option>
+            <option value="otro">👤 Otro</option>
+          </Select>
+          <Input
+            type="tel"
+            value={newTutor.phone}
+            onChange={(e) => setNewTutor({ ...newTutor, phone: e.target.value })}
+            placeholder="Teléfono"
+          />
+          <Input
+            type="email"
+            value={newTutor.email}
+            onChange={(e) => setNewTutor({ ...newTutor, email: e.target.value })}
+            placeholder="Email"
+          />
+          <div className="flex flex-col gap-2">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={newTutor.canPickUp}
+                onChange={(e) => setNewTutor({ ...newTutor, canPickUp: e.target.checked })}
+                className="w-4 h-4 accent-brand-primary"
+              />
+              <span className="text-sm text-text-secondary">✅ Puede recoger al jugador</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={newTutor.isEmergencyContact}
+                onChange={(e) => setNewTutor({ ...newTutor, isEmergencyContact: e.target.checked })}
+                className="w-4 h-4 accent-brand-primary"
+              />
+              <span className="text-sm text-text-secondary">🚨 Contacto de emergencia</span>
+            </label>
+          </div>
+          <div className="flex gap-3 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setShowTutorModal(false)}
+              disabled={savingTutor}
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              disabled={savingTutor}
+              loading={savingTutor}
+              className="flex-1"
+            >
+              {savingTutor ? 'Guardando...' : editingTutor ? 'Guardar' : 'Añadir'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+    </Card>
   )
 }

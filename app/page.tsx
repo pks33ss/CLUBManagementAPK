@@ -13,11 +13,11 @@ export default function Home() {
     } else {
       router.push('/login')
     }
-  }, [])
+  }, [router])
 
   return (
     <div className="min-h-screen flex items-center justify-center">
-      <div className="text-lg text-gray-600">Cargando...</div>
+      <div className="text-lg text-text-muted">Cargando...</div>
     </div>
   )
 }

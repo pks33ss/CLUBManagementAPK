@@ -6,6 +6,7 @@ import Link from 'next/link'
 import api from '@/lib/api'
 import { getSportIcon } from '@/lib/sport'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
+import { Button, Card, CardBody, Badge, Input, Textarea, Select, Modal } from '@/components/ui'
 
 // ============================================
 // TIPOS
@@ -33,32 +34,30 @@ type ViewMode = 'month' | 'list'
 
 // ============================================
 // CONFIGURACIÓN DE COLORES POR TIPO
+// ✅ Ahora usa las variables de la nueva paleta
 // ============================================
 
 const EVENT_STYLES = {
   SESSION: {
     label: 'Entrenamiento',
     icon: '🏋️',
-    bg: 'bg-blue-100',
-    text: 'text-blue-800',
-    border: 'border-blue-400',
-    dot: 'bg-blue-500',
+    bg: 'bg-info/10',
+    text: 'text-info',
+    dot: 'bg-info',
   },
   MATCH: {
     label: 'Partido',
     icon: '🏆',
-    bg: 'bg-orange-100',
-    text: 'text-orange-800',
-    border: 'border-orange-400',
-    dot: 'bg-orange-500',
+    bg: 'bg-warning/10',
+    text: 'text-warning',
+    dot: 'bg-warning',
   },
   EVENT: {
     label: 'Evento',
     icon: '📌',
-    bg: 'bg-purple-100',
-    text: 'text-purple-800',
-    border: 'border-purple-400',
-    dot: 'bg-purple-500',
+    bg: 'bg-brand-primary/10',
+    text: 'text-brand-primary',
+    dot: 'bg-brand-primary',
   },
 } as const
 
@@ -103,24 +102,19 @@ export default function CalendarPage() {
   const router = useRouter()
   const { activeTeam, allTeams, loading: loadingTeams } = useActiveTeam()
 
-  // Multi-selector de equipos
   const [selectedTeams, setSelectedTeams] = useState<string[]>([])
   const [showTeamSelector, setShowTeamSelector] = useState(false)
 
-  // Filtros por tipo
   const [showSessions, setShowSessions] = useState(true)
   const [showMatches, setShowMatches] = useState(true)
   const [showEvents, setShowEvents] = useState(true)
 
-  // Datos
   const [events, setEvents] = useState<CalendarEventItem[]>([])
   const [loadingEvents, setLoadingEvents] = useState(false)
 
-  // Vista
   const [viewMode, setViewMode] = useState<ViewMode>('month')
   const [currentMonth, setCurrentMonth] = useState(new Date())
 
-  // Modal crear evento
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState({
     title: '',
@@ -134,7 +128,6 @@ export default function CalendarPage() {
   })
   const [saving, setSaving] = useState(false)
 
-  // Equipos del club del activeTeam
   const clubTeams = activeTeam
     ? allTeams.filter((t) => t.club?.id === activeTeam.club?.id)
     : []
@@ -143,7 +136,6 @@ export default function CalendarPage() {
   // EFECTOS
   // ============================================
 
-  // Guard de login
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token) {
@@ -151,7 +143,6 @@ export default function CalendarPage() {
     }
   }, [router])
 
-  // Resetear selección cuando cambia el activeTeam
   useEffect(() => {
     if (activeTeam) {
       setSelectedTeams([activeTeam.id])
@@ -161,7 +152,6 @@ export default function CalendarPage() {
     }
   }, [activeTeam])
 
-  // Cargar eventos cuando cambian la selección o el mes
   useEffect(() => {
     if (selectedTeams.length === 0) {
       setEvents([])
@@ -170,7 +160,6 @@ export default function CalendarPage() {
     fetchEvents()
   }, [selectedTeams, currentMonth])
 
-  // Cerrar dropdown al hacer click fuera
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement
@@ -335,7 +324,6 @@ export default function CalendarPage() {
 
   const todayKey = toDateKey(new Date())
 
-  // ¿Hay varios equipos seleccionados? → para mostrar teamName en los eventos
   const showTeamBadge = selectedTeams.length > 1
 
   // ============================================
@@ -343,18 +331,17 @@ export default function CalendarPage() {
   // ============================================
 
   if (loadingTeams) {
-    return <div className="text-center py-12 text-gray-500">Cargando calendario...</div>
+    return <div className="text-center py-12 text-text-muted">Cargando calendario...</div>
   }
 
-  // Sin equipo activo
   if (!activeTeam) {
     return (
-      <div className="text-center py-16 bg-white rounded-xl shadow">
+      <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
         <div className="text-6xl mb-4">📅</div>
-        <h3 className="text-xl font-semibold text-gray-700 mb-2">
+        <h3 className="text-xl font-semibold text-text-primary mb-2">
           Selecciona un equipo
         </h3>
-        <p className="text-gray-500 mb-6">
+        <p className="text-text-secondary mb-6">
           Elige un equipo desde el menú superior para ver su calendario
         </p>
       </div>
@@ -366,76 +353,73 @@ export default function CalendarPage() {
       {/* Header */}
       <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">📅 Calendario</h1>
-          <p className="text-gray-500">
+          <h1 className="text-2xl font-bold text-text-primary">📅 Calendario</h1>
+          <p className="text-text-secondary">
             {activeTeam.name} · {activeTeam.club?.name}
           </p>
         </div>
-        <button
-          onClick={() => openCreateModal()}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition"
-        >
-          <span className="text-xl">+</span> Nuevo Evento
-        </button>
+        <Button onClick={() => openCreateModal()} icon={<span className="text-xl">+</span>}>
+          Nuevo Evento
+        </Button>
       </div>
 
       {/* Multi-selector de equipos */}
       <div className="team-selector-container relative mb-4 max-w-md">
-        <label className="block text-sm font-medium text-gray-700 mb-1">
+        <label className="block text-sm font-medium text-text-secondary mb-1">
           Equipos del club
         </label>
         <button
           type="button"
           onClick={() => setShowTeamSelector(!showTeamSelector)}
-          className="w-full border rounded-lg px-4 py-2 text-left flex justify-between items-center hover:bg-gray-50 transition"
+          className="w-full bg-surface-elevated border border-border-subtle rounded-lg px-4 py-2 text-left flex justify-between items-center hover:border-brand-primary/50 transition"
         >
-          <span className={selectedTeams.length === 0 ? 'text-gray-400' : 'text-gray-800'}>
+          <span className={selectedTeams.length === 0 ? 'text-text-muted' : 'text-text-primary'}>
             {getSelectedTeamsText()}
           </span>
-          <span className="text-gray-400">▼</span>
+          <span className="text-text-muted">▼</span>
         </button>
 
         {showTeamSelector && (
-          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-80 overflow-auto">
-            <div className="p-2 border-b border-gray-100 flex gap-2">
+          <div className="absolute z-10 w-full mt-1 bg-surface border border-border-subtle rounded-lg shadow-lg max-h-80 overflow-auto">
+            <div className="p-2 border-b border-border-subtle flex gap-2">
               <button
                 type="button"
                 onClick={selectAllTeams}
-                className="flex-1 text-xs bg-blue-50 text-blue-600 hover:bg-blue-100 py-1.5 rounded transition"
+                className="flex-1 text-xs bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 py-1.5 rounded transition"
               >
                 ✓ Todos
               </button>
               <button
                 type="button"
                 onClick={deselectAllTeams}
-                className="flex-1 text-xs bg-gray-50 text-gray-600 hover:bg-gray-100 py-1.5 rounded transition"
+                className="flex-1 text-xs bg-surface-elevated text-text-secondary hover:bg-border-subtle py-1.5 rounded transition"
               >
                 ✕ Ninguno
               </button>
             </div>
 
             {clubTeams.length === 0 ? (
-              <div className="p-4 text-sm text-gray-500 text-center">
+              <div className="p-4 text-sm text-text-muted text-center">
                 No hay equipos en este club
               </div>
             ) : (
               clubTeams.map((team) => (
                 <label
                   key={team.id}
-                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 cursor-pointer transition"
+                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-surface-elevated cursor-pointer transition"
                 >
                   <input
                     type="checkbox"
                     checked={selectedTeams.includes(team.id)}
                     onChange={() => toggleTeam(team.id)}
-                    className="w-4 h-4"
+                    className="w-4 h-4 accent-brand-primary"
                   />
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-gray-800 flex items-center gap-1">
+                    <p className="text-sm font-medium text-text-primary flex items-center gap-1">
                       <span>{getSportIcon(team.sport)}</span>
                       <span>{team.name}</span>
                     </p>
-                    <p className="text-xs text-gray-500">
+                    <p className="text-xs text-text-muted">
                       {team.category || 'Sin categoría'}
                     </p>
                   </div>
@@ -447,68 +431,64 @@ export default function CalendarPage() {
       </div>
 
       {/* Barra de vista + filtros por tipo */}
-      <div className="bg-white rounded-xl shadow-md p-4 mb-4 flex flex-wrap items-center gap-4">
-        {/* Toggle vista */}
-        <div className="flex gap-1">
-          <button
-            onClick={() => setViewMode('month')}
-            className={`px-3 py-1.5 rounded-lg text-sm transition ${
-              viewMode === 'month'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-            }`}
-          >
-            📅 Mes
-          </button>
-          <button
-            onClick={() => setViewMode('list')}
-            className={`px-3 py-1.5 rounded-lg text-sm transition ${
-              viewMode === 'list'
-                ? 'bg-blue-600 text-white'
-                : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-            }`}
-          >
-            📋 Lista
-          </button>
-        </div>
+      <Card className="mb-4">
+        <div className="p-4 flex flex-wrap items-center gap-4">
+          {/* Toggle vista */}
+          <div className="flex gap-1">
+            <Button
+              variant={viewMode === 'month' ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => setViewMode('month')}
+            >
+              📅 Mes
+            </Button>
+            <Button
+              variant={viewMode === 'list' ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => setViewMode('list')}
+            >
+              📋 Lista
+            </Button>
+          </div>
 
-        {/* Filtros por tipo */}
-        <div className="flex flex-wrap gap-2">
-          <button
-            onClick={() => setShowSessions(!showSessions)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition border-2 ${
-              showSessions
-                ? 'bg-blue-50 border-blue-400 text-blue-800'
-                : 'bg-white border-gray-200 text-gray-400 line-through'
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-blue-500"></span>
-            Entrenamientos
-          </button>
-          <button
-            onClick={() => setShowMatches(!showMatches)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition border-2 ${
-              showMatches
-                ? 'bg-orange-50 border-orange-400 text-orange-800'
-                : 'bg-white border-gray-200 text-gray-400 line-through'
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-orange-500"></span>
-            Partidos
-          </button>
-          <button
-            onClick={() => setShowEvents(!showEvents)}
-            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition border-2 ${
-              showEvents
-                ? 'bg-purple-50 border-purple-400 text-purple-800'
-                : 'bg-white border-gray-200 text-gray-400 line-through'
-            }`}
-          >
-            <span className="w-2 h-2 rounded-full bg-purple-500"></span>
-            Eventos
-          </button>
+          {/* Filtros por tipo */}
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={() => setShowSessions(!showSessions)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition border-2 ${
+                showSessions
+                  ? 'bg-info/10 border-info/50 text-info'
+                  : 'bg-surface-elevated border-border-subtle text-text-muted line-through'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full bg-info"></span>
+              Entrenamientos
+            </button>
+            <button
+              onClick={() => setShowMatches(!showMatches)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition border-2 ${
+                showMatches
+                  ? 'bg-warning/10 border-warning/50 text-warning'
+                  : 'bg-surface-elevated border-border-subtle text-text-muted line-through'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full bg-warning"></span>
+              Partidos
+            </button>
+            <button
+              onClick={() => setShowEvents(!showEvents)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition border-2 ${
+                showEvents
+                  ? 'bg-brand-primary/10 border-brand-primary/50 text-brand-primary'
+                  : 'bg-surface-elevated border-border-subtle text-text-muted line-through'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full bg-brand-primary"></span>
+              Eventos
+            </button>
+          </div>
         </div>
-      </div>
+      </Card>
 
       {/* Vista */}
       {viewMode === 'month' ? (
@@ -537,126 +517,102 @@ export default function CalendarPage() {
       )}
 
       {/* Modal crear evento */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6 max-h-[90vh] overflow-auto">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">📌 Nuevo Evento</h3>
-            <p className="text-xs text-gray-500 mb-3">
-              Se creará en: <strong>{activeTeam.name}</strong>
-            </p>
-            <form onSubmit={createEvent} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Título *</label>
-                <input
-                  type="text"
-                  value={form.title}
-                  onChange={(e) => setForm({ ...form, title: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  required
-                  placeholder="Ej: Reunión de padres"
-                />
-              </div>
+      <Modal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        title="📌 Nuevo Evento"
+        size="md"
+      >
+        <p className="text-xs text-text-muted mb-4">
+          Se creará en: <strong className="text-text-primary">{activeTeam.name}</strong>
+        </p>
+        <form onSubmit={createEvent} className="space-y-4">
+          <Input
+            label="Título *"
+            value={form.title}
+            onChange={(e) => setForm({ ...form, title: e.target.value })}
+            required
+            placeholder="Ej: Reunión de padres"
+          />
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Descripción</label>
-                <textarea
-                  value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  rows={2}
-                />
-              </div>
+          <Textarea
+            label="Descripción"
+            value={form.description}
+            onChange={(e) => setForm({ ...form, description: e.target.value })}
+            rows={2}
+          />
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Fecha inicio *</label>
-                  <input
-                    type="date"
-                    value={form.startDate}
-                    onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Hora inicio *</label>
-                  <input
-                    type="time"
-                    value={form.startTime}
-                    onChange={(e) => setForm({ ...form, startTime: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Fecha fin *</label>
-                  <input
-                    type="date"
-                    value={form.endDate}
-                    onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Hora fin *</label>
-                  <input
-                    type="time"
-                    value={form.endTime}
-                    onChange={(e) => setForm({ ...form, endTime: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-                <select
-                  value={form.type}
-                  onChange={(e) => setForm({ ...form, type: e.target.value })}
-                  className="w-full border rounded-lg px-4 py-2"
-                >
-                  <option value="TRAINING">🏋️ Entrenamiento</option>
-                  <option value="MATCH">🏆 Partido</option>
-                  <option value="TOURNAMENT">🎯 Torneo</option>
-                  <option value="MEETING">👥 Reunión</option>
-                  <option value="OTHER">📌 Otro</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Ubicación</label>
-                <input
-                  type="text"
-                  value={form.location}
-                  onChange={(e) => setForm({ ...form, location: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg"
-                  placeholder="Ej: Pabellón Municipal"
-                />
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 py-2 rounded-lg transition"
-                  disabled={saving}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition disabled:opacity-50"
-                >
-                  {saving ? 'Creando...' : 'Crear Evento'}
-                </button>
-              </div>
-            </form>
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Fecha inicio *"
+              type="date"
+              value={form.startDate}
+              onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+              required
+            />
+            <Input
+              label="Hora inicio *"
+              type="time"
+              value={form.startTime}
+              onChange={(e) => setForm({ ...form, startTime: e.target.value })}
+              required
+            />
+            <Input
+              label="Fecha fin *"
+              type="date"
+              value={form.endDate}
+              onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+              required
+            />
+            <Input
+              label="Hora fin *"
+              type="time"
+              value={form.endTime}
+              onChange={(e) => setForm({ ...form, endTime: e.target.value })}
+              required
+            />
           </div>
-        </div>
-      )}
+
+          <Select
+            label="Tipo"
+            value={form.type}
+            onChange={(e) => setForm({ ...form, type: e.target.value })}
+          >
+            <option value="TRAINING">🏋️ Entrenamiento</option>
+            <option value="MATCH">🏆 Partido</option>
+            <option value="TOURNAMENT">🎯 Torneo</option>
+            <option value="MEETING">👥 Reunión</option>
+            <option value="OTHER">📌 Otro</option>
+          </Select>
+
+          <Input
+            label="Ubicación"
+            value={form.location}
+            onChange={(e) => setForm({ ...form, location: e.target.value })}
+            placeholder="Ej: Pabellón Municipal"
+          />
+
+          <div className="flex gap-3 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setShowModal(false)}
+              disabled={saving}
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              disabled={saving}
+              loading={saving}
+              className="flex-1"
+            >
+              {saving ? 'Creando...' : 'Crear Evento'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   )
 }
@@ -693,42 +649,39 @@ function MonthView({
   const monthLabel = `${MONTHS_ES[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`
 
   return (
-    <div className="bg-white rounded-xl shadow-md overflow-hidden">
+    <div className="bg-surface rounded-xl shadow-md border border-border-subtle overflow-hidden">
       {/* Header mes */}
-      <div className="p-4 flex justify-between items-center border-b border-gray-200">
+      <div className="p-4 flex justify-between items-center border-b border-border-subtle">
         <div className="flex items-center gap-2">
           <button
             onClick={onPreviousMonth}
-            className="p-2 hover:bg-gray-100 rounded-lg transition"
+            className="p-2 hover:bg-surface-elevated rounded-lg transition text-text-secondary hover:text-text-primary"
             title="Mes anterior"
           >
             ←
           </button>
-          <h2 className="text-lg font-bold text-gray-800 min-w-[180px] text-center capitalize">
+          <h2 className="text-lg font-bold text-text-primary min-w-[180px] text-center capitalize">
             {monthLabel}
           </h2>
           <button
             onClick={onNextMonth}
-            className="p-2 hover:bg-gray-100 rounded-lg transition"
+            className="p-2 hover:bg-surface-elevated rounded-lg transition text-text-secondary hover:text-text-primary"
             title="Mes siguiente"
           >
             →
           </button>
         </div>
-        <button
-          onClick={onToday}
-          className="text-sm bg-gray-100 hover:bg-gray-200 px-3 py-1.5 rounded-lg transition"
-        >
+        <Button variant="secondary" size="sm" onClick={onToday}>
           Hoy
-        </button>
+        </Button>
       </div>
 
       {/* Días de la semana */}
-      <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
+      <div className="grid grid-cols-7 border-b border-border-subtle bg-surface-elevated">
         {WEEKDAYS_ES.map((day) => (
           <div
             key={day}
-            className="px-2 py-2 text-xs font-semibold text-gray-500 uppercase text-center"
+            className="px-2 py-2 text-xs font-semibold text-text-muted uppercase text-center"
           >
             {day}
           </div>
@@ -742,7 +695,7 @@ function MonthView({
             return (
               <div
                 key={`empty-${idx}`}
-                className="min-h-[110px] bg-gray-50/50 border-r border-b border-gray-100"
+                className="min-h-[110px] bg-bg-base/50 border-r border-b border-border-subtle"
               />
             )
           }
@@ -754,14 +707,14 @@ function MonthView({
           return (
             <div
               key={dayKey}
-              className={`min-h-[110px] p-1.5 border-r border-b border-gray-100 transition hover:bg-blue-50/30 cursor-pointer ${
-                isToday ? 'bg-blue-50' : 'bg-white'
+              className={`min-h-[110px] p-1.5 border-r border-b border-border-subtle transition hover:bg-surface-elevated/50 cursor-pointer ${
+                isToday ? 'bg-brand-primary/5' : 'bg-surface'
               }`}
               onClick={() => onDayClick(dayKey)}
             >
               <div
                 className={`text-xs font-semibold mb-1 ${
-                  isToday ? 'text-blue-600' : 'text-gray-700'
+                  isToday ? 'text-brand-primary' : 'text-text-secondary'
                 }`}
               >
                 {day.getDate()}
@@ -785,7 +738,7 @@ function MonthView({
                   )
                 })}
                 {dayEvents.length > 3 && (
-                  <div className="text-[10px] text-gray-500 px-1.5">
+                  <div className="text-[10px] text-text-muted px-1.5">
                     +{dayEvents.length - 3} más
                   </div>
                 )}
@@ -796,7 +749,7 @@ function MonthView({
       </div>
 
       {loading && (
-        <div className="p-4 text-center text-sm text-gray-500">Cargando eventos...</div>
+        <div className="p-4 text-center text-sm text-text-muted">Cargando eventos...</div>
       )}
     </div>
   )
@@ -828,7 +781,7 @@ function ListView({
 
   if (loading) {
     return (
-      <div className="bg-white rounded-xl shadow-md p-12 text-center text-gray-500">
+      <div className="bg-surface rounded-xl shadow-md p-12 text-center text-text-muted border border-border-subtle">
         Cargando eventos...
       </div>
     )
@@ -836,9 +789,9 @@ function ListView({
 
   if (sortedDays.length === 0) {
     return (
-      <div className="bg-white rounded-xl shadow-md p-12 text-center">
+      <div className="bg-surface rounded-xl shadow-md p-12 text-center border border-border-subtle">
         <div className="text-5xl mb-4">📅</div>
-        <p className="text-gray-500">No hay eventos en este mes</p>
+        <p className="text-text-secondary">No hay eventos en este mes</p>
       </div>
     )
   }
@@ -849,32 +802,33 @@ function ListView({
         const dayDate = new Date(dayKey + 'T12:00:00')
         const isToday = dayKey === toDateKey(new Date())
         return (
-          <div key={dayKey} className="bg-white rounded-xl shadow-md overflow-hidden">
+          <div
+            key={dayKey}
+            className="bg-surface rounded-xl shadow-md border border-border-subtle overflow-hidden"
+          >
             <div
-              className={`px-4 py-2 border-b border-gray-100 ${
-                isToday ? 'bg-blue-50' : 'bg-gray-50'
+              className={`px-4 py-2 border-b border-border-subtle ${
+                isToday ? 'bg-brand-primary/10' : 'bg-surface-elevated'
               }`}
             >
               <p
                 className={`text-sm font-semibold capitalize ${
-                  isToday ? 'text-blue-700' : 'text-gray-700'
+                  isToday ? 'text-brand-primary' : 'text-text-secondary'
                 }`}
               >
                 {isToday ? '🎯 Hoy · ' : ''}
                 {formatDateLong(dayDate)}
               </p>
             </div>
-            <div className="divide-y divide-gray-100">
+            <div className="divide-y divide-border-subtle">
               {grouped[dayKey].map((ev) => {
                 const style = EVENT_STYLES[ev.type]
                 return (
                   <div
                     key={ev.id}
-                    className="px-4 py-3 flex items-center gap-3 hover:bg-gray-50 transition"
+                    className="px-4 py-3 flex items-center gap-3 hover:bg-surface-elevated transition"
                   >
-                    <div
-                      className={`w-1 self-stretch rounded-full ${style.dot}`}
-                    />
+                    <div className={`w-1 self-stretch rounded-full ${style.dot}`} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span
@@ -883,24 +837,22 @@ function ListView({
                           {style.icon} {style.label}
                         </span>
                         {showTeamBadge && ev.teamName && (
-                          <span className="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full">
-                            {ev.teamName}
-                          </span>
+                          <Badge variant="neutral">{ev.teamName}</Badge>
                         )}
-                        <span className="text-sm font-semibold text-gray-800">
+                        <span className="text-sm font-semibold text-text-primary">
                           {formatTime(ev.startDate)}
                         </span>
-                        <span className="text-sm text-gray-800 truncate">{ev.title}</span>
+                        <span className="text-sm text-text-primary truncate">{ev.title}</span>
                       </div>
                       {ev.location && (
-                        <p className="text-xs text-gray-500 mt-0.5">📍 {ev.location}</p>
+                        <p className="text-xs text-text-muted mt-0.5">📍 {ev.location}</p>
                       )}
                     </div>
                     <div className="flex gap-1">
                       {ev.link && (
                         <Link
                           href={ev.link}
-                          className="text-xs bg-blue-50 hover:bg-blue-100 text-blue-600 px-2 py-1 rounded transition"
+                          className="text-xs bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary px-2 py-1 rounded transition"
                         >
                           Ver →
                         </Link>
@@ -908,7 +860,7 @@ function ListView({
                       {ev.type === 'EVENT' && (
                         <button
                           onClick={() => onDelete(ev.id, ev.title)}
-                          className="text-xs bg-red-50 hover:bg-red-100 text-red-600 px-2 py-1 rounded transition"
+                          className="text-xs bg-danger/10 hover:bg-danger/20 text-danger px-2 py-1 rounded transition"
                           title="Eliminar evento"
                         >
                           🗑️

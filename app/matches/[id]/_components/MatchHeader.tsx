@@ -4,7 +4,7 @@ import { useState } from 'react'
 import api from '@/lib/api'
 import { getSportIcon } from '@/lib/sport'
 import type { MatchDetail } from '../page'
-import { useRouter } from 'next/navigation'
+import { Button, Badge, Input, Modal } from '@/components/ui'
 
 interface Props {
   match: MatchDetail
@@ -25,16 +25,17 @@ export default function MatchHeader({ match, onUpdate }: Props) {
     opponentScore: match.opponentScore ?? 0,
   })
   const [saving, setSaving] = useState(false)
-const [showDeleteModal, setShowDeleteModal] = useState(false)
-const [deleting, setDeleting] = useState(false)
-  const getStatusColor = (status: string) => {
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  const getStatusVariant = (status: string): 'info' | 'warning' | 'success' | 'danger' | 'neutral' => {
     switch (status) {
-      case 'SCHEDULED': return 'bg-blue-100 text-blue-800'
-      case 'IN_PROGRESS': return 'bg-yellow-100 text-yellow-800'
-      case 'FINISHED': return 'bg-green-100 text-green-800'
-      case 'CANCELLED': return 'bg-red-100 text-red-800'
-      case 'POSTPONED': return 'bg-orange-100 text-orange-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'SCHEDULED': return 'info'
+      case 'IN_PROGRESS': return 'warning'
+      case 'FINISHED': return 'success'
+      case 'CANCELLED': return 'danger'
+      case 'POSTPONED': return 'warning'
+      default: return 'neutral'
     }
   }
 
@@ -120,96 +121,98 @@ const [deleting, setDeleting] = useState(false)
   }
 
   const handleDelete = async () => {
-  setDeleting(true)
-  try {
-    await api.delete(`/matches/${match.id}`)
-    window.location.href = '/matches'   // Redirigir a la lista de partidos
-  } catch (err) {
-    console.error(err)
-    alert('Error al eliminar el partido')
-    setDeleting(false)
-    setShowDeleteModal(false)
+    setDeleting(true)
+    try {
+      await api.delete(`/matches/${match.id}`)
+      window.location.href = '/matches'
+    } catch (err) {
+      console.error(err)
+      alert('Error al eliminar el partido')
+      setDeleting(false)
+      setShowDeleteModal(false)
+    }
   }
-}
 
   return (
     <>
-      <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+      <div className="bg-surface rounded-xl shadow-md border border-border-subtle p-6 mb-6">
         <div className="flex flex-col md:flex-row justify-between gap-6">
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-3 flex-wrap">
-              <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(match.status)}`}>
+              <Badge variant={getStatusVariant(match.status)}>
                 {getStatusText(match.status)}
-              </span>
-              <span className="text-xs text-gray-500">{getTypeText(match.type)}</span>
-              <span className="text-xs text-gray-500">{getLocationText(match.location)}</span>
-              <span className="text-xs bg-blue-50 text-blue-700 px-2 py-1 rounded-full font-medium">
+              </Badge>
+              <Badge variant="neutral">{getTypeText(match.type)}</Badge>
+              <Badge variant="neutral">{getLocationText(match.location)}</Badge>
+              <Badge variant="brand">
                 {getSportIcon(match.team?.sport)} {match.team.name}
-              </span>
+              </Badge>
             </div>
 
-            <h1 className="text-3xl font-bold text-gray-800 mb-2">
+            <h1 className="text-3xl font-bold text-text-primary mb-2">
               vs {match.opponent}
             </h1>
 
-            <p className="text-gray-500 capitalize">📅 {formatDate(match.date)}</p>
-            {match.venue && <p className="text-gray-500 text-sm">📍 {match.venue}</p>}
-            {match.competition && <p className="text-gray-500 text-sm">🏆 {match.competition}</p>}
+            <p className="text-text-secondary capitalize">📅 {formatDate(match.date)}</p>
+            {match.venue && <p className="text-text-secondary text-sm">📍 {match.venue}</p>}
+            {match.competition && <p className="text-text-secondary text-sm">🏆 {match.competition}</p>}
 
             <div className="flex gap-3 mt-4 flex-wrap">
-  <button
-    onClick={() => setShowEditModal(true)}
-    className="text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 py-1.5 rounded-lg transition"
-  >
-    ✏️ Editar datos
-  </button>
-  <button
-    onClick={() => setShowResultModal(true)}
-    className="text-sm bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg transition"
-  >
-    {match.status === 'FINISHED' ? '🔄 Actualizar resultado' : '🏆 Añadir resultado'}
-  </button>
-  <button
-    onClick={() => setShowDeleteModal(true)}
-    className="text-sm bg-red-50 hover:bg-red-100 text-red-600 px-3 py-1.5 rounded-lg transition"
-  >
-    🗑️ Eliminar partido
-  </button>
-</div>
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => setShowEditModal(true)}
+              >
+                ✏️ Editar datos
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => setShowResultModal(true)}
+              >
+                {match.status === 'FINISHED' ? '🔄 Actualizar resultado' : '🏆 Añadir resultado'}
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onClick={() => setShowDeleteModal(true)}
+              >
+                🗑️ Eliminar partido
+              </Button>
+            </div>
           </div>
 
           {/* Marcador */}
-          <div className="flex flex-col items-center justify-center bg-gray-50 rounded-xl p-6 min-w-[200px]">
+          <div className="flex flex-col items-center justify-center bg-surface-elevated rounded-xl p-6 min-w-[200px] border border-border-subtle">
             {match.status === 'FINISHED' &&
             match.teamScore !== null &&
             match.opponentScore !== null ? (
               <>
-                <p className="text-5xl font-bold text-gray-800">
+                <p className="text-5xl font-bold text-text-primary">
                   <span
                     className={
                       match.teamScore > match.opponentScore
-                        ? 'text-green-600'
+                        ? 'text-success'
                         : match.teamScore < match.opponentScore
-                        ? 'text-red-600'
+                        ? 'text-danger'
                         : ''
                     }
                   >
                     {match.teamScore}
                   </span>
-                  <span className="text-gray-300 mx-2">-</span>
+                  <span className="text-text-muted mx-2">-</span>
                   <span
                     className={
                       match.opponentScore > match.teamScore
-                        ? 'text-green-600'
+                        ? 'text-success'
                         : match.opponentScore < match.teamScore
-                        ? 'text-red-600'
+                        ? 'text-danger'
                         : ''
                     }
                   >
                     {match.opponentScore}
                   </span>
                 </p>
-                <p className="text-sm font-medium text-gray-500 mt-2">
+                <p className="text-sm font-medium text-text-secondary mt-2">
                   {match.teamScore > match.opponentScore
                     ? '🏆 Victoria'
                     : match.teamScore < match.opponentScore
@@ -218,166 +221,163 @@ const [deleting, setDeleting] = useState(false)
                 </p>
               </>
             ) : (
-              <p className="text-sm text-gray-400 text-center">Sin resultado</p>
+              <p className="text-sm text-text-muted text-center">Sin resultado</p>
             )}
           </div>
         </div>
       </div>
 
       {/* Modal Editar */}
-      {showEditModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">✏️ Editar partido</h3>
-            <form onSubmit={handleEdit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Rival *</label>
-                <input
-                  type="text"
-                  value={editForm.opponent}
-                  onChange={(e) => setEditForm({ ...editForm, opponent: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Fecha y hora *</label>
-                <input
-                  type="datetime-local"
-                  value={editForm.date}
-                  onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Pabellón</label>
-                <input
-                  type="text"
-                  value={editForm.venue}
-                  onChange={(e) => setEditForm({ ...editForm, venue: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Competición</label>
-                <input
-                  type="text"
-                  value={editForm.competition}
-                  onChange={(e) => setEditForm({ ...editForm, competition: e.target.value })}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowEditModal(false)}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 rounded-lg transition"
-                  disabled={saving}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition disabled:opacity-50"
-                >
-                  {saving ? 'Guardando...' : 'Guardar'}
-                </button>
-              </div>
-            </form>
+      <Modal
+        isOpen={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        title="✏️ Editar partido"
+        size="md"
+      >
+        <form onSubmit={handleEdit} className="space-y-4">
+          <Input
+            label="Rival *"
+            type="text"
+            value={editForm.opponent}
+            onChange={(e) => setEditForm({ ...editForm, opponent: e.target.value })}
+            required
+          />
+          <Input
+            label="Fecha y hora *"
+            type="datetime-local"
+            value={editForm.date}
+            onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
+            required
+          />
+          <Input
+            label="Pabellón"
+            type="text"
+            value={editForm.venue}
+            onChange={(e) => setEditForm({ ...editForm, venue: e.target.value })}
+          />
+          <Input
+            label="Competición"
+            type="text"
+            value={editForm.competition}
+            onChange={(e) => setEditForm({ ...editForm, competition: e.target.value })}
+          />
+
+          <div className="flex gap-3 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setShowEditModal(false)}
+              disabled={saving}
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              disabled={saving}
+              loading={saving}
+              className="flex-1"
+            >
+              {saving ? 'Guardando...' : 'Guardar'}
+            </Button>
           </div>
-        </div>
-      )}
+        </form>
+      </Modal>
 
       {/* Modal Resultado */}
-      {showResultModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">🏆 Resultado final</h3>
-            <form onSubmit={handleResult} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {match.team.name}
-                  </label>
-                  <input
-                    type="number"
-                    value={resultForm.teamScore}
-                    onChange={(e) =>
-                      setResultForm({ ...resultForm, teamScore: Number(e.target.value) })
-                    }
-                    className="w-full px-4 py-3 text-center text-2xl font-bold border-2 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    min="0"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {match.opponent}
-                  </label>
-                  <input
-                    type="number"
-                    value={resultForm.opponentScore}
-                    onChange={(e) =>
-                      setResultForm({ ...resultForm, opponentScore: Number(e.target.value) })
-                    }
-                    className="w-full px-4 py-3 text-center text-2xl font-bold border-2 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    min="0"
-                    required
-                  />
-                </div>
-              </div>
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowResultModal(false)}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 rounded-lg transition"
-                  disabled={saving}
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition disabled:opacity-50"
-                >
-                  {saving ? 'Guardando...' : 'Guardar resultado'}
-                </button>
-              </div>
-            </form>
+      <Modal
+        isOpen={showResultModal}
+        onClose={() => setShowResultModal(false)}
+        title="🏆 Resultado final"
+        size="md"
+      >
+        <form onSubmit={handleResult} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-1">
+                {match.team.name}
+              </label>
+              <input
+                type="number"
+                value={resultForm.teamScore}
+                onChange={(e) =>
+                  setResultForm({ ...resultForm, teamScore: Number(e.target.value) })
+                }
+                className="w-full px-4 py-3 text-center text-2xl font-bold bg-surface-elevated border-2 border-border-subtle text-text-primary rounded-lg focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"
+                min="0"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-1">
+                {match.opponent}
+              </label>
+              <input
+                type="number"
+                value={resultForm.opponentScore}
+                onChange={(e) =>
+                  setResultForm({ ...resultForm, opponentScore: Number(e.target.value) })
+                }
+                className="w-full px-4 py-3 text-center text-2xl font-bold bg-surface-elevated border-2 border-border-subtle text-text-primary rounded-lg focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"
+                min="0"
+                required
+              />
+            </div>
           </div>
-        </div>
-      )}
+          <div className="flex gap-3 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setShowResultModal(false)}
+              disabled={saving}
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              disabled={saving}
+              loading={saving}
+              className="flex-1"
+            >
+              {saving ? 'Guardando...' : 'Guardar resultado'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
       {/* Modal Eliminar */}
-{showDeleteModal && (
-  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-    <div className="bg-white rounded-xl max-w-md w-full p-6">
-      <h3 className="text-xl font-bold text-gray-800 mb-2">🗑️ Eliminar partido</h3>
-      <p className="text-gray-600 mb-6">
-        ¿Seguro que quieres eliminar el partido <strong>vs {match.opponent}</strong>?
-        Se eliminarán también las convocatorias y estadísticas asociadas.
-        Esta acción no se puede deshacer.
-      </p>
-      <div className="flex gap-3">
-        <button
-          onClick={() => setShowDeleteModal(false)}
-          className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 rounded-lg transition"
-          disabled={deleting}
-        >
-          Cancelar
-        </button>
-        <button
-          onClick={handleDelete}
-          disabled={deleting}
-          className="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 rounded-lg transition disabled:opacity-50"
-        >
-          {deleting ? 'Eliminando...' : 'Sí, eliminar'}
-        </button>
-      </div>
-    </div>
-  </div>
-)}
+      <Modal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        title="🗑️ Eliminar partido"
+        size="sm"
+      >
+        <p className="text-text-secondary mb-6">
+          ¿Seguro que quieres eliminar el partido <strong className="text-text-primary">vs {match.opponent}</strong>?
+          Se eliminarán también las convocatorias y estadísticas asociadas.
+          Esta acción no se puede deshacer.
+        </p>
+        <div className="flex gap-3">
+          <Button
+            variant="secondary"
+            onClick={() => setShowDeleteModal(false)}
+            disabled={deleting}
+            className="flex-1"
+          >
+            Cancelar
+          </Button>
+          <Button
+            variant="danger"
+            onClick={handleDelete}
+            disabled={deleting}
+            loading={deleting}
+            className="flex-1"
+          >
+            {deleting ? 'Eliminando...' : 'Sí, eliminar'}
+          </Button>
+        </div>
+      </Modal>
     </>
   )
 }

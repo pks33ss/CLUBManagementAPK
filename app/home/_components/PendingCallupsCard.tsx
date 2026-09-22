@@ -14,8 +14,8 @@ interface Props {
 
 export default function PendingCallupsCard({ callups }: Props) {
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6 hover:shadow-md transition">
-      <div className="flex items-center gap-2 text-red-600 mb-4">
+    <div className="bg-surface rounded-xl shadow-sm border border-border-subtle p-6 hover:border-brand-primary/30 transition">
+      <div className="flex items-center gap-2 text-danger mb-4">
         <span className="text-xl">⚠️</span>
         <h3 className="font-semibold text-sm uppercase tracking-wide">
           Convocatorias pendientes
@@ -23,7 +23,7 @@ export default function PendingCallupsCard({ callups }: Props) {
       </div>
 
       {callups.length === 0 ? (
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-text-muted">
           ✅ Todo en orden. No hay convocatorias pendientes de confirmar.
         </p>
       ) : (
@@ -34,21 +34,21 @@ export default function PendingCallupsCard({ callups }: Props) {
               <Link
                 key={callup.matchId}
                 href={`/matches/${callup.matchId}`}
-                className="block p-3 rounded-lg border border-red-100 bg-red-50 hover:bg-red-100 transition"
+                className="block p-3 rounded-lg border border-danger/30 bg-danger/5 hover:bg-danger/10 transition"
               >
                 <div className="flex items-center justify-between gap-2">
                   <div className="min-w-0">
-                    <div className="text-sm font-medium text-gray-800 truncate">
+                    <div className="text-sm font-medium text-text-primary truncate">
                       vs {callup.opponent}
                     </div>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-text-muted">
                       {date.toLocaleDateString('es-ES', {
                         day: 'numeric',
                         month: 'short',
                       })}
                     </div>
                   </div>
-                  <div className="bg-red-600 text-white text-xs px-2 py-1 rounded-full font-bold shrink-0">
+                  <div className="bg-danger text-white text-xs px-2 py-1 rounded-full font-bold shrink-0">
                     {callup.pendingCount}
                   </div>
                 </div>

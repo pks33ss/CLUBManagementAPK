@@ -66,7 +66,7 @@ export default function InlineEditName({ value, canEdit, onSave, className = '' 
         onKeyDown={handleKeyDown}
         disabled={saving}
         onClick={(e) => e.stopPropagation()}
-        className={`bg-white border-2 border-blue-500 rounded px-1.5 py-0.5 outline-none w-full ${className}`}
+        className={`bg-surface-elevated border-2 border-brand-primary rounded px-1.5 py-0.5 outline-none w-full text-text-primary ${className}`}
       />
     )
   }

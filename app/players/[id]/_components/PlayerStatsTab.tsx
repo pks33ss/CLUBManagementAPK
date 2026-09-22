@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import api from '@/lib/api'
 import { getSportIcon } from '@/lib/sport'
+import { Card, CardBody, Button } from '@/components/ui'
 import {
   LineChart,
   Line,
@@ -61,20 +62,22 @@ export default function PlayerStatsTab({ playerId, sport }: Props) {
     fetch()
   }, [playerId])
 
-  if (loading) return <div className="text-center py-12 text-gray-500">Cargando estadísticas...</div>
-  if (error) return <div className="text-center py-12 text-red-500">{error}</div>
+  if (loading) return <div className="text-center py-12 text-text-muted">Cargando estadísticas...</div>
+  if (error) return <div className="text-center py-12 text-danger">{error}</div>
   if (!data) return null
 
   const { summary, evolution } = data
 
   if (summary.gamesPlayed === 0) {
     return (
-      <div className="bg-white rounded-xl shadow-md p-12 text-center">
-        <div className="text-5xl mb-4">📊</div>
-        <p className="text-gray-500">
-          Este jugador todavía no tiene estadísticas de partidos finalizados
-        </p>
-      </div>
+      <Card>
+        <CardBody className="text-center py-12">
+          <div className="text-5xl mb-4">📊</div>
+          <p className="text-text-secondary">
+            Este jugador todavía no tiene estadísticas de partidos finalizados
+          </p>
+        </CardBody>
+      </Card>
     )
   }
 
@@ -83,95 +86,114 @@ export default function PlayerStatsTab({ playerId, sport }: Props) {
       {/* Resumen */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard label="Partidos" value={summary.gamesPlayed} icon={sportIcon} />
-        <StatCard label="Victorias" value={summary.wins} icon="🏆" subtitle={`${summary.winRate}% win rate`} color="text-green-600" />
-        <StatCard label="Derrotas" value={summary.losses} icon="❌" color="text-red-600" />
+        <StatCard label="Victorias" value={summary.wins} icon="🏆" subtitle={`${summary.winRate}% win rate`} color="text-success" />
+        <StatCard label="Derrotas" value={summary.losses} icon="❌" color="text-danger" />
         <StatCard label="Min/partido" value={summary.averages.minutes} icon="⏱️" />
       </div>
 
       {/* Medias */}
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <h3 className="font-semibold text-gray-800 mb-4">📈 Medias por partido</h3>
-        <div className="grid grid-cols-4 md:grid-cols-7 gap-3">
-          <AvgBox label="PTS" value={summary.averages.points} color="text-blue-600" />
-          <AvgBox label="REB" value={summary.averages.rebounds} color="text-green-600" />
-          <AvgBox label="AST" value={summary.averages.assists} color="text-purple-600" />
-          <AvgBox label="ROB" value={summary.averages.steals} color="text-orange-600" />
-          <AvgBox label="TAP" value={summary.averages.blocks} color="text-red-600" />
-          <AvgBox label="PER" value={summary.averages.turnovers} color="text-gray-600" />
-          <AvgBox label="FAL" value={summary.averages.fouls} color="text-gray-600" />
-        </div>
-      </div>
+      <Card>
+        <CardBody>
+          <h3 className="font-semibold text-text-primary mb-4">📈 Medias por partido</h3>
+          <div className="grid grid-cols-4 md:grid-cols-7 gap-3">
+            <AvgBox label="PTS" value={summary.averages.points} color="text-brand-primary" />
+            <AvgBox label="REB" value={summary.averages.rebounds} color="text-success" />
+            <AvgBox label="AST" value={summary.averages.assists} color="text-info" />
+            <AvgBox label="ROB" value={summary.averages.steals} color="text-warning" />
+            <AvgBox label="TAP" value={summary.averages.blocks} color="text-danger" />
+            <AvgBox label="PER" value={summary.averages.turnovers} color="text-text-secondary" />
+            <AvgBox label="FAL" value={summary.averages.fouls} color="text-text-secondary" />
+          </div>
+        </CardBody>
+      </Card>
 
       {/* Porcentajes */}
-      <div className="bg-white rounded-xl shadow-md p-6">
-        <h3 className="font-semibold text-gray-800 mb-4">🎯 Porcentajes de acierto</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <PctBar label="TC" value={summary.percentages.fieldGoals} detail={`${summary.totals.fieldGoalsMade}/${summary.totals.fieldGoalsAttempted}`} color="bg-blue-500" />
-          <PctBar label="3P" value={summary.percentages.threePointers} detail={`${summary.totals.threePointersMade}/${summary.totals.threePointersAttempted}`} color="bg-purple-500" />
-          <PctBar label="TL" value={summary.percentages.freeThrows} detail={`${summary.totals.freeThrowsMade}/${summary.totals.freeThrowsAttempted}`} color="bg-orange-500" />
-        </div>
-      </div>
+      <Card>
+        <CardBody>
+          <h3 className="font-semibold text-text-primary mb-4">🎯 Porcentajes de acierto</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <PctBar label="TC" value={summary.percentages.fieldGoals} detail={`${summary.totals.fieldGoalsMade}/${summary.totals.fieldGoalsAttempted}`} color="bg-brand-primary" />
+            <PctBar label="3P" value={summary.percentages.threePointers} detail={`${summary.totals.threePointersMade}/${summary.totals.threePointersAttempted}`} color="bg-info" />
+            <PctBar label="TL" value={summary.percentages.freeThrows} detail={`${summary.totals.freeThrowsMade}/${summary.totals.freeThrowsAttempted}`} color="bg-warning" />
+          </div>
+        </CardBody>
+      </Card>
 
       {/* Gráfica */}
       {evolution.length > 1 && (
-        <div className="bg-white rounded-xl shadow-md p-6">
-          <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
-            <h3 className="font-semibold text-gray-800">📉 Evolución por partido</h3>
-            <div className="flex gap-1">
-              {(['points', 'rebounds', 'assists'] as const).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setChartMetric(m)}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                    chartMetric === m ? 'bg-blue-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                  }`}
-                >
-                  {m === 'points' ? 'Puntos' : m === 'rebounds' ? 'Rebotes' : 'Asistencias'}
-                </button>
-              ))}
+        <Card>
+          <CardBody>
+            <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
+              <h3 className="font-semibold text-text-primary">📉 Evolución por partido</h3>
+              <div className="flex gap-1">
+                {(['points', 'rebounds', 'assists'] as const).map((m) => (
+                  <Button
+                    key={m}
+                    variant={chartMetric === m ? 'primary' : 'secondary'}
+                    size="sm"
+                    onClick={() => setChartMetric(m)}
+                  >
+                    {m === 'points' ? 'Puntos' : m === 'rebounds' ? 'Rebotes' : 'Asistencias'}
+                  </Button>
+                ))}
+              </div>
             </div>
-          </div>
-          <div style={{ width: '100%', height: 300 }}>
-            <ResponsiveContainer>
-              <LineChart
-                data={evolution.map((e, i) => ({
-                  name: `vs ${e.opponent}`,
-                  game: i + 1,
-                  [chartMetric]: e[chartMetric],
-                }))}
-                margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
-              >
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="game" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip contentStyle={{ borderRadius: '8px', border: '1px solid #e5e7eb' }} />
-                <Legend />
-                <Line type="monotone" dataKey={chartMetric} stroke="#2563eb" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
+            <div style={{ width: '100%', height: 300 }}>
+              <ResponsiveContainer>
+                <LineChart
+                  data={evolution.map((e, i) => ({
+                    name: `vs ${e.opponent}`,
+                    game: i + 1,
+                    [chartMetric]: e[chartMetric],
+                  }))}
+                  margin={{ top: 10, right: 20, left: 0, bottom: 10 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#2A2A2A" />
+                  <XAxis dataKey="game" tick={{ fontSize: 12, fill: '#B3B3B3' }} />
+                  <YAxis tick={{ fontSize: 12, fill: '#B3B3B3' }} />
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: '8px',
+                      border: '1px solid #2A2A2A',
+                      backgroundColor: '#181818',
+                      color: '#FFFFFF',
+                    }}
+                  />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey={chartMetric}
+                    stroke="#00E676"
+                    strokeWidth={2}
+                    dot={{ r: 4 }}
+                    activeDot={{ r: 6 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </CardBody>
+        </Card>
       )}
     </div>
   )
 }
 
-function StatCard({ label, value, icon, subtitle, color = 'text-gray-800' }: any) {
+function StatCard({ label, value, icon, subtitle, color = 'text-text-primary' }: any) {
   return (
-    <div className="bg-white rounded-xl shadow-md p-4 text-center">
+    <div className="bg-surface rounded-xl shadow-md border border-border-subtle p-4 text-center">
       <div className="text-2xl mb-1">{icon}</div>
       <p className={`text-3xl font-bold ${color}`}>{value}</p>
-      <p className="text-xs text-gray-500 mt-1">{label}</p>
-      {subtitle && <p className="text-xs text-gray-400 mt-0.5">{subtitle}</p>}
+      <p className="text-xs text-text-muted mt-1">{label}</p>
+      {subtitle && <p className="text-xs text-text-muted mt-0.5">{subtitle}</p>}
     </div>
   )
 }
 
 function AvgBox({ label, value, color }: any) {
   return (
-    <div className="text-center bg-gray-50 rounded-lg py-3">
+    <div className="text-center bg-surface-elevated rounded-lg py-3">
       <p className={`text-2xl font-bold ${color}`}>{value}</p>
-      <p className="text-xs text-gray-500 mt-1">{label}</p>
+      <p className="text-xs text-text-muted mt-1">{label}</p>
     </div>
   )
 }
@@ -179,11 +201,11 @@ function AvgBox({ label, value, color }: any) {
 function PctBar({ label, value, detail, color }: any) {
   return (
     <div>
-      <div className="flex justify-between text-xs text-gray-600 mb-1">
+      <div className="flex justify-between text-xs text-text-secondary mb-1">
         <span className="font-semibold">{label}</span>
-        <span>{value}% <span className="text-gray-400">({detail})</span></span>
+        <span>{value}% <span className="text-text-muted">({detail})</span></span>
       </div>
-      <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+      <div className="w-full bg-border-subtle rounded-full h-2 overflow-hidden">
         <div className={`h-full ${color} transition-all`} style={{ width: `${Math.min(value, 100)}%` }} />
       </div>
     </div>

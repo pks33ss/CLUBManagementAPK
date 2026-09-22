@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- Fondo redondeado -->
+  <rect width="200" height="200" rx="40" fill="#0A0A0A"/>
+  
+  <!-- Letra F -->
+  <path d="M25 55 L25 145 L42 145 L42 108 L78 108 L78 93 L42 93 L42 70 L82 70 L82 55 Z" fill="#FFFFFF"/>
+  
+  <!-- Letra P -->
+  <path d="M98 55 L98 145 L115 145 L115 108 L130 108 C148 108 158 98 158 82 C158 66 148 55 130 55 Z M115 70 L130 70 C137 70 140 75 140 82 C140 89 137 93 130 93 L115 93 Z" fill="#FFFFFF"/>
+  
+  <!-- Rayo (color dinámico) -->
+  <path d="M172 45 L152 95 L167 95 L145 155 L182 90 L167 90 Z" fill="var(--brand-primary, #00E676)"/>
+</svg>

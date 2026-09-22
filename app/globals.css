@@ -1,38 +1,71 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/* ============================================
+   VARIABLES DE COLOR DINÁMICAS
+   ============================================ */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
+@layer base {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    /* Colores por defecto (fallback) — se sobrescriben por club/equipo */
+    --brand-primary: #00E676;      /* Verde vibrante por defecto */
+    --brand-primary-dark: #00A152; /* Verde oscuro para hover */
+    --brand-primary-light: #69F0AE;/* Verde claro para acentos */
+    --brand-secondary: #0A0A0A;    /* Negro profundo */
+    
+    /* Superficies (no cambian con el club/equipo) */
+    --bg-base: #0A0A0A;
+    --surface: #181818;
+    --surface-elevated: #242424;
+    --border-subtle: #2A2A2A;
+    
+    /* Texto */
+    --text-primary: #FFFFFF;
+    --text-secondary: #B3B3B3;
+    --text-muted: #6E6E6E;
+    
+    /* Estados */
+    --success: #00E676;
+    --danger: #FF5252;
+    --warning: #FFC107;
+    --info: #40C4FF;
+  }
+
+  body {
+    background: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-inter), Arial, Helvetica, sans-serif;
+    min-height: 100vh;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+/* ============================================
+   TAILWIND v4: EXPONER VARIABLES COMO COLORES
+   ============================================ */
+
+@theme inline {
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-primary-dark: var(--brand-primary-dark);
+  --color-brand-primary-light: var(--brand-primary-light);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-bg-base: var(--bg-base);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-border-subtle: var(--border-subtle);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-success: var(--success);
+  --color-danger: var(--danger);
+  --color-warning: var(--warning);
+  --color-info: var(--info);
+  
+  --font-sans: var(--font-inter);
 }
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
 
 /* ============================================
    FIX AUTOFILL EN MÓVIL (iOS Safari, Chrome Android)
    ============================================ */
 
-/* Cuando el navegador autocompleta un input, fuerza el color del texto */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
@@ -41,23 +74,22 @@ textarea:-webkit-autofill,
 textarea:-webkit-autofill:hover,
 textarea:-webkit-autofill:focus,
 select:-webkit-autofill {
-  -webkit-text-fill-color: #1f2937 !important;      /* texto gris oscuro */
-  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;  /* fondo blanco */
-  box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #FFFFFF !important;
+  -webkit-box-shadow: 0 0 0 1000px var(--surface) inset !important;
+  box-shadow: 0 0 0 1000px var(--surface) inset !important;
   transition: background-color 5000s ease-in-out 0s;
-  caret-color: #1f2937;                              /* cursor visible */
+  caret-color: var(--brand-primary);
 }
 
-/* Asegurar contraste en inputs y textareas en general */
 input,
 textarea,
 select {
-  color: #1f2937;
+  color: var(--text-primary);
 }
 
 input::placeholder,
 textarea::placeholder {
-  color: #9ca3af;
+  color: var(--text-muted);
 }
 
 /* Fix específico para iOS cuando el input está enfocado */

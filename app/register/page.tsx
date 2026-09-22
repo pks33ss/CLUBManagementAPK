@@ -4,10 +4,11 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
+import { Button, Input } from '@/components/ui'
 
 export default function Register() {
   const router = useRouter()
-  // ✅ Sin credenciales por defecto
+
   const [formData, setFormData] = useState({
     name: '',
     lastName: '',
@@ -39,102 +40,83 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 to-blue-800 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8">
+    <div className="min-h-screen bg-bg-base flex items-center justify-center p-4">
+      <div className="bg-surface border border-border-subtle rounded-2xl shadow-2xl w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <div className="text-5xl mb-4">🏆</div>
-          <h1 className="text-3xl font-bold text-gray-800">Registro</h1>
-          <p className="text-gray-500 mt-2">Crea tu cuenta</p>
+<div className="flex justify-center mb-6">
+  <Logo variant="full" size="xl" priority />
+</div>
+<p className="text-text-secondary text-center">Empieza a gestionar tus equipos</p>
         </div>
 
         {success ? (
-          <div className="bg-green-50 text-green-600 p-4 rounded-lg text-center">
+          <div className="bg-success/10 text-success border border-success/20 p-4 rounded-lg text-center">
             ✅ ¡Registro exitoso! Redirigiendo al login...
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre *
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="Juan"
-                  autoComplete="given-name"
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Apellido *
-                </label>
-                <input
-                  type="text"
-                  value={formData.lastName}
-                  onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="Pérez"
-                  autoComplete="family-name"
-                  required
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Email *
-              </label>
-              <input
-                type="email"
-                value={formData.email}
-                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                placeholder="tu@email.com"
-                autoComplete="email"
+              <Input
+                label="Nombre *"
+                type="text"
+                value={formData.name}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                placeholder="Juan"
+                autoComplete="given-name"
+                required
+              />
+              <Input
+                label="Apellido *"
+                type="text"
+                value={formData.lastName}
+                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                placeholder="Pérez"
+                autoComplete="family-name"
                 required
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Contraseña *
-              </label>
-              <input
-                type="password"
-                value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                placeholder="••••••••"
-                autoComplete="new-password"
-                required
-                minLength={6}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Mínimo 6 caracteres
-              </p>
-            </div>
+            <Input
+              label="Email *"
+              type="email"
+              value={formData.email}
+              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              placeholder="tu@email.com"
+              autoComplete="email"
+              required
+            />
+
+            <Input
+              label="Contraseña *"
+              type="password"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              placeholder="••••••••"
+              autoComplete="new-password"
+              required
+              minLength={6}
+              helperText="Mínimo 6 caracteres"
+            />
 
             {error && (
-              <div className="bg-red-50 text-red-500 p-3 rounded-lg text-sm">
+              <div className="bg-danger/10 text-danger border border-danger/20 p-3 rounded-lg text-sm">
                 {error}
               </div>
             )}
 
-            <button
+            <Button
               type="submit"
               disabled={loading}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition disabled:opacity-50"
+              loading={loading}
+              className="w-full"
+              size="lg"
             >
               {loading ? 'Registrando...' : 'Registrarse'}
-            </button>
+            </Button>
 
-            <p className="text-center text-sm text-gray-600 mt-4">
+            <p className="text-center text-sm text-text-secondary mt-6">
               ¿Ya tienes cuenta?{' '}
-              <Link href="/login" className="text-blue-600 hover:underline">
+              <Link href="/login" className="text-brand-primary hover:underline font-medium">
                 Inicia Sesión
               </Link>
             </p>
