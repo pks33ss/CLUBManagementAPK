@@ -10,13 +10,16 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'FPM - Gestión Deportiva',
+  title: 'JoinSport - Gestión Deportiva',
   description: 'Gestiona tus clubes, equipos, entrenamientos y asistencias',
   manifest: '/manifest.json',
-icons: {
-  icon: '/logo-mark-square.png',
-  apple: '/logo-mark-square.png',
-}
+  icons: {
+    icon: [
+      { url: '/logo-mark-square.png', sizes: '192x192', type: 'image/png' },
+      { url: '/logo-mark-square.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: '/logo-mark-square.png',
+  },
 }
 
 export const viewport: Viewport = {
