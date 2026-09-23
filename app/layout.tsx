@@ -13,12 +13,10 @@ export const metadata: Metadata = {
   title: 'FPM - Gestión Deportiva',
   description: 'Gestiona tus clubes, equipos, entrenamientos y asistencias',
   manifest: '/manifest.json',
-  icons: {
-    icon: [
-      { url: '/logo-mark-square.svg', type: 'image/svg+xml' },
-    ],
-    apple: '/logo-mark-square.svg',
-  },
+icons: {
+  icon: '/logo-mark-square.png',
+  apple: '/logo-mark-square.png',
+}
 }
 
 export const viewport: Viewport = {

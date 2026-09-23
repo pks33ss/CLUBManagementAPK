@@ -301,7 +301,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             {/* Header */}
             <div className="p-4 border-b border-border-subtle flex items-center justify-between">
 <div className="flex items-center">
-  <Logo variant="mark" size="md" />
+  <Logo variant="mark" height={40} />
 </div>
               <button
                 onClick={() => setSidebarOpen(false)}

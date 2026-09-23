@@ -43,7 +43,7 @@ export default function Login() {
       <div className="bg-surface border border-border-subtle rounded-2xl shadow-2xl w-full max-w-md p-8">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-6">
-  <Logo variant="full" size="xl" priority />
+<Logo variant="full" height={120} priority />
 </div>
 <p className="text-text-secondary text-center">Gestión deportiva profesional</p>
         </div>
