@@ -3,10 +3,10 @@
 import { useState } from 'react'
 import { membershipsApi } from '@/lib/api/memberships'
 import { Button, Card, CardBody, Badge } from '@/components/ui'
-import type { Membership } from '@/types/membership'
+import type { MembershipWithUser } from '@/types/membership'
 
 interface Props {
-  requests: Membership[]
+  requests: MembershipWithUser[]
   onUpdate: () => Promise<void> | void
 }
 
@@ -20,7 +20,7 @@ const ROLE_LABEL: Record<string, string> = {
 export default function PendingRequestsSection({ requests, onUpdate }: Props) {
   const [processing, setProcessing] = useState<string | null>(null)
 
-  const handleAccept = async (m: Membership) => {
+  const handleAccept = async (m: MembershipWithUser) => {
     setProcessing(m.id)
     try {
       await membershipsApi.accept(m.id)
@@ -32,7 +32,7 @@ export default function PendingRequestsSection({ requests, onUpdate }: Props) {
     }
   }
 
-  const handleReject = async (m: Membership) => {
+  const handleReject = async (m: MembershipWithUser) => {
     if (!confirm(`¿Rechazar la solicitud de ${m.user?.name} ${m.user?.lastName}?`)) return
     setProcessing(m.id)
     try {

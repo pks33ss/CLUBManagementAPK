@@ -10,7 +10,8 @@ import MembersList from './_components/MembersList'
 import PendingRequestsSection from './_components/PendingRequestsSection'
 import InviteMemberModal from './_components/InviteMemberModal'
 import EditMembershipModal from './_components/EditMembershipModal'
-import type { Membership } from '@/types/membership'
+import type { Membership, MembershipWithUser } from '@/types/membership'
+
 
 export default function TeamMembersPage() {
   const router = useRouter()
@@ -18,12 +19,12 @@ export default function TeamMembersPage() {
   const teamId = params.id as string
   const { userMe } = useActiveTeam()
 
-  const [members, setMembers] = useState<Membership[]>([])
+  const [members, setMembers] = useState<MembershipWithUser[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   const [showInviteModal, setShowInviteModal] = useState(false)
-  const [editingMembership, setEditingMembership] = useState<Membership | null>(null)
+  const [editingMembership, setEditingMembership] = useState<MembershipWithUser | null>(null)
 
   // ============================================
   // CARGA DE MIEMBROS

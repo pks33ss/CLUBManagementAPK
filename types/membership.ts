@@ -32,3 +32,18 @@ export interface Membership {
     color: string | null
   } | null
 }
+
+/** Usuario incluido por el backend en GET /teams/:id/members */
+export interface MembershipUser {
+  id: string
+  name: string
+  lastName: string
+  username: string
+  email: string
+  avatar: string | null
+}
+
+/** Membership con `user` incluido — solo en /teams/:id/members */
+export interface MembershipWithUser extends Membership {
+  user: MembershipUser
+}

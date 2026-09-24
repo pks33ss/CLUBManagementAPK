@@ -4,13 +4,14 @@ import { useState } from 'react'
 import Link from 'next/link'
 import { membershipsApi } from '@/lib/api/memberships'
 import { Button, Card, Badge, Modal } from '@/components/ui'
-import type { Membership } from '@/types/membership'
+import { CardBody } from '@/components/ui/Card' 
+import type { MembershipWithUser } from '@/types/membership'
 
 interface Props {
-  members: Membership[]
+  members: MembershipWithUser[]
   canManage: boolean
   currentUserId: string
-  onEdit: (membership: Membership) => void
+  onEdit: (membership: MembershipWithUser) => void
   onUpdate: () => Promise<void> | void
   title?: string
   showRejoin?: boolean
@@ -40,9 +41,9 @@ export default function MembersList({
   showRejoin = false,
 }: Props) {
   const [processing, setProcessing] = useState<string | null>(null)
-  const [confirmRemove, setConfirmRemove] = useState<Membership | null>(null)
+  const [confirmRemove, setConfirmRemove] = useState<MembershipWithUser | null>(null)
 
-  const handleRemove = async (m: Membership) => {
+  const handleRemove = async (m: MembershipWithUser) => {
     setProcessing(m.id)
     try {
       await membershipsApi.leave(m.id)

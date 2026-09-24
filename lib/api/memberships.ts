@@ -1,5 +1,5 @@
 import api from '@/lib/api'
-import type { Membership } from '@/types/membership'
+import type { Membership, MembershipWithUser } from '@/types/membership'
 
 export const membershipsApi = {
   /**
@@ -13,10 +13,10 @@ export const membershipsApi = {
   /**
    * Miembros de un equipo.
    */
-  async findByTeam(teamId: string): Promise<Membership[]> {
-    const { data } = await api.get(`/teams/${teamId}/members`)
-    return data
-  },
+async findByTeam(teamId: string): Promise<MembershipWithUser[]> {
+  const { data } = await api.get(`/teams/${teamId}/members`)
+  return data
+},
 
   /**
    * Solicitar unirme a un equipo.

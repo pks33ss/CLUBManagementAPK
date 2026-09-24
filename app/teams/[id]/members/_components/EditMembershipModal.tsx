@@ -3,10 +3,10 @@
 import { useState } from 'react'
 import { membershipsApi } from '@/lib/api/memberships'
 import { Button, Input, Select, Modal } from '@/components/ui'
-import type { Membership } from '@/types/membership'
+import type { MembershipWithUser } from '@/types/membership'
 
 interface Props {
-  membership: Membership
+  membership: MembershipWithUser
   onClose: () => void
   onSuccess: () => Promise<void> | void
 }
