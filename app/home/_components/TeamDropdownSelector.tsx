@@ -2,17 +2,9 @@
 
 import { useState } from 'react'
 import { getSportIcon } from '@/lib/sport'
+import type { Team } from '@/types/team'
 
-interface Team {
-  id: string
-  name: string
-  sport?: string
-  club: {
-    id: string
-    name: string
-    logo?: string
-  }
-}
+
 
 interface Props {
   teams: Team[]

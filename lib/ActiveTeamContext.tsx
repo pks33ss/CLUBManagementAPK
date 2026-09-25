@@ -16,19 +16,10 @@ import { tutorRelationshipsApi } from '@/lib/api/tutor-relationships'
 import type { Membership } from '@/types/membership'
 import type { TutorRelationship } from '@/types/tutor-relationship'
 import type { UserMe } from '@/types/user'
+import type { Team } from '@/types/team'
 
-interface Team {
-  id: string
-  name: string
-  category?: string | null
-  sport?: string | null
-  season?: string | null
-  club: {
-    id: string
-    name: string
-    logo?: string | null
-  }
-}
+
+
 
 interface ActiveTeamContextType {
   // Equipo activo
