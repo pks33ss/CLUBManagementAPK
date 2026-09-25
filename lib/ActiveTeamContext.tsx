@@ -1,6 +1,13 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react'
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+  ReactNode,
+} from 'react'
 import { usePathname } from 'next/navigation'
 import api from '@/lib/api'
 import { usersApi } from '@/lib/api/users'
@@ -13,17 +20,18 @@ import type { UserMe } from '@/types/user'
 interface Team {
   id: string
   name: string
-  category?: string
-  sport?: string
+  category?: string | null
+  sport?: string | null
+  season?: string | null
   club: {
     id: string
     name: string
-    logo?: string
+    logo?: string | null
   }
 }
 
 interface ActiveTeamContextType {
-  // Equipo activo (existente)
+  // Equipo activo
   activeTeam: Team | null
   favorites: Team[]
   allTeams: Team[]
@@ -32,16 +40,16 @@ interface ActiveTeamContextType {
   removeFavorite: (teamId: string) => Promise<void>
   isFavorite: (teamId: string) => boolean
 
-  // ✅ NUEVOS DATOS
+  // Datos del usuario
   userMe: UserMe | null
   memberships: Membership[]
   tutors: TutorRelationship[]
   players: TutorRelationship[]
 
-  // Loading global
+  // Estado
   loading: boolean
 
-  // Recargar todo
+  // Recarga
   refresh: () => Promise<void>
   refreshUserData: () => Promise<void>
 }
@@ -52,11 +60,11 @@ const PUBLIC_ROUTES = ['/login', '/register']
 
 export function ActiveTeamProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname()
+
   const [activeTeam, setActiveTeamState] = useState<Team | null>(null)
   const [favorites, setFavorites] = useState<Team[]>([])
   const [allTeams, setAllTeams] = useState<Team[]>([])
 
-  // ✅ NUEVOS ESTADOS
   const [userMe, setUserMe] = useState<UserMe | null>(null)
   const [memberships, setMemberships] = useState<Membership[]>([])
   const [tutors, setTutors] = useState<TutorRelationship[]>([])
@@ -66,10 +74,30 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
   const loadingRef = useRef(false)
 
   // ============================================
-  // CARGA DE DATOS DEL USUARIO (nuevos endpoints)
+  // HELPERS
   // ============================================
 
-  const loadUserData = async () => {
+  /**
+   * Convierte un Membership (con team embebido) en un Team del contexto.
+   */
+  const membershipToTeam = (m: Membership): Team => ({
+    id: m.team!.id,
+    name: m.team!.name,
+    category: m.team!.category ?? null,
+    sport: m.team!.sport ?? null,
+    season: null, // opcional, no lo devuelve el endpoint
+    club: {
+      id: m.team!.club.id,
+      name: m.team!.club.name,
+      logo: m.team!.club.logo ?? null,
+    },
+  })
+
+  // ============================================
+  // CARGA DE DATOS DEL USUARIO
+  // ============================================
+
+  const loadUserData = async (): Promise<{ memberships: Membership[] }> => {
     try {
       const [me, myMemberships, myTutors, myPlayers] = await Promise.all([
         usersApi.getMe().catch(() => null),
@@ -82,52 +110,71 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
       setMemberships(myMemberships)
       setTutors(myTutors)
       setPlayers(myPlayers)
+
+      return { memberships: myMemberships }
     } catch (err: any) {
       if (err.response?.status !== 401) {
         console.error('Error cargando datos del usuario:', err)
       }
+      return { memberships: [] }
     }
   }
 
   // ============================================
-  // CARGA DE EQUIPOS (lógica existente)
+  // CARGA DE EQUIPOS (desde memberships)
   // ============================================
 
-  const loadTeams = async () => {
-    // 1) Todos los equipos del usuario
-    const clubsRes = await api.get('/clubs')
-    const clubs = clubsRes.data
+  const loadTeamsFromMemberships = async (memberships: Membership[]) => {
+    // 1) Solo memberships ACTIVE o PENDING (ambas representan "mis equipos")
+    const relevant = memberships.filter(
+      (m) => m.status === 'ACTIVE' || m.status === 'PENDING',
+    )
 
-    const teamsAccum: Team[] = []
-    for (const club of clubs) {
-      try {
-        const teamsRes = await api.get(`/teams/club/${club.id}`)
-        for (const team of teamsRes.data) {
-          teamsAccum.push({
-            ...team,
-            club: { id: club.id, name: club.name, logo: club.logo },
-          })
-        }
-      } catch {}
+    // 2) Convertir a Team y deduplicar por id
+    const teamsMap = new Map<string, Team>()
+    for (const m of relevant) {
+      if (!m.team) continue // por seguridad, aunque el backend siempre lo manda
+      if (!teamsMap.has(m.team.id)) {
+        teamsMap.set(m.team.id, membershipToTeam(m))
+      }
     }
-    setAllTeams(teamsAccum)
+    const teams = Array.from(teamsMap.values())
+    setAllTeams(teams)
 
-    // 2) Favoritos
-    const favRes = await api.get('/favorites')
-    const favTeams: Team[] = favRes.data.map((f: any) => ({
-      ...f.team,
-      club: f.team.club,
-    }))
-    setFavorites(favTeams)
+    // 3) Favoritos (sigue siendo endpoint separado)
+    let favTeams: Team[] = []
+    try {
+      const favRes = await api.get('/favorites')
+      favTeams = favRes.data.map((f: any) => ({
+        id: f.team.id,
+        name: f.team.name,
+        category: f.team.category ?? null,
+        sport: f.team.sport ?? null,
+        season: f.team.season ?? null,
+        club: f.team.club
+          ? {
+              id: f.team.club.id,
+              name: f.team.club.name,
+              logo: f.team.club.logo ?? null,
+            }
+          : { id: '', name: '', logo: null },
+      }))
+      setFavorites(favTeams)
+    } catch (err) {
+      console.warn('No se pudieron cargar favoritos:', err)
+      setFavorites([])
+    }
 
-    // 3) Equipo activo
-    const savedActiveId = localStorage.getItem('activeTeamId')
+    // 4) Equipo activo: priorizar localStorage, luego favoritos, luego primero
+    const savedActiveId =
+      typeof window !== 'undefined' ? localStorage.getItem('activeTeamId') : null
+
     let foundActive: Team | null = null
 
     if (savedActiveId) {
       foundActive =
         favTeams.find((t) => t.id === savedActiveId) ||
-        teamsAccum.find((t) => t.id === savedActiveId) ||
+        teams.find((t) => t.id === savedActiveId) ||
         null
     }
 
@@ -135,12 +182,15 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
       foundActive = favTeams[0]
     }
 
+    if (!foundActive && teams.length > 0) {
+      foundActive = teams[0]
+    }
+
     if (foundActive) {
-      setActiveTeamState((prev) => {
-        if (prev?.id === foundActive!.id) return prev
-        return foundActive
-      })
-      localStorage.setItem('activeTeamId', foundActive.id)
+      setActiveTeamState((prev) => (prev?.id === foundActive!.id ? prev : foundActive))
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('activeTeamId', foundActive.id)
+      }
     } else {
       setActiveTeamState((prev) => (prev === null ? prev : null))
     }
@@ -156,7 +206,8 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
       return
     }
 
-    const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
+    const token =
+      typeof window !== 'undefined' ? localStorage.getItem('token') : null
     if (!token) {
       setLoading(false)
       return
@@ -167,7 +218,8 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
     setLoading(true)
 
     try {
-      await Promise.all([loadTeams(), loadUserData()])
+      const { memberships } = await loadUserData()
+      await loadTeamsFromMemberships(memberships)
     } catch (err: any) {
       if (err.response?.status !== 401) {
         console.error('Error cargando contexto:', err)
@@ -180,6 +232,7 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     loadData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pathname])
 
   // ============================================
@@ -188,7 +241,9 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
 
   const setActiveTeam = (team: Team) => {
     setActiveTeamState(team)
-    localStorage.setItem('activeTeamId', team.id)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('activeTeamId', team.id)
+    }
   }
 
   const addFavorite = async (teamId: string) => {
@@ -207,9 +262,13 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
         const newFavs = favorites.filter((t) => t.id !== teamId)
         if (newFavs.length > 0) {
           setActiveTeam(newFavs[0])
+        } else if (allTeams.length > 0) {
+          setActiveTeam(allTeams[0])
         } else {
           setActiveTeamState(null)
-          localStorage.removeItem('activeTeamId')
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('activeTeamId')
+          }
         }
       }
       await loadData()
@@ -227,7 +286,8 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
   }
 
   const refreshUserData = async () => {
-    await loadUserData()
+    const { memberships } = await loadUserData()
+    await loadTeamsFromMemberships(memberships)
   }
 
   return (
