@@ -13,10 +13,27 @@ export const membershipsApi = {
   /**
    * Miembros de un equipo.
    */
-async findByTeam(teamId: string): Promise<MembershipWithUser[]> {
-  const { data } = await api.get(`/teams/${teamId}/members`)
-  return data
-},
+  async findByTeam(teamId: string): Promise<MembershipWithUser[]> {
+    const { data } = await api.get(`/teams/${teamId}/members`)
+    return data
+  },
+
+  /**
+   * Añadir a un usuario existente al equipo directamente (status: ACTIVE).
+   * Solo para coach/assistant/admin del equipo.
+   */
+  async addMember(
+    teamId: string,
+    payload: {
+      userId: string
+      role?: string
+      jerseyNumber?: number
+      position?: string
+    },
+  ): Promise<Membership> {
+    const { data } = await api.post(`/teams/${teamId}/members`, payload)
+    return data
+  },
 
   /**
    * Solicitar unirme a un equipo.

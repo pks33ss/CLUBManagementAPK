@@ -6,6 +6,7 @@ import { usersApi } from '@/lib/api/users'
 import { invitationsApi } from '@/lib/api/invitations'
 import { Button, Input, Select, Modal, Card, CardBody } from '@/components/ui'
 import type { UserPublic } from '@/types/user'
+import { membershipsApi } from '@/lib/api/memberships'
 
 interface Props {
   teamId: string
@@ -25,6 +26,8 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
   const [results, setResults] = useState<UserPublic[]>([])
   const [searching, setSearching] = useState(false)
   const [searched, setSearched] = useState(false)
+
+  const [adding, setAdding] = useState<string | null>(null)
 
   // Create
   const [createForm, setCreateForm] = useState({
@@ -87,6 +90,27 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
       setProcessing(false)
     }
   }
+
+    // Añadir directamente un user existente al equipo (sin invitación)
+  const handleAddExisting = async (user: UserPublic) => {
+    setAdding(user.id)
+    setError('')
+    try {
+      await membershipsApi.addMember(teamId, {
+        userId: user.id,
+        role,
+      })
+      // Éxito: recargamos la lista y cerramos el modal
+      await onSuccess()
+      onClose()
+    } catch (err: any) {
+      console.error('Error:', err)
+      setError(err.response?.data?.message || 'Error al añadir el miembro')
+    } finally {
+      setAdding(null)
+    }
+  }
+
 
   // Crear jugador fantasma + invitación
   const handleCreateNew = async (e: React.FormEvent) => {
@@ -254,6 +278,18 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
       {/* Modo búsqueda */}
       {mode === 'search' && (
         <div className="space-y-4">
+<div className="bg-surface-elevated border border-border-subtle rounded-lg p-3 text-xs text-text-muted space-y-1">
+  <p>
+    <strong className="text-text-primary">➕ Añadir:</strong> crea la
+    membership directamente. Úsalo si el jugador ya está en otro equipo del
+    club y quieres reutilizarlo.
+  </p>
+  <p>
+    <strong className="text-text-primary">📨 Invitar:</strong> crea una
+    invitación que el jugador debe aceptar con un link.
+  </p>
+</div>
+
           <Input
             label="Buscar por nombre, @username o email"
             type="text"
@@ -294,18 +330,31 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-text-primary truncate">
-                      {u.name} {u.lastName}
-                    </p>
-                    <p className="text-xs text-brand-primary">{u.username}</p>
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={() => handleInviteExisting(u)}
-                    disabled={processing}
-                  >
-                    Invitar
-                  </Button>
+  <p className="font-medium text-text-primary truncate">
+    {u.name} {u.lastName}
+  </p>
+  <p className="text-xs text-brand-primary">{u.username}</p>
+</div>
+<div className="flex gap-2 shrink-0">
+  <Button
+    size="sm"
+    variant="secondary"
+    onClick={() => handleAddExisting(u)}
+    disabled={processing || adding === u.id}
+    loading={adding === u.id}
+    title="Añadir directamente al equipo (sin invitación)"
+  >
+    ➕ Añadir
+  </Button>
+  <Button
+    size="sm"
+    onClick={() => handleInviteExisting(u)}
+    disabled={processing || adding === u.id}
+    title="Enviar invitación (el usuario debe aceptarla)"
+  >
+    📨 Invitar
+  </Button>
+</div>
                 </div>
               ))}
             </div>

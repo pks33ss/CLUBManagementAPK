@@ -189,7 +189,7 @@ export default function HomePage() {
           </p>
         </div>
 
-        {/* Dropdown selector + botón favorito */}
+        {/* Dropdown selector + botón favorito + ver equipo */}
         <div className="flex items-center gap-2 flex-wrap">
           <TeamDropdownSelector
             teams={allTeams}
@@ -212,6 +212,14 @@ export default function HomePage() {
           >
             {isFavorite(activeTeam.id) ? '⭐ Favorito' : '☆ Favorito'}
           </button>
+            {/* ✅ NUEVO — Ver equipo */}
+  <Button
+    variant="primary"
+    onClick={() => router.push(`/teams/${activeTeam.id}`)}
+    className="flex items-center gap-2"
+  >
+    👥 Ver equipo
+  </Button>
         </div>
       </div>
 

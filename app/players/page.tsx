@@ -3,252 +3,153 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import api from '@/lib/api'
-import { getSportIcon, getSportConfig } from '@/lib/sport'
+import { getSportIcon } from '@/lib/sport'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
-import { Button, Card, CardBody, Badge, Input, Select, Modal } from '@/components/ui'
+import { clubsApi, type ClubPlayer } from '@/lib/api/clubs'
+import { Button, Card, CardBody, Badge, Input } from '@/components/ui'
 
-interface Player {
-  id: string
-  name: string
-  lastName: string
-  position: string
-  number: number
-  teamId: string
-  team: {
-    id: string
-    name: string
-    category: string
-    sport?: string
-  }
-}
-
-type SortField = 'number' | 'name' | 'team'
+type SortField = 'name' | 'team' | 'number'
 type SortOrder = 'asc' | 'desc'
 type GroupBy = 'none' | 'team' | 'position'
 
 export default function PlayersPage() {
   const router = useRouter()
-  const { activeTeam, allTeams, loading: loadingTeams } = useActiveTeam()
+  const { activeTeam, loading: loadingTeams } = useActiveTeam()
 
-  const [players, setPlayers] = useState<Player[]>([])
-  const [selectedTeams, setSelectedTeams] = useState<string[]>([])
+  const [players, setPlayers] = useState<ClubPlayer[]>([])
   const [loadingPlayers, setLoadingPlayers] = useState(false)
-  const [showTeamSelector, setShowTeamSelector] = useState(false)
 
-  const [sortField, setSortField] = useState<SortField>('number')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([])
+  const [sortField, setSortField] = useState<SortField>('name')
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
   const [groupBy, setGroupBy] = useState<GroupBy>('none')
-
-  const clubTeams = activeTeam
-    ? allTeams.filter((t) => t.club?.id === activeTeam.club?.id)
-    : []
-
-  const [showModal, setShowModal] = useState(false)
-  const [newPlayer, setNewPlayer] = useState({
-    name: '',
-    lastName: '',
-    birthDate: '',
-    position: '',
-    number: '',
-    phone: '',
-    email: '',
-    address: '',
-    height: '',
-    wingspan: '',
-    weight: '',
-    teamId: '',
-  })
 
   // Guard de login
   useEffect(() => {
     const token = localStorage.getItem('token')
-    if (!token) {
-      router.push('/login')
-    }
+    if (!token) router.push('/login')
   }, [router])
 
-  // Resetear selección cuando cambia el activeTeam
+  // Cargar jugadores del club activo
   useEffect(() => {
-    if (activeTeam) {
-      setSelectedTeams([activeTeam.id])
-    } else {
-      setSelectedTeams([])
-      setPlayers([])
-    }
-  }, [activeTeam])
-
-  // Cargar jugadores cuando cambia la selección
-  useEffect(() => {
-    if (selectedTeams.length === 0) {
+    if (!activeTeam?.club?.id) {
       setPlayers([])
       return
     }
-    fetchPlayersByTeams(selectedTeams)
-  }, [selectedTeams])
 
-  // Cerrar dropdown al hacer click fuera
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement
-      if (!target.closest('.team-selector-container')) {
-        setShowTeamSelector(false)
+    const clubId = activeTeam.club.id
+
+    const fetchPlayers = async () => {
+      setLoadingPlayers(true)
+      try {
+        const data = await clubsApi.getPlayers(clubId)
+        setPlayers(data)
+      } catch (err) {
+        console.error('Error cargando jugadores del club:', err)
+        setPlayers([])
+      } finally {
+        setLoadingPlayers(false)
       }
     }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
 
-  const fetchPlayersByTeams = async (teamIds: string[]) => {
-    setLoadingPlayers(true)
-    try {
-      const response = await api.post('/players/by-teams', { teamIds })
-      setPlayers(response.data)
-    } catch (error) {
-      console.error('Error fetching players:', error)
-      setPlayers([])
-    } finally {
-      setLoadingPlayers(false)
+    fetchPlayers()
+  }, [activeTeam?.club?.id])
+
+  // Lista de equipos únicos del club (deducidos de las memberships)
+  const allClubTeams = Array.from(
+    new Map(
+      players
+        .flatMap((p) => p.memberships)
+        .map((m) => [m.teamId, { id: m.teamId, name: m.teamName, sport: m.teamSport, category: m.teamCategory }]),
+    ).values(),
+  ).sort((a, b) => a.name.localeCompare(b.name))
+
+  // Filtros
+  const filtered = players.filter((p) => {
+    // Filtro de texto
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim().replace(/^@/, '')
+      const haystack = `${p.name} ${p.lastName} ${p.username ?? ''}`.toLowerCase()
+      if (!haystack.includes(q)) return false
     }
-  }
 
+    // Filtro por equipo
+    if (selectedTeamIds.length > 0) {
+      const hasTeam = p.memberships.some((m) => selectedTeamIds.includes(m.teamId))
+      if (!hasTeam) return false
+    }
+
+    return true
+  })
+
+  // Ordenación
+  const sorted = [...filtered].sort((a, b) => {
+    let cmp = 0
+    switch (sortField) {
+      case 'name':
+        cmp = `${a.lastName} ${a.name}`.localeCompare(`${b.lastName} ${b.name}`)
+        break
+      case 'team':
+        cmp = (a.memberships[0]?.teamName ?? '').localeCompare(b.memberships[0]?.teamName ?? '')
+        break
+      case 'number':
+        cmp = (a.memberships[0]?.jerseyNumber ?? 999) - (b.memberships[0]?.jerseyNumber ?? 999)
+        break
+    }
+    return sortOrder === 'asc' ? cmp : -cmp
+  })
+
+  // Agrupación
+  const grouped: Record<string, ClubPlayer[]> = (() => {
+    if (groupBy === 'none') return { '': sorted }
+    const acc: Record<string, ClubPlayer[]> = {}
+    for (const p of sorted) {
+      let key = ''
+      if (groupBy === 'team') {
+        key = p.memberships.map((m) => m.teamName).join(', ') || 'Sin equipo'
+      } else if (groupBy === 'position') {
+        const positions = Array.from(new Set(p.memberships.map((m) => m.position).filter(Boolean)))
+        key = positions.join(', ') || 'Sin posición'
+      }
+      if (!acc[key]) acc[key] = []
+      acc[key].push(p)
+    }
+    return acc
+  })()
+
+  const groupKeys = Object.keys(grouped).sort()
   const toggleTeam = (teamId: string) => {
-    setSelectedTeams((prev) =>
-      prev.includes(teamId) ? prev.filter((id) => id !== teamId) : [...prev, teamId]
+    setSelectedTeamIds((prev) =>
+      prev.includes(teamId) ? prev.filter((id) => id !== teamId) : [...prev, teamId],
     )
   }
 
-  const selectAllTeams = () => {
-    setSelectedTeams(clubTeams.map((t) => t.id))
-  }
-
-  const deselectAllTeams = () => {
-    setSelectedTeams([])
-  }
-
-  const createPlayer = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!newPlayer.teamId) {
-      alert('Por favor, selecciona un equipo')
-      return
-    }
-    try {
-      await api.post('/players', {
-        name: newPlayer.name,
-        lastName: newPlayer.lastName,
-        birthDate: newPlayer.birthDate || undefined,
-        position: newPlayer.position || undefined,
-        number: newPlayer.number ? parseInt(newPlayer.number) : undefined,
-        phone: newPlayer.phone || undefined,
-        email: newPlayer.email || undefined,
-        address: newPlayer.address || undefined,
-        height: newPlayer.height ? parseFloat(newPlayer.height) : undefined,
-        wingspan: newPlayer.wingspan ? parseFloat(newPlayer.wingspan) : undefined,
-        weight: newPlayer.weight ? parseFloat(newPlayer.weight) : undefined,
-        teamId: newPlayer.teamId,
-      })
-      setShowModal(false)
-      setNewPlayer({
-        name: '', lastName: '', birthDate: '', position: '', number: '',
-        phone: '', email: '', address: '', height: '', wingspan: '',
-        weight: '', teamId: '',
-      })
-      fetchPlayersByTeams(selectedTeams)
-    } catch (error: any) {
-      console.error('Error:', error)
-      alert(error.response?.data?.message || 'Error al crear el jugador')
-    }
-  }
-
-  const getSelectedTeamsText = () => {
-    if (selectedTeams.length === 0) return 'Selecciona equipos...'
-    if (selectedTeams.length === clubTeams.length) return 'Todos los equipos'
-    if (selectedTeams.length === 1) {
-      const team = clubTeams.find((t) => t.id === selectedTeams[0])
-      return team?.name || '1 equipo'
-    }
-    return `${selectedTeams.length} equipos seleccionados`
-  }
-
   const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
-    } else {
+    if (sortField === field) setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')
+    else {
       setSortField(field)
       setSortOrder('asc')
     }
   }
 
-  const sortPlayers = (playersToSort: Player[]) => {
-    return [...playersToSort].sort((a, b) => {
-      let comparison = 0
-      switch (sortField) {
-        case 'number':
-          const numA = a.number || 999
-          const numB = b.number || 999
-          comparison = numA - numB
-          break
-        case 'name':
-          comparison = `${a.lastName} ${a.name}`.localeCompare(`${b.lastName} ${b.name}`)
-          break
-        case 'team':
-          comparison = (a.team?.name || '').localeCompare(b.team?.name || '')
-          break
-      }
-      return sortOrder === 'asc' ? comparison : -comparison
-    })
-  }
-
-  const sortedPlayers = sortPlayers(players)
-
-  const groupPlayers = (playersToGroup: Player[]) => {
-    if (groupBy === 'none') return { '': playersToGroup }
-    return playersToGroup.reduce((acc: any, player) => {
-      let key = ''
-      if (groupBy === 'team') key = player.team?.name || 'Sin equipo'
-      else if (groupBy === 'position') key = player.position || 'Sin posición'
-      if (!acc[key]) acc[key] = []
-      acc[key].push(player)
-      return acc
-    }, {})
-  }
-
-  const groupedPlayers = groupPlayers(sortedPlayers)
-  const groupKeys = Object.keys(groupedPlayers).sort()
-
-  const getSortIcon = (field: SortField) => {
-    if (sortField !== field) return '↕️'
-    return sortOrder === 'asc' ? '↑' : '↓'
-  }
-
-  const getGroupIcon = (group: GroupBy) => {
-    switch (group) {
-      case 'team': return '🏆'
-      case 'position': return '📍'
-      default: return ''
-    }
-  }
-
-  const selectedTeamInModal = clubTeams.find((t) => t.id === newPlayer.teamId)
-  const modalSport = getSportConfig(selectedTeamInModal?.sport)
+  const getSortIcon = (field: SortField) => (sortField === field ? (sortOrder === 'asc' ? '↑' : '↓') : '↕️')
 
   // ============================================
   // RENDER
   // ============================================
 
   if (loadingTeams) {
-    return <div className="text-center py-12 text-text-muted">Cargando jugadores...</div>
+    return <div className="text-center py-12 text-text-muted">Cargando...</div>
   }
 
-  if (!activeTeam) {
+  if (!activeTeam?.club) {
     return (
       <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
         <div className="text-6xl mb-4">🏃</div>
-        <h3 className="text-xl font-semibold text-text-primary mb-2">
-          Selecciona un equipo
-        </h3>
+        <h3 className="text-xl font-semibold text-text-primary mb-2">Selecciona un club</h3>
         <p className="text-text-secondary mb-6">
-          Elige un equipo desde el menú superior para ver sus jugadores
+          Elige un equipo desde el menú superior para ver los jugadores de su club
         </p>
       </div>
     )
@@ -256,102 +157,71 @@ export default function PlayersPage() {
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      {/* Header */}
+      <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">🏃 Jugadores</h1>
+          <h1 className="text-2xl font-bold text-text-primary">🏃 Jugadores del club</h1>
           <p className="text-text-secondary">
-            {activeTeam.name} · {activeTeam.club?.name}
+            {activeTeam.club.name} · {filtered.length} jugadores
           </p>
         </div>
-        <Button
-          onClick={() => {
-            if (clubTeams.length === 0) {
-              alert('Primero crea un equipo')
-              return
-            }
-            setNewPlayer((prev) => ({ ...prev, teamId: activeTeam.id }))
-            setShowModal(true)
-          }}
-          disabled={clubTeams.length === 0}
-          icon={<span className="text-xl">+</span>}
-        >
-          Nuevo Jugador
-        </Button>
+        <Link href={`/teams/${activeTeam.id}/members`}>
+          <Button variant="secondary">Gestionar miembros</Button>
+        </Link>
       </div>
 
-      {/* Selector multi-equipo (solo equipos del club activo) */}
-      <div className="team-selector-container relative mb-6 max-w-md">
-        <label className="block text-sm font-medium text-text-secondary mb-1">
-          Equipos del club
-        </label>
-        <button
-          type="button"
-          onClick={() => setShowTeamSelector(!showTeamSelector)}
-          className="w-full bg-surface-elevated border border-border-subtle rounded-lg px-4 py-2 text-left flex justify-between items-center hover:border-brand-primary/50 transition"
-        >
-          <span className={selectedTeams.length === 0 ? 'text-text-muted' : 'text-text-primary'}>
-            {getSelectedTeamsText()}
-          </span>
-          <span className="text-text-muted">▼</span>
-        </button>
-
-        {showTeamSelector && (
-          <div className="absolute z-10 w-full mt-1 bg-surface border border-border-subtle rounded-lg shadow-lg max-h-80 overflow-auto">
-            <div className="p-2 border-b border-border-subtle flex gap-2">
-              <button
-                type="button"
-                onClick={selectAllTeams}
-                className="flex-1 text-xs bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 py-1.5 rounded transition"
-              >
-                ✓ Todos
-              </button>
-              <button
-                type="button"
-                onClick={deselectAllTeams}
-                className="flex-1 text-xs bg-surface-elevated text-text-secondary hover:bg-border-subtle py-1.5 rounded transition"
-              >
-                ✕ Ninguno
-              </button>
-            </div>
-
-            {clubTeams.length === 0 ? (
-              <div className="p-4 text-sm text-text-muted text-center">
-                No hay equipos en este club
-              </div>
-            ) : (
-              clubTeams.map((team) => (
-                <label
-                  key={team.id}
-                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-surface-elevated cursor-pointer transition"
+      {/* Filtros */}
+      <Card className="mb-4">
+        <CardBody>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <Input
+              label="Buscar"
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Nombre, apellido o @username..."
+            />
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-1">
+                Filtrar por equipo
+              </label>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setSelectedTeamIds([])}
+                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition border ${
+                    selectedTeamIds.length === 0
+                      ? 'bg-brand-primary/20 text-brand-primary border-brand-primary/40'
+                      : 'bg-surface-elevated text-text-secondary border-border-subtle hover:border-brand-primary/40'
+                  }`}
                 >
-                  <input
-                    type="checkbox"
-                    checked={selectedTeams.includes(team.id)}
-                    onChange={() => toggleTeam(team.id)}
-                    className="w-4 h-4 accent-brand-primary"
-                  />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-text-primary flex items-center gap-1">
-                      <span>{getSportIcon(team.sport)}</span>
-                      <span>{team.name}</span>
-                    </p>
-                    <p className="text-xs text-text-muted">
-                      {team.category || 'Sin categoría'}
-                    </p>
-                  </div>
-                </label>
-              ))
-            )}
+                  Todos
+                </button>
+                {allClubTeams.map((team) => {
+                  const isActive = selectedTeamIds.includes(team.id)
+                  return (
+                    <button
+                      key={team.id}
+                      type="button"
+                      onClick={() => toggleTeam(team.id)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition border ${
+                        isActive
+                          ? 'bg-brand-primary/20 text-brand-primary border-brand-primary/40'
+                          : 'bg-surface-elevated text-text-secondary border-border-subtle hover:border-brand-primary/40'
+                      }`}
+                    >
+                      {getSportIcon(team.sport)} {team.name}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
           </div>
-        )}
-      </div>
 
-      {/* Barra de ordenación y agrupación */}
-      {players.length > 0 && (
-        <Card className="mb-4">
-          <div className="p-4 flex flex-wrap items-center gap-4">
+          {/* Ordenación y agrupación */}
+          <div className="flex flex-wrap items-center gap-4 pt-3 border-t border-border-subtle">
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-text-secondary">Agrupar por:</span>
+              <span className="text-sm font-medium text-text-secondary">Agrupar:</span>
               <div className="flex gap-1">
                 <Button
                   variant={groupBy === 'none' ? 'primary' : 'secondary'}
@@ -377,277 +247,137 @@ export default function PlayersPage() {
               </div>
             </div>
           </div>
-        </Card>
-      )}
+        </CardBody>
+      </Card>
 
-      {/* Lista de jugadores */}
+      {/* Lista */}
       {loadingPlayers ? (
         <div className="text-center py-12 text-text-muted">Cargando jugadores...</div>
-      ) : players.length === 0 ? (
+      ) : filtered.length === 0 ? (
         <div className="text-center py-12 bg-surface rounded-xl shadow border border-border-subtle">
           <div className="text-4xl mb-4">🏃</div>
           <p className="text-text-secondary">
-            {selectedTeams.length === 0
-              ? 'Selecciona al menos un equipo'
-              : 'No hay jugadores en los equipos seleccionados'}
+            {players.length === 0
+              ? 'No hay jugadores en este club'
+              : 'No hay jugadores que coincidan con los filtros'}
           </p>
         </div>
       ) : (
         <>
-          <div className="bg-surface rounded-t-xl px-6 py-4 border border-border-subtle border-b-0">
-            <p className="text-sm text-text-secondary">
-              Mostrando <strong className="text-text-primary">{players.length}</strong> jugadores de{' '}
-              <strong className="text-text-primary">{selectedTeams.length}</strong> equipos
-              {groupBy !== 'none' && (
-                <>
-                  {' '}
-                  · Agrupados por <strong className="text-text-primary">{groupBy === 'team' ? 'equipo' : 'posición'}</strong>
-                </>
-              )}
-            </p>
-          </div>
-
           {groupKeys.map((groupKey, groupIndex) => (
             <div
               key={groupKey}
               className={`bg-surface overflow-hidden border border-border-subtle ${
-                groupIndex === 0 ? 'border-t-0' : 'border-t-0'
-              } ${groupIndex === groupKeys.length - 1 ? 'rounded-b-xl' : ''} ${
-                groupIndex > 0 ? 'border-t-0' : ''
-              }`}
+                groupIndex === 0 ? 'rounded-t-xl' : ''
+              } ${groupIndex === groupKeys.length - 1 ? 'rounded-b-xl' : 'border-t-0'}`}
             >
               {groupBy !== 'none' && (
                 <div className="bg-brand-primary/5 px-6 py-3 border-b border-border-subtle">
-                  <h2 className="font-semibold text-text-primary flex items-center gap-2">
-                    <span>{getGroupIcon(groupBy)}</span>
-                    <span>{groupKey || 'Sin definir'}</span>
+                  <h2 className="font-semibold text-text-primary">
+                    {groupKey || 'Sin definir'}{' '}
                     <span className="text-sm font-normal text-text-muted">
-                      ({groupedPlayers[groupKey].length} jugadores)
+                      ({grouped[groupKey].length})
                     </span>
                   </h2>
                 </div>
               )}
 
-              <table className="w-full">
-                <thead className="bg-surface-elevated">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">
-                      <button onClick={() => handleSort('number')} className="flex items-center gap-1 hover:text-text-primary transition">
-                        # {getSortIcon('number')}
-                      </button>
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">
-                      <button onClick={() => handleSort('name')} className="flex items-center gap-1 hover:text-text-primary transition">
-                        Nombre {getSortIcon('name')}
-                      </button>
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">
-                      Posición
-                    </th>
-                    {groupBy !== 'team' && (
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-surface-elevated">
+                    <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">
-                        <button onClick={() => handleSort('team')} className="flex items-center gap-1 hover:text-text-primary transition">
-                          Equipo {getSortIcon('team')}
+                        <button onClick={() => handleSort('name')} className="flex items-center gap-1 hover:text-text-primary">
+                          Nombre {getSortIcon('name')}
                         </button>
                       </th>
-                    )}
-                    <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase">
-                      Acciones
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border-subtle">
-                  {groupedPlayers[groupKey].map((player: Player) => (
-                    <tr key={player.id} className="hover:bg-surface-elevated transition">
-                      <td className="px-6 py-4 text-sm font-medium text-text-secondary">
-                        {player.number || '-'}
-                      </td>
-                      <td className="px-6 py-4 font-medium text-text-primary">
-                        <Link href={`/players/${player.id}`} className="hover:text-brand-primary transition">
-                          {player.name} {player.lastName}
-                        </Link>
-                      </td>
-                      <td className="px-6 py-4 text-sm text-text-secondary">
-                        {player.position || '-'}
-                      </td>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">
+                        Username
+                      </th>
                       {groupBy !== 'team' && (
-                        <td className="px-6 py-4 text-sm">
-                          <Link href={`/teams/${player.team?.id}`}>
-                            <Badge variant="brand">
-                              {getSportIcon(player.team?.sport)} {player.team?.name || 'Sin equipo'}
-                            </Badge>
-                          </Link>
-                        </td>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">
+                          Equipo(s)
+                        </th>
                       )}
-                      <td className="px-6 py-4 text-right">
-                        <Link href={`/players/${player.id}`} className="text-brand-primary hover:text-brand-primary-light transition text-sm">
-                          Ver ficha →
-                        </Link>
-                      </td>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">
+                        Posición
+                      </th>
+                      <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase">
+                        Acciones
+                      </th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-border-subtle">
+                    {grouped[groupKey].map((player) => (
+                      <tr key={player.id} className="hover:bg-surface-elevated transition">
+                        <td className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            {player.avatar ? (
+                              <img
+                                src={player.avatar}
+                                alt={player.name}
+                                className="w-8 h-8 rounded-full object-cover shrink-0"
+                              />
+                            ) : (
+                              <div className="w-8 h-8 rounded-full bg-brand-primary/20 text-brand-primary flex items-center justify-center text-xs font-bold shrink-0">
+                                {player.name?.[0]?.toUpperCase() || '?'}
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <Link
+                                href={player.username ? `/users/${player.username.replace('@', '')}` : '#'}
+                                className="font-medium text-text-primary hover:text-brand-primary transition truncate block"
+                              >
+                                {player.name} {player.lastName}
+                              </Link>
+                              {player.isGhost && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning font-bold uppercase">
+                                  sin cuenta
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 text-sm text-brand-primary">
+                          {player.username || '—'}
+                        </td>
+                        {groupBy !== 'team' && (
+                          <td className="px-6 py-4 text-sm">
+                            <div className="flex flex-wrap gap-1">
+                              {player.memberships.map((m) => (
+                                <Link key={m.id} href={`/teams/${m.teamId}`}>
+                                  <Badge variant="brand">
+                                    {getSportIcon(m.teamSport)} {m.teamName}
+                                  </Badge>
+                                </Link>
+                              ))}
+                            </div>
+                          </td>
+                        )}
+                        <td className="px-6 py-4 text-sm text-text-secondary">
+                          {player.memberships.map((m) => m.position).filter(Boolean).join(', ') || '—'}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                          {player.username ? (
+                            <Link
+                              href={`/users/${player.username.replace('@', '')}`}
+                              className="text-brand-primary hover:text-brand-primary-light transition text-sm"
+                            >
+                              Ver ficha →
+                            </Link>
+                          ) : (
+                            <span className="text-xs text-text-muted">Sin username</span>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           ))}
         </>
       )}
-
-      {/* MODAL DE CREAR JUGADOR */}
-      <Modal
-        isOpen={showModal}
-        onClose={() => setShowModal(false)}
-        title="Añadir Nuevo Jugador"
-        size="lg"
-      >
-        <form onSubmit={createPlayer} className="space-y-4">
-          <Select
-            label="Equipo *"
-            value={newPlayer.teamId}
-            onChange={(e) => setNewPlayer({ ...newPlayer, teamId: e.target.value, position: '' })}
-            required
-          >
-            <option value="">Seleccionar equipo...</option>
-            {clubTeams.map((team) => (
-              <option key={team.id} value={team.id}>
-                {getSportIcon(team.sport)} {team.name}
-              </option>
-            ))}
-          </Select>
-
-          <div>
-            <h4 className="text-sm font-semibold text-text-secondary mb-3">📋 Información Personal</h4>
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Nombre *"
-                type="text"
-                value={newPlayer.name}
-                onChange={(e) => setNewPlayer({ ...newPlayer, name: e.target.value })}
-                required
-              />
-              <Input
-                label="Apellido *"
-                type="text"
-                value={newPlayer.lastName}
-                onChange={(e) => setNewPlayer({ ...newPlayer, lastName: e.target.value })}
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 mt-4">
-              <Input
-                label="Fecha de nacimiento"
-                type="date"
-                value={newPlayer.birthDate}
-                onChange={(e) => setNewPlayer({ ...newPlayer, birthDate: e.target.value })}
-              />
-              <Input
-                label="Teléfono"
-                type="tel"
-                value={newPlayer.phone}
-                onChange={(e) => setNewPlayer({ ...newPlayer, phone: e.target.value })}
-              />
-            </div>
-
-            <div className="mt-4">
-              <Input
-                label="Email"
-                type="email"
-                value={newPlayer.email}
-                onChange={(e) => setNewPlayer({ ...newPlayer, email: e.target.value })}
-              />
-            </div>
-
-            <div className="mt-4">
-              <Input
-                label="Dirección"
-                type="text"
-                value={newPlayer.address}
-                onChange={(e) => setNewPlayer({ ...newPlayer, address: e.target.value })}
-              />
-            </div>
-          </div>
-
-          <div className="border-t border-border-subtle pt-4">
-            <h4 className="text-sm font-semibold text-text-secondary mb-3">
-              {modalSport.icon} Información Deportiva
-            </h4>
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Dorsal"
-                type="number"
-                value={newPlayer.number}
-                onChange={(e) => setNewPlayer({ ...newPlayer, number: e.target.value })}
-                min="0"
-                max="99"
-              />
-              <div>
-                {modalSport.positions.length > 0 ? (
-                  <Select
-                    label="Posición"
-                    value={newPlayer.position}
-                    onChange={(e) => setNewPlayer({ ...newPlayer, position: e.target.value })}
-                  >
-                    <option value="">Seleccionar...</option>
-                    {modalSport.positions.map((pos) => (
-                      <option key={pos} value={pos}>{pos}</option>
-                    ))}
-                  </Select>
-                ) : (
-                  <Input
-                    label="Posición"
-                    type="text"
-                    value={newPlayer.position}
-                    onChange={(e) => setNewPlayer({ ...newPlayer, position: e.target.value })}
-                    placeholder="Ej: Delantero"
-                  />
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4 mt-4">
-              <Input
-                label="Altura (cm)"
-                type="number"
-                value={newPlayer.height}
-                onChange={(e) => setNewPlayer({ ...newPlayer, height: e.target.value })}
-                min="0"
-                step="0.1"
-              />
-              <Input
-                label="Envergadura (cm)"
-                type="number"
-                value={newPlayer.wingspan}
-                onChange={(e) => setNewPlayer({ ...newPlayer, wingspan: e.target.value })}
-                min="0"
-                step="0.1"
-              />
-              <Input
-                label="Peso (kg)"
-                type="number"
-                value={newPlayer.weight}
-                onChange={(e) => setNewPlayer({ ...newPlayer, weight: e.target.value })}
-                min="0"
-                step="0.1"
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-3 pt-4">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setShowModal(false)}
-              className="flex-1"
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" className="flex-1">
-              Añadir Jugador
-            </Button>
-          </div>
-        </form>
-      </Modal>
     </div>
   )
 }
