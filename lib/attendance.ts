@@ -5,7 +5,7 @@ export type AttendanceStatus = 'PRESENT' | 'ABSENT' | 'LATE' | 'EXCUSED' | 'PEND
 export interface AttendanceRecord {
   id?: string
   status: AttendanceStatus
-  playerId?: string
+  userId?: string
   sessionId?: string
   notes?: string | null
 }
@@ -16,10 +16,10 @@ export interface AttendanceSummary {
   late: number
   excused: number
   pending: number
-  total: number        // total registros (incluye PENDING)
-  marked: number       // total - pending (los que ya se han marcado)
-  attended: number     // present + late
-  rate: number         // % sobre marked (present+late / marked)
+  total: number
+  marked: number
+  attended: number
+  rate: number
   color: {
     badge: string
     bar: string
@@ -27,10 +27,6 @@ export interface AttendanceSummary {
   }
 }
 
-/**
- * Cuenta la asistencia de una sesión.
- * Regla: PRESENT + LATE = asistió. ABSENT y EXCUSED no cuentan. PENDING no cuenta para el %.
- */
 export function summarizeAttendance(
   attendances: AttendanceRecord[] | undefined | null
 ): AttendanceSummary {

@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
-import { attendanceBadgeClass } from '@/lib/attendance'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
 import { Card, CardBody, Badge } from '@/components/ui'
 
@@ -13,8 +12,10 @@ interface PlayerStats {
     id: string
     name: string
     lastName: string
-    number: number
-    position: string
+    username: string | null
+    isGhost: boolean
+    number: number | null
+    position: string | null
   }
   stats: {
     total: number
@@ -84,23 +85,17 @@ export default function AttendanceOverview() {
     }
   }
 
-  // ✅ Barra de progreso con la nueva paleta
   const getAttendanceBarColor = (rate: number) => {
     if (rate >= 80) return 'bg-success'
     if (rate >= 50) return 'bg-warning'
     return 'bg-danger'
   }
 
-  // ✅ Badge de tasa de asistencia según rango
   const getAttendanceBadgeVariant = (rate: number): 'success' | 'warning' | 'danger' => {
     if (rate >= 80) return 'success'
     if (rate >= 50) return 'warning'
     return 'danger'
   }
-
-  // ============================================
-  // RENDER
-  // ============================================
 
   if (loadingTeams || loading) {
     return <div className="text-center py-12 text-text-muted">Cargando estadísticas...</div>
@@ -122,7 +117,6 @@ export default function AttendanceOverview() {
 
   return (
     <div>
-      {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-text-primary">📊 Overview de Asistencias</h1>
         <p className="text-text-secondary">
@@ -138,7 +132,6 @@ export default function AttendanceOverview() {
 
       {teamStats ? (
         <>
-          {/* RESUMEN GENERAL */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
             <Card>
               <CardBody className="text-center">
@@ -166,7 +159,6 @@ export default function AttendanceOverview() {
             </Card>
           </div>
 
-          {/* DISTRIBUCIÓN */}
           <Card className="mb-6">
             <CardBody>
               <h2 className="text-lg font-semibold text-text-primary mb-4">
@@ -193,7 +185,6 @@ export default function AttendanceOverview() {
             </CardBody>
           </Card>
 
-          {/* ESTADÍSTICAS POR JUGADOR */}
           <Card>
             <CardBody>
               <h2 className="text-lg font-semibold text-text-primary mb-4">
@@ -218,12 +209,23 @@ export default function AttendanceOverview() {
                       <tr key={item.player.id} className="hover:bg-surface-elevated transition">
                         <td className="px-4 py-3 text-sm text-text-secondary">{item.player.number || '-'}</td>
                         <td className="px-4 py-3">
-                          <Link
-                            href={`/players/${item.player.id}`}
-                            className="font-medium text-text-primary hover:text-brand-primary transition"
-                          >
-                            {item.player.name} {item.player.lastName}
-                          </Link>
+                          {item.player.username ? (
+                            <Link
+                              href={`/users/${item.player.username.replace('@', '')}`}
+                              className="font-medium text-text-primary hover:text-brand-primary transition flex items-center gap-2"
+                            >
+                              {item.player.name} {item.player.lastName}
+                              {item.player.isGhost && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning font-bold uppercase">
+                                  sin cuenta
+                                </span>
+                              )}
+                            </Link>
+                          ) : (
+                            <span className="font-medium text-text-primary flex items-center gap-2">
+                              {item.player.name} {item.player.lastName}
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-center text-sm text-text-secondary">{item.stats.total}</td>
                         <td className="px-4 py-3 text-center text-sm text-success font-medium">{item.stats.present}</td>

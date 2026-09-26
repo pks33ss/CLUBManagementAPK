@@ -4,7 +4,7 @@ import { useState } from 'react'
 import api from '@/lib/api'
 import { getSportIcon } from '@/lib/sport'
 import type { MatchDetail } from '../page'
-import { Button, Card, CardBody, Badge, Modal } from '@/components/ui'
+import { Button, Card, CardBody, Modal } from '@/components/ui'
 
 interface Props {
   match: MatchDetail
@@ -20,13 +20,14 @@ interface CallupFlags {
 }
 
 interface PlayerRow {
-  playerId: string
+  userId: string
   name: string
   lastName: string
   number: number | null
   position: string | null
   fromOtherTeam: boolean
   teamName?: string
+  isGhost?: boolean
   flags: CallupFlags
 }
 
@@ -59,34 +60,42 @@ export default function CallupsTab({ match, onUpdate }: Props) {
     const rows: PlayerRow[] = []
     const seen = new Set<string>()
 
-    for (const p of match.team.players) {
-      const callup = match.callups.find((c: any) => c.playerId === p.id)
+    // ✅ Ahora iteramos sobre memberships con rol PLAYER
+    const teamPlayers = (match.team.memberships ?? []).filter(
+      (m) => m.role === 'PLAYER' && m.status === 'ACTIVE',
+    )
+
+    for (const m of teamPlayers) {
+      const callup = match.callups.find((c: any) => c.userId === m.user.id)
       rows.push({
-        playerId: p.id,
-        name: p.name,
-        lastName: p.lastName,
-        number: p.number,
-        position: p.position,
+        userId: m.user.id,
+        name: m.user.name,
+        lastName: m.user.lastName,
+        number: m.jerseyNumber,
+        position: m.position,
         fromOtherTeam: false,
+        isGhost: m.user.isGhost,
         flags: {
           availableStatus: callup?.availableStatus ?? 'PENDING',
           calledUpStatus: callup?.calledUpStatus ?? 'PENDING',
           confirmedStatus: callup?.confirmedStatus ?? 'PENDING',
         },
       })
-      seen.add(p.id)
+      seen.add(m.user.id)
     }
 
+    // Convocados que no están en el equipo (jugadores de otros equipos del club)
     for (const c of match.callups) {
-      if (seen.has(c.playerId)) continue
+      if (seen.has(c.userId)) continue
       rows.push({
-        playerId: c.playerId,
-        name: c.player.name,
-        lastName: c.player.lastName,
-        number: c.player.number,
-        position: c.player.position,
+        userId: c.userId,
+        name: c.user.name,
+        lastName: c.user.lastName,
+        number: null,
+        position: null,
         fromOtherTeam: true,
-        teamName: (c.player as any).team?.name || 'Otro equipo',
+        teamName: 'Otro equipo',
+        isGhost: c.user.isGhost,
         flags: {
           availableStatus: c.availableStatus ?? 'PENDING',
           calledUpStatus: c.calledUpStatus ?? 'PENDING',
@@ -101,14 +110,14 @@ export default function CallupsTab({ match, onUpdate }: Props) {
   const rows = buildRows()
 
   const cycleFlag = async (
-    playerId: string,
+    userId: string,
     currentFlags: CallupFlags,
     key: keyof CallupFlags,
   ) => {
-    setSaving(`${playerId}-${key}`)
+    setSaving(`${userId}-${key}`)
     try {
       const newStatus = cycleStatus(currentFlags[key])
-      await api.put(`/matches/${match.id}/callups/${playerId}`, {
+      await api.put(`/matches/${match.id}/callups/${userId}`, {
         [key]: newStatus,
       })
       onUpdate()
@@ -139,7 +148,8 @@ export default function CallupsTab({ match, onUpdate }: Props) {
     if (selectedPlayers.length === 0) return
     setSaving('adding')
     try {
-      await api.post(`/matches/${match.id}/callups`, { playerIds: selectedPlayers })
+      // ✅ Body usa userIds en lugar de playerIds
+      await api.post(`/matches/${match.id}/callups`, { userIds: selectedPlayers })
       setSelectedPlayers([])
       setShowAddModal(false)
       onUpdate()
@@ -151,11 +161,11 @@ export default function CallupsTab({ match, onUpdate }: Props) {
     }
   }
 
-  const removePlayer = async (playerId: string, name: string) => {
+  const removePlayer = async (userId: string, name: string) => {
     if (!confirm(`¿Quitar a ${name} de la convocatoria?`)) return
-    setSaving(playerId)
+    setSaving(userId)
     try {
-      await api.delete(`/matches/${match.id}/callups/${playerId}`)
+      await api.delete(`/matches/${match.id}/callups/${userId}`)
       onUpdate()
     } catch (err) {
       console.error(err)
@@ -205,7 +215,6 @@ export default function CallupsTab({ match, onUpdate }: Props) {
   return (
     <Card>
       <CardBody>
-        {/* Header */}
         <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
           <div>
             <h2 className="text-xl font-semibold text-text-primary">
@@ -222,7 +231,6 @@ export default function CallupsTab({ match, onUpdate }: Props) {
           </Button>
         </div>
 
-        {/* Cabecera de columnas (solo desktop) */}
         <div className="hidden md:grid grid-cols-[1fr_90px_90px_90px_48px] gap-2 px-3 py-2 bg-surface-elevated rounded-lg mb-2 text-xs font-semibold text-text-muted uppercase items-center">
           <div>Jugador</div>
           <div className="text-center whitespace-nowrap">Disponible</div>
@@ -231,21 +239,19 @@ export default function CallupsTab({ match, onUpdate }: Props) {
           <div></div>
         </div>
 
-        {/* Lista de jugadores */}
         <div className="space-y-2">
           {rows.map((row) => {
-            const isSaving = saving?.startsWith(row.playerId)
+            const isSaving = saving?.startsWith(row.userId)
 
             return (
               <div
-                key={row.playerId}
+                key={row.userId}
                 className={`grid grid-cols-1 md:grid-cols-[1fr_90px_90px_90px_48px] gap-2 items-center p-3 rounded-lg border transition ${
                   row.fromOtherTeam
                     ? 'border-info/30 bg-info/5'
                     : 'border-border-subtle hover:border-brand-primary/50'
                 }`}
               >
-                {/* Jugador */}
                 <div className="flex items-center gap-3 min-w-0">
                   {row.number != null && (
                     <div className="w-8 h-8 rounded-full bg-brand-primary text-bg-base flex items-center justify-center font-bold text-xs shrink-0">
@@ -253,8 +259,13 @@ export default function CallupsTab({ match, onUpdate }: Props) {
                     </div>
                   )}
                   <div className="min-w-0">
-                    <p className="font-medium text-text-primary truncate">
+                    <p className="font-medium text-text-primary truncate flex items-center gap-2">
                       {row.name} {row.lastName}
+                      {row.isGhost && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning font-bold uppercase">
+                          sin cuenta
+                        </span>
+                      )}
                     </p>
                     <p className="text-xs text-text-muted truncate">
                       {row.fromOtherTeam ? (
@@ -268,52 +279,40 @@ export default function CallupsTab({ match, onUpdate }: Props) {
                   </div>
                 </div>
 
-                {/* 3 flags */}
                 <div className="grid grid-cols-3 md:contents gap-2 md:gap-0 pt-2 md:pt-0 border-t md:border-t-0 border-border-subtle">
                   <div className="flex justify-center">
                     <FlagButton
                       status={row.flags.availableStatus}
                       label="Disponible"
-                      onClick={() =>
-                        cycleFlag(row.playerId, row.flags, 'availableStatus')
-                      }
+                      onClick={() => cycleFlag(row.userId, row.flags, 'availableStatus')}
                       disabled={!!isSaving}
                       title="Disponible: ⬜ pendiente / ✅ sí / ❌ no"
                     />
                   </div>
-
                   <div className="flex justify-center">
                     <FlagButton
                       status={row.flags.calledUpStatus}
                       label="Convocado"
-                      onClick={() =>
-                        cycleFlag(row.playerId, row.flags, 'calledUpStatus')
-                      }
+                      onClick={() => cycleFlag(row.userId, row.flags, 'calledUpStatus')}
                       disabled={!!isSaving}
                       title="Convocado: ⬜ pendiente / ✅ sí / ❌ no"
                     />
                   </div>
-
                   <div className="flex justify-center">
                     <FlagButton
                       status={row.flags.confirmedStatus}
                       label="Confirmado"
-                      onClick={() =>
-                        cycleFlag(row.playerId, row.flags, 'confirmedStatus')
-                      }
+                      onClick={() => cycleFlag(row.userId, row.flags, 'confirmedStatus')}
                       disabled={!!isSaving}
                       title="Confirmado: ⬜ pendiente / ✅ sí / ❌ no"
                     />
                   </div>
                 </div>
 
-                {/* Quitar */}
                 <div className="flex justify-center">
                   {row.fromOtherTeam ? (
                     <button
-                      onClick={() =>
-                        removePlayer(row.playerId, `${row.name} ${row.lastName}`)
-                      }
+                      onClick={() => removePlayer(row.userId, `${row.name} ${row.lastName}`)}
                       disabled={!!isSaving}
                       className="w-10 h-10 rounded-lg flex items-center justify-center text-danger/70 hover:text-danger hover:bg-danger/10 transition"
                       title="Quitar de la convocatoria"
@@ -330,7 +329,6 @@ export default function CallupsTab({ match, onUpdate }: Props) {
         </div>
       </CardBody>
 
-      {/* Modal Añadir jugador de otro equipo */}
       <Modal
         isOpen={showAddModal}
         onClose={() => {
@@ -377,8 +375,13 @@ export default function CallupsTab({ match, onUpdate }: Props) {
                     </span>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-text-primary truncate">
+                    <p className="text-sm font-medium text-text-primary truncate flex items-center gap-2">
                       {player.name} {player.lastName}
+                      {player.isGhost && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning font-bold uppercase">
+                          sin cuenta
+                        </span>
+                      )}
                     </p>
                     <p className="text-xs text-text-muted truncate">
                       {getSportIcon(player.team?.sport)} {player.team?.name} ·{' '}

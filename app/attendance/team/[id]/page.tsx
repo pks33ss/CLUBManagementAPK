@@ -150,12 +150,23 @@ export default function TeamAttendanceReport() {
                     <tr key={item.player.id} className="hover:bg-surface-elevated transition">
                       <td className="px-4 py-3 text-sm text-text-secondary">{item.player.number || '-'}</td>
                       <td className="px-4 py-3">
-                        <Link
-                          href={`/players/${item.player.id}`}
-                          className="font-medium text-text-primary hover:text-brand-primary transition"
-                        >
-                          {item.player.name} {item.player.lastName}
-                        </Link>
+                        {item.player.username ? (
+                          <Link
+                            href={`/users/${item.player.username.replace('@', '')}`}
+                            className="font-medium text-text-primary hover:text-brand-primary transition flex items-center gap-2"
+                          >
+                            {item.player.name} {item.player.lastName}
+                            {item.player.isGhost && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning font-bold uppercase">
+                                sin cuenta
+                              </span>
+                            )}
+                          </Link>
+                        ) : (
+                          <span className="font-medium text-text-primary flex items-center gap-2">
+                            {item.player.name} {item.player.lastName}
+                          </span>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-center text-sm text-text-secondary">{item.stats.total}</td>
                       <td className="px-4 py-3 text-center text-sm text-success font-medium">{item.stats.present}</td>

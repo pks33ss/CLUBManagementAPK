@@ -34,10 +34,74 @@ export interface MatchDetail {
     name: string
     sport?: string
     club: { id: string; name: string }
-    players: any[]
+    // ✅ Cambiado: memberships en lugar de players
+    memberships: Array<{
+      id: string
+      userId: string
+      role: string
+      status: string
+      jerseyNumber: number | null
+      position: string | null
+      user: {
+        id: string
+        name: string
+        lastName: string
+        username: string | null
+        avatar: string | null
+        isGhost: boolean
+      }
+    }>
   }
-  callups: any[]
-  playerStats: any[]
+  // ✅ Callups ahora tienen user
+  callups: Array<{
+    id: string
+    userId: string
+    matchId: string
+    availableStatus: 'PENDING' | 'YES' | 'NO'
+    calledUpStatus: 'PENDING' | 'YES' | 'NO'
+    confirmedStatus: 'PENDING' | 'YES' | 'NO'
+    status: string
+    notes: string | null
+    respondedAt: string | null
+    user: {
+      id: string
+      name: string
+      lastName: string
+      username: string | null
+      avatar: string | null
+      email: string | null
+      isGhost: boolean
+    }
+  }>
+  // ✅ playerStats ahora tienen user
+  playerStats: Array<{
+    id: string
+    matchId: string
+    userId: string
+    minutes: number | null
+    points: number
+    rebounds: number
+    assists: number
+    steals: number
+    blocks: number
+    turnovers: number
+    fouls: number
+    fieldGoalsMade: number
+    fieldGoalsAttempted: number
+    threePointersMade: number
+    threePointersAttempted: number
+    freeThrowsMade: number
+    freeThrowsAttempted: number
+    user: {
+      id: string
+      name: string
+      lastName: string
+      username: string | null
+      avatar: string | null
+      email: string | null
+      isGhost: boolean
+    }
+  }>
   createdBy: { id: string; name: string; lastName: string }
 }
 

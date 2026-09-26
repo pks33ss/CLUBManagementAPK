@@ -23,11 +23,21 @@ interface SessionDetail {
       id: string
       name: string
     }
-    players: {
+    // ✅ Ahora memberships en lugar de players
+    memberships: {
       id: string
-      name: string
-      lastName: string
-      number: number
+      role: string
+      status: string
+      jerseyNumber: number | null
+      position: string | null
+      user: {
+        id: string
+        name: string
+        lastName: string
+        username: string | null
+        avatar: string | null
+        isGhost: boolean
+      }
     }[]
   }
   exercises: {
@@ -47,15 +57,17 @@ interface SessionDetail {
   }[]
   attendances: {
     id: string
-    playerId: string
+    userId: string
     sessionId: string
     status: string
-    notes: string
-    player: {
+    notes: string | null
+    user: {
       id: string
       name: string
       lastName: string
-      number: number
+      username: string | null
+      avatar: string | null
+      isGhost: boolean
     }
   }[]
   createdBy: {
@@ -143,22 +155,26 @@ export default function SessionDetail() {
       const response = await api.get(`/sessions/${sessionId}`)
       setSession(response.data)
 
-      const playersList = response.data.team.players?.map((player: any) => {
-        const attendance = response.data.attendances?.find(
-          (a: any) => a.playerId === player.id
-        )
-        return {
-          id: player.id,
-          name: player.name,
-          lastName: player.lastName,
-          number: player.number,
-          status: attendance?.status || 'PENDING',
-          notes: attendance?.notes || '',
-          attendanceId: attendance?.id || null,
-        }
-      }) || []
+const memberships = (response.data.team.memberships || []).filter(
+  (m: any) => m.role === 'PLAYER' && m.status === 'ACTIVE'
+)
 
-      setPlayers(playersList)
+const playersList = memberships.map((m: any) => {
+  const attendance = response.data.attendances?.find(
+    (a: any) => a.userId === m.user.id
+  )
+  return {
+    id: m.user.id,
+    name: m.user.name,
+    lastName: m.user.lastName,
+    number: m.jerseyNumber,
+    status: attendance?.status || 'PENDING',
+    notes: attendance?.notes || '',
+    attendanceId: attendance?.id || null,
+  }
+})
+
+setPlayers(playersList)
     } catch (error) {
       console.error('Error:', error)
     } finally {
@@ -579,29 +595,30 @@ export default function SessionDetail() {
   // FUNCIONES DE ASISTENCIA
   // ============================================
 
-  const updateAttendance = async (playerId: string, status: string) => {
-    setUpdating(true)
-    try {
-      if (status === 'PENDING') {
-        await api.delete(`/attendance/session/${sessionId}/player/${playerId}`)
-      } else {
-        await api.post(`/attendance/session/${sessionId}/player/${playerId}`, {
-          status,
-        })
-      }
-
-      setPlayers(prev =>
-        prev.map(p =>
-          p.id === playerId ? { ...p, status } : p
-        )
-      )
-    } catch (error) {
-      console.error('Error updating attendance:', error)
-      alert('Error al actualizar la asistencia')
-    } finally {
-      setUpdating(false)
+const updateAttendance = async (userId: string, status: string) => {
+  setUpdating(true)
+  try {
+    // ✅ Rutas cambiadas: player → user
+    if (status === 'PENDING') {
+      await api.delete(`/attendance/session/${sessionId}/user/${userId}`)
+    } else {
+      await api.post(`/attendance/session/${sessionId}/user/${userId}`, {
+        status,
+      })
     }
+
+    setPlayers(prev =>
+      prev.map(p =>
+        p.id === userId ? { ...p, status } : p
+      )
+    )
+  } catch (error) {
+    console.error('Error updating attendance:', error)
+    alert('Error al actualizar la asistencia')
+  } finally {
+    setUpdating(false)
   }
+}
 
   // ============================================
   // FUNCIONES DE UTILIDAD

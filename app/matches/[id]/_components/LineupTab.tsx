@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import api from '@/lib/api'
 import { getSportConfig } from '@/lib/sport'
 import type { MatchDetail } from '../page'
-import { Button, Card, CardBody, Input } from '@/components/ui'
+import { Button, Card, CardBody } from '@/components/ui'
 
 interface Props {
   match: MatchDetail
@@ -26,16 +26,41 @@ interface Lineup {
 
 const QUARTERS = ['Q1', 'Q2', 'Q3', 'Q4', 'OT'] as const
 
-const getEligiblePlayers = (match: MatchDetail) => {
-  const callupIds = match.callups.map((c) => c.playerId)
-  if (callupIds.length === 0) return match.team.players
-  return match.team.players.filter((p) => callupIds.includes(p.id))
+// ✅ Ahora trabaja con memberships (role PLAYER)
+interface EligiblePlayer {
+  userId: string
+  name: string
+  lastName: string
+  number: number | null
+  position: string | null
+  isGhost: boolean
+}
+
+const getEligiblePlayers = (match: MatchDetail): EligiblePlayer[] => {
+  const teamPlayers: EligiblePlayer[] = (match.team.memberships ?? [])
+    .filter((m) => m.role === 'PLAYER' && m.status === 'ACTIVE')
+    .map((m) => ({
+      userId: m.user.id,
+      name: m.user.name,
+      lastName: m.user.lastName,
+      number: m.jerseyNumber,
+      position: m.position,
+      isGhost: m.user.isGhost,
+    }))
+
+  const callupIds = match.callups.map((c) => c.userId)
+  if (callupIds.length === 0) return teamPlayers
+
+  return teamPlayers.filter((p) => callupIds.includes(p.userId))
 }
 
 export default function LineupTab({ match, onUpdate }: Props) {
   const eligiblePlayers = getEligiblePlayers(match)
   const sport = getSportConfig((match.team as any)?.sport)
-  const POSITIONS = sport.positions.length > 0 ? sport.positions : ['Jugador 1', 'Jugador 2', 'Jugador 3', 'Jugador 4', 'Jugador 5']
+  const POSITIONS =
+    sport.positions.length > 0
+      ? sport.positions
+      : ['Jugador 1', 'Jugador 2', 'Jugador 3', 'Jugador 4', 'Jugador 5']
 
   const [lineup, setLineup] = useState<Lineup>({
     starters: ['', '', '', '', ''],
@@ -63,40 +88,48 @@ export default function LineupTab({ match, onUpdate }: Props) {
     } else {
       const autoStarters = ['', '', '', '', '']
       eligiblePlayers.slice(0, 5).forEach((p, i) => {
-        autoStarters[i] = p.id
+        autoStarters[i] = p.userId
       })
       setLineup({
         starters: autoStarters,
-        quarters: { Q1: [...autoStarters.filter(Boolean)], Q2: [], Q3: [], Q4: [], OT: [] },
+        quarters: {
+          Q1: [...autoStarters.filter(Boolean)],
+          Q2: [],
+          Q3: [],
+          Q4: [],
+          OT: [],
+        },
         plannedMinutes: {},
         notes: '',
       })
     }
     setDirty(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [match.id])
 
-  const getPlayer = (id: string) => match.team.players.find((p) => p.id === id)
+  const getPlayer = (userId: string) =>
+    eligiblePlayers.find((p) => p.userId === userId)
 
-  const updateStarter = (index: number, playerId: string) => {
+  const updateStarter = (index: number, userId: string) => {
     const newStarters = [...lineup.starters]
-    newStarters[index] = playerId
+    newStarters[index] = userId
     setLineup({ ...lineup, starters: newStarters })
     setDirty(true)
   }
 
-  const toggleQuarterPlayer = (quarter: typeof QUARTERS[number], playerId: string) => {
+  const toggleQuarterPlayer = (quarter: typeof QUARTERS[number], userId: string) => {
     const current = lineup.quarters[quarter]
-    const newList = current.includes(playerId)
-      ? current.filter((id) => id !== playerId)
-      : [...current, playerId]
+    const newList = current.includes(userId)
+      ? current.filter((id) => id !== userId)
+      : [...current, userId]
     setLineup({ ...lineup, quarters: { ...lineup.quarters, [quarter]: newList } })
     setDirty(true)
   }
 
-  const updateMinutes = (playerId: string, minutes: number) => {
+  const updateMinutes = (userId: string, minutes: number) => {
     setLineup({
       ...lineup,
-      plannedMinutes: { ...lineup.plannedMinutes, [playerId]: minutes },
+      plannedMinutes: { ...lineup.plannedMinutes, [userId]: minutes },
     })
     setDirty(true)
   }
@@ -132,7 +165,7 @@ export default function LineupTab({ match, onUpdate }: Props) {
 
   const totalPlannedMinutes = Object.values(lineup.plannedMinutes).reduce(
     (a, b) => a + (b || 0),
-    0
+    0,
   )
 
   if (eligiblePlayers.length === 0) {
@@ -179,22 +212,28 @@ export default function LineupTab({ match, onUpdate }: Props) {
           <h3 className="font-semibold text-text-primary mb-4">⚡ Quinteto inicial</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-3">
             {POSITIONS.map((pos, i) => {
-              const playerId = lineup.starters[i]
-              const player = playerId ? getPlayer(playerId) : null
+              const userId = lineup.starters[i]
+              const player = userId ? getPlayer(userId) : null
               return (
-                <div key={pos} className="border border-border-subtle rounded-lg p-3 bg-surface-elevated">
+                <div
+                  key={pos}
+                  className="border border-border-subtle rounded-lg p-3 bg-surface-elevated"
+                >
                   <p className="text-xs font-semibold text-text-muted uppercase mb-2">{pos}</p>
                   <select
-                    value={playerId || ''}
+                    value={userId || ''}
                     onChange={(e) => updateStarter(i, e.target.value)}
                     className="w-full text-sm bg-surface border border-border-subtle text-text-primary rounded px-2 py-1.5 focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"
                   >
                     <option value="">— Seleccionar —</option>
                     {eligiblePlayers.map((p) => (
                       <option
-                        key={p.id}
-                        value={p.id}
-                        disabled={lineup.starters.includes(p.id) && lineup.starters[i] !== p.id}
+                        key={p.userId}
+                        value={p.userId}
+                        disabled={
+                          lineup.starters.includes(p.userId) &&
+                          lineup.starters[i] !== p.userId
+                        }
                       >
                         {p.number != null ? `#${p.number} ` : ''}
                         {p.name} {p.lastName}
@@ -233,11 +272,11 @@ export default function LineupTab({ match, onUpdate }: Props) {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {eligiblePlayers.map((p) => {
-                    const isOn = lineup.quarters[q].includes(p.id)
+                    const isOn = lineup.quarters[q].includes(p.userId)
                     return (
                       <button
-                        key={p.id}
-                        onClick={() => toggleQuarterPlayer(q, p.id)}
+                        key={p.userId}
+                        onClick={() => toggleQuarterPlayer(q, p.userId)}
                         className={`px-3 py-1.5 rounded-full text-xs font-medium transition ${
                           isOn
                             ? 'bg-brand-primary text-bg-base'
@@ -264,7 +303,10 @@ export default function LineupTab({ match, onUpdate }: Props) {
           </p>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
             {eligiblePlayers.map((p) => (
-              <div key={p.id} className="flex items-center gap-2 border border-border-subtle rounded-lg p-2 bg-surface-elevated">
+              <div
+                key={p.userId}
+                className="flex items-center gap-2 border border-border-subtle rounded-lg p-2 bg-surface-elevated"
+              >
                 {p.number != null && (
                   <span className="w-6 h-6 rounded-full bg-brand-primary text-bg-base flex items-center justify-center text-xs font-bold shrink-0">
                     {p.number}
@@ -275,8 +317,8 @@ export default function LineupTab({ match, onUpdate }: Props) {
                   type="number"
                   min="0"
                   max="40"
-                  value={lineup.plannedMinutes[p.id] || 0}
-                  onChange={(e) => updateMinutes(p.id, Number(e.target.value))}
+                  value={lineup.plannedMinutes[p.userId] || 0}
+                  onChange={(e) => updateMinutes(p.userId, Number(e.target.value))}
                   className="w-14 text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-0.5 text-center focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"
                 />
               </div>
@@ -290,7 +332,10 @@ export default function LineupTab({ match, onUpdate }: Props) {
           <h3 className="font-semibold text-text-primary mb-4">📝 Notas de rotación</h3>
           <textarea
             value={lineup.notes}
-            onChange={(e) => { setLineup({ ...lineup, notes: e.target.value }); setDirty(true) }}
+            onChange={(e) => {
+              setLineup({ ...lineup, notes: e.target.value })
+              setDirty(true)
+            }}
             rows={4}
             className="w-full bg-surface-elevated border border-border-subtle rounded-lg px-4 py-3 text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition resize-y"
             placeholder="Ej: Rotación agresiva en el Q3, doblar minutos a los bases en el último cuarto..."

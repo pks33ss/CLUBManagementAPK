@@ -20,9 +20,18 @@ const EMPTY_STATS = {
 }
 
 export default function StatsTab({ match, onUpdate }: Props) {
-  const eligiblePlayers = match.callups.length > 0
-    ? match.team.players.filter((p) => match.callups.some((c) => c.playerId === p.id))
-    : match.team.players
+  // ✅ Ahora iteramos memberships con rol PLAYER
+  const teamPlayers = (match.team.memberships ?? []).filter(
+    (m) => m.role === 'PLAYER' && m.status === 'ACTIVE',
+  )
+
+  // Si hay convocatorias, solo mostramos los convocados; sino, todo el equipo
+  const eligiblePlayers =
+    match.callups.length > 0
+      ? teamPlayers.filter((m) =>
+          match.callups.some((c: any) => c.userId === m.user.id),
+        )
+      : teamPlayers
 
   const sport = getSportConfig((match.team as any)?.sport)
 
@@ -30,19 +39,30 @@ export default function StatsTab({ match, onUpdate }: Props) {
   const [form, setForm] = useState<any>(EMPTY_STATS)
   const [saving, setSaving] = useState(false)
 
-  const statsMap = new Map(match.playerStats.map((s) => [s.playerId, s]))
+  // ✅ Ahora el mapa de stats usa userId
+  const statsMap = new Map(match.playerStats.map((s: any) => [s.userId, s]))
 
-  const startEdit = (playerId: string) => {
-    const existing = statsMap.get(playerId)
+  const startEdit = (userId: string) => {
+    const existing = statsMap.get(userId)
     setForm(existing ? { ...EMPTY_STATS, ...existing } : EMPTY_STATS)
-    setEditing(playerId)
+    setEditing(userId)
   }
 
-  const handleSave = async (playerId: string) => {
+  const handleSave = async (userId: string) => {
     setSaving(true)
     try {
-      const { id, matchId, playerId: _pid, player, createdAt, updatedAt, ...stats } = form
-      await api.post(`/matches/${match.id}/stats/${playerId}`, stats)
+      // Quitamos los campos que vienen del backend pero que no queremos enviar
+      const {
+        id,
+        matchId,
+        userId: _uid,
+        user: _user,
+        createdAt,
+        updatedAt,
+        ...stats
+      } = form
+      // ✅ URL usa userId
+      await api.post(`/matches/${match.id}/stats/${userId}`, stats)
       setEditing(null)
       onUpdate()
     } catch (err) {
@@ -59,7 +79,7 @@ export default function StatsTab({ match, onUpdate }: Props) {
       rebounds: acc.rebounds + s.rebounds,
       assists: acc.assists + s.assists,
     }),
-    { points: 0, rebounds: 0, assists: 0 }
+    { points: 0, rebounds: 0, assists: 0 },
   )
 
   if (eligiblePlayers.length === 0) {
@@ -106,15 +126,23 @@ export default function StatsTab({ match, onUpdate }: Props) {
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
-              {eligiblePlayers.map((player) => {
-                const stats = statsMap.get(player.id)
-                const isEditing = editing === player.id
+              {eligiblePlayers.map((m) => {
+                const userId = m.user.id
+                const stats = statsMap.get(userId)
+                const isEditing = editing === userId
 
                 return (
-                  <tr key={player.id} className="hover:bg-surface-elevated transition">
-                    <td className="px-3 py-2 text-sm text-text-secondary">{player.number || '-'}</td>
+                  <tr key={userId} className="hover:bg-surface-elevated transition">
+                    <td className="px-3 py-2 text-sm text-text-secondary">{m.jerseyNumber || '-'}</td>
                     <td className="px-3 py-2 font-medium text-text-primary text-sm">
-                      {player.name} {player.lastName}
+                      <span className="flex items-center gap-2">
+                        {m.user.name} {m.user.lastName}
+                        {m.user.isGhost && (
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning font-bold uppercase">
+                            sin cuenta
+                          </span>
+                        )}
+                      </span>
                     </td>
 
                     {isEditing ? (
@@ -133,7 +161,7 @@ export default function StatsTab({ match, onUpdate }: Props) {
                         <td className="px-3 py-2 text-center">
                           <div className="flex gap-1 justify-center">
                             <button
-                              onClick={() => handleSave(player.id)}
+                              onClick={() => handleSave(userId)}
                               disabled={saving}
                               className="text-xs bg-brand-primary hover:bg-brand-primary-dark text-bg-base px-2 py-1 rounded disabled:opacity-50 transition"
                             >
@@ -161,7 +189,7 @@ export default function StatsTab({ match, onUpdate }: Props) {
                         <td className="px-3 py-2 text-center text-sm text-text-secondary">{stats?.fouls ?? '-'}</td>
                         <td className="px-3 py-2 text-center">
                           <button
-                            onClick={() => startEdit(player.id)}
+                            onClick={() => startEdit(userId)}
                             className="text-xs bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary px-2 py-1 rounded transition"
                           >
                             {stats ? '✏️' : '➕'}
