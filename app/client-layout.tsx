@@ -60,13 +60,12 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     }`
   }
 
-  // Cambiar equipo activo
   const handleTeamSelect = (team: any) => {
     setActiveTeam(team)
     setSidebarOpen(false)
+    router.push(`/teams/${team.id}`)
   }
 
-  // Toggle favorito
   const handleToggleFavorite = async (e: React.MouseEvent, teamId: string) => {
     e.stopPropagation()
     if (isFavorite(teamId)) {
@@ -88,11 +87,11 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       <nav className="bg-surface border-b border-border-subtle sticky top-0 z-30">
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 gap-4">
-            {/* IZQUIERDA: hamburguesa + equipo activo */}
+            {/* IZQUIERDA: hamburguesa + equipo activo (clicables) */}
             <div className="flex items-center gap-3 min-w-0">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary"
+                className="p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary shrink-0"
                 title="Menú"
               >
                 <svg
@@ -111,7 +110,11 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
               </button>
 
               {activeTeam && (
-                <div className="flex items-center gap-2 min-w-0">
+                <Link
+                  href={`/teams/${activeTeam.id}`}
+                  className="flex items-center gap-2 min-w-0 rounded-lg hover:bg-surface-elevated transition p-1 -m-1"
+                  title={`Ir al equipo ${activeTeam.name}`}
+                >
                   {activeTeam.club?.logo ? (
                     <img
                       src={activeTeam.club.logo}
@@ -123,46 +126,78 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                       {getSportIcon(activeTeam.sport)}
                     </span>
                   )}
-                  <div className="hidden md:block min-w-0">
-                    <div className="text-xs text-text-muted truncate">
+                  {/* ✅ Ahora visible también en móvil, con truncado */}
+                  <div className="min-w-0">
+                    <div className="text-[10px] md:text-xs text-text-muted truncate leading-tight">
                       {activeTeam.club?.name || 'Sin club'}
                     </div>
-                    <div className="text-sm font-semibold text-text-primary truncate">
+                    <div className="text-xs md:text-sm font-semibold text-text-primary truncate leading-tight max-w-[110px] md:max-w-none">
                       {activeTeam.name}
                     </div>
                   </div>
-                </div>
+                </Link>
               )}
             </div>
 
             {/* CENTRO: secciones del equipo activo (solo desktop) */}
             {activeTeam && (
               <div className="hidden lg:flex items-center gap-1 flex-1 justify-center overflow-x-auto">
-                <Link href="/home" className={linkClass('/home', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
+                <Link
+                  href="/home"
+                  className={linkClass('/home', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}
+                >
                   🏠 Inicio
                 </Link>
-                <Link href="/sessions" className={linkClass('/sessions', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
+                {/* ✅ NUEVO: botón Equipo */}
+                <Link
+                  href={`/teams/${activeTeam.id}`}
+                  className={linkClass(
+                    `/teams/${activeTeam.id}`,
+                    'px-3 py-2 rounded-lg text-sm whitespace-nowrap',
+                  )}
+                >
+                  🏆 Equipo
+                </Link>
+                <Link
+                  href="/sessions"
+                  className={linkClass('/sessions', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}
+                >
                   🏋️ Entrenamientos
                 </Link>
-                <Link href="/matches" className={linkClass('/matches', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
+                <Link
+                  href="/matches"
+                  className={linkClass('/matches', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}
+                >
                   🏆 Partidos
                 </Link>
-                <Link href="/calendar" className={linkClass('/calendar', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
+                <Link
+                  href="/calendar"
+                  className={linkClass('/calendar', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}
+                >
                   📅 Calendario
                 </Link>
-                <Link href="/players" className={linkClass('/players', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
+                <Link
+                  href="/players"
+                  className={linkClass('/players', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}
+                >
                   👥 Jugadores
                 </Link>
-                <Link href="/attendance/overview" className={linkClass('/attendance', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
+                <Link
+                  href="/attendance/overview"
+                  className={linkClass('/attendance', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}
+                >
                   📊 Asistencias
                 </Link>
-                <Link href="/seasons" className={linkClass('/seasons', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
+                <Link
+                  href="/seasons"
+                  className={linkClass('/seasons', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}
+                >
                   📋 Planificación
                 </Link>
               </div>
             )}
 
-            {/* DERECHA: usuario + rol + logout */}
+            {/* DERECHA: usuario + logout */}
             <div className="flex items-center gap-3 shrink-0">
               {currentUser && (
                 <Link
@@ -186,9 +221,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                       {currentUser.name} {currentUser.lastName}
                     </p>
                     <p className="text-xs text-text-muted leading-tight">
-                      {currentUser.role === 'SUPER_ADMIN'
-                        ? '👑 Super Admin'
-                        : '👤 Usuario'}
+                      {currentUser.role === 'SUPER_ADMIN' ? '👑 Super Admin' : '👤 Usuario'}
                     </p>
                   </div>
                 </Link>
@@ -213,64 +246,53 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
           <div className="flex items-center gap-1 px-2 py-2">
             <Link
               href="/home"
-              className={linkClass(
-                '/home',
-                'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0',
-              )}
+              className={linkClass('/home', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}
             >
               🏠 Inicio
             </Link>
+            {/* ✅ NUEVO: botón Equipo en móvil */}
             <Link
-              href="/sessions"
+              href={`/teams/${activeTeam.id}`}
               className={linkClass(
-                '/sessions',
+                `/teams/${activeTeam.id}`,
                 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0',
               )}
+            >
+              🏆 Equipo
+            </Link>
+            <Link
+              href="/sessions"
+              className={linkClass('/sessions', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}
             >
               🏋️ Entren.
             </Link>
             <Link
               href="/matches"
-              className={linkClass(
-                '/matches',
-                'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0',
-              )}
+              className={linkClass('/matches', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}
             >
               🏆 Partidos
             </Link>
             <Link
               href="/calendar"
-              className={linkClass(
-                '/calendar',
-                'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0',
-              )}
+              className={linkClass('/calendar', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}
             >
               📅 Calend.
             </Link>
             <Link
               href="/players"
-              className={linkClass(
-                '/players',
-                'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0',
-              )}
+              className={linkClass('/players', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}
             >
               👥 Jugadores
             </Link>
             <Link
               href="/attendance/overview"
-              className={linkClass(
-                '/attendance',
-                'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0',
-              )}
+              className={linkClass('/attendance', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}
             >
               📊 Asist.
             </Link>
             <Link
               href="/seasons"
-              className={linkClass(
-                '/seasons',
-                'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0',
-              )}
+              className={linkClass('/seasons', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}
             >
               📋 Planif.
             </Link>
@@ -278,54 +300,33 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         </div>
       )}
 
-      {/* ============================================ */}
-      {/* CONTENIDO                                     */}
-      {/* ============================================ */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        {children}
-      </main>
+      {/* CONTENIDO */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">{children}</main>
 
-      {/* ============================================ */}
-      {/* SIDEBAR                                       */}
-      {/* ============================================ */}
+      {/* SIDEBAR */}
       {sidebarOpen && (
         <>
-          {/* Overlay */}
           <div
             className="fixed inset-0 bg-black/70 z-40"
             onClick={() => setSidebarOpen(false)}
           />
 
-          {/* Sidebar */}
           <div className="fixed top-0 left-0 h-full w-80 max-w-[85vw] bg-surface shadow-2xl z-50 flex flex-col border-r border-border-subtle">
-            {/* Header */}
             <div className="p-4 border-b border-border-subtle flex items-center justify-between">
-<div className="flex items-center">
-  <Logo variant="mark" height={40} />
-</div>
+              <div className="flex items-center">
+                <Logo variant="mark" height={40} />
+              </div>
               <button
                 onClick={() => setSidebarOpen(false)}
                 className="p-2 rounded-lg hover:bg-surface-elevated transition text-text-muted hover:text-text-primary"
               >
-                <svg
-                  className="w-5 h-5"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M6 18L18 6M6 6l12 12"
-                  />
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
             </div>
 
-            {/* Contenido scrollable */}
             <div className="flex-1 overflow-y-auto p-4 space-y-6">
-              {/* ---- SECCIÓN FAVORITOS ---- */}
               <div>
                 <h3 className="text-xs font-semibold text-text-muted uppercase mb-2 px-1">
                   ⭐ Mis equipos favoritos
@@ -349,23 +350,13 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                         }`}
                       >
                         {team.club?.logo ? (
-                          <img
-                            src={team.club.logo}
-                            alt={team.club.name}
-                            className="w-7 h-7 rounded-lg object-cover shrink-0"
-                          />
+                          <img src={team.club.logo} alt={team.club.name} className="w-7 h-7 rounded-lg object-cover shrink-0" />
                         ) : (
-                          <span className="text-lg shrink-0">
-                            {getSportIcon(team.sport)}
-                          </span>
+                          <span className="text-lg shrink-0">{getSportIcon(team.sport)}</span>
                         )}
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-text-primary truncate">
-                            {team.name}
-                          </p>
-                          <p className="text-xs text-text-muted truncate">
-                            {team.club?.name}
-                          </p>
+                          <p className="text-sm font-medium text-text-primary truncate">{team.name}</p>
+                          <p className="text-xs text-text-muted truncate">{team.club?.name}</p>
                         </div>
                         <span
                           onClick={(e) => handleToggleFavorite(e, team.id)}
@@ -380,7 +371,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                 )}
               </div>
 
-              {/* ---- SECCIÓN TODOS LOS EQUIPOS ---- */}
               <div>
                 <h3 className="text-xs font-semibold text-text-muted uppercase mb-2 px-1">
                   👥 Todos mis equipos
@@ -388,9 +378,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                 {loadingTeams ? (
                   <p className="text-xs text-text-muted px-1">Cargando...</p>
                 ) : allTeams.length === 0 ? (
-                  <p className="text-xs text-text-muted px-1">
-                    No tienes equipos todavía
-                  </p>
+                  <p className="text-xs text-text-muted px-1">No tienes equipos todavía</p>
                 ) : (
                   <div className="space-y-1">
                     {allTeams.map((team) => {
@@ -406,30 +394,18 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                           }`}
                         >
                           {team.club?.logo ? (
-                            <img
-                              src={team.club.logo}
-                              alt={team.club.name}
-                              className="w-7 h-7 rounded-lg object-cover shrink-0"
-                            />
+                            <img src={team.club.logo} alt={team.club.name} className="w-7 h-7 rounded-lg object-cover shrink-0" />
                           ) : (
-                            <span className="text-lg shrink-0">
-                              {getSportIcon(team.sport)}
-                            </span>
+                            <span className="text-lg shrink-0">{getSportIcon(team.sport)}</span>
                           )}
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-text-primary truncate">
-                              {team.name}
-                            </p>
-                            <p className="text-xs text-text-muted truncate">
-                              {team.club?.name}
-                            </p>
+                            <p className="text-sm font-medium text-text-primary truncate">{team.name}</p>
+                            <p className="text-xs text-text-muted truncate">{team.club?.name}</p>
                           </div>
                           <span
                             onClick={(e) => handleToggleFavorite(e, team.id)}
                             className={`text-lg cursor-pointer shrink-0 transition ${
-                              fav
-                                ? 'text-warning hover:text-warning/80'
-                                : 'text-text-muted hover:text-warning'
+                              fav ? 'text-warning hover:text-warning/80' : 'text-text-muted hover:text-warning'
                             }`}
                             title={fav ? 'Quitar de favoritos' : 'Añadir a favoritos'}
                           >
@@ -443,7 +419,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
 
-            {/* Footer del sidebar */}
             <div className="p-4 border-t border-border-subtle space-y-1">
               <Link
                 href="/dashboard"
