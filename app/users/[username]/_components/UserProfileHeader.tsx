@@ -1,12 +1,10 @@
 'use client'
 
-import { Button, Card, CardBody, Badge } from '@/components/ui'
+import { Card, CardBody, Badge } from '@/components/ui'
 import type { UserPublic } from '@/types/user'
 
 interface Props {
   user: UserPublic
-  canInvite: boolean
-  onInviteClick: () => void
 }
 
 const ROLE_LABEL: Record<string, string> = {
@@ -14,11 +12,7 @@ const ROLE_LABEL: Record<string, string> = {
   USER: '👤 Usuario',
 }
 
-export default function UserProfileHeader({
-  user,
-  canInvite,
-  onInviteClick,
-}: Props) {
+export default function UserProfileHeader({ user }: Props) {
   const initials = `${user.name?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase()
 
   return (
@@ -49,6 +43,11 @@ export default function UserProfileHeader({
               <Badge variant="neutral">
                 {ROLE_LABEL[user.role] || user.role}
               </Badge>
+              {user.isGhost && (
+                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning font-bold uppercase">
+                  sin cuenta
+                </span>
+              )}
             </div>
 
             <h1 className="text-2xl font-bold text-text-primary mb-2">
@@ -61,15 +60,6 @@ export default function UserProfileHeader({
               </p>
             )}
           </div>
-
-          {/* Botón invitar */}
-          {canInvite && (
-            <div className="flex gap-2 shrink-0">
-              <Button onClick={onInviteClick}>
-                📨 Invitar a mi equipo
-              </Button>
-            </div>
-          )}
         </div>
       </CardBody>
     </Card>

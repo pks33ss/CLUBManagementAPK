@@ -42,4 +42,30 @@ export const usersApi = {
     const { data } = await api.get(`/users/by-username/${clean}`)
     return data
   },
+
+  /**
+   * Crear usuario fantasma y añadirlo a un equipo.
+   * Solo para coach/assistant/admin del equipo.
+   */
+  async createGhost(payload: {
+    name: string
+    lastName: string
+    teamId: string
+    email?: string
+    phone?: string
+    jerseyNumber?: number
+    position?: string
+    role?: string
+  }): Promise<{
+    id: string
+    username: string | null
+    name: string
+    lastName: string
+    email: string | null
+    isGhost: boolean
+  }> {
+    const { data } = await api.post('/users/ghost', payload)
+    return data
+  },
+
 }

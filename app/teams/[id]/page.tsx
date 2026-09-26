@@ -5,7 +5,24 @@ import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
 import { getSportConfig } from '@/lib/sport'
-import { Button, Card, CardBody, Badge, Input, Select, Textarea, Modal } from '@/components/ui'
+import { Button, Card, CardBody, Badge, Input, Select, Modal } from '@/components/ui'
+
+interface Membership {
+  id: string
+  role: 'PLAYER' | 'COACH' | 'ASSISTANT' | 'ADMIN_TEAM'
+  status: string
+  jerseyNumber: number | null
+  position: string | null
+  user: {
+    id: string
+    name: string
+    lastName: string
+    username: string | null
+    avatar: string | null
+    email: string | null
+    isGhost: boolean
+  }
+}
 
 interface TeamDetail {
   id: string
@@ -17,23 +34,7 @@ interface TeamDetail {
     id: string
     name: string
   }
-  players: {
-    id: string
-    name: string
-    lastName: string
-    number: number
-    position: string
-  }[]
-  members: {
-    id: string
-    user: {
-      id: string
-      name: string
-      lastName: string
-      email: string
-    }
-    role: string
-  }[]
+  memberships: Membership[]
 }
 
 export default function TeamDetail() {
@@ -55,22 +56,6 @@ export default function TeamDetail() {
 
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleting, setDeleting] = useState(false)
-
-  const [showPlayerModal, setShowPlayerModal] = useState(false)
-  const [newPlayer, setNewPlayer] = useState({
-    name: '',
-    lastName: '',
-    birthDate: '',
-    position: '',
-    number: '',
-    phone: '',
-    email: '',
-    address: '',
-    height: '',
-    wingspan: '',
-    weight: '',
-  })
-  const [creatingPlayer, setCreatingPlayer] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -145,50 +130,6 @@ export default function TeamDetail() {
     }
   }
 
-  const createPlayer = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setCreatingPlayer(true)
-
-    try {
-      await api.post('/players', {
-        name: newPlayer.name,
-        lastName: newPlayer.lastName,
-        birthDate: newPlayer.birthDate || undefined,
-        position: newPlayer.position || undefined,
-        number: newPlayer.number ? parseInt(newPlayer.number) : undefined,
-        phone: newPlayer.phone || undefined,
-        email: newPlayer.email || undefined,
-        address: newPlayer.address || undefined,
-        height: newPlayer.height ? parseFloat(newPlayer.height) : undefined,
-        wingspan: newPlayer.wingspan ? parseFloat(newPlayer.wingspan) : undefined,
-        weight: newPlayer.weight ? parseFloat(newPlayer.weight) : undefined,
-        teamId: teamId,
-      })
-
-      setShowPlayerModal(false)
-      setNewPlayer({
-        name: '',
-        lastName: '',
-        birthDate: '',
-        position: '',
-        number: '',
-        phone: '',
-        email: '',
-        address: '',
-        height: '',
-        wingspan: '',
-        weight: '',
-      })
-      fetchTeam()
-      alert('✅ Jugador añadido correctamente')
-    } catch (error: any) {
-      console.error('Error:', error)
-      alert(error.response?.data?.message || 'Error al crear el jugador')
-    } finally {
-      setCreatingPlayer(false)
-    }
-  }
-
   if (loading) {
     return <div className="text-center py-12 text-text-muted">Cargando detalles del equipo...</div>
   }
@@ -211,6 +152,12 @@ export default function TeamDetail() {
   }
 
   const sport = getSportConfig(team.sport)
+
+  // ✅ Separar memberships por rol
+  const players = team.memberships.filter((m) => m.role === 'PLAYER')
+  const coaches = team.memberships.filter(
+    (m) => m.role === 'COACH' || m.role === 'ASSISTANT' || m.role === 'ADMIN_TEAM',
+  )
 
   return (
     <div>
@@ -257,47 +204,54 @@ export default function TeamDetail() {
         <CardBody>
           <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
             <h2 className="text-xl font-semibold text-text-primary">
-              👥 {sport.playerNamePlural} ({team.players?.length || 0})
+              👥 {sport.playerNamePlural} ({players.length})
             </h2>
             <Button
               size="sm"
-              onClick={() => setShowPlayerModal(true)}
+              href={`/teams/${teamId}/members`}
               icon={<span className="text-xl">+</span>}
             >
-              Nuevo {sport.playerName}
+              Invitar {sport.playerName}
             </Button>
           </div>
 
-          {team.players?.length === 0 ? (
+          {players.length === 0 ? (
             <div className="text-center py-8">
               <div className="text-4xl mb-4">🏃</div>
               <p className="text-text-secondary">
                 No hay {sport.playerNamePlural.toLowerCase()} en este {sport.teamName.toLowerCase()}
               </p>
               <Button
-                onClick={() => setShowPlayerModal(true)}
+                href={`/teams/${teamId}/members`}
                 className="mt-4"
               >
-                Añadir Primer {sport.playerName}
+                Invitar Primer {sport.playerName}
               </Button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {team.players.map((player) => (
+              {players.map((m) => (
                 <Link
-                  key={player.id}
-                  href={`/players/${player.id}`}
+                  key={m.id}
+                  href={m.user.username ? `/users/${m.user.username.replace('@', '')}` : '#'}
                   className="bg-surface-elevated hover:bg-brand-primary/5 rounded-lg p-4 transition border border-border-subtle hover:border-brand-primary/50"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="bg-brand-primary/10 text-brand-primary w-10 h-10 rounded-full flex items-center justify-center font-bold">
-                      {player.number || '?'}
+                    <div className="bg-brand-primary/10 text-brand-primary w-10 h-10 rounded-full flex items-center justify-center font-bold shrink-0">
+                      {m.jerseyNumber ?? '?'}
                     </div>
-                    <div>
-                      <p className="font-medium text-text-primary">
-                        {player.name} {player.lastName}
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-text-primary truncate">
+                        {m.user.name} {m.user.lastName}
                       </p>
-                      <p className="text-sm text-text-secondary">{player.position || 'Sin posición'}</p>
+                      <p className="text-sm text-text-secondary truncate">
+                        {m.position || 'Sin posición'}
+                      </p>
+                      {m.user.isGhost && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning font-bold uppercase inline-block mt-1">
+                          sin cuenta
+                        </span>
+                      )}
                     </div>
                   </div>
                 </Link>
@@ -311,21 +265,26 @@ export default function TeamDetail() {
       <Card className="mt-6">
         <CardBody>
           <h2 className="text-xl font-semibold text-text-primary mb-4">
-            👔 Entrenadores ({team.members?.length || 0})
+            👔 Entrenadores ({coaches.length})
           </h2>
-          {team.members?.length === 0 ? (
+          {coaches.length === 0 ? (
             <p className="text-text-muted text-center py-4">No hay entrenadores asignados</p>
           ) : (
             <div className="space-y-2">
-              {team.members.map((member) => (
-                <div key={member.id} className="flex items-center justify-between bg-surface-elevated rounded-lg p-3 border border-border-subtle flex-wrap gap-2">
+              {coaches.map((m) => (
+                <div
+                  key={m.id}
+                  className="flex items-center justify-between bg-surface-elevated rounded-lg p-3 border border-border-subtle flex-wrap gap-2"
+                >
                   <div className="min-w-0">
                     <p className="font-medium text-text-primary">
-                      {member.user.name} {member.user.lastName}
+                      {m.user.name} {m.user.lastName}
                     </p>
-                    <p className="text-sm text-text-muted">{member.user.email}</p>
+                    <p className="text-sm text-text-muted truncate">
+                      {m.user.username || m.user.email || '—'}
+                    </p>
                   </div>
-                  <Badge variant="info">{member.role}</Badge>
+                  <Badge variant="info">{m.role}</Badge>
                 </div>
               ))}
             </div>
@@ -419,165 +378,6 @@ export default function TeamDetail() {
             {deleting ? 'Eliminando...' : 'Sí, Eliminar'}
           </Button>
         </div>
-      </Modal>
-
-      {/* MODAL CREAR JUGADOR */}
-      <Modal
-        isOpen={showPlayerModal}
-        onClose={() => setShowPlayerModal(false)}
-        title={`Añadir Nuevo ${sport.playerName} a ${team.name}`}
-        size="lg"
-      >
-        <form onSubmit={createPlayer} className="space-y-4">
-          <div>
-            <h4 className="text-sm font-semibold text-text-secondary mb-3">📋 Información Personal</h4>
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Nombre *"
-                type="text"
-                value={newPlayer.name}
-                onChange={(e) => setNewPlayer({ ...newPlayer, name: e.target.value })}
-                required
-                placeholder="Ej: Juan"
-              />
-              <Input
-                label="Apellido *"
-                type="text"
-                value={newPlayer.lastName}
-                onChange={(e) => setNewPlayer({ ...newPlayer, lastName: e.target.value })}
-                required
-                placeholder="Ej: Pérez"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 mt-4">
-              <Input
-                label="Fecha de nacimiento"
-                type="date"
-                value={newPlayer.birthDate}
-                onChange={(e) => setNewPlayer({ ...newPlayer, birthDate: e.target.value })}
-              />
-              <Input
-                label="Teléfono"
-                type="tel"
-                value={newPlayer.phone}
-                onChange={(e) => setNewPlayer({ ...newPlayer, phone: e.target.value })}
-                placeholder="+34 600 123 456"
-              />
-            </div>
-
-            <div className="mt-4">
-              <Input
-                label="Email"
-                type="email"
-                value={newPlayer.email}
-                onChange={(e) => setNewPlayer({ ...newPlayer, email: e.target.value })}
-                placeholder="jugador@email.com"
-              />
-            </div>
-
-            <div className="mt-4">
-              <Input
-                label="Dirección"
-                type="text"
-                value={newPlayer.address}
-                onChange={(e) => setNewPlayer({ ...newPlayer, address: e.target.value })}
-                placeholder="Calle, número, ciudad"
-              />
-            </div>
-          </div>
-
-          <div className="border-t border-border-subtle pt-4">
-            <h4 className="text-sm font-semibold text-text-secondary mb-3">
-              {sport.icon} Información Deportiva
-            </h4>
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Dorsal"
-                type="number"
-                value={newPlayer.number}
-                onChange={(e) => setNewPlayer({ ...newPlayer, number: e.target.value })}
-                min="0"
-                max="99"
-                placeholder="7"
-              />
-              <div>
-                {sport.positions.length > 0 ? (
-                  <Select
-                    label="Posición"
-                    value={newPlayer.position}
-                    onChange={(e) => setNewPlayer({ ...newPlayer, position: e.target.value })}
-                  >
-                    <option value="">Seleccionar...</option>
-                    {sport.positions.map((pos) => (
-                      <option key={pos} value={pos}>
-                        {pos}
-                      </option>
-                    ))}
-                  </Select>
-                ) : (
-                  <Input
-                    label="Posición"
-                    type="text"
-                    value={newPlayer.position}
-                    onChange={(e) => setNewPlayer({ ...newPlayer, position: e.target.value })}
-                    placeholder="Ej: Delantero"
-                  />
-                )}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-3 gap-4 mt-4">
-              <Input
-                label="Altura (cm)"
-                type="number"
-                value={newPlayer.height}
-                onChange={(e) => setNewPlayer({ ...newPlayer, height: e.target.value })}
-                min="0"
-                step="0.1"
-                placeholder="180"
-              />
-              <Input
-                label="Envergadura (cm)"
-                type="number"
-                value={newPlayer.wingspan}
-                onChange={(e) => setNewPlayer({ ...newPlayer, wingspan: e.target.value })}
-                min="0"
-                step="0.1"
-                placeholder="185"
-              />
-              <Input
-                label="Peso (kg)"
-                type="number"
-                value={newPlayer.weight}
-                onChange={(e) => setNewPlayer({ ...newPlayer, weight: e.target.value })}
-                min="0"
-                step="0.1"
-                placeholder="75"
-              />
-            </div>
-          </div>
-
-          <div className="flex gap-3 pt-4">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setShowPlayerModal(false)}
-              disabled={creatingPlayer}
-              className="flex-1"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={creatingPlayer}
-              loading={creatingPlayer}
-              className="flex-1"
-            >
-              {creatingPlayer ? 'Creando...' : `Añadir ${sport.playerName}`}
-            </Button>
-          </div>
-        </form>
       </Modal>
     </div>
   )

@@ -112,7 +112,7 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
   }
 
 
-  // Crear jugador fantasma + invitación
+  // Crear jugador fantasma + añadirlo al equipo
   const handleCreateNew = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!createForm.name || !createForm.lastName) {
@@ -123,31 +123,23 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
     setProcessing(true)
     setError('')
     try {
-      // 1) Crear el user fantasma (usando el endpoint de players)
-      const playerRes = await api.post('/players', {
+      // Llamar al nuevo endpoint POST /users/ghost
+      await usersApi.createGhost({
         name: createForm.name,
         lastName: createForm.lastName,
+        teamId,
         email: createForm.email || undefined,
         phone: createForm.phone || undefined,
-        number: createForm.jerseyNumber
+        jerseyNumber: createForm.jerseyNumber
           ? parseInt(createForm.jerseyNumber)
           : undefined,
         position: createForm.position || undefined,
-        teamId,
-      })
-
-      // 2) El backend debería haber creado un User fantasma + TeamMembership
-      // Ahora creamos una invitación para que el jugador se registre
-      const invitation = await invitationsApi.create({
-        teamId,
         role: 'PLAYER',
-        channel: 'LINK',
-        userId: playerRes.data.id, // o el id del User fantasma
-        email: createForm.email || undefined,
       })
 
-      setInvitationLink(invitation.invitationLink)
-      setInvitationCode(invitation.code)
+      // Éxito: recargar la lista y cerrar
+      await onSuccess()
+      onClose()
     } catch (err: any) {
       console.error('Error:', err)
       setError(err.response?.data?.message || 'Error al crear el jugador')
@@ -269,9 +261,7 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
   }`}
 >
   ➕ Crear nuevo
-  <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning font-bold uppercase">
-    beta
-  </span>
+
 </button>
       </div>
 
@@ -365,14 +355,7 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
       {/* Modo crear */}
       {mode === 'create' && (
         <form onSubmit={handleCreateNew} className="space-y-4">
-            <div className="bg-warning/10 border border-warning/20 rounded-lg p-3 text-xs text-warning flex items-start gap-2">
-  <span className="shrink-0">⚠️</span>
-  <span>
-    <strong>Función en beta.</strong> Por ahora se crea el jugador en el equipo
-    pero todavía no se le envía la invitación automáticamente. En la próxima
-    versión se completará el flujo.
-  </span>
-</div>
+            
           <div className="grid grid-cols-2 gap-4">
             <Input
               label="Nombre *"
@@ -444,7 +427,7 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
               loading={processing}
               className="flex-1"
             >
-              {processing ? 'Creando...' : 'Crear e invitar'}
+              {processing ? 'Creando...' : 'Añadir jugador'}
             </Button>
           </div>
         </form>

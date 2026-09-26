@@ -18,6 +18,7 @@ export interface UserPublic {
   avatar: string | null
   bio: string | null
   role: string
+  isGhost?: boolean
   memberships: UserPublicMembership[]
 }
 

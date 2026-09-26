@@ -4,31 +4,18 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { usersApi } from '@/lib/api/users'
-import { useActiveTeam } from '@/lib/ActiveTeamContext'
 import UserProfileHeader from './_components/UserProfileHeader'
-import InviteToTeamModal from './_components/InviteToTeamModal'
-import { Button, Card, CardBody, Badge } from '@/components/ui'
+import { Card, CardBody, Badge } from '@/components/ui'
 import type { UserPublic } from '@/types/user'
 
 export default function UserProfilePage() {
   const router = useRouter()
   const params = useParams()
   const username = params.username as string
-  const { memberships } = useActiveTeam()
 
   const [user, setUser] = useState<UserPublic | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [showInviteModal, setShowInviteModal] = useState(false)
-
-  // Equipos donde soy coach/assistant/admin (puedo invitar)
-  const myManageableTeams = memberships.filter(
-    (m) =>
-      m.status === 'ACTIVE' &&
-      ['COACH', 'ASSISTANT', 'ADMIN_TEAM'].includes(m.role),
-  )
-
-  const canInvite = myManageableTeams.length > 0
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -83,11 +70,7 @@ export default function UserProfilePage() {
         ← Volver
       </Link>
 
-      <UserProfileHeader
-        user={user}
-        canInvite={canInvite}
-        onInviteClick={() => setShowInviteModal(true)}
-      />
+      <UserProfileHeader user={user} />
 
       {/* Equipos */}
       <Card className="mt-6">
@@ -135,15 +118,6 @@ export default function UserProfilePage() {
           )}
         </CardBody>
       </Card>
-
-      {/* Modal invitar */}
-      {showInviteModal && (
-        <InviteToTeamModal
-          user={user}
-          teams={myManageableTeams}
-          onClose={() => setShowInviteModal(false)}
-        />
-      )}
     </div>
   )
 }
