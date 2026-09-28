@@ -6,7 +6,15 @@ import Link from 'next/link'
 import api from '@/lib/api'
 import { getSportIcon } from '@/lib/sport'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
-import { Button, Card, CardBody, Badge } from '@/components/ui'
+import { Button, Card, CardBody, Badge, Select } from '@/components/ui'
+import {
+  MatchSortKey,
+  SORT_OPTIONS,
+  getSavedSort,
+  saveSort,
+  sortMatches,
+} from '@/lib/matchSort'
+import CreateMatchModal from './_components/CreateMatchModal'
 
 interface Match {
   id: string
@@ -42,6 +50,13 @@ export default function AllMatches() {
   const [matches, setMatches] = useState<Match[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'scheduled' | 'finished'>('all')
+  const [sortKey, setSortKey] = useState<MatchSortKey>('date-desc')
+  const [showCreateModal, setShowCreateModal] = useState(false)
+
+  // Cargar preferencia de ordenación
+  useEffect(() => {
+    setSortKey(getSavedSort())
+  }, [])
 
   // Cargar partidos cuando cambia el equipo activo
   useEffect(() => {
@@ -97,7 +112,6 @@ export default function AllMatches() {
     }
   }
 
-  // ✅ Devuelve la variante del Badge según el estado del partido
   const getStatusVariant = (status: string): 'info' | 'warning' | 'success' | 'danger' | 'neutral' => {
     switch (status) {
       case 'SCHEDULED': return 'info'
@@ -165,6 +179,8 @@ export default function AllMatches() {
     return true
   })
 
+  const sortedAndFiltered = sortMatches(filteredMatches, sortKey)
+
   // ============================================
   // RENDER
   // ============================================
@@ -173,7 +189,6 @@ export default function AllMatches() {
     return <div className="text-center py-12 text-text-muted">Cargando partidos...</div>
   }
 
-  // Sin equipo activo
   if (!activeTeam) {
     return (
       <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
@@ -191,21 +206,27 @@ export default function AllMatches() {
   return (
     <div>
       {/* Header */}
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">🏆 Partidos</h1>
           <p className="text-text-secondary">
             {activeTeam.name} · {activeTeam.club?.name}
           </p>
         </div>
+        <Button
+          onClick={() => setShowCreateModal(true)}
+          icon={<span className="text-xl">+</span>}
+        >
+          Nuevo Partido
+        </Button>
       </div>
 
-      {/* Filtros */}
+      {/* Filtros + Ordenación */}
       {matches.length > 0 && (
         <Card className="mb-4">
           <div className="p-4 flex flex-wrap items-center gap-3">
             <span className="text-sm font-medium text-text-secondary">Filtrar:</span>
-            <div className="flex gap-1">
+            <div className="flex gap-1 flex-wrap">
               <Button
                 variant={filter === 'all' ? 'primary' : 'secondary'}
                 size="sm"
@@ -228,9 +249,33 @@ export default function AllMatches() {
                 ✅ Finalizados
               </Button>
             </div>
+
+            <div className="flex items-center gap-2 ml-auto">
+              <span className="text-sm font-medium text-text-secondary whitespace-nowrap">
+                Ordenar:
+              </span>
+              <select
+                value={sortKey}
+                onChange={(e) => {
+                  const v = e.target.value as MatchSortKey
+                  setSortKey(v)
+                  saveSort(v)
+                }}
+                className="text-sm bg-surface-elevated border border-border-subtle text-text-primary rounded px-3 py-1.5 focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"
+              >
+                {SORT_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="px-4 pb-3">
             <Link
               href={`/teams/${activeTeam.id}/matches`}
-              className="ml-auto text-sm text-brand-primary hover:underline"
+              className="text-xs text-brand-primary hover:underline"
             >
               Ver detalle del equipo →
             </Link>
@@ -239,7 +284,7 @@ export default function AllMatches() {
       )}
 
       {/* Lista de partidos */}
-      {filteredMatches.length === 0 ? (
+      {sortedAndFiltered.length === 0 ? (
         <div className="text-center py-12 bg-surface rounded-xl shadow border border-border-subtle">
           <div className="text-4xl mb-4">🏆</div>
           <p className="text-text-secondary">
@@ -247,16 +292,13 @@ export default function AllMatches() {
               ? 'No hay partidos registrados para este equipo'
               : 'No hay partidos que coincidan con el filtro'}
           </p>
-          <Button
-            href={`/teams/${activeTeam.id}/matches`}
-            className="mt-4"
-          >
+          <Button onClick={() => setShowCreateModal(true)} className="mt-4">
             Crear Partido
           </Button>
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredMatches.map((match) => {
+          {sortedAndFiltered.map((match) => {
             const resultVariant = getResultVariant(match)
             return (
               <Card key={match.id} hover>
@@ -322,6 +364,15 @@ export default function AllMatches() {
             )
           })}
         </div>
+      )}
+
+      {showCreateModal && (
+        <CreateMatchModal
+          teamId={activeTeam.id}
+          teamSport={activeTeam.sport ?? undefined}
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={() => fetchMatches(activeTeam.id)}
+        />
       )}
     </div>
   )

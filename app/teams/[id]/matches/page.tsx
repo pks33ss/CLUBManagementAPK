@@ -4,7 +4,15 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
-import { Button, Card, CardBody, Badge, Input, Textarea, Select, Modal } from '@/components/ui'
+import { Button, Card, CardBody, Badge } from '@/components/ui'
+import {
+  MatchSortKey,
+  SORT_OPTIONS,
+  getSavedSort,
+  saveSort,
+  sortMatches,
+} from '@/lib/matchSort'
+import CreateMatchModal from '@/app/matches/_components/CreateMatchModal'
 
 interface Match {
   id: string
@@ -47,21 +55,12 @@ export default function TeamMatches() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [filter, setFilter] = useState<'all' | 'scheduled' | 'finished'>('all')
-
+  const [sortKey, setSortKey] = useState<MatchSortKey>('date-desc')
   const [showCreateModal, setShowCreateModal] = useState(false)
-  const [newMatch, setNewMatch] = useState({
-    date: '',
-    time: '',
-    opponent: '',
-    location: 'HOME',
-    type: 'LEAGUE',
-    venue: '',
-    competition: '',
-    notes: '',
-    subMatchesCount: 3,
-    setsPerSubMatch: 3,
-  })
-  const [creating, setCreating] = useState(false)
+
+  useEffect(() => {
+    setSortKey(getSavedSort())
+  }, [])
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -87,57 +86,6 @@ export default function TeamMatches() {
       setError(error.response?.data?.message || 'Error al cargar los partidos')
     } finally {
       setLoading(false)
-    }
-  }
-
-  const isPadel = team?.sport === 'PADEL'
-
-  const createMatch = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setCreating(true)
-
-    try {
-      const dateTime = new Date(`${newMatch.date}T${newMatch.time}`)
-
-      const payload: any = {
-        date: dateTime.toISOString(),
-        opponent: newMatch.opponent,
-        location: newMatch.location,
-        type: newMatch.type,
-        venue: newMatch.venue || undefined,
-        competition: newMatch.competition || undefined,
-        notes: newMatch.notes || undefined,
-        teamId: teamId,
-      }
-
-      // ✅ Solo pádel: pistas + sets
-      if (isPadel) {
-        payload.subMatchesCount = Number(newMatch.subMatchesCount)
-        payload.setsPerSubMatch = Number(newMatch.setsPerSubMatch)
-      }
-
-      await api.post('/matches', payload)
-
-      setShowCreateModal(false)
-      setNewMatch({
-        date: '',
-        time: '',
-        opponent: '',
-        location: 'HOME',
-        type: 'LEAGUE',
-        venue: '',
-        competition: '',
-        notes: '',
-        subMatchesCount: 3,
-        setsPerSubMatch: 3,
-      })
-      fetchData()
-      alert('✅ Partido creado correctamente')
-    } catch (error: any) {
-      console.error('Error:', error)
-      alert(error.response?.data?.message || 'Error al crear el partido')
-    } finally {
-      setCreating(false)
     }
   }
 
@@ -228,6 +176,8 @@ export default function TeamMatches() {
     return true
   })
 
+  const sortedAndFiltered = sortMatches(filteredMatches, sortKey)
+
   if (loading) {
     return <div className="text-center py-12 text-text-muted">Cargando partidos...</div>
   }
@@ -298,7 +248,7 @@ export default function TeamMatches() {
         </div>
       )}
 
-      {/* Filtros */}
+      {/* Filtros + Ordenación */}
       <Card className="mb-4">
         <CardBody className="flex flex-wrap items-center gap-3 p-4">
           <span className="text-sm font-medium text-text-secondary">Filtrar:</span>
@@ -325,11 +275,32 @@ export default function TeamMatches() {
               ✅ Finalizados ({matches.filter(m => m.status === 'FINISHED').length})
             </Button>
           </div>
+
+          <div className="flex items-center gap-2 ml-auto">
+            <span className="text-sm font-medium text-text-secondary whitespace-nowrap">
+              Ordenar:
+            </span>
+            <select
+              value={sortKey}
+              onChange={(e) => {
+                const v = e.target.value as MatchSortKey
+                setSortKey(v)
+                saveSort(v)
+              }}
+              className="text-sm bg-surface-elevated border border-border-subtle text-text-primary rounded px-3 py-1.5 focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"
+            >
+              {SORT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </CardBody>
       </Card>
 
       {/* Lista de partidos */}
-      {filteredMatches.length === 0 ? (
+      {sortedAndFiltered.length === 0 ? (
         <Card>
           <CardBody className="text-center py-12">
             <div className="text-4xl mb-4">🏆</div>
@@ -350,7 +321,7 @@ export default function TeamMatches() {
         </Card>
       ) : (
         <div className="space-y-3">
-          {filteredMatches.map((match) => {
+          {sortedAndFiltered.map((match) => {
             const resultVariant = getResultVariant(match)
             return (
               <Card key={match.id} hover>
@@ -414,149 +385,14 @@ export default function TeamMatches() {
         </div>
       )}
 
-      {/* MODAL CREAR PARTIDO */}
-      <Modal
-        isOpen={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        title="🏆 Nuevo Partido"
-        size="md"
-      >
-        <form onSubmit={createMatch} className="space-y-4">
-          <Input
-            label="Rival *"
-            type="text"
-            value={newMatch.opponent}
-            onChange={(e) => setNewMatch({ ...newMatch, opponent: e.target.value })}
-            placeholder="Ej: CB Madrid"
-            required
-          />
-
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label="Fecha *"
-              type="date"
-              value={newMatch.date}
-              onChange={(e) => setNewMatch({ ...newMatch, date: e.target.value })}
-              required
-            />
-            <Input
-              label="Hora *"
-              type="time"
-              value={newMatch.time}
-              onChange={(e) => setNewMatch({ ...newMatch, time: e.target.value })}
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <Select
-              label="Ubicación"
-              value={newMatch.location}
-              onChange={(e) => setNewMatch({ ...newMatch, location: e.target.value })}
-            >
-              <option value="HOME">🏠 Casa</option>
-              <option value="AWAY">✈️ Fuera</option>
-              <option value="NEUTRAL">⚖️ Neutral</option>
-            </Select>
-            <Select
-              label="Tipo"
-              value={newMatch.type}
-              onChange={(e) => setNewMatch({ ...newMatch, type: e.target.value })}
-            >
-              <option value="LEAGUE">🏆 Liga</option>
-              <option value="FRIENDLY">🤝 Amistoso</option>
-              <option value="CUP">🏅 Copa</option>
-              <option value="PLAYOFF">🔥 Playoff</option>
-              <option value="TOURNAMENT">🎯 Torneo</option>
-            </Select>
-          </div>
-
-          <Input
-            label="Pabellón / Ubicación"
-            type="text"
-            value={newMatch.venue}
-            onChange={(e) => setNewMatch({ ...newMatch, venue: e.target.value })}
-            placeholder="Ej: Pabellón Municipal"
-          />
-
-          <Input
-            label="Competición"
-            type="text"
-            value={newMatch.competition}
-            onChange={(e) => setNewMatch({ ...newMatch, competition: e.target.value })}
-            placeholder="Ej: Liga Local Senior"
-          />
-
-          {/* ✅ Solo pádel */}
-          {isPadel && (
-            <div className="border-t border-border-subtle pt-4">
-              <h4 className="text-sm font-semibold text-text-primary mb-3">
-                🏟️ Configuración de pistas
-              </h4>
-              <div className="grid grid-cols-2 gap-4">
-                <Input
-                  label="Nº de pistas *"
-                  type="number"
-                  min="1"
-                  max="20"
-                  value={newMatch.subMatchesCount}
-                  onChange={(e) =>
-                    setNewMatch({
-                      ...newMatch,
-                      subMatchesCount: Number(e.target.value),
-                    })
-                  }
-                  required
-                  helperText="¿Cuántas parejas jugarán?"
-                />
-                <Input
-                  label="Sets por pista *"
-                  type="number"
-                  min="1"
-                  max="7"
-                  value={newMatch.setsPerSubMatch}
-                  onChange={(e) =>
-                    setNewMatch({
-                      ...newMatch,
-                      setsPerSubMatch: Number(e.target.value),
-                    })
-                  }
-                  required
-                  helperText="¿Al mejor de cuántos?"
-                />
-              </div>
-            </div>
-          )}
-
-          <Textarea
-            label="Notas"
-            value={newMatch.notes}
-            onChange={(e) => setNewMatch({ ...newMatch, notes: e.target.value })}
-            rows={2}
-            placeholder="Notas adicionales"
-          />
-
-          <div className="flex gap-3 pt-2">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setShowCreateModal(false)}
-              disabled={creating}
-              className="flex-1"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={creating}
-              loading={creating}
-              className="flex-1"
-            >
-              {creating ? 'Creando...' : 'Crear Partido'}
-            </Button>
-          </div>
-        </form>
-      </Modal>
+      {showCreateModal && (
+        <CreateMatchModal
+          teamId={teamId}
+          teamSport={team?.sport}
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={fetchData}
+        />
+      )}
     </div>
   )
 }
