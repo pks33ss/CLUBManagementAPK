@@ -7,13 +7,15 @@ import api from '@/lib/api'
 import { getSportConfig } from '@/lib/sport'
 import { Button, Card, CardBody, Badge, Input, Select, Modal } from '@/components/ui'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
+import RequestJoinModal from './_components/RequestJoinModal'
+import AddSelfRoleModal from './_components/AddSelfRoleModal'
 
 type MembershipRole = 'PLAYER' | 'COACH' | 'ASSISTANT' | 'ADMIN_TEAM'
 
 interface Membership {
   id: string
-  role: MembershipRole             // primario (compat)
-  roles?: MembershipRole[]         // ✅ NUEVO: todos los roles
+  role: MembershipRole
+  roles?: MembershipRole[]
   status: string
   jerseyNumber: number | null
   position: string | null
@@ -28,6 +30,12 @@ interface Membership {
   }
 }
 
+interface MyMembership {
+  id: string
+  status: string
+  roles: MembershipRole[]
+}
+
 interface TeamDetail {
   id: string
   name: string
@@ -40,32 +48,42 @@ interface TeamDetail {
     logo?: string | null
   }
   memberships: Membership[]
+  myMembership?: MyMembership | null
 }
+
+const ALL_ROLES: MembershipRole[] = ['PLAYER', 'COACH', 'ASSISTANT', 'ADMIN_TEAM']
 
 export default function TeamDetail() {
   const router = useRouter()
   const params = useParams()
   const teamId = params.id as string
 
-  // ✅ Equipo activo global (barra superior + menú)
   const { setActiveTeam, activeTeam } = useActiveTeam()
 
   const [team, setTeam] = useState<TeamDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   const [showEditModal, setShowEditModal] = useState(false)
-  const [editForm, setEditForm] = useState({
-    name: '',
-    category: '',
-    season: '',
-  })
+  const [editForm, setEditForm] = useState({ name: '', category: '', season: '' })
   const [updating, setUpdating] = useState(false)
 
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
+  // Modales de "solicitar unirme" y "añadirme un rol"
+  const [showJoinModal, setShowJoinModal] = useState(false)
+  const [showAddRoleModal, setShowAddRoleModal] = useState(false)
+
   useEffect(() => {
+    const userStr = localStorage.getItem('user')
+    if (userStr) {
+      try {
+        setCurrentUserId(JSON.parse(userStr).id)
+      } catch {}
+    }
+
     const token = localStorage.getItem('token')
     if (!token) {
       router.push('/login')
@@ -85,7 +103,6 @@ export default function TeamDetail() {
         season: response.data.season || '',
       })
 
-      // ✅ Activar el equipo como "equipo activo" del usuario
       if (response.data.id !== activeTeam?.id) {
         setActiveTeam({
           id: response.data.id,
@@ -169,16 +186,13 @@ export default function TeamDetail() {
           {error?.includes('No tienes acceso') ? 'Acceso Denegado' : 'Error'}
         </h2>
         <p className="text-text-secondary max-w-md mx-auto mb-6">{error || 'Equipo no encontrado'}</p>
-        <Button href="/teams">
-          ← Volver a Mis Equipos
-        </Button>
+        <Button href="/teams">← Volver a Mis Equipos</Button>
       </div>
     )
   }
 
   const sport = getSportConfig(team.sport)
 
-  // ✅ Separar memberships por roles (array)
   const players = team.memberships.filter((m) =>
     (m.roles ?? [m.role]).includes('PLAYER'),
   )
@@ -187,6 +201,21 @@ export default function TeamDetail() {
       ['COACH', 'ASSISTANT', 'ADMIN_TEAM'].includes(r),
     ),
   )
+
+  // ============================================
+  // ESTADO DEL USER ACTUAL EN EL EQUIPO
+  // ============================================
+
+  const myMembership = team.myMembership ?? null
+  const myRoles = myMembership?.roles ?? []
+  const isActiveMember = myMembership?.status === 'ACTIVE'
+  const isPending = myMembership?.status === 'PENDING'
+  const hasAllRoles =
+    isActiveMember && ALL_ROLES.every((r) => myRoles.includes(r))
+
+  // ============================================
+  // RENDER
+  // ============================================
 
   return (
     <div>
@@ -217,6 +246,34 @@ export default function TeamDetail() {
               <Button href={`/teams/${teamId}/members`} variant="secondary" size="sm">
                 👥 Miembros
               </Button>
+
+              {/* ✅ Botón de "solicitar unirme" si no tiene membership */}
+              {!myMembership && currentUserId && (
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => setShowJoinModal(true)}
+                >
+                  🙋 Solicitar unirme
+                </Button>
+              )}
+
+              {/* ✅ Aviso si tiene solicitud pendiente */}
+              {isPending && (
+                <Badge variant="warning">⏳ Solicitud pendiente</Badge>
+              )}
+
+              {/* ✅ Botón "añadirme un rol" si ya es miembro pero le faltan roles */}
+              {isActiveMember && !hasAllRoles && (
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => setShowAddRoleModal(true)}
+                >
+                  ➕ Añadirme un rol
+                </Button>
+              )}
+
               <Button size="sm" onClick={openEdit}>
                 ✏️ Editar
               </Button>
@@ -250,9 +307,6 @@ export default function TeamDetail() {
               <p className="text-text-secondary">
                 No hay {sport.playerNamePlural.toLowerCase()} en este {sport.teamName.toLowerCase()}
               </p>
-              <Button href={`/teams/${teamId}/members?action=invite`} className="mt-4">
-                Añadir Primer {sport.playerName}
-              </Button>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -409,6 +463,27 @@ export default function TeamDetail() {
           </Button>
         </div>
       </Modal>
+
+      {/* MODAL SOLICITAR UNIRME */}
+      {showJoinModal && (
+        <RequestJoinModal
+          teamId={teamId}
+          teamName={team.name}
+          onClose={() => setShowJoinModal(false)}
+          onSuccess={fetchTeam}
+        />
+      )}
+
+      {/* MODAL AÑADIRME UN ROL */}
+      {showAddRoleModal && myMembership && (
+        <AddSelfRoleModal
+          membershipId={myMembership.id}
+          currentRoles={myRoles}
+          teamName={team.name}
+          onClose={() => setShowAddRoleModal(false)}
+          onSuccess={fetchTeam}
+        />
+      )}
     </div>
   )
 }
