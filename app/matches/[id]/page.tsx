@@ -39,6 +39,7 @@ export interface MatchDetail {
       id: string
       userId: string
       role: string
+      roles?: string[] 
       status: string
       jerseyNumber: number | null
       position: string | null
