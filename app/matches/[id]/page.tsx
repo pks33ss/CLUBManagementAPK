@@ -12,6 +12,7 @@ import LineupTab from './_components/LineupTab'
 import StatsTab from './_components/StatsTab'
 import GamePlanTab from './_components/GamePlanTab'
 import NotesTab from './_components/NotesTab'
+import PistasTab from './_components/PistasTab'
 
 import LiveStreamTab from './_components/LiveStreamTab'
 
@@ -29,17 +30,18 @@ export interface MatchDetail {
   lineup: any | null
   teamScore: number | null
   opponentScore: number | null
+  subMatchesCount?: number | null
+  setsPerSubMatch?: number | null
   team: {
     id: string
     name: string
     sport?: string
     club: { id: string; name: string }
-    // ✅ Cambiado: memberships en lugar de players
     memberships: Array<{
       id: string
       userId: string
       role: string
-      roles?: string[] 
+      roles?: string[]
       status: string
       jerseyNumber: number | null
       position: string | null
@@ -53,7 +55,6 @@ export interface MatchDetail {
       }
     }>
   }
-  // ✅ Callups ahora tienen user
   callups: Array<{
     id: string
     userId: string
@@ -74,7 +75,6 @@ export interface MatchDetail {
       isGhost: boolean
     }
   }>
-  // ✅ playerStats ahora tienen user
   playerStats: Array<{
     id: string
     matchId: string
@@ -103,10 +103,31 @@ export interface MatchDetail {
       isGhost: boolean
     }
   }>
-  createdBy: { id: string; name: string; lastName: string }
+  createdBy: { id: string; name: string; lastName: string } | null
+  padelSubMatches?: Array<{
+    id: string
+    matchId: string
+    order: number
+    player1Id: string | null
+    player2Id: string | null
+    player1: any | null
+    player2: any | null
+    sets: Array<{
+      id: string
+      subMatchId: string
+      order: number
+      homeScore: number
+      awayScore: number
+      played: boolean
+      createdAt: string
+      updatedAt: string
+    }>
+    createdAt: string
+    updatedAt: string
+  }>
 }
 
-type Tab = 'callups' | 'lineup' | 'stats' | 'gameplan' | 'notes' | 'live'
+type Tab = 'callups' | 'lineup' | 'stats' | 'gameplan' | 'notes' | 'live' | 'pistas'
 
 export default function MatchDetailPage() {
   const router = useRouter()
@@ -116,7 +137,7 @@ export default function MatchDetailPage() {
   const [match, setMatch] = useState<MatchDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [activeTab, setActiveTab] = useState<Tab>('lineup')
+  const [activeTab, setActiveTab] = useState<Tab>('callups')
 
   const fetchMatch = async () => {
     try {
@@ -157,15 +178,23 @@ export default function MatchDetailPage() {
   }
 
   const sport = getSportConfig(match.team?.sport)
+  const isPadel = match.team?.sport === 'PADEL'
 
-  const tabs: { id: Tab; label: string; icon: string }[] = [
-    { id: 'lineup',   label: 'Line Up',       icon: sport.icon },
-    { id: 'gameplan', label: 'Plan',          icon: '📋' },
-    { id: 'callups',  label: 'Convocatoria',  icon: '🎯' },
-    { id: 'stats',    label: 'Estadísticas',  icon: '📊' },
-    { id: 'notes',    label: 'Notas',         icon: '📝' },
-    { id: 'live',     label: 'Directo',       icon: '📺' },
-  ]
+  const tabs: { id: Tab; label: string; icon: string }[] = isPadel
+    ? [
+        { id: 'pistas',   label: 'Pistas',       icon: '🏟️' },
+        { id: 'callups',  label: 'Convocatoria', icon: '🎯' },
+        { id: 'notes',    label: 'Notas',        icon: '📝' },
+        { id: 'live',     label: 'Directo',      icon: '📺' },
+      ]
+    : [
+        { id: 'lineup',   label: 'Line Up',      icon: sport.icon },
+        { id: 'gameplan', label: 'Plan',         icon: '📋' },
+        { id: 'callups',  label: 'Convocatoria', icon: '🎯' },
+        { id: 'stats',    label: 'Estadísticas', icon: '📊' },
+        { id: 'notes',    label: 'Notas',        icon: '📝' },
+        { id: 'live',     label: 'Directo',      icon: '📺' },
+      ]
 
   return (
     <div>
@@ -196,8 +225,9 @@ export default function MatchDetailPage() {
 
       {/* Contenido del tab */}
       <div>
+        {activeTab === 'pistas' && isPadel && <PistasTab match={match} onUpdate={fetchMatch} />}
         {activeTab === 'callups' && <CallupsTab match={match} onUpdate={fetchMatch} />}
-        {activeTab === 'lineup' && <LineupTab match={match} onUpdate={fetchMatch} />}
+        {activeTab === 'lineup' && !isPadel && <LineupTab match={match} onUpdate={fetchMatch} />}
         {activeTab === 'stats' && <StatsTab match={match} onUpdate={fetchMatch} />}
         {activeTab === 'gameplan' && <GamePlanTab match={match} onUpdate={fetchMatch} />}
         {activeTab === 'notes' && <NotesTab match={match} onUpdate={fetchMatch} />}

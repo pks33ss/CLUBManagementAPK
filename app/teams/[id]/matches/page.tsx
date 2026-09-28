@@ -58,6 +58,8 @@ export default function TeamMatches() {
     venue: '',
     competition: '',
     notes: '',
+    subMatchesCount: 3,
+    setsPerSubMatch: 3,
   })
   const [creating, setCreating] = useState(false)
 
@@ -88,6 +90,8 @@ export default function TeamMatches() {
     }
   }
 
+  const isPadel = team?.sport === 'PADEL'
+
   const createMatch = async (e: React.FormEvent) => {
     e.preventDefault()
     setCreating(true)
@@ -95,7 +99,7 @@ export default function TeamMatches() {
     try {
       const dateTime = new Date(`${newMatch.date}T${newMatch.time}`)
 
-      await api.post('/matches', {
+      const payload: any = {
         date: dateTime.toISOString(),
         opponent: newMatch.opponent,
         location: newMatch.location,
@@ -104,7 +108,15 @@ export default function TeamMatches() {
         competition: newMatch.competition || undefined,
         notes: newMatch.notes || undefined,
         teamId: teamId,
-      })
+      }
+
+      // ✅ Solo pádel: pistas + sets
+      if (isPadel) {
+        payload.subMatchesCount = Number(newMatch.subMatchesCount)
+        payload.setsPerSubMatch = Number(newMatch.setsPerSubMatch)
+      }
+
+      await api.post('/matches', payload)
 
       setShowCreateModal(false)
       setNewMatch({
@@ -116,6 +128,8 @@ export default function TeamMatches() {
         venue: '',
         competition: '',
         notes: '',
+        subMatchesCount: 3,
+        setsPerSubMatch: 3,
       })
       fetchData()
       alert('✅ Partido creado correctamente')
@@ -472,6 +486,47 @@ export default function TeamMatches() {
             onChange={(e) => setNewMatch({ ...newMatch, competition: e.target.value })}
             placeholder="Ej: Liga Local Senior"
           />
+
+          {/* ✅ Solo pádel */}
+          {isPadel && (
+            <div className="border-t border-border-subtle pt-4">
+              <h4 className="text-sm font-semibold text-text-primary mb-3">
+                🏟️ Configuración de pistas
+              </h4>
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="Nº de pistas *"
+                  type="number"
+                  min="1"
+                  max="20"
+                  value={newMatch.subMatchesCount}
+                  onChange={(e) =>
+                    setNewMatch({
+                      ...newMatch,
+                      subMatchesCount: Number(e.target.value),
+                    })
+                  }
+                  required
+                  helperText="¿Cuántas parejas jugarán?"
+                />
+                <Input
+                  label="Sets por pista *"
+                  type="number"
+                  min="1"
+                  max="7"
+                  value={newMatch.setsPerSubMatch}
+                  onChange={(e) =>
+                    setNewMatch({
+                      ...newMatch,
+                      setsPerSubMatch: Number(e.target.value),
+                    })
+                  }
+                  required
+                  helperText="¿Al mejor de cuántos?"
+                />
+              </div>
+            </div>
+          )}
 
           <Textarea
             label="Notas"
