@@ -18,9 +18,6 @@ import type { TutorRelationship } from '@/types/tutor-relationship'
 import type { UserMe } from '@/types/user'
 import type { Team } from '@/types/team'
 
-
-
-
 interface ActiveTeamContextType {
   // Equipo activo
   activeTeam: Team | null
@@ -64,6 +61,12 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const loadingRef = useRef(false)
 
+  // ✅ Ref para leer el activeTeam actual desde dentro de loadTeamsFromMemberships
+  const activeTeamRef = useRef<Team | null>(null)
+  useEffect(() => {
+    activeTeamRef.current = activeTeam
+  }, [activeTeam])
+
   // ============================================
   // HELPERS
   // ============================================
@@ -76,7 +79,7 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
     name: m.team!.name,
     category: m.team!.category ?? null,
     sport: m.team!.sport ?? null,
-    season: null, // opcional, no lo devuelve el endpoint
+    season: null,
     club: {
       id: m.team!.club.id,
       name: m.team!.club.name,
@@ -116,7 +119,7 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
   // ============================================
 
   const loadTeamsFromMemberships = async (memberships: Membership[]) => {
-    // 1) Solo memberships ACTIVE o PENDING (ambas representan "mis equipos")
+    // 1) Solo memberships ACTIVE o PENDING
     const relevant = memberships.filter(
       (m) => m.status === 'ACTIVE' || m.status === 'PENDING',
     )
@@ -124,7 +127,7 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
     // 2) Convertir a Team y deduplicar por id
     const teamsMap = new Map<string, Team>()
     for (const m of relevant) {
-      if (!m.team) continue // por seguridad, aunque el backend siempre lo manda
+      if (!m.team) continue
       if (!teamsMap.has(m.team.id)) {
         teamsMap.set(m.team.id, membershipToTeam(m))
       }
@@ -132,7 +135,7 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
     const teams = Array.from(teamsMap.values())
     setAllTeams(teams)
 
-    // 3) Favoritos (sigue siendo endpoint separado)
+    // 3) Favoritos (endpoint separado)
     let favTeams: Team[] = []
     try {
       const favRes = await api.get('/favorites')
@@ -156,7 +159,7 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
       setFavorites([])
     }
 
-    // 4) Equipo activo: priorizar localStorage, luego favoritos, luego primero
+    // 4) Resolver el equipo activo
     const savedActiveId =
       typeof window !== 'undefined' ? localStorage.getItem('activeTeamId') : null
 
@@ -167,6 +170,18 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
         favTeams.find((t) => t.id === savedActiveId) ||
         teams.find((t) => t.id === savedActiveId) ||
         null
+
+      // ✅ Si el savedActiveId no está en nuestras listas (favoritos + memberships),
+      // pero es el que ya tenemos activo en memoria, lo respetamos.
+      // Esto permite a SUPER_ADMIN/ADMIN_CLUB "fijar" un equipo del que no son
+      // miembros y navegar por la app sin que el contexto lo sustituya.
+      if (!foundActive) {
+        if (activeTeamRef.current?.id === savedActiveId) {
+          return // ya está fijado, no tocar
+        }
+        // Si no lo tenemos en memoria, seguimos el flujo normal
+        // (caerá a favoritos[0] o teams[0])
+      }
     }
 
     if (!foundActive && favTeams.length > 0) {
@@ -183,7 +198,8 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
         localStorage.setItem('activeTeamId', foundActive.id)
       }
     } else {
-      setActiveTeamState((prev) => (prev === null ? prev : null))
+      // No hay nada que activar: dejar el activeTeam actual como está
+      // (podría estar fijado por el user manualmente)
     }
   }
 
@@ -232,6 +248,7 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
 
   const setActiveTeam = (team: Team) => {
     setActiveTeamState(team)
+    activeTeamRef.current = team // ✅ actualización inmediata de la ref
     if (typeof window !== 'undefined') {
       localStorage.setItem('activeTeamId', team.id)
     }
@@ -257,6 +274,7 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
           setActiveTeam(allTeams[0])
         } else {
           setActiveTeamState(null)
+          activeTeamRef.current = null
           if (typeof window !== 'undefined') {
             localStorage.removeItem('activeTeamId')
           }

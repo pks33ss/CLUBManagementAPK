@@ -43,6 +43,8 @@ export interface MembershipUser {
   email: string | null
   avatar: string | null
   isGhost: boolean
+   phone?: string | null    
+  bio?: string | null   
 }
 
 /** Membership con `user` incluido — solo en /teams/:id/members */

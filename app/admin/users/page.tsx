@@ -8,13 +8,13 @@ import { Button, Card, Badge, Input, Select, Modal } from '@/components/ui'
 
 interface User {
   id: string
-  email: string
+  email: string | null
+  username?: string | null
   name: string
   lastName: string
   role: string
   createdAt: string
   clubs: { club: { id: string; name: string } }[]
-  // ✅ `teams` ya no viene del backend (TeamMember eliminado)
 }
 
 export default function UsersManagement() {
@@ -40,10 +40,9 @@ export default function UsersManagement() {
   const [newPassword, setNewPassword] = useState('')
   const [resetting, setResetting] = useState(false)
 
-  // ✅ NUEVO: estado para el modal de borrado
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleteUser, setDeleteUser] = useState<User | null>(null)
-  const [deleteConfirmEmail, setDeleteConfirmEmail] = useState('')
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
@@ -107,17 +106,23 @@ export default function UsersManagement() {
     }
   }
 
-  // ✅ Nuevo flujo de borrado con modal
+  // ✅ Calcula el texto a escribir para confirmar el borrado.
+  // Prioridad: email → username → últimos 6 del id
+  const getConfirmText = (user: User): string => {
+    return user.email ?? user.username ?? user.id.slice(-6)
+  }
+
   const openDeleteModal = (user: User) => {
     setDeleteUser(user)
-    setDeleteConfirmEmail('')
+    setDeleteConfirmText('')
     setShowDeleteModal(true)
   }
 
   const confirmDeleteUser = async () => {
     if (!deleteUser) return
-    if (deleteConfirmEmail.trim().toLowerCase() !== deleteUser.email.toLowerCase()) {
-      alert('El email no coincide. Escribe exactamente el email del usuario para confirmar.')
+    const expected = getConfirmText(deleteUser)
+    if (deleteConfirmText.trim().toLowerCase() !== expected.toLowerCase()) {
+      alert('El texto no coincide. Cópialo exactamente para confirmar.')
       return
     }
 
@@ -126,7 +131,7 @@ export default function UsersManagement() {
       await api.delete(`/users/${deleteUser.id}`)
       setShowDeleteModal(false)
       setDeleteUser(null)
-      setDeleteConfirmEmail('')
+      setDeleteConfirmText('')
       fetchUsers()
       alert('✅ Usuario eliminado permanentemente')
     } catch (error: any) {
@@ -237,7 +242,7 @@ export default function UsersManagement() {
                     </p>
                   </td>
                   <td className="px-6 py-4 text-sm text-text-secondary">
-                    {user.email}
+                    {user.email ?? <span className="text-text-muted italic">(sin email)</span>}
                   </td>
                   <td className="px-6 py-4">
                     <Badge variant={getRoleVariant(user.role)}>
@@ -378,7 +383,7 @@ export default function UsersManagement() {
         {resetUser && (
           <>
             <p className="text-sm text-text-secondary mb-4">
-              Vas a resetear la contraseña de <strong className="text-text-primary">{resetUser.name} {resetUser.lastName}</strong> ({resetUser.email})
+              Vas a resetear la contraseña de <strong className="text-text-primary">{resetUser.name} {resetUser.lastName}</strong> ({resetUser.email ?? 'sin email'})
             </p>
 
             <Input
@@ -418,77 +423,80 @@ export default function UsersManagement() {
         )}
       </Modal>
 
-      {/* ✅ NUEVO: Modal de confirmación de borrado */}
+      {/* Modal de confirmación de borrado */}
       <Modal
         isOpen={showDeleteModal && !!deleteUser}
         onClose={() => {
           if (deleting) return
           setShowDeleteModal(false)
           setDeleteUser(null)
-          setDeleteConfirmEmail('')
+          setDeleteConfirmText('')
         }}
         title="⚠️ Eliminar usuario permanentemente"
         size="md"
       >
-        {deleteUser && (
-          <>
-            <div className="bg-danger/10 border border-danger/30 rounded-lg p-4 mb-4">
-              <p className="text-sm text-danger font-semibold mb-1">
-                Esta acción es IRREVERSIBLE
+        {deleteUser && (() => {
+          const expected = getConfirmText(deleteUser)
+          return (
+            <>
+              <div className="bg-danger/10 border border-danger/30 rounded-lg p-4 mb-4">
+                <p className="text-sm text-danger font-semibold mb-1">
+                  Esta acción es IRREVERSIBLE
+                </p>
+                <p className="text-xs text-text-secondary">
+                  Se borrarán todos los datos del usuario: membresías de equipos y clubes,
+                  estadísticas, convocatorias, asistencias, relaciones con tutores,
+                  permisos de emisión, tokens de sesión y favoritos.
+                  Las sesiones, partidos y eventos que creó se mantendrán pero sin autor asignado.
+                </p>
+              </div>
+
+              <p className="text-text-secondary mb-4">
+                Vas a eliminar permanentemente a{' '}
+                <strong className="text-text-primary">
+                  {deleteUser.name} {deleteUser.lastName}
+                </strong>
+                {deleteUser.email ? ` (${deleteUser.email})` : ''}.
               </p>
-              <p className="text-xs text-text-secondary">
-                Se borrarán todos los datos del usuario: membresías de equipos y clubes,
-                estadísticas, convocatorias, asistencias, relaciones con tutores,
-                permisos de emisión, tokens de sesión y favoritos.
-                Las sesiones, partidos y eventos que creó se mantendrán pero sin autor asignado.
-              </p>
-            </div>
 
-            <p className="text-text-secondary mb-4">
-              Vas a eliminar permanentemente a{' '}
-              <strong className="text-text-primary">
-                {deleteUser.name} {deleteUser.lastName}
-              </strong>{' '}
-              ({deleteUser.email}).
-            </p>
+              <Input
+                label="Escribe para confirmar"
+                type="text"
+                value={deleteConfirmText}
+                onChange={(e) => setDeleteConfirmText(e.target.value)}
+                placeholder={expected}
+                helperText={`Copia exactamente: ${expected}`}
+              />
 
-            <Input
-              label={`Escribe el email del usuario para confirmar`}
-              type="text"
-              value={deleteConfirmEmail}
-              onChange={(e) => setDeleteConfirmEmail(e.target.value)}
-              placeholder={deleteUser.email}
-              helperText={`Copia exactamente: ${deleteUser.email}`}
-            />
-
-            <div className="flex gap-3 pt-6">
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setShowDeleteModal(false)
-                  setDeleteUser(null)
-                  setDeleteConfirmEmail('')
-                }}
-                disabled={deleting}
-                className="flex-1"
-              >
-                Cancelar
-              </Button>
-              <Button
-                variant="danger"
-                onClick={confirmDeleteUser}
-                disabled={
-                  deleting ||
-                  deleteConfirmEmail.trim().toLowerCase() !== deleteUser.email.toLowerCase()
-                }
-                loading={deleting}
-                className="flex-1"
-              >
-                {deleting ? 'Eliminando...' : '🗑️ Eliminar permanentemente'}
-              </Button>
-            </div>
-          </>
-        )}
+              <div className="flex gap-3 pt-6">
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setShowDeleteModal(false)
+                    setDeleteUser(null)
+                    setDeleteConfirmText('')
+                  }}
+                  disabled={deleting}
+                  className="flex-1"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  variant="danger"
+                  onClick={confirmDeleteUser}
+                  disabled={
+                    deleting ||
+                    deleteConfirmText.trim().toLowerCase() !== expected.toLowerCase()
+                  }
+                  loading={deleting}
+                  className="flex-1"
+                >
+                  {deleting ? 'Eliminando...' : '🗑️ Eliminar permanentemente'}
+                </Button>
+              </div>
+            </>
+          )
+        })()}
       </Modal>
     </div>
   )

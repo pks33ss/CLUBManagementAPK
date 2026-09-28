@@ -56,7 +56,7 @@ export default function MembersList({
   const [confirmRemove, setConfirmRemove] = useState<MembershipWithUser | null>(null)
   const [invitingMember, setInvitingMember] = useState<MembershipWithUser | null>(null)
   const [rolesModalMember, setRolesModalMember] = useState<MembershipWithUser | null>(null)
-  const [savingRoles, setSavingRoles] = useState(false)
+  
 
   const handleRemove = async (m: MembershipWithUser) => {
     setProcessing(m.id)
@@ -91,6 +91,9 @@ export default function MembersList({
 
   const canEditRolesRow = (m: MembershipWithUser) =>
     perms.canManage || m.userId === currentUserId
+
+  // ✅ Editar datos personales: solo si es ghost y el user puede gestionar
+ 
 
   return (
     <>
@@ -190,6 +193,7 @@ export default function MembersList({
                               📨 Invitar
                             </button>
                           )}
+                          
                           {canEditRow(m) && (
                             <button
                               onClick={() => onEdit(m)}
@@ -293,6 +297,7 @@ export default function MembersList({
                         📨 Invitar
                       </button>
                     )}
+                    
                     {canEditRolesRow(m) && (
                       <button
                         onClick={() => setRolesModalMember(m)}
@@ -391,6 +396,8 @@ export default function MembersList({
           onClose={() => setInvitingMember(null)}
         />
       )}
+
+      
     </>
   )
 }
@@ -417,9 +424,7 @@ function RolesModal({
   const [selected, setSelected] = useState<Role[]>(initialRoles)
   const [saving, setSaving] = useState(false)
 
-  // Roles que el actor puede añadir (o todos si es su propio perfil)
   const addable: Role[] = isSelf ? ALL_ROLES : perms.addableRoles
-  // Roles que el actor puede quitar (o todos si es su propio perfil)
   const removable: Role[] = isSelf ? ALL_ROLES : perms.removableRoles
 
   const toggle = (role: Role) => {
@@ -441,7 +446,6 @@ function RolesModal({
 
     setSaving(true)
     try {
-      // Estrategia: calcular diffs y llamar a addRole / removeRole
       const toAdd = selected.filter((r) => !initialRoles.includes(r))
       const toRemove = initialRoles.filter((r) => !selected.includes(r))
 

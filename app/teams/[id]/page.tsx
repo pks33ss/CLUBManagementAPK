@@ -6,6 +6,7 @@ import Link from 'next/link'
 import api from '@/lib/api'
 import { getSportConfig } from '@/lib/sport'
 import { Button, Card, CardBody, Badge, Input, Select, Modal } from '@/components/ui'
+import { useActiveTeam } from '@/lib/ActiveTeamContext'
 
 type MembershipRole = 'PLAYER' | 'COACH' | 'ASSISTANT' | 'ADMIN_TEAM'
 
@@ -36,6 +37,7 @@ interface TeamDetail {
   club: {
     id: string
     name: string
+    logo?: string | null
   }
   memberships: Membership[]
 }
@@ -44,6 +46,9 @@ export default function TeamDetail() {
   const router = useRouter()
   const params = useParams()
   const teamId = params.id as string
+
+  // ✅ Equipo activo global (barra superior + menú)
+  const { setActiveTeam, activeTeam } = useActiveTeam()
 
   const [team, setTeam] = useState<TeamDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -67,6 +72,7 @@ export default function TeamDetail() {
       return
     }
     fetchTeam()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamId])
 
   const fetchTeam = async () => {
@@ -78,6 +84,22 @@ export default function TeamDetail() {
         category: response.data.category || '',
         season: response.data.season || '',
       })
+
+      // ✅ Activar el equipo como "equipo activo" del usuario
+      if (response.data.id !== activeTeam?.id) {
+        setActiveTeam({
+          id: response.data.id,
+          name: response.data.name,
+          category: response.data.category ?? null,
+          sport: response.data.sport ?? null,
+          season: response.data.season ?? null,
+          club: {
+            id: response.data.club?.id ?? '',
+            name: response.data.club?.name ?? '',
+            logo: response.data.club?.logo ?? null,
+          },
+        })
+      }
     } catch (error: any) {
       console.error('Error:', error)
       if (error.response?.status === 403) {

@@ -232,7 +232,8 @@ export default function ClubMembers() {
     }
   }
 
-  const isAdmin = userRole === 'ADMIN_CLUB'
+  const isAdmin =
+  userRole === 'ADMIN_CLUB' || currentUser?.role === 'SUPER_ADMIN'
 
   if (loading) {
     return <div className="text-center py-12 text-text-muted">Cargando miembros...</div>

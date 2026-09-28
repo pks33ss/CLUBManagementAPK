@@ -31,7 +31,7 @@ interface ClubDetail {
     name: string
     category: string
     season: string
-    players: { id: string }[]
+    memberships: { id: string }[] 
   }[]
 }
 
@@ -295,7 +295,7 @@ export default function ClubDetail() {
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-text-primary">
-                {club.teams?.reduce((acc, t) => acc + (t.players?.length || 0), 0) || 0}
+                {club.teams?.reduce((acc, t) => acc + (t.memberships?.length || 0), 0) || 0}
               </p>
               <p className="text-xs text-text-muted">Jugadores</p>
             </div>
@@ -338,8 +338,8 @@ export default function ClubDetail() {
                   <p className="text-xs text-text-muted mt-1">{team.season || 'Temporada no especificada'}</p>
                   <div className="mt-2">
                     <Badge variant="brand">
-                      👥 {team.players?.length || 0} jugadores
-                    </Badge>
+  👥 {team.memberships?.length ?? 0} jugadores
+</Badge>
                   </div>
                 </Link>
               ))}

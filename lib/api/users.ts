@@ -68,4 +68,32 @@ export const usersApi = {
     return data
   },
 
+  /**
+   * Editar los datos personales de un user fantasma.
+   * Solo SUPER_ADMIN, ADMIN_CLUB del club o COACH+ del equipo.
+   */
+  async updateGhostProfile(
+    userId: string,
+    payload: {
+      name?: string
+      lastName?: string
+      phone?: string | null
+      email?: string | null
+      bio?: string | null
+    },
+  ): Promise<{
+    id: string
+    name: string
+    lastName: string
+    phone: string | null
+    email: string | null
+    bio: string | null
+    isGhost: boolean
+    username: string | null
+  }> {
+    const { data } = await api.put(`/users/${userId}/ghost-profile`, payload)
+    return data
+  },
+
+
 }
