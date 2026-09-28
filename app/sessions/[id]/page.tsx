@@ -156,7 +156,9 @@ export default function SessionDetail() {
       setSession(response.data)
 
 const memberships = (response.data.team.memberships || []).filter(
-  (m: any) => m.role === 'PLAYER' && m.status === 'ACTIVE'
+  (m: any) =>
+    m.status === 'ACTIVE' &&
+    (m.roles ?? []).some((r: any) => r === 'PLAYER' || r.role === 'PLAYER'),
 )
 
 const playersList = memberships.map((m: any) => {

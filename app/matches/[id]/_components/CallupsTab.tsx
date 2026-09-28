@@ -62,8 +62,10 @@ export default function CallupsTab({ match, onUpdate }: Props) {
 
     // ✅ Ahora iteramos sobre memberships con rol PLAYER
     const teamPlayers = (match.team.memberships ?? []).filter(
-      (m) => m.role === 'PLAYER' && m.status === 'ACTIVE',
-    )
+  (m) =>
+    m.status === 'ACTIVE' &&
+    (m.roles ?? []).some((r: any) => r === 'PLAYER' || r.role === 'PLAYER'),
+)
 
     for (const m of teamPlayers) {
       const callup = match.callups.find((c: any) => c.userId === m.user.id)
