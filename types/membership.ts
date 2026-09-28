@@ -5,7 +5,8 @@ export interface Membership {
   id: string
   userId: string
   teamId: string
-  role: MembershipRole
+  role: MembershipRole          // rol primario (para compatibilidad)
+  roles?: MembershipRole[]      // ✅ NUEVO: todos los roles del miembro
   jerseyNumber: number | null
   position: string | null
   status: MembershipStatus
@@ -18,7 +19,7 @@ export interface Membership {
   team?: {
     id: string
     name: string
-    sport?: string
+    sport?: string | null
     category?: string | null
     club: {
       id: string
@@ -38,9 +39,10 @@ export interface MembershipUser {
   id: string
   name: string
   lastName: string
-  username: string
-  email: string
+  username: string | null
+  email: string | null
   avatar: string | null
+  isGhost: boolean
 }
 
 /** Membership con `user` incluido — solo en /teams/:id/members */

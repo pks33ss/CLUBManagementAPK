@@ -99,3 +99,41 @@ textarea::placeholder {
     font-size: 16px;   /* evita el zoom automático en iOS */
   }
 }
+
+/* ============================================ */
+/* SCROLLBAR PARA MENÚS HORIZONTALES           */
+/* Oculta en móvil, fina y elegante en desktop */
+/* ============================================ */
+
+.scrollbar-menu {
+  /* Móvil: oculta */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-menu::-webkit-scrollbar {
+  display: none;
+}
+
+/* Desktop (lg = 1024px): fina y del color de la marca */
+@media (min-width: 1024px) {
+  .scrollbar-menu {
+    -ms-overflow-style: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 230, 118, 0.35) transparent;
+  }
+  .scrollbar-menu::-webkit-scrollbar {
+    display: block;
+    height: 6px;
+  }
+  .scrollbar-menu::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-menu::-webkit-scrollbar-thumb {
+    background: rgba(0, 230, 118, 0.35);
+    border-radius: 3px;
+    transition: background 0.2s ease;
+  }
+  .scrollbar-menu::-webkit-scrollbar-thumb:hover {
+    background: rgba(0, 230, 118, 0.6);
+  }
+}

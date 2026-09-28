@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useRouter, useParams } from 'next/navigation'
+
 import Link from 'next/link'
 import { membershipsApi } from '@/lib/api/memberships'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
@@ -11,7 +11,8 @@ import PendingRequestsSection from './_components/PendingRequestsSection'
 import InviteMemberModal from './_components/InviteMemberModal'
 import EditMembershipModal from './_components/EditMembershipModal'
 import type { Membership, MembershipWithUser } from '@/types/membership'
-
+import { useRouter, useParams, useSearchParams } from 'next/navigation'
+import { usePermissions } from '@/lib/usePermissions'
 
 export default function TeamMembersPage() {
   const router = useRouter()
@@ -25,6 +26,14 @@ export default function TeamMembersPage() {
 
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [editingMembership, setEditingMembership] = useState<MembershipWithUser | null>(null)
+  const searchParams = useSearchParams()
+  const action = searchParams.get('action')
+
+  // ============================================
+  // PERMISOS (hook)
+  // ============================================
+
+  const perms = usePermissions(teamId)
 
   // ============================================
   // CARGA DE MIEMBROS
@@ -50,21 +59,10 @@ export default function TeamMembersPage() {
       return
     }
     fetchMembers()
-  }, [teamId, router, fetchMembers])
-
-  // ============================================
-  // PERMISOS
-  // ============================================
-
-  // ¿Puedo gestionar este equipo? (soy COACH/ASSISTANT/ADMIN_TEAM activo aquí)
-  const myMembership = members.find(
-    (m) =>
-      m.userId === userMe?.id &&
-      m.status === 'ACTIVE' &&
-      ['COACH', 'ASSISTANT', 'ADMIN_TEAM'].includes(m.role),
-  )
-
-  const canManage = !!myMembership || userMe?.role === 'SUPER_ADMIN'
+    if (action === 'invite') {
+      setShowInviteModal(true)
+    }
+  }, [teamId, router, fetchMembers, action])
 
   // ============================================
   // SEPARAR MIEMBROS Y SOLICITUDES
@@ -116,7 +114,7 @@ export default function TeamMembersPage() {
             {pendingRequests.length > 0 && ` · ${pendingRequests.length} pendientes`}
           </p>
         </div>
-        {canManage && (
+        {perms.canManage && (
           <Button
             onClick={() => setShowInviteModal(true)}
             icon={<span className="text-xl">+</span>}
@@ -127,7 +125,7 @@ export default function TeamMembersPage() {
       </div>
 
       {/* Solicitudes pendientes */}
-      {canManage && pendingRequests.length > 0 && (
+      {perms.canManage && pendingRequests.length > 0 && (
         <PendingRequestsSection
           requests={pendingRequests}
           onUpdate={fetchMembers}
@@ -137,7 +135,7 @@ export default function TeamMembersPage() {
       {/* Lista de miembros activos */}
       <MembersList
         members={activeMembers}
-        canManage={canManage}
+        perms={perms}
         currentUserId={userMe?.id || ''}
         onEdit={setEditingMembership}
         onUpdate={fetchMembers}
@@ -153,7 +151,7 @@ export default function TeamMembersPage() {
           <div className="mt-4">
             <MembersList
               members={inactiveMembers}
-              canManage={canManage}
+              perms={perms}
               currentUserId={userMe?.id || ''}
               onEdit={setEditingMembership}
               onUpdate={fetchMembers}

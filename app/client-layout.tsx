@@ -141,7 +141,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
             {/* CENTRO: secciones del equipo activo (solo desktop) */}
             {activeTeam && (
-              <div className="hidden lg:flex items-center gap-1 flex-1 justify-center overflow-x-auto">
+              <div className="hidden lg:flex items-center gap-1 flex-1 justify-center overflow-x-auto scrollbar-menu">
                 <Link
                   href="/home"
                   className={linkClass('/home', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}
@@ -242,7 +242,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       {/* BARRA DE SECCIONES (solo móvil)               */}
       {/* ============================================ */}
       {activeTeam && (
-        <div className="lg:hidden bg-surface border-b border-border-subtle overflow-x-auto">
+        <div className="lg:hidden bg-surface border-b border-border-subtle overflow-x-auto scrollbar-menu">
           <div className="flex items-center gap-1 px-2 py-2">
             <Link
               href="/home"
@@ -419,34 +419,47 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
 
-            <div className="p-4 border-t border-border-subtle space-y-1">
-              <Link
-                href="/dashboard"
-                onClick={() => setSidebarOpen(false)}
-                className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary"
-              >
-                <span className="text-lg">🏛️</span>
-                <span className="text-sm font-medium">Mis Clubs</span>
-              </Link>
-              <Link
-                href="/profile"
-                onClick={() => setSidebarOpen(false)}
-                className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary"
-              >
-                <span className="text-lg">⚙️</span>
-                <span className="text-sm font-medium">Configuración</span>
-              </Link>
-              <button
-                onClick={() => {
-                  setSidebarOpen(false)
-                  handleLogout()
-                }}
-                className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-danger/10 transition text-danger"
-              >
-                <span className="text-lg">🚪</span>
-                <span className="text-sm font-medium">Cerrar Sesión</span>
-              </button>
-            </div>
+<div className="p-4 border-t border-border-subtle space-y-1">
+  <Link
+    href="/dashboard"
+    onClick={() => setSidebarOpen(false)}
+    className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary"
+  >
+    <span className="text-lg">🏛️</span>
+    <span className="text-sm font-medium">Mis Clubs</span>
+  </Link>
+  <Link
+    href="/profile"
+    onClick={() => setSidebarOpen(false)}
+    className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary"
+  >
+    <span className="text-lg">⚙️</span>
+    <span className="text-sm font-medium">Configuración</span>
+  </Link>
+
+  {/* ✅ NUEVO: solo para SUPER_ADMIN */}
+  {currentUser?.role === 'SUPER_ADMIN' && (
+    <Link
+      href="/admin/users"
+      onClick={() => setSidebarOpen(false)}
+      className="flex items-center gap-3 p-2 rounded-lg hover:bg-brand-primary/10 transition text-brand-primary"
+    >
+      <span className="text-lg">👑</span>
+      <span className="text-sm font-medium">Admin · Usuarios</span>
+    </Link>
+  )}
+
+  <button
+    onClick={() => {
+      setSidebarOpen(false)
+      handleLogout()
+    }}
+    className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-danger/10 transition text-danger"
+  >
+    <span className="text-lg">🚪</span>
+    <span className="text-sm font-medium">Cerrar Sesión</span>
+  </button>
+</div>
           </div>
         </>
       )}

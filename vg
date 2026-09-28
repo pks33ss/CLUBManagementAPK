@@ -1,0 +1,427 @@
+[1mdiff --git a/app/teams/page.tsx b/app/teams/page.tsx[m
+[1mindex eec4cc2..fb1f884 100644[m
+[1m--- a/app/teams/page.tsx[m
+[1m+++ b/app/teams/page.tsx[m
+[36m@@ -6,10 +6,7 @@[m [mimport Link from 'next/link'[m
+ import api from '@/lib/api'[m
+ import { SPORTS, getSportConfig } from '@/lib/sport'[m
+ import type { Sport } from '@/lib/sport'[m
+[31m-[m
+[31m-// ============================================[m
+[31m-// COMPONENTE QUE USA useSearchParams[m
+[31m-// ============================================[m
+[32m+[m[32mimport { Button, Card, CardBody, Badge, Input, Select, Modal } from '@/components/ui'[m
+ [m
+ function TeamsContent() {[m
+   const router = useRouter()[m
+[36m@@ -46,9 +43,7 @@[m [mfunction TeamsContent() {[m
+       if (response.data.length > 0) {[m
+         let clubId = clubIdFromUrl || response.data[0].id[m
+         const clubExists = response.data.some((c: any) => c.id === clubId)[m
+[31m-        if (!clubExists) {[m
+[31m-          clubId = response.data[0].id[m
+[31m-        }[m
+[32m+[m[32m        if (!clubExists) clubId = response.data[0].id[m
+ [m
+         setSelectedClub(clubId)[m
+         setNewTeam((prev) => ({ ...prev, clubId }))[m
+[36m@@ -96,23 +91,22 @@[m [mfunction TeamsContent() {[m
+   const handleClubChange = (clubId: string) => {[m
+     setSelectedClub(clubId)[m
+     setNewTeam((prev) => ({ ...prev, clubId }))[m
+[31m-    if (clubId) {[m
+[31m-      fetchTeams(clubId)[m
+[31m-    }[m
+[32m+[m[32m    if (clubId) fetchTeams(clubId)[m
+   }[m
+ [m
+   if (loading) {[m
+[31m-    return <div className="text-center py-12">Cargando equipos...</div>[m
+[32m+[m[32m    return <div className="text-center py-12 text-text-muted">Cargando equipos...</div>[m
+   }[m
+ [m
+   return ([m
+     <div>[m
+[31m-      <div className="flex justify-between items-center mb-6">[m
+[32m+[m[32m      {/* HEADER */}[m
+[32m+[m[32m      <div className="flex justify-between items-start mb-6 flex-wrap gap-3">[m
+         <div>[m
+[31m-          <h1 className="text-2xl font-bold text-gray-800">🏆 Equipos</h1>[m
+[31m-          <p className="text-gray-500">Gestiona los equipos de tu club</p>[m
+[32m+[m[32m          <h1 className="text-2xl font-bold text-text-primary">🏆 Equipos</h1>[m
+[32m+[m[32m          <p className="text-text-secondary">Gestiona los equipos de tu club</p>[m
+         </div>[m
+[31m-        <button[m
+[32m+[m[32m        <Button[m
+           onClick={() => {[m
+             if (!selectedClub) {[m
+               alert('Por favor, selecciona un club primero')[m
+[36m@@ -121,102 +115,125 @@[m [mfunction TeamsContent() {[m
+             setNewTeam((prev) => ({ ...prev, clubId: selectedClub }))[m
+             setShowModal(true)[m
+           }}[m
+[31m-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition"[m
+           disabled={clubs.length === 0}[m
+[32m+[m[32m          icon={<span className="text-xl">+</span>}[m
+         >[m
+[31m-          <span className="text-xl">+</span> Nuevo Equipo[m
+[31m-        </button>[m
+[32m+[m[32m          Nuevo Equipo[m
+[32m+[m[32m        </Button>[m
+       </div>[m
+ [m
+       {clubs.length === 0 ? ([m
+[31m-        <div className="text-center py-12 bg-white rounded-xl shadow">[m
+[31m-          <div className="text-4xl mb-4">🏆</div>[m
+[31m-          <p className="text-gray-500">Primero crea un club para poder añadir equipos</p>[m
+[31m-          <button[m
+[31m-            onClick={() => router.push('/dashboard')}[m
+[31m-            className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"[m
+[31m-          >[m
+[31m-            Ir a Mis Clubs[m
+[31m-          </button>[m
+[31m-        </div>[m
+[32m+[m[32m        <Card>[m
+[32m+[m[32m          <CardBody className="text-center py-12">[m
+[32m+[m[32m            <div className="text-4xl mb-4">🏆</div>[m
+[32m+[m[32m            <p className="text-text-secondary mb-4">[m
+[32m+[m[32m              Primero crea un club para poder añadir equipos[m
+[32m+[m[32m            </p>[m
+[32m+[m[32m            <Button onClick={() => router.push('/dashboard')}>Ir a Mis Clubs</Button>[m
+[32m+[m[32m          </CardBody>[m
+[32m+[m[32m        </Card>[m
+       ) : ([m
+         <>[m
+[31m-          <div className="mb-6 space-y-4">[m
+[31m-            <div>[m
+[31m-              <label className="block text-sm font-medium text-gray-700 mb-2">[m
+[31m-                Club:{' '}[m
+[31m-                <span className="font-normal text-gray-500">[m
+[31m-                  {clubs.find((c) => c.id === selectedClub)?.name || 'Selecciona un club'}[m
+[32m+[m[32m          {/* SELECTOR DE CLUB */}[m
+[32m+[m[32m          <Card className="mb-6">[m
+[32m+[m[32m            <CardBody>[m
+[32m+[m[32m              <div className="flex flex-wrap items-center gap-3">[m
+[32m+[m[32m                <span className="text-sm font-medium text-text-secondary">[m
+[32m+[m[32m                  Club:[m
+                 </span>[m
+[31m-              </label>[m
+[31m-              <select[m
+[31m-                className="border rounded-lg px-4 py-2 w-64"[m
+[31m-                value={selectedClub}[m
+[31m-                onChange={(e) => handleClubChange(e.target.value)}[m
+[31m-              >[m
+[31m-                {clubs.map((club) => ([m
+[31m-                  <option key={club.id} value={club.id}>[m
+[31m-                    {club.name}[m
+[31m-                  </option>[m
+[31m-                ))}[m
+[31m-              </select>[m
+[31m-            </div>[m
+[32m+[m[32m                <div className="flex flex-wrap gap-2">[m
+[32m+[m[32m                  {clubs.map((club) => {[m
+[32m+[m[32m                    const isActive = club.id === selectedClub[m
+[32m+[m[32m                    return ([m
+[32m+[m[32m                      <button[m
+[32m+[m[32m                        key={club.id}[m
+[32m+[m[32m                        onClick={() => handleClubChange(club.id)}[m
+[32m+[m[32m                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition border ${[m
+[32m+[m[32m                          isActive[m
+[32m+[m[32m                            ? 'bg-brand-primary/20 text-brand-primary border-brand-primary/40'[m
+[32m+[m[32m                            : 'bg-surface-elevated text-text-secondary border-border-subtle hover:border-brand-primary/40'[m
+[32m+[m[32m                        }`}[m
+[32m+[m[32m                      >[m
+[32m+[m[32m                        {club.name}[m
+[32m+[m[32m                      </button>[m
+[32m+[m[32m                    )[m
+[32m+[m[32m                  })}[m
+[32m+[m[32m                </div>[m
+ [m
+[31m-            {selectedClub && ([m
+[31m-              <div>[m
+[31m-                <Link[m
+[31m-                  href={`/clubs/${selectedClub}/members`}[m
+[31m-                  className="inline-block bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition text-sm"[m
+[31m-                >[m
+[31m-                  👥 Gestionar Miembros del Club[m
+[31m-                </Link>[m
+[32m+[m[32m                {selectedClub && ([m
+[32m+[m[32m                  <Link[m
+[32m+[m[32m                    href={`/clubs/${selectedClub}/members`}[m
+[32m+[m[32m                    className="ml-auto text-sm text-brand-primary hover:underline"[m
+[32m+[m[32m                  >[m
+[32m+[m[32m                    👥 Gestionar miembros del club[m
+[32m+[m[32m                  </Link>[m
+[32m+[m[32m                )}[m
+               </div>[m
+[31m-            )}[m
+[31m-          </div>[m
+[32m+[m[32m            </CardBody>[m
+[32m+[m[32m          </Card>[m
+ [m
+[32m+[m[32m          {/* LISTA DE EQUIPOS */}[m
+           {teams.length === 0 ? ([m
+[31m-            <div className="text-center py-12 bg-white rounded-xl shadow">[m
+[31m-              <div className="text-4xl mb-4">🏆</div>[m
+[31m-              <p className="text-gray-500">No hay equipos en este club</p>[m
+[31m-              <button[m
+[31m-                onClick={() => {[m
+[31m-                  setNewTeam((prev) => ({ ...prev, clubId: selectedClub }))[m
+[31m-                  setShowModal(true)[m
+[31m-                }}[m
+[31m-                className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"[m
+[31m-              >[m
+[31m-                Crear Primer Equipo[m
+[31m-              </button>[m
+[31m-            </div>[m
+[32m+[m[32m            <Card>[m
+[32m+[m[32m              <CardBody className="text-center py-12">[m
+[32m+[m[32m                <div className="text-4xl mb-4">🏆</div>[m
+[32m+[m[32m                <p className="text-text-secondary mb-4">No hay equipos en este club</p>[m
+[32m+[m[32m                <Button[m
+[32m+[m[32m                  onClick={() => {[m
+[32m+[m[32m                    setNewTeam((prev) => ({ ...prev, clubId: selectedClub }))[m
+[32m+[m[32m                    setShowModal(true)[m
+[32m+[m[32m                  }}[m
+[32m+[m[32m                >[m
+[32m+[m[32m                  Crear Primer Equipo[m
+[32m+[m[32m                </Button>[m
+[32m+[m[32m              </CardBody>[m
+[32m+[m[32m            </Card>[m
+           ) : ([m
+[31m-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">[m
+[32m+[m[32m            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">[m
+               {teams.map((team) => {[m
+                 const sport = getSportConfig(team.sport)[m
+[32m+[m[32m                const playerCount = team.memberships?.length || 0[m
+[32m+[m
+                 return ([m
+                   <Link[m
+                     key={team.id}[m
+                     href={`/teams/${team.id}`}[m
+[31m-                    className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition border border-gray-100 hover:border-blue-200 cursor-pointer"[m
+[32m+[m[32m                    className="bg-surface rounded-xl border border-border-subtle hover:border-brand-primary/50 hover:bg-brand-primary/5 transition overflow-hidden group"[m
+                   >[m
+[31m-                    <div>[m
+[31m-                      <div className="flex items-center gap-2 mb-1">[m
+[31m-                        <span className="text-xl">{sport.icon}</span>[m
+[31m-                        <h3 className="text-lg font-semibold text-gray-800">[m
+[31m-                          {team.name}[m
+[31m-                        </h3>[m
+[32m+[m[32m                    <div className="p-5">[m
+[32m+[m[32m                      {/* Icono + nombre */}[m
+[32m+[m[32m                      <div className="flex items-start gap-3 mb-3">[m
+[32m+[m[32m                        <div className="w-12 h-12 rounded-lg bg-brand-primary/10 text-brand-primary flex items-center justify-center text-2xl shrink-0">[m
+[32m+[m[32m                          {sport.icon}[m
+[32m+[m[32m                        </div>[m
+[32m+[m[32m                        <div className="min-w-0 flex-1">[m
+[32m+[m[32m                          <h3 className="text-lg font-semibold text-text-primary truncate group-hover:text-brand-primary transition">[m
+[32m+[m[32m                            {team.name}[m
+[32m+[m[32m                          </h3>[m
+[32m+[m[32m                          <p className="text-xs text-text-muted truncate">[m
+[32m+[m[32m                            {sport.name} · {team.category || 'Sin categoría'}[m
+[32m+[m[32m                          </p>[m
+[32m+[m[32m                        </div>[m
+                       </div>[m
+[31m-                      <p className="text-sm text-gray-500">[m
+[31m-                        {sport.name} · {team.category || 'Sin categoría'}[m
+[31m-                      </p>[m
+[31m-                      <p className="text-xs text-gray-400 mt-1">[m
+[31m-                        {team.season || 'Temporada no especificada'}[m
+[31m-                      </p>[m
+[31m-                      <div className="flex gap-2 mt-3 flex-wrap">[m
+[31m-                        <span className="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-full">[m
+[31m-                          👥 {team.players?.length || 0} {sport.playerNamePlural.toLowerCase()}[m
+[31m-                        </span>[m
+[32m+[m
+[32m+[m[32m                      {/* Temporada + contadores */}[m
+[32m+[m[32m                      <div className="flex items-center gap-2 flex-wrap mt-3">[m
+[32m+[m[32m                        {team.season && ([m
+[32m+[m[32m                          <Badge variant="neutral">📅 {team.season}</Badge>[m
+[32m+[m[32m                        )}[m
+[32m+[m[32m                        <Badge variant="brand">[m
+[32m+[m[32m                          👥 {playerCount} {sport.playerNamePlural.toLowerCase()}[m
+[32m+[m[32m                        </Badge>[m
+                       </div>[m
+                     </div>[m
+[32m+[m
+[32m+[m[32m                    {/* Footer con acción */}[m
+[32m+[m[32m                    <div className="px-5 py-3 bg-surface-elevated border-t border-border-subtle flex items-center justify-between text-xs">[m
+[32m+[m[32m                      <span className="text-text-muted">Ver equipo</span>[m
+[32m+[m[32m                      <span className="text-brand-primary group-hover:translate-x-1 transition">[m
+[32m+[m[32m                        →[m
+[32m+[m[32m                      </span>[m
+[32m+[m[32m                    </div>[m
+                   </Link>[m
+                 )[m
+               })}[m
+[36m@@ -225,107 +242,79 @@[m [mfunction TeamsContent() {[m
+         </>[m
+       )}[m
+ [m
+[31m-      {showModal && ([m
+[31m-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">[m
+[31m-          <div className="bg-white rounded-xl max-w-md w-full p-6">[m
+[31m-            <h3 className="text-xl font-bold text-gray-800 mb-4">Crear Nuevo Equipo</h3>[m
+[31m-            <form onSubmit={createTeam} className="space-y-4">[m
+[31m-              <div>[m
+[31m-                <label className="block text-sm font-medium text-gray-700 mb-1">[m
+[31m-                  Nombre del Equipo *[m
+[31m-                </label>[m
+[31m-                <input[m
+[31m-                  type="text"[m
+[31m-                  value={newTeam.name}[m
+[31m-                  onChange={(e) => setNewTeam({ ...newTeam, name: e.target.value })}[m
+[31m-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"[m
+[31m-                  required[m
+[31m-                  placeholder="Ej: Junior A"[m
+[31m-                />[m
+[31m-              </div>[m
+[32m+[m[32m      {/* MODAL CREAR EQUIPO */}[m
+[32m+[m[32m      <Modal[m
+[32m+[m[32m        isOpen={showModal}[m
+[32m+[m[32m        onClose={() => setShowModal(false)}[m
+[32m+[m[32m        title="Crear Nuevo Equipo"[m
+[32m+[m[32m        size="md"[m
+[32m+[m[32m      >[m
+[32m+[m[32m        <form onSubmit={createTeam} className="space-y-4">[m
+[32m+[m[32m          <Input[m
+[32m+[m[32m            label="Nombre del Equipo *"[m
+[32m+[m[32m            type="text"[m
+[32m+[m[32m            value={newTeam.name}[m
+[32m+[m[32m            onChange={(e) => setNewTeam({ ...newTeam, name: e.target.value })}[m
+[32m+[m[32m            required[m
+[32m+[m[32m            placeholder="Ej: Junior A"[m
+[32m+[m[32m          />[m
+ [m
+[31m-              {/* ✅ Selector de deporte */}[m
+[31m-              <div>[m
+[31m-                <label className="block text-sm font-medium text-gray-700 mb-1">[m
+[31m-                  Deporte *[m
+[31m-                </label>[m
+[31m-                <select[m
+[31m-                  value={newTeam.sport}[m
+[31m-                  onChange={(e) =>[m
+[31m-                    setNewTeam({ ...newTeam, sport: e.target.value as Sport })[m
+[31m-                  }[m
+[31m-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"[m
+[31m-                  required[m
+[31m-                >[m
+[31m-                  {SPORTS.map((s) => ([m
+[31m-                    <option key={s.value} value={s.value}>[m
+[31m-                      {s.icon} {s.label}[m
+[31m-                    </option>[m
+[31m-                  ))}[m
+[31m-                </select>[m
+[31m-              </div>[m
+[32m+[m[32m          <Select[m
+[32m+[m[32m            label="Deporte *"[m
+[32m+[m[32m            value={newTeam.sport}[m
+[32m+[m[32m            onChange={(e) => setNewTeam({ ...newTeam, sport: e.target.value as Sport })}[m
+[32m+[m[32m            required[m
+[32m+[m[32m          >[m
+[32m+[m[32m            {SPORTS.map((s) => ([m
+[32m+[m[32m              <option key={s.value} value={s.value}>[m
+[32m+[m[32m                {s.icon} {s.label}[m
+[32m+[m[32m              </option>[m
+[32m+[m[32m            ))}[m
+[32m+[m[32m          </Select>[m
+ [m
+[31m-              <div>[m
+[31m-                <label className="block text-sm font-medium text-gray-700 mb-1">[m
+[31m-                  Categoría[m
+[31m-                </label>[m
+[31m-                <select[m
+[31m-                  value={newTeam.category}[m
+[31m-                  onChange={(e) => setNewTeam({ ...newTeam, category: e.target.value })}[m
+[31m-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"[m
+[31m-                >[m
+[31m-                  <option value="">Seleccionar...</option>[m
+[31m-                  <option value="Senior">Senior</option>[m
+[31m-                  <option value="Junior">Junior</option>[m
+[31m-                  <option value="Infantil">Infantil</option>[m
+[31m-                  <option value="Cadete">Cadete</option>[m
+[31m-                  <option value="Alevín">Alevín</option>[m
+[31m-                </select>[m
+[31m-              </div>[m
+[32m+[m[32m          <Select[m
+[32m+[m[32m            label="Categoría"[m
+[32m+[m[32m            value={newTeam.category}[m
+[32m+[m[32m            onChange={(e) => setNewTeam({ ...newTeam, category: e.target.value })}[m
+[32m+[m[32m          >[m
+[32m+[m[32m            <option value="">Seleccionar...</option>[m
+[32m+[m[32m            <option value="Senior">Senior</option>[m
+[32m+[m[32m            <option value="Junior">Junior</option>[m
+[32m+[m[32m            <option value="Infantil">Infantil</option>[m
+[32m+[m[32m            <option value="Cadete">Cadete</option>[m
+[32m+[m[32m            <option value="Alevín">Alevín</option>[m
+[32m+[m[32m          </Select>[m
+ [m
+[31m-              <div>[m
+[31m-                <label className="block text-sm font-medium text-gray-700 mb-1">[m
+[31m-                  Temporada[m
+[31m-                </label>[m
+[31m-                <input[m
+[31m-                  type="text"[m
+[31m-                  value={newTeam.season}[m
+[31m-                  onChange={(e) => setNewTeam({ ...newTeam, season: e.target.value })}[m
+[31m-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"[m
+[31m-                  placeholder="Ej: 2025-2026"[m
+[31m-                />[m
+[31m-              </div>[m
+[32m+[m[32m          <Input[m
+[32m+[m[32m            label="Temporada"[m
+[32m+[m[32m            type="text"[m
+[32m+[m[32m            value={newTeam.season}[m
+[32m+[m[32m            onChange={(e) => setNewTeam({ ...newTeam, season: e.target.value })}[m
+[32m+[m[32m            placeholder="Ej: 2025-2026"[m
+[32m+[m[32m          />[m
+ [m
+[31m-              <div className="flex gap-3 pt-2">[m
+[31m-                <button[m
+[31m-                  type="button"[m
+[31m-                  onClick={() => setShowModal(false)}[m
+[31m-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 rounded-lg transition"[m
+[31m-                >[m
+[31m-                  Cancelar[m
+[31m-                </button>[m
+[31m-                <button[m
+[31m-                  type="submit"[m
+[31m-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition"[m
+[31m-                >[m
+[31m-                  Crear Equipo[m
+[31m-                </button>[m
+[31m-              </div>[m
+[31m-            </form>[m
+[32m+[m[32m          <div className="flex gap-3 pt-2">[m
+[32m+[m[32m            <Button[m
+[32m+[m[32m              type="button"[m
+[32m+[m[32m              variant="secondary"[m
+[32m+[m[32m              onClick={() => setShowModal(false)}[m
+[32m+[m[32m              className="flex-1"[m
+[32m+[m[32m            >[m
+[32m+[m[32m              Cancelar[m
+[32m+[m[32m            </Button>[m
+[32m+[m[32m            <Button type="submit" className="flex-1">[m
+[32m+[m[32m              Crear Equipo[m
+[32m+[m[32m            </Button>[m
+           </div>[m
+[31m-        </div>[m
+[31m-      )}[m
+[32m+[m[32m        </form>[m
+[32m+[m[32m      </Modal>[m
+     </div>[m
+   )[m
+ }[m
+ [m
+[31m-// ============================================[m
+[31m-// COMPONENTE PRINCIPAL CON SUSPENSE[m
+[31m-// ============================================[m
+[31m-[m
+ export default function TeamsPage() {[m
+   return ([m
+[31m-    <Suspense fallback={<div className="text-center py-12">Cargando equipos...</div>}>[m
+[32m+[m[32m    <Suspense fallback={<div className="text-center py-12 text-text-muted">Cargando...</div>}>[m
+       <TeamsContent />[m
+     </Suspense>[m
+   )[m

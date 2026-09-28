@@ -6,10 +6,7 @@ import Link from 'next/link'
 import api from '@/lib/api'
 import { SPORTS, getSportConfig } from '@/lib/sport'
 import type { Sport } from '@/lib/sport'
-
-// ============================================
-// COMPONENTE QUE USA useSearchParams
-// ============================================
+import { Button, Card, CardBody, Badge, Input, Select, Modal } from '@/components/ui'
 
 function TeamsContent() {
   const router = useRouter()
@@ -46,9 +43,7 @@ function TeamsContent() {
       if (response.data.length > 0) {
         let clubId = clubIdFromUrl || response.data[0].id
         const clubExists = response.data.some((c: any) => c.id === clubId)
-        if (!clubExists) {
-          clubId = response.data[0].id
-        }
+        if (!clubExists) clubId = response.data[0].id
 
         setSelectedClub(clubId)
         setNewTeam((prev) => ({ ...prev, clubId }))
@@ -96,23 +91,22 @@ function TeamsContent() {
   const handleClubChange = (clubId: string) => {
     setSelectedClub(clubId)
     setNewTeam((prev) => ({ ...prev, clubId }))
-    if (clubId) {
-      fetchTeams(clubId)
-    }
+    if (clubId) fetchTeams(clubId)
   }
 
   if (loading) {
-    return <div className="text-center py-12">Cargando equipos...</div>
+    return <div className="text-center py-12 text-text-muted">Cargando equipos...</div>
   }
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-6">
+      {/* HEADER */}
+      <div className="flex justify-between items-start mb-6 flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-gray-800">🏆 Equipos</h1>
-          <p className="text-gray-500">Gestiona los equipos de tu club</p>
+          <h1 className="text-2xl font-bold text-text-primary">🏆 Equipos</h1>
+          <p className="text-text-secondary">Gestiona los equipos de tu club</p>
         </div>
-        <button
+        <Button
           onClick={() => {
             if (!selectedClub) {
               alert('Por favor, selecciona un club primero')
@@ -121,101 +115,124 @@ function TeamsContent() {
             setNewTeam((prev) => ({ ...prev, clubId: selectedClub }))
             setShowModal(true)
           }}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 transition"
           disabled={clubs.length === 0}
+          icon={<span className="text-xl">+</span>}
         >
-          <span className="text-xl">+</span> Nuevo Equipo
-        </button>
+          Nuevo Equipo
+        </Button>
       </div>
 
       {clubs.length === 0 ? (
-        <div className="text-center py-12 bg-white rounded-xl shadow">
-          <div className="text-4xl mb-4">🏆</div>
-          <p className="text-gray-500">Primero crea un club para poder añadir equipos</p>
-          <button
-            onClick={() => router.push('/dashboard')}
-            className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
-          >
-            Ir a Mis Clubs
-          </button>
-        </div>
+        <Card>
+          <CardBody className="text-center py-12">
+            <div className="text-4xl mb-4">🏆</div>
+            <p className="text-text-secondary mb-4">
+              Primero crea un club para poder añadir equipos
+            </p>
+            <Button onClick={() => router.push('/dashboard')}>Ir a Mis Clubs</Button>
+          </CardBody>
+        </Card>
       ) : (
         <>
-          <div className="mb-6 space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Club:{' '}
-                <span className="font-normal text-gray-500">
-                  {clubs.find((c) => c.id === selectedClub)?.name || 'Selecciona un club'}
+          {/* SELECTOR DE CLUB */}
+          <Card className="mb-6">
+            <CardBody>
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-sm font-medium text-text-secondary">
+                  Club:
                 </span>
-              </label>
-              <select
-                className="border rounded-lg px-4 py-2 w-64"
-                value={selectedClub}
-                onChange={(e) => handleClubChange(e.target.value)}
-              >
-                {clubs.map((club) => (
-                  <option key={club.id} value={club.id}>
-                    {club.name}
-                  </option>
-                ))}
-              </select>
-            </div>
+                <div className="flex flex-wrap gap-2">
+                  {clubs.map((club) => {
+                    const isActive = club.id === selectedClub
+                    return (
+                      <button
+                        key={club.id}
+                        onClick={() => handleClubChange(club.id)}
+                        className={`px-3 py-1.5 rounded-full text-sm font-medium transition border ${
+                          isActive
+                            ? 'bg-brand-primary/20 text-brand-primary border-brand-primary/40'
+                            : 'bg-surface-elevated text-text-secondary border-border-subtle hover:border-brand-primary/40'
+                        }`}
+                      >
+                        {club.name}
+                      </button>
+                    )
+                  })}
+                </div>
 
-            {selectedClub && (
-              <div>
-                <Link
-                  href={`/clubs/${selectedClub}/members`}
-                  className="inline-block bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition text-sm"
-                >
-                  👥 Gestionar Miembros del Club
-                </Link>
+                {selectedClub && (
+                  <Link
+                    href={`/clubs/${selectedClub}/members`}
+                    className="ml-auto text-sm text-brand-primary hover:underline"
+                  >
+                    👥 Gestionar miembros del club
+                  </Link>
+                )}
               </div>
-            )}
-          </div>
+            </CardBody>
+          </Card>
 
+          {/* LISTA DE EQUIPOS */}
           {teams.length === 0 ? (
-            <div className="text-center py-12 bg-white rounded-xl shadow">
-              <div className="text-4xl mb-4">🏆</div>
-              <p className="text-gray-500">No hay equipos en este club</p>
-              <button
-                onClick={() => {
-                  setNewTeam((prev) => ({ ...prev, clubId: selectedClub }))
-                  setShowModal(true)
-                }}
-                className="mt-4 bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
-              >
-                Crear Primer Equipo
-              </button>
-            </div>
+            <Card>
+              <CardBody className="text-center py-12">
+                <div className="text-4xl mb-4">🏆</div>
+                <p className="text-text-secondary mb-4">No hay equipos en este club</p>
+                <Button
+                  onClick={() => {
+                    setNewTeam((prev) => ({ ...prev, clubId: selectedClub }))
+                    setShowModal(true)
+                  }}
+                >
+                  Crear Primer Equipo
+                </Button>
+              </CardBody>
+            </Card>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {teams.map((team) => {
                 const sport = getSportConfig(team.sport)
+                const playerCount = team.memberships?.length || 0
+
                 return (
                   <Link
                     key={team.id}
                     href={`/teams/${team.id}`}
-                    className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition border border-gray-100 hover:border-blue-200 cursor-pointer"
+                    className="bg-surface rounded-xl border border-border-subtle hover:border-brand-primary/50 hover:bg-brand-primary/5 transition overflow-hidden group"
                   >
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-xl">{sport.icon}</span>
-                        <h3 className="text-lg font-semibold text-gray-800">
-                          {team.name}
-                        </h3>
+                    <div className="p-5">
+                      {/* Icono + nombre */}
+                      <div className="flex items-start gap-3 mb-3">
+                        <div className="w-12 h-12 rounded-lg bg-brand-primary/10 text-brand-primary flex items-center justify-center text-2xl shrink-0">
+                          {sport.icon}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="text-lg font-semibold text-text-primary truncate group-hover:text-brand-primary transition">
+                            {team.name}
+                          </h3>
+                          <p className="text-xs text-text-muted truncate">
+                            {sport.name} · {team.category || 'Sin categoría'}
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-sm text-gray-500">
-                        {sport.name} · {team.category || 'Sin categoría'}
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        {team.season || 'Temporada no especificada'}
-                      </p>
-                      <div className="flex gap-2 mt-3 flex-wrap">
-                        <span className="bg-blue-100 text-blue-600 text-xs px-2 py-1 rounded-full">
-                          👥 {team.players?.length || 0} {sport.playerNamePlural.toLowerCase()}
-                        </span>
+
+                      {/* Temporada + contadores */}
+                      <div className="flex items-center gap-2 flex-wrap mt-3">
+                        {team.season && (
+                          <Badge variant="neutral">📅 {team.season}</Badge>
+                        )}
+                        <Badge variant="brand">
+                          👥 {playerCount} {sport.playerNamePlural.toLowerCase()}
+                        </Badge>
                       </div>
+                    </div>
+
+                    {/* Footer con acción */}
+                    <div className="px-5 py-3 bg-surface-elevated border-t border-border-subtle flex items-center justify-between text-xs">
+                      <span className="text-text-muted">Ver equipo</span>
+                      <span className="text-brand-primary group-hover:translate-x-1 transition">
+                        →
+                      </span>
                     </div>
                   </Link>
                 )
@@ -225,107 +242,79 @@ function TeamsContent() {
         </>
       )}
 
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">Crear Nuevo Equipo</h3>
-            <form onSubmit={createTeam} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre del Equipo *
-                </label>
-                <input
-                  type="text"
-                  value={newTeam.name}
-                  onChange={(e) => setNewTeam({ ...newTeam, name: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  required
-                  placeholder="Ej: Junior A"
-                />
-              </div>
+      {/* MODAL CREAR EQUIPO */}
+      <Modal
+        isOpen={showModal}
+        onClose={() => setShowModal(false)}
+        title="Crear Nuevo Equipo"
+        size="md"
+      >
+        <form onSubmit={createTeam} className="space-y-4">
+          <Input
+            label="Nombre del Equipo *"
+            type="text"
+            value={newTeam.name}
+            onChange={(e) => setNewTeam({ ...newTeam, name: e.target.value })}
+            required
+            placeholder="Ej: Junior A"
+          />
 
-              {/* ✅ Selector de deporte */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Deporte *
-                </label>
-                <select
-                  value={newTeam.sport}
-                  onChange={(e) =>
-                    setNewTeam({ ...newTeam, sport: e.target.value as Sport })
-                  }
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
-                  required
-                >
-                  {SPORTS.map((s) => (
-                    <option key={s.value} value={s.value}>
-                      {s.icon} {s.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+          <Select
+            label="Deporte *"
+            value={newTeam.sport}
+            onChange={(e) => setNewTeam({ ...newTeam, sport: e.target.value as Sport })}
+            required
+          >
+            {SPORTS.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.icon} {s.label}
+              </option>
+            ))}
+          </Select>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Categoría
-                </label>
-                <select
-                  value={newTeam.category}
-                  onChange={(e) => setNewTeam({ ...newTeam, category: e.target.value })}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">Seleccionar...</option>
-                  <option value="Senior">Senior</option>
-                  <option value="Junior">Junior</option>
-                  <option value="Infantil">Infantil</option>
-                  <option value="Cadete">Cadete</option>
-                  <option value="Alevín">Alevín</option>
-                </select>
-              </div>
+          <Select
+            label="Categoría"
+            value={newTeam.category}
+            onChange={(e) => setNewTeam({ ...newTeam, category: e.target.value })}
+          >
+            <option value="">Seleccionar...</option>
+            <option value="Senior">Senior</option>
+            <option value="Junior">Junior</option>
+            <option value="Infantil">Infantil</option>
+            <option value="Cadete">Cadete</option>
+            <option value="Alevín">Alevín</option>
+          </Select>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Temporada
-                </label>
-                <input
-                  type="text"
-                  value={newTeam.season}
-                  onChange={(e) => setNewTeam({ ...newTeam, season: e.target.value })}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="Ej: 2025-2026"
-                />
-              </div>
+          <Input
+            label="Temporada"
+            type="text"
+            value={newTeam.season}
+            onChange={(e) => setNewTeam({ ...newTeam, season: e.target.value })}
+            placeholder="Ej: 2025-2026"
+          />
 
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowModal(false)}
-                  className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 rounded-lg transition"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg transition"
-                >
-                  Crear Equipo
-                </button>
-              </div>
-            </form>
+          <div className="flex gap-3 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setShowModal(false)}
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+            <Button type="submit" className="flex-1">
+              Crear Equipo
+            </Button>
           </div>
-        </div>
-      )}
+        </form>
+      </Modal>
     </div>
   )
 }
 
-// ============================================
-// COMPONENTE PRINCIPAL CON SUSPENSE
-// ============================================
-
 export default function TeamsPage() {
   return (
-    <Suspense fallback={<div className="text-center py-12">Cargando equipos...</div>}>
+    <Suspense fallback={<div className="text-center py-12 text-text-muted">Cargando...</div>}>
       <TeamsContent />
     </Suspense>
   )

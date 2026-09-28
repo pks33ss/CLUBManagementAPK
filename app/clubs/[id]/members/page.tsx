@@ -407,60 +407,7 @@ export default function ClubMembers() {
         </div>
       </Card>
 
-      {/* GESTIÓN DE EQUIPOS Y ENTRENADORES */}
-      {isAdmin && (
-        <Card className="mt-6">
-          <CardBody>
-            <h2 className="text-xl font-semibold text-text-primary mb-4">
-              🏆 Gestión de Equipos y Entrenadores
-            </h2>
-
-            {teams.length === 0 ? (
-              <p className="text-text-muted text-center py-4">
-                No hay equipos en este club
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {teams.map((team) => (
-                  <div key={team.id} className="border border-border-subtle rounded-lg p-4">
-                    <div className="flex justify-between items-center mb-3 flex-wrap gap-2">
-                      <h3 className="font-medium text-text-primary">
-                        🏆 {team.name}
-                      </h3>
-                      <Link
-                        href={`/teams/${team.id}/members`}
-                        className="text-sm text-brand-primary hover:underline"
-                      >
-                        Gestionar miembros →
-                      </Link>
-                    </div>
-
-                    {team.members.length === 0 ? (
-                      <p className="text-sm text-text-muted">
-                        No hay entrenadores asignados a este equipo
-                      </p>
-                    ) : (
-                      <div className="flex flex-wrap gap-2">
-                        {team.members.map((member: any) => (
-                          <div
-                            key={member.id}
-                            className="bg-brand-primary/10 rounded-full px-3 py-1 text-sm flex items-center gap-2"
-                          >
-                            <span className="text-text-primary">{member.user.name} {member.user.lastName}</span>
-                            <span className="text-xs text-brand-primary">
-                              {member.role === 'COACH' ? '🏆' : '🤝'}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardBody>
-        </Card>
-      )}
+      
 
       {/* MODAL DE INVITAR */}
       <Modal

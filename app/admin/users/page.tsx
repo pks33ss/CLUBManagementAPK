@@ -14,7 +14,7 @@ interface User {
   role: string
   createdAt: string
   clubs: { club: { id: string; name: string } }[]
-  teams: { team: { id: string; name: string } }[]
+  // ✅ `teams` ya no viene del backend (TeamMember eliminado)
 }
 
 export default function UsersManagement() {
@@ -39,6 +39,12 @@ export default function UsersManagement() {
   const [resetUser, setResetUser] = useState<User | null>(null)
   const [newPassword, setNewPassword] = useState('')
   const [resetting, setResetting] = useState(false)
+
+  // ✅ NUEVO: estado para el modal de borrado
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deleteUser, setDeleteUser] = useState<User | null>(null)
+  const [deleteConfirmEmail, setDeleteConfirmEmail] = useState('')
+  const [deleting, setDeleting] = useState(false)
 
   useEffect(() => {
     const userStr = localStorage.getItem('user')
@@ -101,16 +107,33 @@ export default function UsersManagement() {
     }
   }
 
-  const deleteUser = async (userId: string, userName: string) => {
-    if (!confirm(`¿Eliminar al usuario ${userName}? Esta acción no se puede deshacer.`)) return
+  // ✅ Nuevo flujo de borrado con modal
+  const openDeleteModal = (user: User) => {
+    setDeleteUser(user)
+    setDeleteConfirmEmail('')
+    setShowDeleteModal(true)
+  }
 
+  const confirmDeleteUser = async () => {
+    if (!deleteUser) return
+    if (deleteConfirmEmail.trim().toLowerCase() !== deleteUser.email.toLowerCase()) {
+      alert('El email no coincide. Escribe exactamente el email del usuario para confirmar.')
+      return
+    }
+
+    setDeleting(true)
     try {
-      await api.delete(`/users/${userId}`)
+      await api.delete(`/users/${deleteUser.id}`)
+      setShowDeleteModal(false)
+      setDeleteUser(null)
+      setDeleteConfirmEmail('')
       fetchUsers()
-      alert('✅ Usuario eliminado correctamente')
+      alert('✅ Usuario eliminado permanentemente')
     } catch (error: any) {
       console.error('Error:', error)
       alert(error.response?.data?.message || 'Error al eliminar el usuario')
+    } finally {
+      setDeleting(false)
     }
   }
 
@@ -202,7 +225,6 @@ export default function UsersManagement() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">Email</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">Rol Global</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">Clubs</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">Equipos</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase">Acciones</th>
               </tr>
             </thead>
@@ -223,21 +245,10 @@ export default function UsersManagement() {
                     </Badge>
                   </td>
                   <td className="px-6 py-4 text-sm text-text-secondary">
-                    {user.clubs.length > 0 ? (
+                    {user.clubs && user.clubs.length > 0 ? (
                       <div className="space-y-1">
                         {user.clubs.map((c, i) => (
                           <div key={i}>🏛️ {c.club.name}</div>
-                        ))}
-                      </div>
-                    ) : (
-                      <span className="text-text-muted">-</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-text-secondary">
-                    {user.teams.length > 0 ? (
-                      <div className="space-y-1">
-                        {user.teams.map((t, i) => (
-                          <div key={i}>🏀 {t.team.name}</div>
                         ))}
                       </div>
                     ) : (
@@ -264,7 +275,7 @@ export default function UsersManagement() {
                         🔑
                       </button>
                       <button
-                        onClick={() => deleteUser(user.id, `${user.name} ${user.lastName}`)}
+                        onClick={() => openDeleteModal(user)}
                         className="text-danger hover:text-danger/80 p-1"
                         disabled={user.id === currentUser?.id}
                         title="Eliminar usuario"
@@ -401,6 +412,79 @@ export default function UsersManagement() {
                 className="flex-1"
               >
                 {resetting ? 'Reseteando...' : '🔑 Resetear'}
+              </Button>
+            </div>
+          </>
+        )}
+      </Modal>
+
+      {/* ✅ NUEVO: Modal de confirmación de borrado */}
+      <Modal
+        isOpen={showDeleteModal && !!deleteUser}
+        onClose={() => {
+          if (deleting) return
+          setShowDeleteModal(false)
+          setDeleteUser(null)
+          setDeleteConfirmEmail('')
+        }}
+        title="⚠️ Eliminar usuario permanentemente"
+        size="md"
+      >
+        {deleteUser && (
+          <>
+            <div className="bg-danger/10 border border-danger/30 rounded-lg p-4 mb-4">
+              <p className="text-sm text-danger font-semibold mb-1">
+                Esta acción es IRREVERSIBLE
+              </p>
+              <p className="text-xs text-text-secondary">
+                Se borrarán todos los datos del usuario: membresías de equipos y clubes,
+                estadísticas, convocatorias, asistencias, relaciones con tutores,
+                permisos de emisión, tokens de sesión y favoritos.
+                Las sesiones, partidos y eventos que creó se mantendrán pero sin autor asignado.
+              </p>
+            </div>
+
+            <p className="text-text-secondary mb-4">
+              Vas a eliminar permanentemente a{' '}
+              <strong className="text-text-primary">
+                {deleteUser.name} {deleteUser.lastName}
+              </strong>{' '}
+              ({deleteUser.email}).
+            </p>
+
+            <Input
+              label={`Escribe el email del usuario para confirmar`}
+              type="text"
+              value={deleteConfirmEmail}
+              onChange={(e) => setDeleteConfirmEmail(e.target.value)}
+              placeholder={deleteUser.email}
+              helperText={`Copia exactamente: ${deleteUser.email}`}
+            />
+
+            <div className="flex gap-3 pt-6">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  setShowDeleteModal(false)
+                  setDeleteUser(null)
+                  setDeleteConfirmEmail('')
+                }}
+                disabled={deleting}
+                className="flex-1"
+              >
+                Cancelar
+              </Button>
+              <Button
+                variant="danger"
+                onClick={confirmDeleteUser}
+                disabled={
+                  deleting ||
+                  deleteConfirmEmail.trim().toLowerCase() !== deleteUser.email.toLowerCase()
+                }
+                loading={deleting}
+                className="flex-1"
+              >
+                {deleting ? 'Eliminando...' : '🗑️ Eliminar permanentemente'}
               </Button>
             </div>
           </>

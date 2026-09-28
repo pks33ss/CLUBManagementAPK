@@ -7,9 +7,12 @@ import api from '@/lib/api'
 import { getSportConfig } from '@/lib/sport'
 import { Button, Card, CardBody, Badge, Input, Select, Modal } from '@/components/ui'
 
+type MembershipRole = 'PLAYER' | 'COACH' | 'ASSISTANT' | 'ADMIN_TEAM'
+
 interface Membership {
   id: string
-  role: 'PLAYER' | 'COACH' | 'ASSISTANT' | 'ADMIN_TEAM'
+  role: MembershipRole             // primario (compat)
+  roles?: MembershipRole[]         // ✅ NUEVO: todos los roles
   status: string
   jerseyNumber: number | null
   position: string | null
@@ -153,10 +156,14 @@ export default function TeamDetail() {
 
   const sport = getSportConfig(team.sport)
 
-  // ✅ Separar memberships por rol
-  const players = team.memberships.filter((m) => m.role === 'PLAYER')
-  const coaches = team.memberships.filter(
-    (m) => m.role === 'COACH' || m.role === 'ASSISTANT' || m.role === 'ADMIN_TEAM',
+  // ✅ Separar memberships por roles (array)
+  const players = team.memberships.filter((m) =>
+    (m.roles ?? [m.role]).includes('PLAYER'),
+  )
+  const coaches = team.memberships.filter((m) =>
+    (m.roles ?? [m.role]).some((r) =>
+      ['COACH', 'ASSISTANT', 'ADMIN_TEAM'].includes(r),
+    ),
   )
 
   return (
@@ -208,10 +215,10 @@ export default function TeamDetail() {
             </h2>
             <Button
               size="sm"
-              href={`/teams/${teamId}/members`}
+              href={`/teams/${teamId}/members?action=invite`}
               icon={<span className="text-xl">+</span>}
             >
-              Invitar {sport.playerName}
+              Añadir {sport.playerName}
             </Button>
           </div>
 
@@ -221,11 +228,8 @@ export default function TeamDetail() {
               <p className="text-text-secondary">
                 No hay {sport.playerNamePlural.toLowerCase()} en este {sport.teamName.toLowerCase()}
               </p>
-              <Button
-                href={`/teams/${teamId}/members`}
-                className="mt-4"
-              >
-                Invitar Primer {sport.playerName}
+              <Button href={`/teams/${teamId}/members?action=invite`} className="mt-4">
+                Añadir Primer {sport.playerName}
               </Button>
             </div>
           ) : (
@@ -284,7 +288,11 @@ export default function TeamDetail() {
                       {m.user.username || m.user.email || '—'}
                     </p>
                   </div>
-                  <Badge variant="info">{m.role}</Badge>
+                  <div className="flex gap-1 flex-wrap">
+                    {(m.roles ?? [m.role]).map((r) => (
+                      <Badge key={r} variant="info">{r}</Badge>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>

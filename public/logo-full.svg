@@ -1,16 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 350" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 420 220" fill="none">
   <!-- Letra F -->
-  <path d="M75 75 h130 v30 h-100 v40 h90 v30 h-90 v90 h-30 z" fill="#FFFFFF"/>
+  <path d="M20 40 L20 180 L50 180 L50 120 L110 120 L110 96 L50 96 L50 64 L120 64 L120 40 Z" fill="#FFFFFF"/>
   
   <!-- Letra P -->
-  <path d="M225 75 v220 h30 v-90 h35 c40 0 65 -25 65 -65 s-25 -65 -65 -65 z M255 105 h35 c22 0 35 8 35 35 s-13 35 -35 35 h-35 z" fill="#FFFFFF"/>
+  <path d="M150 40 L150 180 L180 180 L180 120 L205 120 C235 120 250 105 250 80 C250 55 235 40 205 40 Z M180 64 L205 64 C218 64 220 70 220 80 C220 90 218 96 205 96 L180 96 Z" fill="#FFFFFF"/>
   
   <!-- Rayo (color dinámico) -->
-  <path d="M395 30 L345 130 L385 130 L335 250 L425 115 L385 115 Z" fill="var(--brand-primary, #00E676)"/>
+  <path d="M270 30 L240 100 L262 100 L230 200 L295 95 L272 95 Z" fill="var(--brand-primary, #00E676)"/>
   
   <!-- Letra M -->
-  <path d="M445 75 v220 h30 v-160 l45 100 l45 -100 v160 h30 v-220 h-30 l-45 100 l-45 -100 z" fill="#FFFFFF"/>
+  <path d="M310 40 L310 180 L338 180 L338 90 L360 150 L382 90 L382 180 L410 180 L410 40 L380 40 L360 95 L340 40 Z" fill="#FFFFFF"/>
   
   <!-- Texto SPORTS -->
-  <text x="300" y="325" text-anchor="middle" font-family="Inter, -apple-system, system-ui, sans-serif" font-weight="900" font-size="48" letter-spacing="10" fill="#FFFFFF">SPORTS</text>
+  <text x="210" y="212" text-anchor="middle" font-family="Inter, -apple-system, system-ui, sans-serif" font-weight="900" font-size="26" letter-spacing="6" fill="#FFFFFF">SPORTS</text>
 </svg>
