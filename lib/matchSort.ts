@@ -9,8 +9,8 @@ export type MatchSortKey =
   | 'result-loss'
 
 export const SORT_OPTIONS: { value: MatchSortKey; label: string }[] = [
-  { value: 'date-desc',    label: '📅 Fecha (más recientes)' },
-  { value: 'date-asc',     label: '📅 Fecha (más antiguos)' },
+  { value: 'date-desc',    label: '📅 Fecha (más lejanos)' },
+  { value: 'date-asc',     label: '📅 Fecha (más proximos)' },
   { value: 'location',     label: '🏠 Local primero' },
   { value: 'opponent-asc', label: '🔤 Rival (A-Z)' },
   { value: 'result-win',   label: '🏆 Victorias primero' },

@@ -250,6 +250,9 @@ export default function TeamDetail() {
               <Button href={`/teams/${teamId}/members`} variant="secondary" size="sm">
                 👥 Miembros
               </Button>
+              <Button href={`/teams/${teamId}/stats`} variant="secondary" size="sm">
+  📊 Estadísticas
+</Button>
 
               {/* ✅ Botón de "solicitar unirme" si no tiene membership */}
               {!myMembership && currentUserId && (

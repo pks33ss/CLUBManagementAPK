@@ -16,6 +16,8 @@ import PistasTab from './_components/PistasTab'
 
 import LiveStreamTab from './_components/LiveStreamTab'
 
+import PadelStatsTab from './_components/PadelStatsTab'
+
 export interface MatchDetail {
   id: string
   date: string
@@ -180,20 +182,21 @@ export default function MatchDetailPage() {
   const sport = getSportConfig(match.team?.sport)
   const isPadel = match.team?.sport === 'PADEL'
 
-  const tabs: { id: Tab; label: string; icon: string }[] = isPadel
+    const tabs: { id: Tab; label: string; icon: string }[] = isPadel
     ? [
-        { id: 'pistas',   label: 'Pistas',       icon: '🏟️' },
-        { id: 'callups',  label: 'Convocatoria', icon: '🎯' },
-        { id: 'notes',    label: 'Notas',        icon: '📝' },
-        { id: 'live',     label: 'Directo',      icon: '📺' },
+        { id: 'pistas',   label: 'Pistas',        icon: '🏟️' },
+        { id: 'callups',  label: 'Convocatoria',  icon: '🎯' },
+        { id: 'stats',    label: 'Estadísticas',  icon: '📊' },
+        { id: 'notes',    label: 'Notas',         icon: '📝' },
+        { id: 'live',     label: 'Directo',       icon: '📺' },
       ]
     : [
-        { id: 'lineup',   label: 'Line Up',      icon: sport.icon },
-        { id: 'gameplan', label: 'Plan',         icon: '📋' },
-        { id: 'callups',  label: 'Convocatoria', icon: '🎯' },
-        { id: 'stats',    label: 'Estadísticas', icon: '📊' },
-        { id: 'notes',    label: 'Notas',        icon: '📝' },
-        { id: 'live',     label: 'Directo',      icon: '📺' },
+        { id: 'lineup',   label: 'Line Up',       icon: sport.icon },
+        { id: 'gameplan', label: 'Plan',          icon: '📋' },
+        { id: 'callups',  label: 'Convocatoria',  icon: '🎯' },
+        { id: 'stats',    label: 'Estadísticas',  icon: '📊' },
+        { id: 'notes',    label: 'Notas',         icon: '📝' },
+        { id: 'live',     label: 'Directo',       icon: '📺' },
       ]
 
   return (
@@ -224,12 +227,17 @@ export default function MatchDetailPage() {
       </div>
 
       {/* Contenido del tab */}
-      <div>
+            <div>
         {activeTab === 'pistas' && isPadel && <PistasTab match={match} onUpdate={fetchMatch} />}
         {activeTab === 'callups' && <CallupsTab match={match} onUpdate={fetchMatch} />}
         {activeTab === 'lineup' && !isPadel && <LineupTab match={match} onUpdate={fetchMatch} />}
-        {activeTab === 'stats' && <StatsTab match={match} onUpdate={fetchMatch} />}
-        {activeTab === 'gameplan' && <GamePlanTab match={match} onUpdate={fetchMatch} />}
+        {activeTab === 'stats' &&
+          (isPadel ? (
+            <PadelStatsTab match={match} onUpdate={fetchMatch} />
+          ) : (
+            <StatsTab match={match} onUpdate={fetchMatch} />
+          ))}
+        {activeTab === 'gameplan' && !isPadel && <GamePlanTab match={match} onUpdate={fetchMatch} />}
         {activeTab === 'notes' && <NotesTab match={match} onUpdate={fetchMatch} />}
         {activeTab === 'live' && <LiveStreamTab match={match} />}
       </div>

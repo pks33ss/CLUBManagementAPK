@@ -44,6 +44,81 @@ export interface PadelSubMatchDTO {
   updatedAt: string
 }
 
+export type SetResult = 'WIN' | 'LOSS' | 'DRAW' | null
+
+export interface PadelStatsSet {
+  id: string
+  order: number
+  homeScore: number
+  awayScore: number
+  result: SetResult
+}
+
+export interface PadelStatsSubMatch {
+  id: string
+  order: number
+  player1: { id: string; name: string; lastName: string } | null
+  player2: { id: string; name: string; lastName: string } | null
+  result: SetResult
+  setsWon: number
+  setsLost: number
+  setsDrawn: number
+  gamesWon: number
+  gamesLost: number
+  gamesDiff: number
+  sets: PadelStatsSet[]
+}
+
+export interface PadelStatsPlayer {
+  userId: string
+  name: string
+  lastName: string
+  subMatchesPlayed: number
+  subMatchesWon: number
+  subMatchesLost: number
+  subMatchesDrawn: number
+  setsPlayed: number
+  setsWon: number
+  setsLost: number
+  setsDrawn: number
+  setsWinRate: number
+  gamesWon: number
+  gamesLost: number
+  gamesDiff: number
+  matchResult: SetResult
+}
+
+export interface PadelStats {
+  match: {
+    id: string
+    teamId: string
+    date: string
+    opponent: string
+    teamScore: number | null
+    opponentScore: number | null
+    result: SetResult
+    hasGlobalScore: boolean
+  }
+  teamSummary: {
+    result: SetResult
+    teamScore: number | null
+    opponentScore: number | null
+    subMatchesPlayed: number
+    subMatchesWon: number
+    subMatchesLost: number
+    subMatchesDrawn: number
+    setsPlayed: number
+    setsWon: number
+    setsLost: number
+    setsDrawn: number
+    gamesWon: number
+    gamesLost: number
+    gamesDiff: number
+  }
+  subMatches: PadelStatsSubMatch[]
+  players: PadelStatsPlayer[]
+}
+
 // ============================================
 // API
 // ============================================
@@ -124,5 +199,9 @@ export const matchesApi = {
       `/matches/padel/sub-matches/${subMatchId}/sets/last`,
       { params: force ? { force: 'true' } : {} },
     )
+  },
+    async getPadelStats(matchId: string): Promise<PadelStats> {
+    const { data } = await api.get(`/matches/${matchId}/padel-stats`)
+    return data
   },
 }

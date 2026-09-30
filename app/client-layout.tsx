@@ -173,11 +173,20 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                 >
                   🏋️ Entrenamientos
                 </Link>
-                <Link
+                                <Link
                   href="/matches"
                   className={linkClass('/matches', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}
                 >
                   🏆 Partidos
+                </Link>
+                <Link
+                  href={`/teams/${activeTeam.id}/stats`}
+                  className={linkClass(
+                    `/teams/${activeTeam.id}/stats`,
+                    'px-3 py-2 rounded-lg text-sm whitespace-nowrap',
+                  )}
+                >
+                  📊 Estadísticas
                 </Link>
                 <Link
                   href="/calendar"
@@ -287,11 +296,20 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             >
               🏋️ Entren.
             </Link>
-            <Link
+                        <Link
               href="/matches"
               className={linkClass('/matches', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}
             >
               🏆 Partidos
+            </Link>
+            <Link
+              href={`/teams/${activeTeam.id}/stats`}
+              className={linkClass(
+                `/teams/${activeTeam.id}/stats`,
+                'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0',
+              )}
+            >
+              📊 Estad.
             </Link>
             <Link
               href="/calendar"
