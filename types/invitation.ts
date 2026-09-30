@@ -1,5 +1,5 @@
-export type InvitationChannel = 'EMAIL' | 'WHATSAPP' | 'LINK'
-export type InvitationStatus = 'PENDING' | 'USED' | 'EXPIRED' | 'REVOKED'
+export type InvitationChannel = 'EMAIL' | 'WHATSAPP' | 'LINK' | 'IN_APP'
+export type InvitationStatus = 'PENDING' | 'USED' | 'EXPIRED' | 'REVOKED' | 'REJECTED'
 
 export interface Invitation {
   id: string
@@ -17,7 +17,7 @@ export interface Invitation {
   invitedById: string
   createdAt: string
   updatedAt: string
-  invitationLink: string
+  invitationLink: string | null
   team?: {
     id: string
     name: string

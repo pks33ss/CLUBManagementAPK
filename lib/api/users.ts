@@ -68,6 +68,24 @@ export const usersApi = {
     return data
   },
 
+    /**
+   * Buscar un usuario registrado por email o username exacto
+   * para invitarlo a un equipo. Solo devuelve datos públicos.
+   */
+  async lookupUser(params: { email?: string; username?: string }): Promise<{
+    id: string
+    name: string
+    lastName: string
+    username: string | null
+  }> {
+    const { data } = await api.get('/users/lookup', { params })
+    return data
+  },
+
+
+
+
+
   /**
    * Editar los datos personales de un user fantasma.
    * Solo SUPER_ADMIN, ADMIN_CLUB del club o COACH+ del equipo.

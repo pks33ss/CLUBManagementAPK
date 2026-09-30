@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import api from '@/lib/api'
 import { usersApi } from '@/lib/api/users'
 import { invitationsApi } from '@/lib/api/invitations'
-import { Button, Input, Select, Modal, Card, CardBody } from '@/components/ui'
+import { Button, Input, Select, Modal } from '@/components/ui'
 import type { UserPublic } from '@/types/user'
 import { membershipsApi } from '@/lib/api/memberships'
 
@@ -14,22 +14,21 @@ interface Props {
   onSuccess: () => Promise<void> | void
 }
 
-type Mode = 'search' | 'create'
+type Mode = 'search' | 'create' | 'registered'
 type Role = 'PLAYER' | 'COACH' | 'ASSISTANT' | 'ADMIN_TEAM'
 
 export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props) {
   const [mode, setMode] = useState<Mode>('search')
   const [role, setRole] = useState<Role>('PLAYER')
 
-  // Search
+  // Search (Buscar en club)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<UserPublic[]>([])
   const [searching, setSearching] = useState(false)
   const [searched, setSearched] = useState(false)
-
   const [adding, setAdding] = useState<string | null>(null)
 
-  // Create
+  // Create (Crear nuevo)
   const [createForm, setCreateForm] = useState({
     name: '',
     lastName: '',
@@ -38,6 +37,9 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
     jerseyNumber: '',
     position: '',
   })
+
+  // Registered (Usuario Registrado)
+  const [registeredQuery, setRegisteredQuery] = useState('')
 
   // Result
   const [invitationLink, setInvitationLink] = useState<string | null>(null)
@@ -70,28 +72,9 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
     return () => clearTimeout(timer)
   }, [query])
 
-  // Invitar a user existente (crea invitación por link)
-  const handleInviteExisting = async (user: UserPublic) => {
-    setProcessing(true)
-    setError('')
-    try {
-      const invitation = await invitationsApi.create({
-        teamId,
-        role,
-        channel: 'LINK',
-        userId: user.id,
-      })
-      setInvitationLink(invitation.invitationLink)
-      setInvitationCode(invitation.code)
-    } catch (err: any) {
-      console.error('Error:', err)
-      setError(err.response?.data?.message || 'Error al crear la invitación')
-    } finally {
-      setProcessing(false)
-    }
-  }
-
-    // Añadir directamente un user existente al equipo (sin invitación)
+  // ─────────────────────────────────────────────
+  // Añadir directamente (sin invitación)
+  // ─────────────────────────────────────────────
   const handleAddExisting = async (user: UserPublic) => {
     setAdding(user.id)
     setError('')
@@ -100,7 +83,6 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
         userId: user.id,
         role,
       })
-      // Éxito: recargamos la lista y cerramos el modal
       await onSuccess()
       onClose()
     } catch (err: any) {
@@ -111,8 +93,42 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
     }
   }
 
+  // ─────────────────────────────────────────────
+  // Invitar a user existente (crea invitación)
+  // ─────────────────────────────────────────────
+  const handleInviteExisting = async (user: UserPublic) => {
+    setProcessing(true)
+    setError('')
+    try {
+      const invitation = await invitationsApi.create({
+        teamId,
+        role,
+        channel: 'LINK',
+        userId: user.id,
+      })
+      setInvitationCode(invitation.code)
 
-  // Crear jugador fantasma + añadirlo al equipo
+      if (invitation.channel === 'LINK') {
+        setInvitationLink(invitation.invitationLink)
+      } else {
+        setInvitationLink(null)
+      }
+    } catch (err: any) {
+      console.error('Error:', err)
+      const code = err.response?.data?.code
+      if (code === 'ALREADY_IN_TEAM') {
+        setError('Ya está en el equipo')
+      } else {
+        setError(err.response?.data?.message || 'Error al crear la invitación')
+      }
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // Crear fantasma + añadirlo al equipo
+  // ─────────────────────────────────────────────
   const handleCreateNew = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!createForm.name || !createForm.lastName) {
@@ -123,7 +139,6 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
     setProcessing(true)
     setError('')
     try {
-      // Llamar al nuevo endpoint POST /users/ghost
       await usersApi.createGhost({
         name: createForm.name,
         lastName: createForm.lastName,
@@ -137,12 +152,67 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
         role: 'PLAYER',
       })
 
-      // Éxito: recargar la lista y cerrar
       await onSuccess()
       onClose()
     } catch (err: any) {
       console.error('Error:', err)
-      setError(err.response?.data?.message || 'Error al crear el jugador')
+      const code = err.response?.data?.code
+
+      if (code === 'USER_ALREADY_EXISTS_USE_EMAIL_INVITE') {
+        // Redirigir a "Usuario Registrado" con el email pre-rellenado
+        setMode('registered')
+        setRegisteredQuery(createForm.email)
+        setError(
+          'Ese email ya está registrado. Te llevamos a "Usuario Registrado" para invitarlo.',
+        )
+      } else {
+        setError(err.response?.data?.message || 'Error al crear el jugador')
+      }
+    } finally {
+      setProcessing(false)
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // Invitar a usuario ya registrado (por email o @username)
+  // ─────────────────────────────────────────────
+  const handleInviteRegistered = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!registeredQuery.trim()) return
+
+    setProcessing(true)
+    setError('')
+
+    const isEmail =
+      registeredQuery.includes('@') && !registeredQuery.startsWith('@')
+
+    try {
+      // 1) Lookup para validar que existe y obtener su id
+      const found = await usersApi.lookupUser(
+        isEmail ? { email: registeredQuery } : { username: registeredQuery },
+      )
+
+      // 2) Crear invitación con userId + email
+      const invitation = await invitationsApi.create({
+        teamId,
+        role,
+        channel: 'IN_APP',
+        userId: found.id,
+        email: isEmail ? registeredQuery : undefined,
+      })
+
+      setInvitationCode(invitation.code)
+      setInvitationLink(null) // Siempre IN_APP → sin link
+    } catch (err: any) {
+      console.error('Error:', err)
+      const code = err.response?.data?.code
+      if (code === 'USER_NOT_FOUND') {
+        setError('Usuario no encontrado')
+      } else if (code === 'ALREADY_IN_TEAM') {
+        setError('Ya está en el equipo')
+      } else {
+        setError(err.response?.data?.message || 'Error al invitar')
+      }
     } finally {
       setProcessing(false)
     }
@@ -161,10 +231,10 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
   }
 
   // ============================================
-  // PANTALLA DE ÉXITO (después de crear invitación)
+  // PANTALLA DE ÉXITO
   // ============================================
 
-  if (invitationLink) {
+  if (invitationCode) {
     return (
       <Modal isOpen={true} onClose={onClose} title="Invitación creada" size="md">
         <div className="space-y-4">
@@ -172,39 +242,48 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
             <div className="text-4xl mb-2">✅</div>
             <p className="text-success font-medium">¡Listo!</p>
             <p className="text-xs text-text-muted mt-1">
-              Comparte este link con la persona invitada. Caduca en 7 días.
+              {invitationLink
+                ? 'Comparte este link con la persona invitada. Caduca en 7 días.'
+                : 'La invitación está en la bandeja del usuario. La verá cuando entre en la app.'}
             </p>
           </div>
 
-          {invitationCode && (
-            <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1">
-                Código
-              </label>
-              <code className="block bg-surface-elevated border border-border-subtle rounded-lg px-3 py-2 text-text-primary font-mono text-sm">
-                {invitationCode}
-              </code>
-            </div>
-          )}
-
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-1">
-              Link
+              Código
             </label>
-            <input
-              type="text"
-              value={invitationLink}
-              readOnly
-              className="w-full bg-surface-elevated border border-border-subtle rounded-lg px-3 py-2 text-text-primary text-sm"
-            />
+            <code className="block bg-surface-elevated border border-border-subtle rounded-lg px-3 py-2 text-text-primary font-mono text-sm">
+              {invitationCode}
+            </code>
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
-            <Button variant="secondary" onClick={copyLink}>
-              🔗 Copiar link
-            </Button>
-            <Button onClick={shareWhatsApp}>💬 WhatsApp</Button>
-          </div>
+          {invitationLink ? (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1">
+                  Link
+                </label>
+                <input
+                  type="text"
+                  value={invitationLink}
+                  readOnly
+                  className="w-full bg-surface-elevated border border-border-subtle rounded-lg px-3 py-2 text-text-primary text-sm"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <Button variant="secondary" onClick={copyLink}>
+                  🔗 Copiar link
+                </Button>
+                <Button onClick={shareWhatsApp}>💬 WhatsApp</Button>
+              </div>
+            </>
+          ) : (
+            <div className="bg-brand-primary/10 border border-brand-primary/20 rounded-lg p-3 text-sm text-text-secondary">
+              ✉️ La invitación está en la bandeja del usuario. La verá en su
+              sección <strong>Invitaciones</strong> cuando entre en la app.
+            </div>
+          )}
 
           <Button
             variant="secondary"
@@ -240,45 +319,56 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
         <option value="ADMIN_TEAM">🛠️ Admin Equipo</option>
       </Select>
 
-      {/* Tabs Search / Create */}
-      <div className="flex gap-1 mb-4 border-b border-border-subtle">
+      {/* Tabs */}
+      <div className="flex gap-1 mb-4 border-b border-border-subtle overflow-x-auto">
         <button
           onClick={() => setMode('search')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition ${
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition whitespace-nowrap ${
             mode === 'search'
               ? 'border-brand-primary text-brand-primary'
               : 'border-transparent text-text-muted hover:text-text-primary'
           }`}
         >
-          🔍 Buscar existente
+          🔍 Buscar en club
         </button>
-<button
-  onClick={() => setMode('create')}
-  className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition ${
-    mode === 'create'
-      ? 'border-brand-primary text-brand-primary'
-      : 'border-transparent text-text-muted hover:text-text-primary'
-  }`}
->
-  ➕ Crear nuevo
-
-</button>
+        <button
+          onClick={() => setMode('create')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition whitespace-nowrap ${
+            mode === 'create'
+              ? 'border-brand-primary text-brand-primary'
+              : 'border-transparent text-text-muted hover:text-text-primary'
+          }`}
+        >
+          ➕ Crear nuevo
+        </button>
+        <button
+          onClick={() => setMode('registered')}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition whitespace-nowrap ${
+            mode === 'registered'
+              ? 'border-brand-primary text-brand-primary'
+              : 'border-transparent text-text-muted hover:text-text-primary'
+          }`}
+        >
+          ✉️ Usuario Registrado
+        </button>
       </div>
 
-      {/* Modo búsqueda */}
+      {/* ─────────────────────────────────────── */}
+      {/* MODO BUSCAR EN CLUB */}
+      {/* ─────────────────────────────────────── */}
       {mode === 'search' && (
         <div className="space-y-4">
-<div className="bg-surface-elevated border border-border-subtle rounded-lg p-3 text-xs text-text-muted space-y-1">
-  <p>
-    <strong className="text-text-primary">➕ Añadir:</strong> crea la
-    membership directamente. Úsalo si el jugador ya está en otro equipo del
-    club y quieres reutilizarlo.
-  </p>
-  <p>
-    <strong className="text-text-primary">📨 Invitar:</strong> crea una
-    invitación que el jugador debe aceptar con un link.
-  </p>
-</div>
+          <div className="bg-surface-elevated border border-border-subtle rounded-lg p-3 text-xs text-text-muted space-y-1">
+            <p>
+              <strong className="text-text-primary">➕ Añadir:</strong> crea la
+              membership directamente. Úsalo si el jugador ya está en otro
+              equipo del club y quieres reutilizarlo.
+            </p>
+            <p>
+              <strong className="text-text-primary">📨 Invitar:</strong> crea
+              una invitación que el jugador debe aceptar con un link.
+            </p>
+          </div>
 
           <Input
             label="Buscar por nombre, @username o email"
@@ -320,31 +410,31 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-  <p className="font-medium text-text-primary truncate">
-    {u.name} {u.lastName}
-  </p>
-  <p className="text-xs text-brand-primary">{u.username}</p>
-</div>
-<div className="flex gap-2 shrink-0">
-  <Button
-    size="sm"
-    variant="secondary"
-    onClick={() => handleAddExisting(u)}
-    disabled={processing || adding === u.id}
-    loading={adding === u.id}
-    title="Añadir directamente al equipo (sin invitación)"
-  >
-    ➕ Añadir
-  </Button>
-  <Button
-    size="sm"
-    onClick={() => handleInviteExisting(u)}
-    disabled={processing || adding === u.id}
-    title="Enviar invitación (el usuario debe aceptarla)"
-  >
-    📨 Invitar
-  </Button>
-</div>
+                    <p className="font-medium text-text-primary truncate">
+                      {u.name} {u.lastName}
+                    </p>
+                    <p className="text-xs text-brand-primary">{u.username}</p>
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => handleAddExisting(u)}
+                      disabled={processing || adding === u.id}
+                      loading={adding === u.id}
+                      title="Añadir directamente al equipo (sin invitación)"
+                    >
+                      ➕ Añadir
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => handleInviteExisting(u)}
+                      disabled={processing || adding === u.id}
+                      title="Enviar invitación (el usuario debe aceptarla)"
+                    >
+                      📨 Invitar
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -352,10 +442,11 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
         </div>
       )}
 
-      {/* Modo crear */}
+      {/* ─────────────────────────────────────── */}
+      {/* MODO CREAR NUEVO */}
+      {/* ─────────────────────────────────────── */}
       {mode === 'create' && (
         <form onSubmit={handleCreateNew} className="space-y-4">
-            
           <div className="grid grid-cols-2 gap-4">
             <Input
               label="Nombre *"
@@ -368,7 +459,9 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
               label="Apellido *"
               type="text"
               value={createForm.lastName}
-              onChange={(e) => setCreateForm({ ...createForm, lastName: e.target.value })}
+              onChange={(e) =>
+                setCreateForm({ ...createForm, lastName: e.target.value })
+              }
               required
             />
           </div>
@@ -377,7 +470,9 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
             label="Email"
             type="email"
             value={createForm.email}
-            onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+            onChange={(e) =>
+              setCreateForm({ ...createForm, email: e.target.value })
+            }
             helperText="Opcional. Si lo pones, podrá recibir invitaciones por email"
           />
 
@@ -385,7 +480,9 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
             label="Teléfono"
             type="tel"
             value={createForm.phone}
-            onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
+            onChange={(e) =>
+              setCreateForm({ ...createForm, phone: e.target.value })
+            }
             helperText="Opcional"
           />
 
@@ -428,6 +525,54 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
               className="flex-1"
             >
               {processing ? 'Creando...' : 'Añadir jugador'}
+            </Button>
+          </div>
+        </form>
+      )}
+
+      {/* ─────────────────────────────────────── */}
+      {/* MODO USUARIO REGISTRADO */}
+      {/* ─────────────────────────────────────── */}
+      {mode === 'registered' && (
+        <form onSubmit={handleInviteRegistered} className="space-y-4">
+          <div className="bg-surface-elevated border border-border-subtle rounded-lg p-3 text-xs text-text-muted space-y-1">
+            <p>
+              <strong className="text-text-primary">
+                ✉️ Usuario Registrado:
+              </strong>{' '}
+              busca a alguien que ya tiene cuenta en JoinSport (en cualquier
+              club) y envíale una invitación. La verá en su sección{' '}
+              <strong>Invitaciones</strong>.
+            </p>
+          </div>
+
+          <Input
+            label="Email o @username"
+            type="text"
+            value={registeredQuery}
+            onChange={(e) => setRegisteredQuery(e.target.value)}
+            placeholder="Ej: juan@email.com o @juanperez"
+            autoFocus
+            required
+          />
+
+          <div className="flex gap-3 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={onClose}
+              disabled={processing}
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              disabled={processing}
+              loading={processing}
+              className="flex-1"
+            >
+              {processing ? 'Invitando...' : 'Enviar invitación'}
             </Button>
           </div>
         </form>

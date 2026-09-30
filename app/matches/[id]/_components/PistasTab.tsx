@@ -114,6 +114,85 @@ export default function PistasTab({ match, onUpdate }: Props) {
     }
   }
 
+    const handleAddSet = async (subMatchId: string) => {
+    setSaving(true)
+    try {
+      await matchesApi.addSetToSubMatch(subMatchId)
+      onUpdate()
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Error al añadir set')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleRemoveSet = async (subMatchId: string, setsCount: number) => {
+    if (setsCount <= 1) {
+      alert('Cada pista debe tener al menos 1 set')
+      return
+    }
+
+    // Intento sin force primero; si el backend responde 409, pedimos confirmación
+    setSaving(true)
+    try {
+      await matchesApi.removeLastSetFromSubMatch(subMatchId, false)
+      onUpdate()
+    } catch (err: any) {
+      const code = err.response?.data?.code
+
+      if (code === 'SET_HAS_DATA') {
+        const msg = err.response.data.message || 'El último set tiene datos. ¿Eliminar igualmente?'
+        if (confirm(msg)) {
+          try {
+            await matchesApi.removeLastSetFromSubMatch(subMatchId, true)
+            onUpdate()
+          } catch (err2: any) {
+            alert(err2.response?.data?.message || 'Error al eliminar set')
+          }
+        }
+      } else {
+        alert(err.response?.data?.message || 'Error al eliminar set')
+      }
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const handleApplySetsToAll = async (delta: 1 | -1) => {
+    if (pistas.length === 0) return
+
+    const label = delta > 0 ? 'añadir un set a TODAS' : 'quitar el último set de TODAS'
+    if (!confirm(`¿Seguro que quieres ${label} las pistas?`)) return
+
+    setSaving(true)
+    const errors: string[] = []
+
+    for (const pista of pistas) {
+      try {
+        if (delta > 0) {
+          await matchesApi.addSetToSubMatch(pista.id)
+        } else {
+          if (pista.sets.length <= 1) {
+            errors.push(`Pista ${pista.order}: mínimo 1 set`)
+            continue
+          }
+          await matchesApi.removeLastSetFromSubMatch(pista.id, true)
+        }
+      } catch (err: any) {
+        errors.push(
+          `Pista ${pista.order}: ${err.response?.data?.message || 'error'}`,
+        )
+      }
+    }
+
+    await onUpdate()
+    setSaving(false)
+
+    if (errors.length > 0) {
+      alert('Algunos cambios fallaron:\n' + errors.join('\n'))
+    }
+  }
+
   const handleMovePista = async (
     subMatchId: string,
     direction: 'up' | 'down',
@@ -168,6 +247,30 @@ export default function PistasTab({ match, onUpdate }: Props) {
               {eligiblePlayers.length} jugador{eligiblePlayers.length === 1 ? '' : 'es'} disponibles
             </p>
           </div>
+          <div className="flex items-center gap-2 flex-wrap">
+  <div className="flex items-center gap-1 text-xs text-text-muted">
+    <span className="hidden sm:inline">Sets en todas:</span>
+    <button
+      onClick={() => handleApplySetsToAll(-1)}
+      disabled={saving || pistas.length === 0}
+      className="p-1.5 rounded text-text-muted hover:text-danger hover:bg-danger/10 transition disabled:opacity-30"
+      title="Quitar un set a todas las pistas"
+    >
+      −
+    </button>
+    <button
+      onClick={() => handleApplySetsToAll(1)}
+      disabled={saving || pistas.length === 0}
+      className="p-1.5 rounded text-text-muted hover:text-brand-primary hover:bg-brand-primary/10 transition disabled:opacity-30"
+      title="Añadir un set a todas las pistas"
+    >
+      +
+    </button>
+  </div>
+  <Button size="sm" onClick={handleAddPista} disabled={saving}>
+    + Añadir pista
+  </Button>
+</div>
           <Button size="sm" onClick={handleAddPista} disabled={saving}>
             + Añadir pista
           </Button>
@@ -200,39 +303,59 @@ export default function PistasTab({ match, onUpdate }: Props) {
                   )}
                 </div>
                 <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handleMovePista(pista.id, 'up')}
-                    disabled={isFirst || saving}
-                    className={`p-2 rounded transition ${
-                      isFirst
-                        ? 'text-text-muted/30 cursor-not-allowed'
-                        : 'text-text-muted hover:text-brand-primary hover:bg-brand-primary/10'
-                    }`}
-                    title="Mover arriba"
-                  >
-                    ⬆️
-                  </button>
-                  <button
-                    onClick={() => handleMovePista(pista.id, 'down')}
-                    disabled={isLast || saving}
-                    className={`p-2 rounded transition ${
-                      isLast
-                        ? 'text-text-muted/30 cursor-not-allowed'
-                        : 'text-text-muted hover:text-brand-primary hover:bg-brand-primary/10'
-                    }`}
-                    title="Mover abajo"
-                  >
-                    ⬇️
-                  </button>
-                  <button
-                    onClick={() => handleRemovePista(pista.id, pista.order)}
-                    disabled={saving}
-                    className="p-2 rounded text-danger/70 hover:text-danger hover:bg-danger/10 transition"
-                    title="Eliminar pista"
-                  >
-                    🗑️
-                  </button>
-                </div>
+  <span className="text-xs text-text-muted mr-1 hidden sm:inline">
+    Sets: {pista.sets.length}
+  </span>
+  <button
+    onClick={() => handleRemoveSet(pista.id, pista.sets.length)}
+    disabled={saving || pista.sets.length <= 1}
+    className="p-2 rounded text-text-muted hover:text-danger hover:bg-danger/10 transition disabled:opacity-30"
+    title="Quitar último set"
+  >
+    − Set
+  </button>
+  <button
+    onClick={() => handleAddSet(pista.id)}
+    disabled={saving}
+    className="p-2 rounded text-text-muted hover:text-brand-primary hover:bg-brand-primary/10 transition"
+    title="Añadir set"
+  >
+    + Set
+  </button>
+  <div className="w-px h-5 bg-border-subtle mx-1" />
+  <button
+    onClick={() => handleMovePista(pista.id, 'up')}
+    disabled={isFirst || saving}
+    className={`p-2 rounded transition ${
+      isFirst
+        ? 'text-text-muted/30 cursor-not-allowed'
+        : 'text-text-muted hover:text-brand-primary hover:bg-brand-primary/10'
+    }`}
+    title="Mover arriba"
+  >
+    ⬆️
+  </button>
+  <button
+    onClick={() => handleMovePista(pista.id, 'down')}
+    disabled={isLast || saving}
+    className={`p-2 rounded transition ${
+      isLast
+        ? 'text-text-muted/30 cursor-not-allowed'
+        : 'text-text-muted hover:text-brand-primary hover:bg-brand-primary/10'
+    }`}
+    title="Mover abajo"
+  >
+    ⬇️
+  </button>
+  <button
+    onClick={() => handleRemovePista(pista.id, pista.order)}
+    disabled={saving}
+    className="p-2 rounded text-danger/70 hover:text-danger hover:bg-danger/10 transition"
+    title="Eliminar pista"
+  >
+    🗑️
+  </button>
+</div>
               </div>
 
               {/* Pareja nuestra */}

@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
 import { getSportIcon } from '@/lib/sport'
 import { Logo } from '@/components/ui/Logo'
+import { invitationsApi } from '@/lib/api/invitations'
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -24,6 +25,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
+  const [pendingInvitations, setPendingInvitations] = useState(0)
 
   const authRoutes = ['/login', '/register']
 
@@ -36,6 +38,15 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       } catch (e) {
         console.error('Error parsing user:', e)
       }
+    }
+
+    // Cargar invitaciones pendientes
+    const token = localStorage.getItem('token')
+    if (token && !authRoutes.includes(pathname)) {
+      invitationsApi
+        .getMine()
+        .then((list) => setPendingInvitations(list.length))
+        .catch(() => setPendingInvitations(0))
     }
   }, [pathname])
 
@@ -126,7 +137,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                       {getSportIcon(activeTeam.sport)}
                     </span>
                   )}
-                  {/* ✅ Ahora visible también en móvil, con truncado */}
                   <div className="min-w-0">
                     <div className="text-[10px] md:text-xs text-text-muted truncate leading-tight">
                       {activeTeam.club?.name || 'Sin club'}
@@ -148,7 +158,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                 >
                   🏠 Inicio
                 </Link>
-                {/* ✅ NUEVO: botón Equipo */}
                 <Link
                   href={`/teams/${activeTeam.id}`}
                   className={linkClass(
@@ -197,8 +206,21 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
               </div>
             )}
 
-            {/* DERECHA: usuario + logout */}
+            {/* DERECHA: invitaciones + usuario + logout */}
             <div className="flex items-center gap-3 shrink-0">
+              {pendingInvitations > 0 && (
+                <Link
+                  href="/invitations"
+                  className="relative p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary"
+                  title={`${pendingInvitations} invitación(es) pendiente(s)`}
+                >
+                  <span className="text-xl">✉️</span>
+                  <span className="absolute -top-1 -right-1 bg-danger text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                    {pendingInvitations}
+                  </span>
+                </Link>
+              )}
+
               {currentUser && (
                 <Link
                   href="/profile"
@@ -250,7 +272,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             >
               🏠 Inicio
             </Link>
-            {/* ✅ NUEVO: botón Equipo en móvil */}
             <Link
               href={`/teams/${activeTeam.id}`}
               className={linkClass(
@@ -419,47 +440,61 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
               </div>
             </div>
 
-<div className="p-4 border-t border-border-subtle space-y-1">
-  <Link
-    href="/dashboard"
-    onClick={() => setSidebarOpen(false)}
-    className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary"
-  >
-    <span className="text-lg">🏛️</span>
-    <span className="text-sm font-medium">Mis Clubs</span>
-  </Link>
-  <Link
-    href="/profile"
-    onClick={() => setSidebarOpen(false)}
-    className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary"
-  >
-    <span className="text-lg">⚙️</span>
-    <span className="text-sm font-medium">Configuración</span>
-  </Link>
+            <div className="p-4 border-t border-border-subtle space-y-1">
+              <Link
+                href="/dashboard"
+                onClick={() => setSidebarOpen(false)}
+                className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary"
+              >
+                <span className="text-lg">🏛️</span>
+                <span className="text-sm font-medium">Mis Clubs</span>
+              </Link>
 
-  {/* ✅ NUEVO: solo para SUPER_ADMIN */}
-  {currentUser?.role === 'SUPER_ADMIN' && (
-    <Link
-      href="/admin/users"
-      onClick={() => setSidebarOpen(false)}
-      className="flex items-center gap-3 p-2 rounded-lg hover:bg-brand-primary/10 transition text-brand-primary"
-    >
-      <span className="text-lg">👑</span>
-      <span className="text-sm font-medium">Admin · Usuarios</span>
-    </Link>
-  )}
+              <Link
+                href="/invitations"
+                onClick={() => setSidebarOpen(false)}
+                className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary"
+              >
+                <span className="text-lg">✉️</span>
+                <span className="text-sm font-medium">Invitaciones</span>
+                {pendingInvitations > 0 && (
+                  <span className="ml-auto bg-danger text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
+                    {pendingInvitations}
+                  </span>
+                )}
+              </Link>
 
-  <button
-    onClick={() => {
-      setSidebarOpen(false)
-      handleLogout()
-    }}
-    className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-danger/10 transition text-danger"
-  >
-    <span className="text-lg">🚪</span>
-    <span className="text-sm font-medium">Cerrar Sesión</span>
-  </button>
-</div>
+              <Link
+                href="/profile"
+                onClick={() => setSidebarOpen(false)}
+                className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary"
+              >
+                <span className="text-lg">⚙️</span>
+                <span className="text-sm font-medium">Configuración</span>
+              </Link>
+
+              {currentUser?.role === 'SUPER_ADMIN' && (
+                <Link
+                  href="/admin/users"
+                  onClick={() => setSidebarOpen(false)}
+                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-brand-primary/10 transition text-brand-primary"
+                >
+                  <span className="text-lg">👑</span>
+                  <span className="text-sm font-medium">Admin · Usuarios</span>
+                </Link>
+              )}
+
+              <button
+                onClick={() => {
+                  setSidebarOpen(false)
+                  handleLogout()
+                }}
+                className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-danger/10 transition text-danger"
+              >
+                <span className="text-lg">🚪</span>
+                <span className="text-sm font-medium">Cerrar Sesión</span>
+              </button>
+            </div>
           </div>
         </>
       )}

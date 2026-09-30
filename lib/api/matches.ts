@@ -102,4 +102,27 @@ export const matchesApi = {
     const { data: res } = await api.put(`/matches/padel/sets/${setId}`, data)
     return res
   },
+    /**
+   * Añade un set vacío al final de una pista.
+   */
+  async addSetToSubMatch(subMatchId: string): Promise<PadelSetDTO> {
+    const { data } = await api.post(
+      `/matches/padel/sub-matches/${subMatchId}/sets`,
+    )
+    return data
+  },
+
+  /**
+   * Elimina el último set de una pista.
+   * Si el set tiene datos, lanza 409 salvo que `force = true`.
+   */
+  async removeLastSetFromSubMatch(
+    subMatchId: string,
+    force = false,
+  ): Promise<void> {
+    await api.delete(
+      `/matches/padel/sub-matches/${subMatchId}/sets/last`,
+      { params: force ? { force: 'true' } : {} },
+    )
+  },
 }

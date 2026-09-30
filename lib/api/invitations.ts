@@ -40,4 +40,40 @@ export const invitationsApi = {
   async revoke(invitationId: string): Promise<void> {
     await api.delete(`/invitations/${invitationId}`)
   },
+
+    /**
+   * Invitaciones pendientes del usuario logueado.
+   */
+  async getMine(): Promise<Invitation[]> {
+    const { data } = await api.get('/invitations/mine')
+    return data
+  },
+
+  /**
+   * Preview de una invitación por código.
+   */
+  async getPreview(code: string): Promise<Invitation> {
+    const { data } = await api.get(`/invitations/${code}/preview`)
+    return data
+  },
+
+  /**
+   * Aceptar invitación.
+   */
+  async accept(code: string): Promise<{
+    accepted: boolean
+    alreadyMember: boolean
+    message?: string
+  }> {
+    const { data } = await api.post(`/invitations/${code}/accept`)
+    return data
+  },
+
+  /**
+   * Rechazar invitación.
+   */
+  async reject(code: string): Promise<{ rejected: boolean }> {
+    const { data } = await api.post(`/invitations/${code}/reject`)
+    return data
+  },
 }
