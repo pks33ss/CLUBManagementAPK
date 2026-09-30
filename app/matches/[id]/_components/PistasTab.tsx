@@ -271,9 +271,7 @@ export default function PistasTab({ match, onUpdate }: Props) {
     + Añadir pista
   </Button>
 </div>
-          <Button size="sm" onClick={handleAddPista} disabled={saving}>
-            + Añadir pista
-          </Button>
+ 
         </CardBody>
       </Card>
 
