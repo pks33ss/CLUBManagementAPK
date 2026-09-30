@@ -128,12 +128,12 @@ export default function UsersManagement() {
 
     setDeleting(true)
     try {
-      await api.delete(`/users/${deleteUser.id}`)
+      await api.delete(`/users/${deleteUser.id}?mode=hard`)
       setShowDeleteModal(false)
       setDeleteUser(null)
       setDeleteConfirmText('')
       fetchUsers()
-      alert('✅ Usuario eliminado permanentemente')
+      alert('✅ Usuario eliminado permanentemente (hard delete)')
     } catch (error: any) {
       console.error('Error:', error)
       alert(error.response?.data?.message || 'Error al eliminar el usuario')

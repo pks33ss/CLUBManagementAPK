@@ -7,6 +7,7 @@ import api from '@/lib/api'
 import { getSportConfig } from '@/lib/sport'
 import { Button, Card, CardBody, Badge, Input, Select, Modal } from '@/components/ui'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
+import { usePermissions } from '@/lib/usePermissions'
 import RequestJoinModal from './_components/RequestJoinModal'
 import AddSelfRoleModal from './_components/AddSelfRoleModal'
 
@@ -75,6 +76,9 @@ export default function TeamDetail() {
   // Modales de "solicitar unirme" y "añadirme un rol"
   const [showJoinModal, setShowJoinModal] = useState(false)
   const [showAddRoleModal, setShowAddRoleModal] = useState(false)
+
+  // ✅ Permisos del user actual sobre este team
+  const perms = usePermissions(teamId)
 
   useEffect(() => {
     const userStr = localStorage.getItem('user')
@@ -274,12 +278,24 @@ export default function TeamDetail() {
                 </Button>
               )}
 
-              <Button size="sm" onClick={openEdit}>
-                ✏️ Editar
-              </Button>
-              <Button size="sm" variant="danger" onClick={() => setShowDeleteModal(true)} disabled={deleting}>
-                🗑️ {deleting ? 'Eliminando...' : 'Eliminar'}
-              </Button>
+              {/* ✅ Editar: solo si canEdit */}
+              {perms.canEdit && (
+                <Button size="sm" onClick={openEdit}>
+                  ✏️ Editar
+                </Button>
+              )}
+
+              {/* ✅ Eliminar: solo si canDelete */}
+              {perms.canDelete && (
+                <Button
+                  size="sm"
+                  variant="danger"
+                  onClick={() => setShowDeleteModal(true)}
+                  disabled={deleting}
+                >
+                  🗑️ {deleting ? 'Eliminando...' : 'Eliminar'}
+                </Button>
+              )}
             </div>
           </div>
         </CardBody>
@@ -292,13 +308,16 @@ export default function TeamDetail() {
             <h2 className="text-xl font-semibold text-text-primary">
               👥 {sport.playerNamePlural} ({players.length})
             </h2>
-            <Button
-              size="sm"
-              href={`/teams/${teamId}/members?action=invite`}
-              icon={<span className="text-xl">+</span>}
-            >
-              Añadir {sport.playerName}
-            </Button>
+            {/* ✅ Añadir jugador: solo si canManage */}
+            {perms.canManage && (
+              <Button
+                size="sm"
+                href={`/teams/${teamId}/members?action=invite`}
+                icon={<span className="text-xl">+</span>}
+              >
+                Añadir {sport.playerName}
+              </Button>
+            )}
           </div>
 
           {players.length === 0 ? (
