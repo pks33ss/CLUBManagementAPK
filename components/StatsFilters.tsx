@@ -1,6 +1,7 @@
 'use client'
 
 import { Card, CardBody, Select, Input, Button } from '@/components/ui'
+import MultiSelect, { type MultiSelectOption } from './MultiSelect'
 
 export interface SeasonOption {
   id: string
@@ -15,11 +16,26 @@ export interface PlayerOption {
   lastName: string
 }
 
+export interface MatchOption {
+  id: string
+  date: string
+  opponent: string
+}
+
+export interface TeamOption {
+  id: string
+  name: string
+  category: string | null
+  sport: string
+}
+
 export interface StatsFiltersValue {
   seasonId: string
   from: string
   to: string
   playerId: string
+  matchIds: string[]
+  teamIds: string[]
 }
 
 interface Props {
@@ -28,6 +44,10 @@ interface Props {
   value: StatsFiltersValue
   onChange: (next: StatsFiltersValue) => void
   loading?: boolean
+  matches?: MatchOption[]
+  teams?: TeamOption[]
+  /** El team activo (para excluirlo del selector, ya que siempre está incluido) */
+  activeTeamId?: string
 }
 
 export const EMPTY_FILTERS: StatsFiltersValue = {
@@ -35,6 +55,8 @@ export const EMPTY_FILTERS: StatsFiltersValue = {
   from: '',
   to: '',
   playerId: '',
+  matchIds: [],
+  teamIds: [],
 }
 
 export default function StatsFilters({
@@ -43,12 +65,37 @@ export default function StatsFilters({
   value,
   onChange,
   loading,
+  matches,
+  teams,
+  activeTeamId,
 }: Props) {
   const hasFilters =
     value.seasonId !== '' ||
     value.from !== '' ||
     value.to !== '' ||
-    value.playerId !== ''
+    value.playerId !== '' ||
+    value.matchIds.length > 0 ||
+    value.teamIds.length > 0
+
+  const showMatches = matches && matches.length > 0
+  const showTeams = teams && teams.length > 0
+
+  const matchOptions: MultiSelectOption[] = showMatches
+    ? matches!.map((m) => ({
+        value: m.id,
+        label: `${new Date(m.date).toLocaleDateString()} · vs ${m.opponent}`,
+      }))
+    : []
+
+  const teamOptions: MultiSelectOption[] = showTeams
+    ? teams!
+        .filter((t) => t.id !== activeTeamId)
+        .map((t) => ({
+          value: t.id,
+          label: t.name,
+          sublabel: t.category ?? undefined,
+        }))
+    : []
 
   return (
     <Card>
@@ -117,6 +164,34 @@ export default function StatsFilters({
               </option>
             ))}
           </Select>
+
+          {showTeams && (
+            <div className="md:col-span-2">
+              <MultiSelect
+                label="Equipos"
+                options={teamOptions}
+                value={value.teamIds}
+                onChange={(next) => onChange({ ...value, teamIds: next })}
+                placeholder="Solo el equipo actual"
+                disabled={loading}
+                emptyText="No hay otros equipos del mismo deporte"
+              />
+            </div>
+          )}
+
+          {showMatches && (
+            <div className={showTeams ? 'md:col-span-2' : 'md:col-span-2 lg:col-span-4'}>
+              <MultiSelect
+                label="Partidos"
+                options={matchOptions}
+                value={value.matchIds}
+                onChange={(next) => onChange({ ...value, matchIds: next })}
+                placeholder="Todos los partidos"
+                disabled={loading}
+                emptyText="No hay partidos finalizados"
+              />
+            </div>
+          )}
         </div>
       </CardBody>
     </Card>

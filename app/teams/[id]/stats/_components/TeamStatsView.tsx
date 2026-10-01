@@ -5,40 +5,52 @@ import {
   teamsApi,
   type TeamStatsResponse,
   type PadelTeamStats,
+  type BasketballTeamStats,
 } from '@/lib/api/teams'
 import StatsFilters, {
   EMPTY_FILTERS,
   type SeasonOption,
   type PlayerOption,
+  type MatchOption,
+  type TeamOption,
   type StatsFiltersValue,
 } from '@/components/StatsFilters'
 import { Card, CardBody } from '@/components/ui'
 import PadelTeamStatsTab from './PadelTeamStatsTab'
+import BasketballTeamStatsTab from './BasketballTeamStatsTab'
 
 interface Props {
   teamId: string
   teamSport: string
   seasons: SeasonOption[]
+  matches: MatchOption[]
+  teams: TeamOption[]
 }
 
-// Type guard explícito para el discriminated union
 function isPadelStats(
   sport: TeamStatsResponse['sport'],
 ): sport is { type: 'PADEL'; data: PadelTeamStats } {
   return sport.type === 'PADEL' && sport.data !== null
 }
 
+function isBasketballStats(
+  sport: TeamStatsResponse['sport'],
+): sport is { type: 'BASKETBALL'; data: BasketballTeamStats } {
+  return sport.type === 'BASKETBALL' && sport.data !== null
+}
+
 export default function TeamStatsView({
   teamId,
   teamSport,
   seasons,
+  matches,
+  teams,
 }: Props) {
   const [filters, setFilters] = useState<StatsFiltersValue>(EMPTY_FILTERS)
   const [data, setData] = useState<TeamStatsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Cargamos cada vez que cambian los filtros
   useEffect(() => {
     let cancelled = false
     setLoading(true)
@@ -50,6 +62,8 @@ export default function TeamStatsView({
         from: filters.from || undefined,
         to: filters.to || undefined,
         playerId: filters.playerId || undefined,
+        matchIds: filters.matchIds.length > 0 ? filters.matchIds : undefined,
+        teamIds: filters.teamIds.length > 0 ? filters.teamIds : undefined,
       })
       .then((res) => {
         if (!cancelled) setData(res)
@@ -72,27 +86,39 @@ export default function TeamStatsView({
 
   const sportType = data?.sport?.type ?? teamSport
 
-  // F3 híbrido: jugadores que han jugado en el rango filtrado.
-  // Se derivan de la propia respuesta de stats (no de memberships).
-  // Mientras carga, mantenemos los que ya había para no parpadear.
   const playerOptions: PlayerOption[] = useMemo(() => {
-    if (!data || !isPadelStats(data.sport)) return []
-    return data.sport.data.players
-      .map((p) => ({
-        userId: p.userId,
-        name: p.name,
-        lastName: p.lastName,
-      }))
-      .sort((a, b) =>
-        `${a.lastName} ${a.name}`.localeCompare(
-          `${b.lastName} ${b.name}`,
-          'es',
-        ),
-      )
+    if (!data) return []
+    if (isPadelStats(data.sport)) {
+      return data.sport.data.players
+        .map((p) => ({
+          userId: p.userId,
+          name: p.name,
+          lastName: p.lastName,
+        }))
+        .sort((a, b) =>
+          `${a.lastName} ${a.name}`.localeCompare(
+            `${b.lastName} ${b.name}`,
+            'es',
+          ),
+        )
+    }
+    if (isBasketballStats(data.sport)) {
+      return data.sport.data.players
+        .map((p) => ({
+          userId: p.userId,
+          name: p.name,
+          lastName: p.lastName,
+        }))
+        .sort((a, b) =>
+          `${a.lastName} ${a.name}`.localeCompare(
+            `${b.lastName} ${b.name}`,
+            'es',
+          ),
+        )
+    }
+    return []
   }, [data])
 
-  // Si un filtro de jugador ya no existe en la nueva lista,
-  // lo limpiamos para no quedar con un filtro fantasma.
   useEffect(() => {
     if (!filters.playerId) return
     if (loading) return
@@ -130,6 +156,10 @@ export default function TeamStatsView({
       return <PadelTeamStatsTab data={data.sport.data} />
     }
 
+    if (isBasketballStats(data.sport)) {
+      return <BasketballTeamStatsTab data={data.sport.data} />
+    }
+
     return (
       <Card>
         <CardBody className="text-center py-12">
@@ -153,6 +183,9 @@ export default function TeamStatsView({
         value={filters}
         onChange={setFilters}
         loading={loading}
+        matches={matches}
+        teams={teams}
+        activeTeamId={teamId}
       />
       {content}
     </div>

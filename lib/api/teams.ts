@@ -1,5 +1,5 @@
 import api from '@/lib/api'
-import type { SetResult } from './matches'
+import type { SetResult, MatchResult } from './matches'
 
 // ============================================
 // TIPOS
@@ -7,10 +7,14 @@ import type { SetResult } from './matches'
 
 export interface TeamStatsFilters {
   seasonId?: string
-  from?: string // ISO date
-  to?: string // ISO date
+  from?: string
+  to?: string
   playerId?: string
+  matchIds?: string[]
+  teamIds?: string[]
 }
+
+// ─────────── PÁDEL ───────────
 
 export interface PadelTeamStatsPlayer {
   userId: string
@@ -20,6 +24,8 @@ export interface PadelTeamStatsPlayer {
   wins: number
   losses: number
   draws: number
+  availabilityCount: number
+  teamMatches: number
   subMatchesPlayed: number
   subMatchesWon: number
   subMatchesLost: number
@@ -54,7 +60,7 @@ export interface PadelTeamStatsSummary {
 }
 
 export interface PadelTeamStatsTrendMonth {
-  month: string // 'YYYY-MM'
+  month: string
   matches: number
   wins: number
   losses: number
@@ -88,21 +94,137 @@ export interface PadelTeamStats {
   }
 }
 
+// ─────────── BALONCESTO ───────────
+
+export interface BasketballTeamStatsPlayer {
+  userId: string
+  name: string
+  lastName: string
+  matches: number
+  wins: number
+  losses: number
+  draws: number
+  availabilityCount: number
+  teamMatches: number
+  minutes: number
+  minutesPerMatch: number
+  points: number
+  pointsPerMatch: number
+  rebounds: number
+  assists: number
+  steals: number
+  blocks: number
+  turnovers: number
+  fouls: number
+  // ✅ NUEVOS
+  blocksAgainst: number
+  foulsDrawn: number
+  plusMinus: number
+  valuation: number
+  valuationPerMatch: number
+  // ────────────
+  fieldGoalsMade: number
+  fieldGoalsAttempted: number
+  fieldGoalPct: number
+  threePointersMade: number
+  threePointersAttempted: number
+  threePointPct: number
+  freeThrowsMade: number
+  freeThrowsAttempted: number
+  freeThrowPct: number
+  winRate: number
+}
+
+export interface BasketballTeamStatsSummary {
+  matches: number
+  wins: number
+  losses: number
+  draws: number
+  winRate: number
+  points: number
+  opponentPoints: number
+  pointsPerMatch: number
+  opponentPointsPerMatch: number
+  totalMinutes: number
+  minutesPerMatch: number
+  rebounds: number
+  assists: number
+  steals: number
+  blocks: number
+  turnovers: number
+  fouls: number
+  // ✅ NUEVOS
+  blocksAgainst: number
+  foulsDrawn: number
+  plusMinus: number
+  valuation: number
+  // ────────────
+  fieldGoalsMade: number
+  fieldGoalsAttempted: number
+  fieldGoalPct: number
+  threePointersMade: number
+  threePointersAttempted: number
+  threePointPct: number
+  freeThrowsMade: number
+  freeThrowsAttempted: number
+  freeThrowPct: number
+}
+
+export interface BasketballTeamStatsTrendMonth {
+  month: string
+  matches: number
+  wins: number
+  losses: number
+  draws: number
+  winRate: number
+  points: number
+  opponentPoints: number
+  pointsPerMatch: number
+  opponentPointsPerMatch: number
+}
+
+export interface BasketballTeamStatsTrendLast10Match {
+  matchId: string
+  date: string
+  opponent: string
+  result: MatchResult
+  teamScore: number | null
+  opponentScore: number | null
+}
+
+export interface BasketballTeamStats {
+  summary: BasketballTeamStatsSummary
+  players: BasketballTeamStatsPlayer[]
+  trend: {
+    byMonth: BasketballTeamStatsTrendMonth[]
+    last10ByMatch: BasketballTeamStatsTrendLast10Match[]
+  }
+}
+
+// ─────────── RESPUESTA ───────────
+
 export interface TeamStatsResponse {
   team: {
     id: string
     name: string
     sport: string
   }
+  teams: Array<{
+    id: string
+    name: string
+    sport: string
+  }>
   filters: {
     seasonId: string | null
     from: string | null
     to: string | null
     playerId: string | null
+    matchIds: string[] | null
+    teamIds: string[] | null
   }
   sport:
     | { type: 'PADEL'; data: PadelTeamStats }
-    | { type: 'BASKETBALL'; data: null }
+    | { type: 'BASKETBALL'; data: BasketballTeamStats }
     | { type: 'FOOTBALL'; data: null }
     | { type: 'HANDBALL'; data: null }
     | { type: 'VOLLEYBALL'; data: null }
@@ -124,6 +246,12 @@ export const teamsApi = {
     if (filters.from) params.set('from', filters.from)
     if (filters.to) params.set('to', filters.to)
     if (filters.playerId) params.set('playerId', filters.playerId)
+    if (filters.matchIds && filters.matchIds.length > 0) {
+      params.set('matchIds', filters.matchIds.join(','))
+    }
+    if (filters.teamIds && filters.teamIds.length > 0) {
+      params.set('teamIds', filters.teamIds.join(','))
+    }
 
     const qs = params.toString()
     const { data } = await api.get(

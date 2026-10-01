@@ -177,7 +177,6 @@ export default function PadelTeamStatsTab({ data }: Props) {
             </h3>
 
             <div className="space-y-4">
-              {/* Por partido */}
               <div>
                 <p className="text-xs uppercase font-semibold text-text-muted mb-2">
                   Por partido (equipo)
@@ -200,7 +199,6 @@ export default function PadelTeamStatsTab({ data }: Props) {
                 )}
               </div>
 
-              {/* Por pista */}
               <div>
                 <p className="text-xs uppercase font-semibold text-text-muted mb-2">
                   Por pista (pareja)
@@ -253,6 +251,9 @@ export default function PadelTeamStatsTab({ data }: Props) {
                       W-L-D
                     </th>
                     <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
+                      Disp.
+                    </th>
+                    <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
                       % Vict.
                     </th>
                     <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
@@ -299,6 +300,9 @@ function PlayerRow({ p }: { p: PadelTeamStatsPlayer }) {
       <td className="px-3 py-2 text-center text-text-secondary">
         {p.wins}-{p.losses}
         {p.draws > 0 && `-${p.draws}`}
+      </td>
+      <td className="px-3 py-2 text-center text-text-secondary">
+        {p.availabilityCount}/{p.teamMatches}
       </td>
       <td
         className={`px-3 py-2 text-center font-semibold ${

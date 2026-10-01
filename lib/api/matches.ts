@@ -1,7 +1,7 @@
 import api from '@/lib/api'
 
 // ============================================
-// TIPOS
+// TIPOS — PÁDEL
 // ============================================
 
 export interface PadelSetDTO {
@@ -120,28 +120,100 @@ export interface PadelStats {
 }
 
 // ============================================
+// TIPOS — BALONCESTO
+// ============================================
+
+export type MatchResult = 'WIN' | 'LOSS' | 'DRAW' | null
+
+export interface BasketballPlayerStats {
+  userId: string
+  name: string
+  lastName: string
+  minutes: number | null
+  points: number
+  rebounds: number
+  assists: number
+  steals: number
+  blocks: number
+  turnovers: number
+  fouls: number
+  fieldGoalsMade: number
+  fieldGoalsAttempted: number
+  fieldGoalPct: number
+  threePointersMade: number
+  threePointersAttempted: number
+  threePointPct: number
+  freeThrowsMade: number
+  freeThrowsAttempted: number
+  freeThrowPct: number
+}
+
+export interface BasketballMatchStats {
+  match: {
+    id: string
+    teamId: string
+    date: string
+    opponent: string
+    teamScore: number | null
+    opponentScore: number | null
+    result: MatchResult
+    hasGlobalScore: boolean
+  }
+  teamSummary: {
+    points: number
+    rebounds: number
+    offensiveRebounds: number | null
+    defensiveRebounds: number | null
+    assists: number
+    steals: number
+    blocks: number
+    turnovers: number
+    fouls: number
+    fieldGoalsMade: number
+    fieldGoalsAttempted: number
+    threePointersMade: number
+    threePointersAttempted: number
+    freeThrowsMade: number
+    freeThrowsAttempted: number
+    fieldGoalPct: number
+    threePointPct: number
+    freeThrowPct: number
+  }
+  players: BasketballPlayerStats[]
+}
+
+export interface PlayerStatsInput {
+  minutes?: number | null
+  points?: number
+  rebounds?: number
+  assists?: number
+  steals?: number
+  blocks?: number
+  turnovers?: number
+  fouls?: number
+  fieldGoalsMade?: number
+  fieldGoalsAttempted?: number
+  threePointersMade?: number
+  threePointersAttempted?: number
+  freeThrowsMade?: number
+  freeThrowsAttempted?: number
+}
+
+// ============================================
 // API
 // ============================================
 
 export const matchesApi = {
-  /**
-   * Añade una pista al final del partido.
-   */
+  // ─────────── PÁDEL ───────────
   async addPadelSubMatch(matchId: string): Promise<PadelSubMatchDTO> {
     const { data } = await api.post(`/matches/${matchId}/padel/sub-matches`)
     return data
   },
 
-  /**
-   * Elimina una pista (y sus sets en cascada).
-   */
   async removePadelSubMatch(subMatchId: string): Promise<void> {
     await api.delete(`/matches/padel/sub-matches/${subMatchId}`)
   },
 
-  /**
-   * Reordena las pistas.
-   */
   async reorderPadelSubMatches(
     matchId: string,
     subMatchIds: string[],
@@ -151,10 +223,6 @@ export const matchesApi = {
     })
   },
 
-  /**
-   * Asigna/desasigna un jugador a una pista.
-   * playerSlot: 1 = derecha, 2 = izquierda.
-   */
   async updatePadelSubMatchPlayer(
     subMatchId: string,
     playerSlot: 1 | 2,
@@ -167,9 +235,6 @@ export const matchesApi = {
     return data
   },
 
-  /**
-   * Actualiza un set.
-   */
   async updatePadelSet(
     setId: string,
     data: { homeScore?: number; awayScore?: number; played?: boolean },
@@ -177,9 +242,7 @@ export const matchesApi = {
     const { data: res } = await api.put(`/matches/padel/sets/${setId}`, data)
     return res
   },
-    /**
-   * Añade un set vacío al final de una pista.
-   */
+
   async addSetToSubMatch(subMatchId: string): Promise<PadelSetDTO> {
     const { data } = await api.post(
       `/matches/padel/sub-matches/${subMatchId}/sets`,
@@ -187,10 +250,6 @@ export const matchesApi = {
     return data
   },
 
-  /**
-   * Elimina el último set de una pista.
-   * Si el set tiene datos, lanza 409 salvo que `force = true`.
-   */
   async removeLastSetFromSubMatch(
     subMatchId: string,
     force = false,
@@ -200,8 +259,34 @@ export const matchesApi = {
       { params: force ? { force: 'true' } : {} },
     )
   },
-    async getPadelStats(matchId: string): Promise<PadelStats> {
+
+  async getPadelStats(matchId: string): Promise<PadelStats> {
     const { data } = await api.get(`/matches/${matchId}/padel-stats`)
     return data
+  },
+
+  // ─────────── BALONCESTO ───────────
+  async getBasketballStats(matchId: string): Promise<BasketballMatchStats> {
+    const { data } = await api.get(`/matches/${matchId}/basketball-stats`)
+    return data
+  },
+
+  /**
+   * Crea o actualiza las stats de un jugador en el partido.
+   * Sirve también para añadir un jugador externo (del propio team o de otro team del club).
+   */
+  async upsertPlayerStats(
+    matchId: string,
+    userId: string,
+    stats: PlayerStatsInput,
+  ): Promise<void> {
+    await api.post(`/matches/${matchId}/stats/${userId}`, stats)
+  },
+
+  /**
+   * Quita a un jugador del partido (borra sus stats y su convocatoria).
+   */
+  async removePlayerStats(matchId: string, userId: string): Promise<void> {
+    await api.delete(`/matches/${matchId}/stats/${userId}`)
   },
 }
