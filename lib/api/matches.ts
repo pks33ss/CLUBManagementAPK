@@ -137,6 +137,12 @@ export interface BasketballPlayerStats {
   blocks: number
   turnovers: number
   fouls: number
+  // ✅ NUEVOS
+  blocksAgainst: number
+  foulsDrawn: number
+  plusMinus: number | null
+  valuation: number
+  // ────────────
   fieldGoalsMade: number
   fieldGoalsAttempted: number
   fieldGoalPct: number
@@ -169,6 +175,12 @@ export interface BasketballMatchStats {
     blocks: number
     turnovers: number
     fouls: number
+    // ✅ NUEVOS
+    blocksAgainst: number
+    foulsDrawn: number
+    plusMinus: number
+    valuation: number
+    // ────────────
     fieldGoalsMade: number
     fieldGoalsAttempted: number
     threePointersMade: number
@@ -191,6 +203,11 @@ export interface PlayerStatsInput {
   blocks?: number
   turnovers?: number
   fouls?: number
+  // ✅ NUEVOS
+  blocksAgainst?: number
+  foulsDrawn?: number
+  plusMinus?: number
+  // ────────────
   fieldGoalsMade?: number
   fieldGoalsAttempted?: number
   threePointersMade?: number
@@ -271,10 +288,6 @@ export const matchesApi = {
     return data
   },
 
-  /**
-   * Crea o actualiza las stats de un jugador en el partido.
-   * Sirve también para añadir un jugador externo (del propio team o de otro team del club).
-   */
   async upsertPlayerStats(
     matchId: string,
     userId: string,
@@ -283,9 +296,6 @@ export const matchesApi = {
     await api.post(`/matches/${matchId}/stats/${userId}`, stats)
   },
 
-  /**
-   * Quita a un jugador del partido (borra sus stats y su convocatoria).
-   */
   async removePlayerStats(matchId: string, userId: string): Promise<void> {
     await api.delete(`/matches/${matchId}/stats/${userId}`)
   },
