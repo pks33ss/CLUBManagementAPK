@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
-import { Card, CardBody } from '@/components/ui'
+import { Card, CardBody, Button } from '@/components/ui'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
+import { usePermissions } from '@/lib/usePermissions'
 import TeamStatsView from './_components/TeamStatsView'
 import type {
   SeasonOption,
@@ -26,6 +27,7 @@ export default function TeamStatsPage() {
   const teamId = params.id as string
 
   const { allTeams } = useActiveTeam()
+  const perms = usePermissions(teamId)
 
   const [team, setTeam] = useState<TeamLite | null>(null)
   const [seasons, setSeasons] = useState<SeasonOption[]>([])
@@ -101,8 +103,6 @@ export default function TeamStatsPage() {
     }
   }, [teamId, router])
 
-  // Equipos accesibles al viewer (ya filtrados por el contexto),
-  // del mismo deporte y mismo club que el activo.
   const teamOptions: TeamOption[] = useMemo(() => {
     if (!team) return []
     const clubId = team.club?.id
@@ -152,12 +152,26 @@ export default function TeamStatsPage() {
 
       <Card className="mb-6">
         <CardBody>
-          <h1 className="text-3xl font-bold text-text-primary">
-            📊 Estadísticas · {team.name}
-          </h1>
-          <p className="text-text-secondary mt-1">
-            Filtra por temporada, rango de fechas, jugador, equipos o partidos.
-          </p>
+          <div className="flex justify-between items-start flex-wrap gap-3">
+            <div>
+              <h1 className="text-3xl font-bold text-text-primary">
+                📊 Estadísticas · {team.name}
+              </h1>
+              <p className="text-text-secondary mt-1">
+                Filtra por temporada, rango de fechas, jugador, equipos o
+                partidos.
+              </p>
+            </div>
+            {perms.canEdit && (
+              <Button
+                variant="secondary"
+                size="sm"
+                href={`/teams/${teamId}/stats/config`}
+              >
+                ⚙️ Configuración
+              </Button>
+            )}
+          </div>
         </CardBody>
       </Card>
 

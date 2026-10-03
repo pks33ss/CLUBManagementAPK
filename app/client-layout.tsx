@@ -481,7 +481,14 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                   </span>
                 )}
               </Link>
-
+<Link
+  href={activeTeam ? `/teams/${activeTeam.id}/stats/config` : '#'}
+  onClick={() => setSidebarOpen(false)}
+  className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary"
+>
+  <span className="text-lg">📊</span>
+  <span className="text-sm font-medium">Configuración stats</span>
+</Link>
               <Link
                 href="/profile"
                 onClick={() => setSidebarOpen(false)}
