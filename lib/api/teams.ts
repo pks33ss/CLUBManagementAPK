@@ -222,6 +222,7 @@ export interface TeamStatsResponse {
     matchIds: string[] | null
     teamIds: string[] | null
   }
+  visibleMetrics: string[] 
   sport:
     | { type: 'PADEL'; data: PadelTeamStats }
     | { type: 'BASKETBALL'; data: BasketballTeamStats }

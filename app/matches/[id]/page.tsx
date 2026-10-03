@@ -13,10 +13,9 @@ import StatsTab from './_components/StatsTab'
 import GamePlanTab from './_components/GamePlanTab'
 import NotesTab from './_components/NotesTab'
 import PistasTab from './_components/PistasTab'
-
 import LiveStreamTab from './_components/LiveStreamTab'
-
 import PadelStatsTab from './_components/PadelStatsTab'
+import BasketballMatchStatsTab from './_components/BasketballMatchStatsTab'
 
 export interface MatchDetail {
   id: string
@@ -181,8 +180,9 @@ export default function MatchDetailPage() {
 
   const sport = getSportConfig(match.team?.sport)
   const isPadel = match.team?.sport === 'PADEL'
+  const isBasketball = match.team?.sport === 'BASKETBALL'
 
-    const tabs: { id: Tab; label: string; icon: string }[] = isPadel
+  const tabs: { id: Tab; label: string; icon: string }[] = isPadel
     ? [
         { id: 'pistas',   label: 'Pistas',        icon: '🏟️' },
         { id: 'callups',  label: 'Convocatoria',  icon: '🎯' },
@@ -227,13 +227,15 @@ export default function MatchDetailPage() {
       </div>
 
       {/* Contenido del tab */}
-            <div>
+      <div>
         {activeTab === 'pistas' && isPadel && <PistasTab match={match} onUpdate={fetchMatch} />}
         {activeTab === 'callups' && <CallupsTab match={match} onUpdate={fetchMatch} />}
         {activeTab === 'lineup' && !isPadel && <LineupTab match={match} onUpdate={fetchMatch} />}
         {activeTab === 'stats' &&
           (isPadel ? (
             <PadelStatsTab match={match} onUpdate={fetchMatch} />
+          ) : isBasketball ? (
+            <BasketballMatchStatsTab match={match} onUpdate={fetchMatch} />
           ) : (
             <StatsTab match={match} onUpdate={fetchMatch} />
           ))}

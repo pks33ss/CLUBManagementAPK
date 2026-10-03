@@ -89,6 +89,7 @@ export interface PadelStatsPlayer {
 }
 
 export interface PadelStats {
+  visibleMetrics: string[]
   match: {
     id: string
     teamId: string
@@ -155,7 +156,8 @@ export interface BasketballPlayerStats {
 }
 
 export interface BasketballMatchStats {
-  match: {
+  visibleMetrics: string[]
+  atch: {
     id: string
     teamId: string
     date: string

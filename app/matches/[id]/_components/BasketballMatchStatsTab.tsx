@@ -78,40 +78,6 @@ function fmtPlusMinus(v: number | null | undefined): string {
   return `${v}`
 }
 
-// Misma fórmula que backend (Euroliga / PIR)
-function computeValuation(s: {
-  points: number
-  rebounds: number
-  assists: number
-  steals: number
-  blocks: number
-  foulsDrawn: number
-  fieldGoalsMade: number
-  fieldGoalsAttempted: number
-  threePointersMade: number
-  threePointersAttempted: number
-  freeThrowsMade: number
-  freeThrowsAttempted: number
-  turnovers: number
-  blocksAgainst: number
-  fouls: number
-}): number {
-  return (
-    s.points +
-    s.rebounds +
-    s.assists +
-    s.steals +
-    s.blocks +
-    s.foulsDrawn -
-    (s.fieldGoalsAttempted - s.fieldGoalsMade) -
-    (s.threePointersAttempted - s.threePointersMade) -
-    (s.freeThrowsAttempted - s.freeThrowsMade) -
-    s.turnovers -
-    s.blocksAgainst -
-    s.fouls
-  )
-}
-
 export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
   const [stats, setStats] = useState<BasketballMatchStats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -239,7 +205,9 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
     )
   }
 
-  const { teamSummary, players } = stats
+  const { teamSummary, players, visibleMetrics } = stats
+  const show = (key: string) => visibleMetrics.includes(key)
+
   const includedIds = new Set(players.map((p) => p.userId))
 
   const teamCandidates = (match.team.memberships ?? [])
@@ -287,51 +255,83 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                   : '—'
               }
             />
-            <StatBox label="Puntos" value={`${teamSummary.points}`} />
-            <StatBox label="Rebotes" value={`${teamSummary.rebounds}`} />
-            <StatBox label="Asistencias" value={`${teamSummary.assists}`} />
-            <StatBox
-              label="Valoración"
-              value={`${teamSummary.valuation}`}
-              hintColor={
-                teamSummary.valuation > 0
-                  ? 'text-success'
-                  : teamSummary.valuation < 0
-                  ? 'text-danger'
-                  : 'text-text-muted'
-              }
-            />
-            <StatBox
-              label="+/-"
-              value={fmtPlusMinus(teamSummary.plusMinus)}
-              hintColor={
-                teamSummary.plusMinus > 0
-                  ? 'text-success'
-                  : teamSummary.plusMinus < 0
-                  ? 'text-danger'
-                  : 'text-text-muted'
-              }
-            />
-            <StatBox
-              label="% TC"
-              value={`${teamSummary.fieldGoalPct}%`}
-              hint={`${teamSummary.fieldGoalsMade}/${teamSummary.fieldGoalsAttempted}`}
-            />
-            <StatBox
-              label="% 3P"
-              value={`${teamSummary.threePointPct}%`}
-              hint={`${teamSummary.threePointersMade}/${teamSummary.threePointersAttempted}`}
-            />
-            <StatBox
-              label="% TL"
-              value={`${teamSummary.freeThrowPct}%`}
-              hint={`${teamSummary.freeThrowsMade}/${teamSummary.freeThrowsAttempted}`}
-            />
-            <StatBox
-              label="Tapones c."
-              value={`${teamSummary.blocksAgainst}`}
-            />
-            <StatBox label="Faltas r." value={`${teamSummary.foulsDrawn}`} />
+            {show('POINTS') && (
+              <StatBox label="Puntos" value={`${teamSummary.points}`} />
+            )}
+            {show('REBOUNDS') && (
+              <StatBox label="Rebotes" value={`${teamSummary.rebounds}`} />
+            )}
+            {show('ASSISTS') && (
+              <StatBox label="Asistencias" value={`${teamSummary.assists}`} />
+            )}
+            {show('VALUATION') && (
+              <StatBox
+                label="Valoración"
+                value={`${teamSummary.valuation}`}
+                hintColor={
+                  teamSummary.valuation > 0
+                    ? 'text-success'
+                    : teamSummary.valuation < 0
+                    ? 'text-danger'
+                    : 'text-text-muted'
+                }
+              />
+            )}
+            {show('PLUS_MINUS') && (
+              <StatBox
+                label="+/-"
+                value={fmtPlusMinus(teamSummary.plusMinus)}
+                hintColor={
+                  teamSummary.plusMinus > 0
+                    ? 'text-success'
+                    : teamSummary.plusMinus < 0
+                    ? 'text-danger'
+                    : 'text-text-muted'
+                }
+              />
+            )}
+            {show('FG_PCT') && (
+              <StatBox
+                label="% TC"
+                value={`${teamSummary.fieldGoalPct}%`}
+                hint={
+                  show('FG_MADE') && show('FG_ATTEMPTED')
+                    ? `${teamSummary.fieldGoalsMade}/${teamSummary.fieldGoalsAttempted}`
+                    : undefined
+                }
+              />
+            )}
+            {show('TP_PCT') && (
+              <StatBox
+                label="% 3P"
+                value={`${teamSummary.threePointPct}%`}
+                hint={
+                  show('TP_MADE') && show('TP_ATTEMPTED')
+                    ? `${teamSummary.threePointersMade}/${teamSummary.threePointersAttempted}`
+                    : undefined
+                }
+              />
+            )}
+            {show('FT_PCT') && (
+              <StatBox
+                label="% TL"
+                value={`${teamSummary.freeThrowPct}%`}
+                hint={
+                  show('FT_MADE') && show('FT_ATTEMPTED')
+                    ? `${teamSummary.freeThrowsMade}/${teamSummary.freeThrowsAttempted}`
+                    : undefined
+                }
+              />
+            )}
+            {show('BLOCKS_AGAINST') && (
+              <StatBox
+                label="Tapones c."
+                value={`${teamSummary.blocksAgainst}`}
+              />
+            )}
+            {show('FOULS_DRAWN') && (
+              <StatBox label="Faltas r." value={`${teamSummary.foulsDrawn}`} />
+            )}
           </div>
         </CardBody>
       </Card>
@@ -357,23 +357,78 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
               <table className="w-full text-xs">
                 <thead className="bg-surface-elevated">
                   <tr>
-                    <th className="px-2 py-2 text-left text-[10px] font-medium text-text-muted uppercase">Jugador</th>
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Min</th>
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Pts</th>
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Reb</th>
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Ast</th>
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Rob</th>
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Tap</th>
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TpC</th>
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Per</th>
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Fal</th>
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">FR</th>
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">+/-</th>
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TC</th>
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">3P</th>
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TL</th>
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Val</th>
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Acción</th>
+                    <th className="px-2 py-2 text-left text-[10px] font-medium text-text-muted uppercase">
+                      Jugador
+                    </th>
+                    {editing ? (
+                      <>
+                        {/* Modo edición: siempre todas las columnas */}
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Min</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Pts</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Reb</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Ast</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Rob</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Tap</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TpC</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Per</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Fal</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">FR</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">+/-</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TC</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">3P</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TL</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Acción</th>
+                      </>
+                    ) : (
+                      <>
+                        {show('MINUTES') && (
+                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Min</th>
+                        )}
+                        {show('POINTS') && (
+                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Pts</th>
+                        )}
+                        {show('REBOUNDS') && (
+                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Reb</th>
+                        )}
+                        {show('ASSISTS') && (
+                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Ast</th>
+                        )}
+                        {show('STEALS') && (
+                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Rob</th>
+                        )}
+                        {show('BLOCKS') && (
+                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Tap</th>
+                        )}
+                        {show('BLOCKS_AGAINST') && (
+                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TpC</th>
+                        )}
+                        {show('TURNOVERS') && (
+                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Per</th>
+                        )}
+                        {show('FOULS') && (
+                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Fal</th>
+                        )}
+                        {show('FOULS_DRAWN') && (
+                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">FR</th>
+                        )}
+                        {show('PLUS_MINUS') && (
+                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">+/-</th>
+                        )}
+                        {show('FG_PCT') && (
+                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TC</th>
+                        )}
+                        {show('TP_PCT') && (
+                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">3P</th>
+                        )}
+                        {show('FT_PCT') && (
+                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TL</th>
+                        )}
+                        {show('VALUATION') && (
+                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Val</th>
+                        )}
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Acción</th>
+                      </>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-subtle">
@@ -526,56 +581,112 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                           </>
                         ) : (
                           <>
-                            <td className="px-2 py-2 text-center text-text-secondary">{p.minutes ?? '-'}</td>
-                            <td className="px-2 py-2 text-center font-semibold text-text-primary">{p.points}</td>
-                            <td className="px-2 py-2 text-center text-text-secondary">{p.rebounds}</td>
-                            <td className="px-2 py-2 text-center text-text-secondary">{p.assists}</td>
-                            <td className="px-2 py-2 text-center text-text-secondary">{p.steals}</td>
-                            <td className="px-2 py-2 text-center text-text-secondary">{p.blocks}</td>
-                            <td className="px-2 py-2 text-center text-text-secondary">{p.blocksAgainst}</td>
-                            <td className="px-2 py-2 text-center text-text-secondary">{p.turnovers}</td>
-                            <td className="px-2 py-2 text-center text-text-secondary">{p.fouls}</td>
-                            <td className="px-2 py-2 text-center text-text-secondary">{p.foulsDrawn}</td>
-                            <td
-                              className={`px-2 py-2 text-center font-medium ${
-                                (p.plusMinus ?? 0) > 0
-                                  ? 'text-success'
-                                  : (p.plusMinus ?? 0) < 0
-                                  ? 'text-danger'
-                                  : 'text-text-muted'
-                              }`}
-                            >
-                              {fmtPlusMinus(p.plusMinus)}
-                            </td>
-                            <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
-                              {p.fieldGoalsMade}/{p.fieldGoalsAttempted}
-                              <span className="text-text-muted text-[10px] ml-1">
-                                ({p.fieldGoalPct}%)
-                              </span>
-                            </td>
-                            <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
-                              {p.threePointersMade}/{p.threePointersAttempted}
-                              <span className="text-text-muted text-[10px] ml-1">
-                                ({p.threePointPct}%)
-                              </span>
-                            </td>
-                            <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
-                              {p.freeThrowsMade}/{p.freeThrowsAttempted}
-                              <span className="text-text-muted text-[10px] ml-1">
-                                ({p.freeThrowPct}%)
-                              </span>
-                            </td>
-                            <td
-                              className={`px-2 py-2 text-center font-semibold ${
-                                p.valuation > 0
-                                  ? 'text-success'
-                                  : p.valuation < 0
-                                  ? 'text-danger'
-                                  : 'text-text-muted'
-                              }`}
-                            >
-                              {p.valuation}
-                            </td>
+                            {show('MINUTES') && (
+                              <td className="px-2 py-2 text-center text-text-secondary">
+                                {p.minutes ?? '-'}
+                              </td>
+                            )}
+                            {show('POINTS') && (
+                              <td className="px-2 py-2 text-center font-semibold text-text-primary">
+                                {p.points}
+                              </td>
+                            )}
+                            {show('REBOUNDS') && (
+                              <td className="px-2 py-2 text-center text-text-secondary">
+                                {p.rebounds}
+                              </td>
+                            )}
+                            {show('ASSISTS') && (
+                              <td className="px-2 py-2 text-center text-text-secondary">
+                                {p.assists}
+                              </td>
+                            )}
+                            {show('STEALS') && (
+                              <td className="px-2 py-2 text-center text-text-secondary">
+                                {p.steals}
+                              </td>
+                            )}
+                            {show('BLOCKS') && (
+                              <td className="px-2 py-2 text-center text-text-secondary">
+                                {p.blocks}
+                              </td>
+                            )}
+                            {show('BLOCKS_AGAINST') && (
+                              <td className="px-2 py-2 text-center text-text-secondary">
+                                {p.blocksAgainst}
+                              </td>
+                            )}
+                            {show('TURNOVERS') && (
+                              <td className="px-2 py-2 text-center text-text-secondary">
+                                {p.turnovers}
+                              </td>
+                            )}
+                            {show('FOULS') && (
+                              <td className="px-2 py-2 text-center text-text-secondary">
+                                {p.fouls}
+                              </td>
+                            )}
+                            {show('FOULS_DRAWN') && (
+                              <td className="px-2 py-2 text-center text-text-secondary">
+                                {p.foulsDrawn}
+                              </td>
+                            )}
+                            {show('PLUS_MINUS') && (
+                              <td
+                                className={`px-2 py-2 text-center font-medium ${
+                                  (p.plusMinus ?? 0) > 0
+                                    ? 'text-success'
+                                    : (p.plusMinus ?? 0) < 0
+                                    ? 'text-danger'
+                                    : 'text-text-muted'
+                                }`}
+                              >
+                                {fmtPlusMinus(p.plusMinus)}
+                              </td>
+                            )}
+                            {show('FG_PCT') && (
+                              <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
+                                {show('FG_MADE') && show('FG_ATTEMPTED')
+                                  ? `${p.fieldGoalsMade}/${p.fieldGoalsAttempted} `
+                                  : ''}
+                                <span className="text-text-muted text-[10px]">
+                                  ({p.fieldGoalPct}%)
+                                </span>
+                              </td>
+                            )}
+                            {show('TP_PCT') && (
+                              <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
+                                {show('TP_MADE') && show('TP_ATTEMPTED')
+                                  ? `${p.threePointersMade}/${p.threePointersAttempted} `
+                                  : ''}
+                                <span className="text-text-muted text-[10px]">
+                                  ({p.threePointPct}%)
+                                </span>
+                              </td>
+                            )}
+                            {show('FT_PCT') && (
+                              <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
+                                {show('FT_MADE') && show('FT_ATTEMPTED')
+                                  ? `${p.freeThrowsMade}/${p.freeThrowsAttempted} `
+                                  : ''}
+                                <span className="text-text-muted text-[10px]">
+                                  ({p.freeThrowPct}%)
+                                </span>
+                              </td>
+                            )}
+                            {show('VALUATION') && (
+                              <td
+                                className={`px-2 py-2 text-center font-semibold ${
+                                  p.valuation > 0
+                                    ? 'text-success'
+                                    : p.valuation < 0
+                                    ? 'text-danger'
+                                    : 'text-text-muted'
+                                }`}
+                              >
+                                {p.valuation}
+                              </td>
+                            )}
                             <td className="px-2 py-2 text-center">
                               <div className="flex gap-1 justify-center">
                                 <button

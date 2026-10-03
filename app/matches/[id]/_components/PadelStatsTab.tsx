@@ -63,7 +63,8 @@ export default function PadelStatsTab({ match }: Props) {
     )
   }
 
-  const { teamSummary, subMatches, players } = stats
+  const { teamSummary, subMatches, players, visibleMetrics } = stats
+  const show = (key: string) => visibleMetrics.includes(key)
 
   return (
     <div className="space-y-6">
@@ -100,44 +101,75 @@ export default function PadelStatsTab({ match }: Props) {
                   : '—'
               }
             />
-            <StatBox
-              label="Pistas"
-              value={`${teamSummary.subMatchesWon}-${teamSummary.subMatchesLost}${
-                teamSummary.subMatchesDrawn > 0
-                  ? `-${teamSummary.subMatchesDrawn}`
-                  : ''
-              }`}
-              hint={`${teamSummary.subMatchesPlayed} jugadas`}
-            />
-            <StatBox
-              label="Sets"
-              value={`${teamSummary.setsWon}-${teamSummary.setsLost}${
-                teamSummary.setsDrawn > 0 ? `-${teamSummary.setsDrawn}` : ''
-              }`}
-              hint={`${teamSummary.setsPlayed} jugados`}
-            />
-            <StatBox
-              label="Games"
-              value={`${teamSummary.gamesWon}-${teamSummary.gamesLost}`}
-              hint={
-                teamSummary.gamesDiff >= 0
-                  ? `+${teamSummary.gamesDiff}`
-                  : `${teamSummary.gamesDiff}`
-              }
-              hintColor={
-                teamSummary.gamesDiff > 0
-                  ? 'text-success'
-                  : teamSummary.gamesDiff < 0
-                  ? 'text-danger'
-                  : 'text-text-muted'
-              }
-            />
+            {(show('SUB_MATCHES_WON') ||
+              show('SUB_MATCHES_LOST') ||
+              show('SUB_MATCHES_DRAWN')) && (
+              <StatBox
+                label="Pistas"
+                value={`${
+                  show('SUB_MATCHES_WON') ? teamSummary.subMatchesWon : '-'
+                }-${
+                  show('SUB_MATCHES_LOST') ? teamSummary.subMatchesLost : '-'
+                }${
+                  show('SUB_MATCHES_DRAWN') &&
+                  teamSummary.subMatchesDrawn > 0
+                    ? `-${teamSummary.subMatchesDrawn}`
+                    : ''
+                }`}
+                hint={
+                  show('SUB_MATCHES_PLAYED')
+                    ? `${teamSummary.subMatchesPlayed} jugadas`
+                    : undefined
+                }
+              />
+            )}
+            {(show('SETS_WON') ||
+              show('SETS_LOST') ||
+              show('SETS_DRAWN')) && (
+              <StatBox
+                label="Sets"
+                value={`${show('SETS_WON') ? teamSummary.setsWon : '-'}-${
+                  show('SETS_LOST') ? teamSummary.setsLost : '-'
+                }${
+                  show('SETS_DRAWN') && teamSummary.setsDrawn > 0
+                    ? `-${teamSummary.setsDrawn}`
+                    : ''
+                }`}
+                hint={
+                  show('SETS_PLAYED')
+                    ? `${teamSummary.setsPlayed} jugados`
+                    : undefined
+                }
+              />
+            )}
+            {(show('GAMES_WON') || show('GAMES_LOST')) && (
+              <StatBox
+                label="Games"
+                value={`${show('GAMES_WON') ? teamSummary.gamesWon : '-'}-${
+                  show('GAMES_LOST') ? teamSummary.gamesLost : '-'
+                }`}
+                hint={
+                  show('GAMES_DIFF')
+                    ? teamSummary.gamesDiff >= 0
+                      ? `+${teamSummary.gamesDiff}`
+                      : `${teamSummary.gamesDiff}`
+                    : undefined
+                }
+                hintColor={
+                  teamSummary.gamesDiff > 0
+                    ? 'text-success'
+                    : teamSummary.gamesDiff < 0
+                    ? 'text-danger'
+                    : 'text-text-muted'
+                }
+              />
+            )}
           </div>
         </CardBody>
       </Card>
 
       {/* ─────────────────────────────────── */}
-      {/* Por pista                           */}
+      {/* Por pista (siempre visible)         */}
       {/* ─────────────────────────────────── */}
       <Card>
         <CardBody>
@@ -165,16 +197,21 @@ export default function PadelStatsTab({ match }: Props) {
                     </div>
                     <div className="flex gap-3 text-xs text-text-muted">
                       <span>
-                        Sets: <strong className="text-text-primary">{sm.setsWon}-{sm.setsLost}</strong>
+                        Sets:{' '}
+                        <strong className="text-text-primary">
+                          {sm.setsWon}-{sm.setsLost}
+                        </strong>
                         {sm.setsDrawn > 0 && `-${sm.setsDrawn}`}
                       </span>
                       <span>
-                        Games: <strong className="text-text-primary">{sm.gamesWon}-{sm.gamesLost}</strong>
+                        Games:{' '}
+                        <strong className="text-text-primary">
+                          {sm.gamesWon}-{sm.gamesLost}
+                        </strong>
                       </span>
                     </div>
                   </div>
 
-                  {/* Pareja */}
                   <div className="text-sm text-text-secondary mb-3">
                     {sm.player1 && sm.player2 ? (
                       <>
@@ -187,7 +224,6 @@ export default function PadelStatsTab({ match }: Props) {
                     )}
                   </div>
 
-                  {/* Sets */}
                   <div className="flex flex-wrap gap-2">
                     {sm.sets.map((s) => {
                       const hasData = s.homeScore > 0 || s.awayScore > 0
@@ -240,24 +276,32 @@ export default function PadelStatsTab({ match }: Props) {
                     <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
                       Resultado Pareja
                     </th>
-                    <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                      Sets
-                    </th>
-                    <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                      % Sets
-                    </th>
-                    <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                      Games
-                    </th>
-                    <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                      Dif
-                    </th>
+                    {show('PLAYER_SETS') && (
+                      <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
+                        Sets
+                      </th>
+                    )}
+                    {show('PLAYER_SETS') && (
+                      <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
+                        % Sets
+                      </th>
+                    )}
+                    {show('PLAYER_GAMES') && (
+                      <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
+                        Games
+                      </th>
+                    )}
+                    {show('PLAYER_GAMES_DIFF') && (
+                      <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
+                        Dif
+                      </th>
+                    )}
                     <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
                       Resultado Equipo
                     </th>
                   </tr>
                 </thead>
-                                <tbody className="divide-y divide-border-subtle">
+                <tbody className="divide-y divide-border-subtle">
                   {players.map((p) => {
                     const pairResult: SetResult =
                       p.subMatchesPlayed === 0
@@ -269,34 +313,45 @@ export default function PadelStatsTab({ match }: Props) {
                         : 'DRAW'
 
                     return (
-                      <tr key={p.userId} className="hover:bg-surface-elevated transition">
+                      <tr
+                        key={p.userId}
+                        className="hover:bg-surface-elevated transition"
+                      >
                         <td className="px-3 py-2 font-medium text-text-primary">
                           {p.name} {p.lastName}
                         </td>
                         <td className="px-3 py-2 text-center">
                           <ResultBadgeInline result={pairResult} />
                         </td>
-                        <td className="px-3 py-2 text-center text-text-secondary">
-                          {p.setsWon}-{p.setsLost}
-                          {p.setsDrawn > 0 && `-${p.setsDrawn}`}
-                        </td>
-                        <td className="px-3 py-2 text-center font-semibold text-text-primary">
-                          {p.setsWinRate}%
-                        </td>
-                        <td className="px-3 py-2 text-center text-text-secondary">
-                          {p.gamesWon}-{p.gamesLost}
-                        </td>
-                        <td
-                          className={`px-3 py-2 text-center font-medium ${
-                            p.gamesDiff > 0
-                              ? 'text-success'
-                              : p.gamesDiff < 0
-                              ? 'text-danger'
-                              : 'text-text-muted'
-                          }`}
-                        >
-                          {p.gamesDiff > 0 ? `+${p.gamesDiff}` : p.gamesDiff}
-                        </td>
+                        {show('PLAYER_SETS') && (
+                          <td className="px-3 py-2 text-center text-text-secondary">
+                            {p.setsWon}-{p.setsLost}
+                            {p.setsDrawn > 0 && `-${p.setsDrawn}`}
+                          </td>
+                        )}
+                        {show('PLAYER_SETS') && (
+                          <td className="px-3 py-2 text-center font-semibold text-text-primary">
+                            {p.setsWinRate}%
+                          </td>
+                        )}
+                        {show('PLAYER_GAMES') && (
+                          <td className="px-3 py-2 text-center text-text-secondary">
+                            {p.gamesWon}-{p.gamesLost}
+                          </td>
+                        )}
+                        {show('PLAYER_GAMES_DIFF') && (
+                          <td
+                            className={`px-3 py-2 text-center font-medium ${
+                              p.gamesDiff > 0
+                                ? 'text-success'
+                                : p.gamesDiff < 0
+                                ? 'text-danger'
+                                : 'text-text-muted'
+                            }`}
+                          >
+                            {p.gamesDiff > 0 ? `+${p.gamesDiff}` : p.gamesDiff}
+                          </td>
+                        )}
                         <td className="px-3 py-2 text-center">
                           <ResultBadge result={p.matchResult} />
                         </td>

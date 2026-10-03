@@ -152,12 +152,22 @@ export default function TeamStatsView({
       )
     }
 
-    if (isPadelStats(data.sport)) {
-      return <PadelTeamStatsTab data={data.sport.data} />
+        if (isPadelStats(data.sport)) {
+      return (
+        <PadelTeamStatsTab
+          data={data.sport.data}
+          visibleMetrics={data.visibleMetrics ?? []}
+        />
+      )
     }
 
-    if (isBasketballStats(data.sport)) {
-      return <BasketballTeamStatsTab data={data.sport.data} />
+        if (isBasketballStats(data.sport)) {
+      return (
+        <BasketballTeamStatsTab
+          data={data.sport.data}
+          visibleMetrics={data.visibleMetrics ?? []}
+        />
+      )
     }
 
     return (
