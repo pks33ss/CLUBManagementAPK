@@ -25,6 +25,7 @@ interface Props {
   seasons: SeasonOption[]
   matches: MatchOption[]
   teams: TeamOption[]
+  onPlayerLoaded?: (player: { name: string; lastName: string }) => void
 }
 
 function isPadelResponse(
@@ -64,6 +65,7 @@ export default function PlayerStatsView({
   seasons,
   matches,
   teams,
+  onPlayerLoaded,
 }: Props) {
   const [filters, setFilters] = useState<StatsFiltersValue>(EMPTY_FILTERS)
   const [trendMetric, setTrendMetricState] = useState<string>(() =>
@@ -102,15 +104,21 @@ export default function PlayerStatsView({
         trendMetric: trendMetric || undefined,
       })
       .then((res) => {
-        if (!cancelled) setData(res)
+        if (cancelled) return
+        setData(res)
+        if (res.player) {
+          onPlayerLoaded?.({
+            name: res.player.name,
+            lastName: res.player.lastName,
+          })
+        }
       })
       .catch((err) => {
-        if (!cancelled) {
-          setError(
-            err.response?.data?.message ||
-              'Error al cargar estadísticas del jugador',
-          )
-        }
+        if (cancelled) return
+        setError(
+          err.response?.data?.message ||
+            'Error al cargar estadísticas del jugador',
+        )
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -119,11 +127,11 @@ export default function PlayerStatsView({
     return () => {
       cancelled = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamId, playerUserId, filters, trendMetric])
 
   const availableTrendMetrics = data?.availableTrendMetrics ?? []
 
-  // Si la trendMetric guardada no está disponible, cae a 'winRate' o la primera
   useEffect(() => {
     if (!data?.availableTrendMetrics) return
     const available = data.availableTrendMetrics

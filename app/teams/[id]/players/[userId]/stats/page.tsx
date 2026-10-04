@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
@@ -57,10 +57,9 @@ export default function PlayerStatsPage() {
       api
         .get(`/matches/team/${teamId}`)
         .catch(() => ({ data: [] as any[] })),
-      api.get(`/users/${userId}`).catch(() => ({ data: null })),
       api.get(`/teams`).catch(() => ({ data: [] as any[] })),
     ])
-      .then(([teamRes, seasonsRes, matchesRes, playerRes, teamsRes]) => {
+      .then(([teamRes, seasonsRes, matchesRes, teamsRes]) => {
         if (cancelled) return
 
         const teamData: TeamLite = teamRes.data
@@ -88,15 +87,6 @@ export default function PlayerStatsPage() {
               }))
           : []
         setMatches(finishedMatches)
-
-        const playerData = playerRes.data
-        if (playerData) {
-          setPlayer({
-            id: playerData.id,
-            name: playerData.name ?? '',
-            lastName: playerData.lastName ?? '',
-          })
-        }
 
         const rawTeams = teamsRes.data
         const clubId = teamData.club?.id
@@ -133,6 +123,22 @@ export default function PlayerStatsPage() {
       cancelled = true
     }
   }, [teamId, userId, router])
+
+  const handlePlayerLoaded = useCallback(
+    (p: { name: string; lastName: string }) => {
+      setPlayer((prev) => {
+        if (
+          prev &&
+          prev.name === p.name &&
+          prev.lastName === p.lastName
+        ) {
+          return prev
+        }
+        return { id: userId, name: p.name, lastName: p.lastName }
+      })
+    },
+    [userId],
+  )
 
   if (loading) {
     return (
@@ -172,9 +178,7 @@ export default function PlayerStatsPage() {
           <h1 className="text-3xl font-bold text-text-primary">
             👤 {player ? `${player.name} ${player.lastName}` : 'Jugador'}
           </h1>
-          <p className="text-text-secondary mt-1">
-            {team.name}
-          </p>
+          <p className="text-text-secondary mt-1">{team.name}</p>
         </CardBody>
       </Card>
 
@@ -185,6 +189,7 @@ export default function PlayerStatsPage() {
         seasons={seasons}
         matches={matches}
         teams={allTeams}
+        onPlayerLoaded={handlePlayerLoaded}
       />
     </div>
   )
