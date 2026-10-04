@@ -14,10 +14,16 @@ interface Props {
 export default function MatchHeader({ match, onUpdate }: Props) {
   const [showEditModal, setShowEditModal] = useState(false)
   const [showResultModal, setShowResultModal] = useState(false)
-  const [editForm, setEditForm] = useState({
+  const [editForm, setEditForm] = useState<{
+    opponent: string
+    date: string
+    location: 'HOME' | 'AWAY' | 'NEUTRAL' | ''
+    venue: string
+    competition: string
+  }>({
     opponent: match.opponent,
     date: new Date(match.date).toISOString().slice(0, 16),
-    location: match.location,
+    location: match.location as 'HOME' | 'AWAY' | 'NEUTRAL',
     venue: match.venue || '',
     competition: match.competition || '',
   })
@@ -255,7 +261,12 @@ export default function MatchHeader({ match, onUpdate }: Props) {
           <Select
             label="Ubicación *"
             value={editForm.location}
-            onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
+            onChange={(e) =>
+              setEditForm({
+                ...editForm,
+                location: e.target.value as 'HOME' | 'AWAY' | 'NEUTRAL' | '',
+              })
+            }
             required
           >
             <option value="">— Selecciona —</option>

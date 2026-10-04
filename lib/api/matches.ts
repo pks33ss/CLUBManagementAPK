@@ -157,7 +157,7 @@ export interface BasketballPlayerStats {
 
 export interface BasketballMatchStats {
   visibleMetrics: string[]
-  atch: {
+  match: {
     id: string
     teamId: string
     date: string
