@@ -66,6 +66,16 @@ export default function PadelStatsTab({ match }: Props) {
   const { teamSummary, subMatches, players, visibleMetrics } = stats
   const show = (key: string) => visibleMetrics.includes(key)
 
+  const isAway = stats.match.location === 'AWAY'
+
+  // Pistas en formato local-visitante
+  const pistasLocal = isAway
+    ? teamSummary.subMatchesLost
+    : teamSummary.subMatchesWon
+  const pistasVisitante = isAway
+    ? teamSummary.subMatchesWon
+    : teamSummary.subMatchesLost
+
   return (
     <div className="space-y-6">
       {/* ─────────────────────────────────── */}
@@ -107,9 +117,9 @@ export default function PadelStatsTab({ match }: Props) {
               <StatBox
                 label="Pistas"
                 value={`${
-                  show('SUB_MATCHES_WON') ? teamSummary.subMatchesWon : '-'
+                  show('SUB_MATCHES_WON') ? pistasLocal : '-'
                 }-${
-                  show('SUB_MATCHES_LOST') ? teamSummary.subMatchesLost : '-'
+                  show('SUB_MATCHES_LOST') ? pistasVisitante : '-'
                 }${
                   show('SUB_MATCHES_DRAWN') &&
                   teamSummary.subMatchesDrawn > 0
@@ -276,6 +286,11 @@ export default function PadelStatsTab({ match }: Props) {
                     <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
                       Resultado Pareja
                     </th>
+                    {show('PLAYER_SUB_MATCHES') && (
+                      <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
+                        Pistas
+                      </th>
+                    )}
                     {show('PLAYER_SETS') && (
                       <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
                         Sets
@@ -312,6 +327,14 @@ export default function PadelStatsTab({ match }: Props) {
                         ? 'LOSS'
                         : 'DRAW'
 
+                    // Pistas por jugador en formato local-visitante
+                    const pistasJugLocal = isAway
+                      ? p.subMatchesLost
+                      : p.subMatchesWon
+                    const pistasJugVisitante = isAway
+                      ? p.subMatchesWon
+                      : p.subMatchesLost
+
                     return (
                       <tr
                         key={p.userId}
@@ -323,6 +346,11 @@ export default function PadelStatsTab({ match }: Props) {
                         <td className="px-3 py-2 text-center">
                           <ResultBadgeInline result={pairResult} />
                         </td>
+                        {show('PLAYER_SUB_MATCHES') && (
+                          <td className="px-3 py-2 text-center text-text-secondary">
+                            {pistasJugLocal}-{pistasJugVisitante}
+                          </td>
+                        )}
                         {show('PLAYER_SETS') && (
                           <td className="px-3 py-2 text-center text-text-secondary">
                             {p.setsWon}-{p.setsLost}
