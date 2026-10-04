@@ -163,6 +163,7 @@ export interface BasketballMatchStats {
     teamId: string
     date: string
     opponent: string
+    location: 'HOME' | 'AWAY' | 'NEUTRAL'   // ← AÑADIR ESTA LÍNEA
     teamScore: number | null
     opponentScore: number | null
     result: MatchResult

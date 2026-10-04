@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import api from '@/lib/api'
 import { getSportIcon } from '@/lib/sport'
+import { formatMatchScore } from '@/lib/formatMatchScore'
 import type { MatchDetail } from '../page'
 import { Button, Badge, Input, Select, Modal } from '@/components/ui'
 
@@ -142,6 +143,11 @@ export default function MatchHeader({ match, onUpdate }: Props) {
     }
   }
 
+  // Marcador en formato local-visitante
+  const score = formatMatchScore(match)
+  const weWon = match.teamScore !== null && match.opponentScore !== null && match.teamScore > match.opponentScore
+  const weLost = match.teamScore !== null && match.opponentScore !== null && match.teamScore < match.opponentScore
+
   return (
     <>
       <div className="bg-surface rounded-xl shadow-md border border-border-subtle p-6 mb-6">
@@ -192,41 +198,19 @@ export default function MatchHeader({ match, onUpdate }: Props) {
 
           {/* Marcador */}
           <div className="flex flex-col items-center justify-center bg-surface-elevated rounded-xl p-6 min-w-[200px] border border-border-subtle">
-            {match.status === 'FINISHED' &&
-            match.teamScore !== null &&
-            match.opponentScore !== null ? (
+            {match.status === 'FINISHED' && score.hasScore ? (
               <>
                 <p className="text-5xl font-bold text-text-primary">
-                  <span
-                    className={
-                      match.teamScore > match.opponentScore
-                        ? 'text-success'
-                        : match.teamScore < match.opponentScore
-                        ? 'text-danger'
-                        : ''
-                    }
-                  >
-                    {match.teamScore}
+                  <span className={weWon ? 'text-success' : weLost ? 'text-danger' : ''}>
+                    {score.local}
                   </span>
                   <span className="text-text-muted mx-2">-</span>
-                  <span
-                    className={
-                      match.opponentScore > match.teamScore
-                        ? 'text-success'
-                        : match.opponentScore < match.teamScore
-                        ? 'text-danger'
-                        : ''
-                    }
-                  >
-                    {match.opponentScore}
+                  <span className={weLost ? 'text-success' : weWon ? 'text-danger' : ''}>
+                    {score.visitante}
                   </span>
                 </p>
                 <p className="text-sm font-medium text-text-secondary mt-2">
-                  {match.teamScore > match.opponentScore
-                    ? '🏆 Victoria'
-                    : match.teamScore < match.opponentScore
-                    ? '❌ Derrota'
-                    : '🤝 Empate'}
+                  {weWon ? '🏆 Victoria' : weLost ? '❌ Derrota' : '🤝 Empate'}
                 </p>
               </>
             ) : (
@@ -270,8 +254,8 @@ export default function MatchHeader({ match, onUpdate }: Props) {
             required
           >
             <option value="">— Selecciona —</option>
-            <option value="HOME">🏠 Casa (nosotros)</option>
-            <option value="AWAY">✈️ Fuera (ellos)</option>
+            <option value="HOME">🏠 Casa</option>
+            <option value="AWAY">✈️ Fuera</option>
           </Select>
           <Input
             label="Pabellón"
@@ -316,6 +300,11 @@ export default function MatchHeader({ match, onUpdate }: Props) {
         size="md"
       >
         <form onSubmit={handleResult} className="space-y-4">
+          <p className="text-xs text-text-muted">
+            Introduce los puntos de cada equipo. El resultado se guardará
+            desde nuestra perspectiva (nuestro equipo / rival), independientemente
+            de dónde se juegue.
+          </p>
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-text-secondary mb-1">

@@ -1,55 +1,65 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import {
-  teamsApi,
-  type TeamStatsResponse,
-  type PadelTeamStats,
-  type BasketballTeamStats,
+import { teamsApi } from '@/lib/api/teams'
+import type {
+  PlayerStatsResponse,
+  PadelPlayerStatsResponse,
+  BasketballPlayerStatsResponse,
 } from '@/lib/api/teams'
 import StatsFilters, {
   EMPTY_FILTERS,
   type SeasonOption,
-  type PlayerOption,
   type MatchOption,
   type TeamOption,
   type StatsFiltersValue,
 } from '@/components/StatsFilters'
 import { Card, CardBody } from '@/components/ui'
-import PadelTeamStatsTab from './PadelTeamStatsTab'
-import BasketballTeamStatsTab from './BasketballTeamStatsTab'
+import PadelPlayerStatsTab from './PadelPlayerStatsTab'
+import BasketballPlayerStatsTab from './BasketballPlayerStatsTab'
 
 interface Props {
   teamId: string
+  playerUserId: string
   teamSport: string
   seasons: SeasonOption[]
   matches: MatchOption[]
   teams: TeamOption[]
 }
 
-function isPadelStats(
-  sport: TeamStatsResponse['sport'],
-): sport is { type: 'PADEL'; data: PadelTeamStats } {
-  return sport.type === 'PADEL' && sport.data !== null
+function isPadelResponse(
+  r: PlayerStatsResponse,
+): r is PadelPlayerStatsResponse {
+  return r.team.sport === 'PADEL'
 }
 
-function isBasketballStats(
-  sport: TeamStatsResponse['sport'],
-): sport is { type: 'BASKETBALL'; data: BasketballTeamStats } {
-  return sport.type === 'BASKETBALL' && sport.data !== null
+function isBasketballResponse(
+  r: PlayerStatsResponse,
+): r is BasketballPlayerStatsResponse {
+  return r.team.sport === 'BASKETBALL'
 }
 
-const TREND_STORAGE_PREFIX = 'tp:trendMetric:team:'
+const TREND_STORAGE_PREFIX = 'tp:trendMetric:player:'
 const DEFAULT_TREND_METRIC = 'winRate'
 
-function readStoredTrendMetric(teamId: string): string {
+function storageKey(teamId: string, playerUserId: string): string {
+  return `${TREND_STORAGE_PREFIX}${teamId}:${playerUserId}`
+}
+
+function readStoredTrendMetric(
+  teamId: string,
+  playerUserId: string,
+): string {
   if (typeof window === 'undefined') return DEFAULT_TREND_METRIC
-  const stored = window.localStorage.getItem(TREND_STORAGE_PREFIX + teamId)
+  const stored = window.localStorage.getItem(
+    storageKey(teamId, playerUserId),
+  )
   return stored && stored.length > 0 ? stored : DEFAULT_TREND_METRIC
 }
 
-export default function TeamStatsView({
+export default function PlayerStatsView({
   teamId,
+  playerUserId,
   teamSport,
   seasons,
   matches,
@@ -57,36 +67,36 @@ export default function TeamStatsView({
 }: Props) {
   const [filters, setFilters] = useState<StatsFiltersValue>(EMPTY_FILTERS)
   const [trendMetric, setTrendMetricState] = useState<string>(() =>
-    readStoredTrendMetric(teamId),
+    readStoredTrendMetric(teamId, playerUserId),
   )
-  const [data, setData] = useState<TeamStatsResponse | null>(null)
+  const [data, setData] = useState<PlayerStatsResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Persistencia + reset al cambiar de team
   useEffect(() => {
-    setTrendMetricState(readStoredTrendMetric(teamId))
-  }, [teamId])
+    setTrendMetricState(readStoredTrendMetric(teamId, playerUserId))
+  }, [teamId, playerUserId])
 
   const setTrendMetric = (next: string) => {
     setTrendMetricState(next)
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(TREND_STORAGE_PREFIX + teamId, next)
+      window.localStorage.setItem(
+        storageKey(teamId, playerUserId),
+        next,
+      )
     }
   }
 
-  // Fetch de stats (reacciona a filters y trendMetric)
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setError(null)
 
     teamsApi
-      .getStats(teamId, {
+      .getPlayerStats(teamId, playerUserId, {
         seasonId: filters.seasonId || undefined,
         from: filters.from || undefined,
         to: filters.to || undefined,
-        playerId: filters.playerId || undefined,
         matchIds: filters.matchIds.length > 0 ? filters.matchIds : undefined,
         teamIds: filters.teamIds.length > 0 ? filters.teamIds : undefined,
         trendMetric: trendMetric || undefined,
@@ -97,7 +107,8 @@ export default function TeamStatsView({
       .catch((err) => {
         if (!cancelled) {
           setError(
-            err.response?.data?.message || 'Error al cargar estadísticas',
+            err.response?.data?.message ||
+              'Error al cargar estadísticas del jugador',
           )
         }
       })
@@ -108,12 +119,11 @@ export default function TeamStatsView({
     return () => {
       cancelled = true
     }
-  }, [teamId, filters, trendMetric])
+  }, [teamId, playerUserId, filters, trendMetric])
 
-  const sportType = data?.sport?.type ?? teamSport
+  const availableTrendMetrics = data?.availableTrendMetrics ?? []
 
-  // Si el trendMetric elegido no está disponible para este rol/equipo,
-  // caemos a 'winRate' (o al primero disponible).
+  // Si la trendMetric guardada no está disponible, cae a 'winRate' o la primera
   useEffect(() => {
     if (!data?.availableTrendMetrics) return
     const available = data.availableTrendMetrics
@@ -127,53 +137,6 @@ export default function TeamStatsView({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data?.availableTrendMetrics])
-
-  const playerOptions: PlayerOption[] = useMemo(() => {
-    if (!data) return []
-    if (isPadelStats(data.sport)) {
-      return data.sport.data.players
-        .map((p) => ({
-          userId: p.userId,
-          name: p.name,
-          lastName: p.lastName,
-        }))
-        .sort((a, b) =>
-          `${a.lastName} ${a.name}`.localeCompare(
-            `${b.lastName} ${b.name}`,
-            'es',
-          ),
-        )
-    }
-    if (isBasketballStats(data.sport)) {
-      return data.sport.data.players
-        .map((p) => ({
-          userId: p.userId,
-          name: p.name,
-          lastName: p.lastName,
-        }))
-        .sort((a, b) =>
-          `${a.lastName} ${a.name}`.localeCompare(
-            `${b.lastName} ${b.name}`,
-            'es',
-          ),
-        )
-    }
-    return []
-  }, [data])
-
-  useEffect(() => {
-    if (!filters.playerId) return
-    if (loading) return
-    const stillExists = playerOptions.some(
-      (p) => p.userId === filters.playerId,
-    )
-    if (!stillExists) {
-      setFilters((f) => ({ ...f, playerId: '' }))
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [playerOptions, loading])
-
-  const availableTrendMetrics = data?.availableTrendMetrics ?? []
 
   const content = useMemo(() => {
     if (loading) {
@@ -196,10 +159,10 @@ export default function TeamStatsView({
       )
     }
 
-    if (isPadelStats(data.sport)) {
+    if (isPadelResponse(data)) {
       return (
-        <PadelTeamStatsTab
-          data={data.sport.data}
+        <PadelPlayerStatsTab
+          data={data}
           visibleMetrics={data.visibleMetrics ?? []}
           availableTrendMetrics={availableTrendMetrics}
           trendMetric={trendMetric}
@@ -208,10 +171,10 @@ export default function TeamStatsView({
       )
     }
 
-    if (isBasketballStats(data.sport)) {
+    if (isBasketballResponse(data)) {
       return (
-        <BasketballTeamStatsTab
-          data={data.sport.data}
+        <BasketballPlayerStatsTab
+          data={data}
           visibleMetrics={data.visibleMetrics ?? []}
           availableTrendMetrics={availableTrendMetrics}
           trendMetric={trendMetric}
@@ -225,10 +188,10 @@ export default function TeamStatsView({
         <CardBody className="text-center py-12">
           <div className="text-5xl mb-4">🚧</div>
           <h3 className="text-lg font-semibold text-text-primary mb-2">
-            Estadísticas de {sportType} — próximamente
+            Estadísticas de jugador en {teamSport} — próximamente
           </h3>
           <p className="text-text-muted text-sm">
-            Este deporte todavía no tiene vista de estadísticas implementada.
+            Este deporte todavía no tiene vista individual implementada.
           </p>
         </CardBody>
       </Card>
@@ -237,7 +200,7 @@ export default function TeamStatsView({
     loading,
     error,
     data,
-    sportType,
+    teamSport,
     availableTrendMetrics,
     trendMetric,
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -247,13 +210,14 @@ export default function TeamStatsView({
     <div className="space-y-6">
       <StatsFilters
         seasons={seasons}
-        players={playerOptions}
+        players={[]}
         value={filters}
         onChange={setFilters}
         loading={loading}
         matches={matches}
         teams={teams}
         activeTeamId={teamId}
+        hidePlayerFilter
       />
       {content}
     </div>

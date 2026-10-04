@@ -48,6 +48,7 @@ interface Props {
   teams?: TeamOption[]
   /** El team activo (para excluirlo del selector, ya que siempre está incluido) */
   activeTeamId?: string
+  hidePlayerFilter?: boolean
 }
 
 export const EMPTY_FILTERS: StatsFiltersValue = {
@@ -68,6 +69,7 @@ export default function StatsFilters({
   matches,
   teams,
   activeTeamId,
+  hidePlayerFilter = false,
 }: Props) {
   const hasFilters =
     value.seasonId !== '' ||
@@ -148,7 +150,7 @@ export default function StatsFilters({
             onChange={(e) => onChange({ ...value, to: e.target.value })}
             disabled={loading}
           />
-
+{!hidePlayerFilter && (
           <Select
             label="Jugador"
             value={value.playerId}
@@ -164,7 +166,7 @@ export default function StatsFilters({
               </option>
             ))}
           </Select>
-
+)}
           {showTeams && (
             <div className="md:col-span-2">
               <MultiSelect

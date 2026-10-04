@@ -7,6 +7,7 @@ import api from '@/lib/api'
 import { getSportIcon } from '@/lib/sport'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
 import { Button, Card, CardBody, Badge, Select } from '@/components/ui'
+import { formatMatchScore } from '@/lib/formatMatchScore'
 import {
   MatchSortKey,
   SORT_OPTIONS,
@@ -53,12 +54,10 @@ export default function AllMatches() {
   const [sortKey, setSortKey] = useState<MatchSortKey>('date-desc')
   const [showCreateModal, setShowCreateModal] = useState(false)
 
-  // Cargar preferencia de ordenación
   useEffect(() => {
     setSortKey(getSavedSort())
   }, [])
 
-  // Cargar partidos cuando cambia el equipo activo
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token) {
@@ -87,10 +86,6 @@ export default function AllMatches() {
       setLoading(false)
     }
   }
-
-  // ============================================
-  // HELPERS
-  // ============================================
 
   const getTypeText = (type: string) => {
     switch (type) {
@@ -180,10 +175,6 @@ export default function AllMatches() {
   })
 
   const sortedAndFiltered = sortMatches(filteredMatches, sortKey)
-
-  // ============================================
-  // RENDER
-  // ============================================
 
   if (loadingTeams || loading) {
     return <div className="text-center py-12 text-text-muted">Cargando partidos...</div>
@@ -300,6 +291,7 @@ export default function AllMatches() {
         <div className="space-y-3">
           {sortedAndFiltered.map((match) => {
             const resultVariant = getResultVariant(match)
+            const score = formatMatchScore(match)
             return (
               <Card key={match.id} hover>
                 <Link href={`/matches/${match.id}`} className="block p-5">
@@ -332,12 +324,10 @@ export default function AllMatches() {
                     </div>
 
                     <div className="flex flex-col items-center md:items-end gap-1">
-                      {match.status === 'FINISHED' &&
-                      match.teamScore !== null &&
-                      match.opponentScore !== null ? (
+                      {match.status === 'FINISHED' && score.hasScore ? (
                         <>
                           <p className={`text-3xl font-bold ${getResultColor(match)}`}>
-                            {match.teamScore} - {match.opponentScore}
+                            {score.local} - {score.visitante}
                           </p>
                           {resultVariant && (
                             <Badge variant={resultVariant}>{getResultText(match)}</Badge>

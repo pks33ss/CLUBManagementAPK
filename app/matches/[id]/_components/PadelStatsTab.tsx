@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { matchesApi, type PadelStats, type SetResult } from '@/lib/api/matches'
+import { formatMatchScore } from '@/lib/formatMatchScore'
 import type { MatchDetail } from '../page'
 import { Card, CardBody, Badge } from '@/components/ui'
 
@@ -76,6 +77,13 @@ export default function PadelStatsTab({ match }: Props) {
     ? teamSummary.subMatchesWon
     : teamSummary.subMatchesLost
 
+  // Marcador global en formato local-visitante
+  const globalScore = formatMatchScore({
+    teamScore: stats.match.teamScore,
+    opponentScore: stats.match.opponentScore,
+    location: stats.match.location,
+  })
+
   return (
     <div className="space-y-6">
       {/* ─────────────────────────────────── */}
@@ -106,8 +114,8 @@ export default function PadelStatsTab({ match }: Props) {
             <StatBox
               label="Resultado"
               value={
-                stats.match.hasGlobalScore
-                  ? `${stats.match.teamScore} - ${stats.match.opponentScore}`
+                globalScore.hasScore
+                  ? `${globalScore.local} - ${globalScore.visitante}`
                   : '—'
               }
             />

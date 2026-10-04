@@ -1,25 +1,21 @@
 'use client'
 
 import { Card, CardBody } from '@/components/ui'
+import MetricSelect from '@/components/MetricSelect'
+import TrendChart from '@/components/TrendChart'
 import type {
   BasketballTeamStats,
   BasketballTeamStatsPlayer,
+  AvailableTrendMetric,
 } from '@/lib/api/teams'
 import type { MatchResult } from '@/lib/api/matches'
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-  CartesianGrid,
-} from 'recharts'
 
 interface Props {
   data: BasketballTeamStats
   visibleMetrics: string[]
+  availableTrendMetrics: AvailableTrendMetric[]
+  trendMetric: string
+  onTrendMetricChange: (next: string) => void
 }
 
 function ResultPill({ result }: { result: MatchResult }) {
@@ -41,15 +37,28 @@ function fmtPlusMinus(v: number): string {
   return `${v}`
 }
 
-export default function BasketballTeamStatsTab({ data, visibleMetrics }: Props) {
+export default function BasketballTeamStatsTab({
+  data,
+  visibleMetrics,
+  availableTrendMetrics,
+  trendMetric,
+  onTrendMetricChange,
+}: Props) {
   const { summary, players, trend } = data
   const show = (key: string) => visibleMetrics.includes(key)
 
-  // Visibilidad combinada para W-L-D
   const showWins = show('WINS')
   const showLosses = show('LOSSES')
   const showDraws = show('DRAWS')
   const showWLD = showWins || showLosses || showDraws
+
+  const trendOptions = availableTrendMetrics.map((m) => ({
+    value: m.key,
+    label: m.label,
+  }))
+  const appliedTrend = availableTrendMetrics.find((m) => m.key === trendMetric)
+  const isTrendUnavailable =
+    trend.series === null && trend.requestedMetric !== null
 
   return (
     <div className="space-y-6">
@@ -211,69 +220,43 @@ export default function BasketballTeamStatsTab({ data, visibleMetrics }: Props) 
         </CardBody>
       </Card>
 
-      {/* ─── Trend ─── */}
+      {/* ─── Trend configurable ─── */}
       {trend.byMonth.length > 0 && (
         <Card>
           <CardBody>
-            <h3 className="text-lg font-semibold text-text-primary mb-4">
-              📈 Evolución por mes
-            </h3>
-            <div style={{ width: '100%', height: 288 }}>
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={trend.byMonth}
-                  margin={{ top: 5, right: 10, left: -20, bottom: 0 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
-                  <XAxis
-                    dataKey="month"
-                    stroke="#888"
-                    fontSize={12}
-                    tickFormatter={(m) => String(m).slice(2)}
-                  />
-                  <YAxis
-                    yAxisId="left"
-                    stroke="#888"
-                    fontSize={12}
-                    domain={[0, 100]}
-                    tickFormatter={(v) => `${v}%`}
-                  />
-                  <YAxis
-                    yAxisId="right"
-                    orientation="right"
-                    stroke="#888"
-                    fontSize={12}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: '#0A0A0A',
-                      border: '1px solid #333',
-                      borderRadius: 8,
-                      fontSize: 12,
-                    }}
-                  />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                  <Line
-                    yAxisId="left"
-                    type="monotone"
-                    dataKey="winRate"
-                    name="% Victorias"
-                    stroke="#00E676"
-                    strokeWidth={2}
-                    dot={{ r: 3, fill: '#00E676' }}
-                  />
-                  <Line
-                    yAxisId="right"
-                    type="monotone"
-                    dataKey="pointsPerMatch"
-                    name="Pts/Partido"
-                    stroke="#FFB300"
-                    strokeWidth={2}
-                    dot={{ r: 3, fill: '#FFB300' }}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+            <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+              <h3 className="text-lg font-semibold text-text-primary">
+                📈 Evolución por mes
+              </h3>
+              {trendOptions.length > 0 && (
+                <MetricSelect
+                  label="Métrica"
+                  options={trendOptions}
+                  value={trendMetric}
+                  onChange={onTrendMetricChange}
+                />
+              )}
             </div>
+
+            {isTrendUnavailable ? (
+              <p className="text-sm text-text-muted py-6 text-center">
+                La métrica seleccionada no está disponible para tu rol. Se
+                muestra % victorias por defecto.
+              </p>
+            ) : (
+              <TrendChart
+                series={
+                  trend.series ??
+                  trend.byMonth.map((m) => ({
+                    month: m.month,
+                    value: m.winRate,
+                  }))
+                }
+                label={appliedTrend?.label ?? '% Victorias'}
+                unit={appliedTrend?.unit ?? '%'}
+                isPercentage={appliedTrend?.unit === '%'}
+              />
+            )}
           </CardBody>
         </Card>
       )}

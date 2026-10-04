@@ -9,6 +9,7 @@ import {
   type PlayerStatsInput,
   type MatchResult,
 } from '@/lib/api/matches'
+import { formatMatchScore } from '@/lib/formatMatchScore'
 import type { MatchDetail } from '../page'
 import { Button, Card, CardBody, Modal } from '@/components/ui'
 
@@ -208,6 +209,12 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
   const { teamSummary, players, visibleMetrics } = stats
   const show = (key: string) => visibleMetrics.includes(key)
 
+  const globalScore = formatMatchScore({
+    teamScore: stats.match.teamScore,
+    opponentScore: stats.match.opponentScore,
+    location: stats.match.location,
+  })
+
   const includedIds = new Set(players.map((p) => p.userId))
 
   const teamCandidates = (match.team.memberships ?? [])
@@ -250,8 +257,8 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
             <StatBox
               label="Resultado"
               value={
-                stats.match.hasGlobalScore
-                  ? `${stats.match.teamScore} - ${stats.match.opponentScore}`
+                globalScore.hasScore
+                  ? `${globalScore.local} - ${globalScore.visitante}`
                   : '—'
               }
             />
