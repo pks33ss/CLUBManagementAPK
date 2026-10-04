@@ -95,6 +95,7 @@ export interface PadelStats {
     teamId: string
     date: string
     opponent: string
+    location: 'HOME' | 'AWAY' | 'NEUTRAL'
     teamScore: number | null
     opponentScore: number | null
     result: SetResult
