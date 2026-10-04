@@ -23,7 +23,7 @@ export default function CreateMatchModal({
     date: '',
     time: '',
     opponent: '',
-    location: 'HOME',
+    location: '',
     type: 'LEAGUE',
     venue: '',
     competition: '',
@@ -33,8 +33,15 @@ export default function CreateMatchModal({
   })
   const [creating, setCreating] = useState(false)
 
+  const canSubmit =
+    form.opponent.trim() !== '' &&
+    form.date !== '' &&
+    form.time !== '' &&
+    form.location !== ''
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!canSubmit) return
     setCreating(true)
 
     try {
@@ -105,13 +112,14 @@ export default function CreateMatchModal({
 
         <div className="grid grid-cols-2 gap-4">
           <Select
-            label="Ubicación"
+            label="Ubicación *"
             value={form.location}
             onChange={(e) => setForm({ ...form, location: e.target.value })}
+            required
           >
+            <option value="">— Selecciona —</option>
             <option value="HOME">🏠 Casa</option>
             <option value="AWAY">✈️ Fuera</option>
-            <option value="NEUTRAL">⚖️ Neutral</option>
           </Select>
           <Select
             label="Tipo"
@@ -125,6 +133,13 @@ export default function CreateMatchModal({
             <option value="TOURNAMENT">🎯 Torneo</option>
           </Select>
         </div>
+
+        {form.location === '' && (
+          <p className="text-xs text-warning -mt-2">
+            ⚠️ Indica si jugáis en casa o fuera. Esto afecta a cómo se
+            interpretan los resultados de los sets.
+          </p>
+        )}
 
         <Input
           label="Pabellón / Ubicación"
@@ -196,7 +211,7 @@ export default function CreateMatchModal({
           </Button>
           <Button
             type="submit"
-            disabled={creating}
+            disabled={creating || !canSubmit}
             loading={creating}
             className="flex-1"
           >

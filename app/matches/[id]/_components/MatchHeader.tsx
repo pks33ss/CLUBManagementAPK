@@ -4,7 +4,7 @@ import { useState } from 'react'
 import api from '@/lib/api'
 import { getSportIcon } from '@/lib/sport'
 import type { MatchDetail } from '../page'
-import { Button, Badge, Input, Modal } from '@/components/ui'
+import { Button, Badge, Input, Select, Modal } from '@/components/ui'
 
 interface Props {
   match: MatchDetail
@@ -17,6 +17,7 @@ export default function MatchHeader({ match, onUpdate }: Props) {
   const [editForm, setEditForm] = useState({
     opponent: match.opponent,
     date: new Date(match.date).toISOString().slice(0, 16),
+    location: match.location,
     venue: match.venue || '',
     competition: match.competition || '',
   })
@@ -84,11 +85,13 @@ export default function MatchHeader({ match, onUpdate }: Props) {
 
   const handleEdit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (editForm.location !== 'HOME' && editForm.location !== 'AWAY') return
     setSaving(true)
     try {
       await api.put(`/matches/${match.id}`, {
         opponent: editForm.opponent,
         date: new Date(editForm.date).toISOString(),
+        location: editForm.location,
         venue: editForm.venue || null,
         competition: editForm.competition || null,
       })
@@ -249,6 +252,16 @@ export default function MatchHeader({ match, onUpdate }: Props) {
             onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
             required
           />
+          <Select
+            label="Ubicación *"
+            value={editForm.location}
+            onChange={(e) => setEditForm({ ...editForm, location: e.target.value })}
+            required
+          >
+            <option value="">— Selecciona —</option>
+            <option value="HOME">🏠 Casa (nosotros)</option>
+            <option value="AWAY">✈️ Fuera (ellos)</option>
+          </Select>
           <Input
             label="Pabellón"
             type="text"

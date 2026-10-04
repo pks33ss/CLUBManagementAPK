@@ -14,6 +14,10 @@ export default function PistasTab({ match, onUpdate }: Props) {
   const [saving, setSaving] = useState(false)
   const pistas = match.padelSubMatches ?? []
 
+  const isAway = match.location === 'AWAY'
+  const localName = isAway ? match.opponent : match.team.name
+  const visitanteName = isAway ? match.team.name : match.opponent
+
   // Solo los convocados
   const callupUserIds = new Set(match.callups.map((c) => c.userId))
   const allPlayers = match.team.memberships
@@ -114,7 +118,7 @@ export default function PistasTab({ match, onUpdate }: Props) {
     }
   }
 
-    const handleAddSet = async (subMatchId: string) => {
+  const handleAddSet = async (subMatchId: string) => {
     setSaving(true)
     try {
       await matchesApi.addSetToSubMatch(subMatchId)
@@ -132,7 +136,6 @@ export default function PistasTab({ match, onUpdate }: Props) {
       return
     }
 
-    // Intento sin force primero; si el backend responde 409, pedimos confirmación
     setSaving(true)
     try {
       await matchesApi.removeLastSetFromSubMatch(subMatchId, false)
@@ -141,7 +144,9 @@ export default function PistasTab({ match, onUpdate }: Props) {
       const code = err.response?.data?.code
 
       if (code === 'SET_HAS_DATA') {
-        const msg = err.response.data.message || 'El último set tiene datos. ¿Eliminar igualmente?'
+        const msg =
+          err.response.data.message ||
+          'El último set tiene datos. ¿Eliminar igualmente?'
         if (confirm(msg)) {
           try {
             await matchesApi.removeLastSetFromSubMatch(subMatchId, true)
@@ -161,7 +166,8 @@ export default function PistasTab({ match, onUpdate }: Props) {
   const handleApplySetsToAll = async (delta: 1 | -1) => {
     if (pistas.length === 0) return
 
-    const label = delta > 0 ? 'añadir un set a TODAS' : 'quitar el último set de TODAS'
+    const label =
+      delta > 0 ? 'añadir un set a TODAS' : 'quitar el último set de TODAS'
     if (!confirm(`¿Seguro que quieres ${label} las pistas?`)) return
 
     setSaving(true)
@@ -243,35 +249,36 @@ export default function PistasTab({ match, onUpdate }: Props) {
               🏟️ Pistas ({pistas.length})
             </h2>
             <p className="text-xs text-text-muted">
-              {match.setsPerSubMatch} set{match.setsPerSubMatch === 1 ? '' : 's'} por pista ·{' '}
-              {eligiblePlayers.length} jugador{eligiblePlayers.length === 1 ? '' : 'es'} disponibles
+              {match.setsPerSubMatch} set
+              {match.setsPerSubMatch === 1 ? '' : 's'} por pista ·{' '}
+              {eligiblePlayers.length} jugador
+              {eligiblePlayers.length === 1 ? '' : 'es'} disponibles
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-  <div className="flex items-center gap-1 text-xs text-text-muted">
-    <span className="hidden sm:inline">Sets en todas:</span>
-    <button
-      onClick={() => handleApplySetsToAll(-1)}
-      disabled={saving || pistas.length === 0}
-      className="p-1.5 rounded text-text-muted hover:text-danger hover:bg-danger/10 transition disabled:opacity-30"
-      title="Quitar un set a todas las pistas"
-    >
-      −
-    </button>
-    <button
-      onClick={() => handleApplySetsToAll(1)}
-      disabled={saving || pistas.length === 0}
-      className="p-1.5 rounded text-text-muted hover:text-brand-primary hover:bg-brand-primary/10 transition disabled:opacity-30"
-      title="Añadir un set a todas las pistas"
-    >
-      +
-    </button>
-  </div>
-  <Button size="sm" onClick={handleAddPista} disabled={saving}>
-    + Añadir pista
-  </Button>
-</div>
- 
+            <div className="flex items-center gap-1 text-xs text-text-muted">
+              <span className="hidden sm:inline">Sets en todas:</span>
+              <button
+                onClick={() => handleApplySetsToAll(-1)}
+                disabled={saving || pistas.length === 0}
+                className="p-1.5 rounded text-text-muted hover:text-danger hover:bg-danger/10 transition disabled:opacity-30"
+                title="Quitar un set a todas las pistas"
+              >
+                −
+              </button>
+              <button
+                onClick={() => handleApplySetsToAll(1)}
+                disabled={saving || pistas.length === 0}
+                className="p-1.5 rounded text-text-muted hover:text-brand-primary hover:bg-brand-primary/10 transition disabled:opacity-30"
+                title="Añadir un set a todas las pistas"
+              >
+                +
+              </button>
+            </div>
+            <Button size="sm" onClick={handleAddPista} disabled={saving}>
+              + Añadir pista
+            </Button>
+          </div>
         </CardBody>
       </Card>
 
@@ -279,8 +286,6 @@ export default function PistasTab({ match, onUpdate }: Props) {
         const isFirst = idx === 0
         const isLast = idx === pistas.length - 1
 
-        // Jugadores ya usados en otras pistas de la MISMA pista no (deben ser distintos)
-        // pero sí pueden repetir en otras pistas (permitido, solo avisamos)
         const duplicateWarning =
           (pista.player1Id && playerUsage[pista.player1Id] > 1) ||
           (pista.player2Id && playerUsage[pista.player2Id] > 1)
@@ -301,59 +306,59 @@ export default function PistasTab({ match, onUpdate }: Props) {
                   )}
                 </div>
                 <div className="flex items-center gap-1">
-  <span className="text-xs text-text-muted mr-1 hidden sm:inline">
-    Sets: {pista.sets.length}
-  </span>
-  <button
-    onClick={() => handleRemoveSet(pista.id, pista.sets.length)}
-    disabled={saving || pista.sets.length <= 1}
-    className="p-2 rounded text-text-muted hover:text-danger hover:bg-danger/10 transition disabled:opacity-30"
-    title="Quitar último set"
-  >
-    − Set
-  </button>
-  <button
-    onClick={() => handleAddSet(pista.id)}
-    disabled={saving}
-    className="p-2 rounded text-text-muted hover:text-brand-primary hover:bg-brand-primary/10 transition"
-    title="Añadir set"
-  >
-    + Set
-  </button>
-  <div className="w-px h-5 bg-border-subtle mx-1" />
-  <button
-    onClick={() => handleMovePista(pista.id, 'up')}
-    disabled={isFirst || saving}
-    className={`p-2 rounded transition ${
-      isFirst
-        ? 'text-text-muted/30 cursor-not-allowed'
-        : 'text-text-muted hover:text-brand-primary hover:bg-brand-primary/10'
-    }`}
-    title="Mover arriba"
-  >
-    ⬆️
-  </button>
-  <button
-    onClick={() => handleMovePista(pista.id, 'down')}
-    disabled={isLast || saving}
-    className={`p-2 rounded transition ${
-      isLast
-        ? 'text-text-muted/30 cursor-not-allowed'
-        : 'text-text-muted hover:text-brand-primary hover:bg-brand-primary/10'
-    }`}
-    title="Mover abajo"
-  >
-    ⬇️
-  </button>
-  <button
-    onClick={() => handleRemovePista(pista.id, pista.order)}
-    disabled={saving}
-    className="p-2 rounded text-danger/70 hover:text-danger hover:bg-danger/10 transition"
-    title="Eliminar pista"
-  >
-    🗑️
-  </button>
-</div>
+                  <span className="text-xs text-text-muted mr-1 hidden sm:inline">
+                    Sets: {pista.sets.length}
+                  </span>
+                  <button
+                    onClick={() => handleRemoveSet(pista.id, pista.sets.length)}
+                    disabled={saving || pista.sets.length <= 1}
+                    className="p-2 rounded text-text-muted hover:text-danger hover:bg-danger/10 transition disabled:opacity-30"
+                    title="Quitar último set"
+                  >
+                    − Set
+                  </button>
+                  <button
+                    onClick={() => handleAddSet(pista.id)}
+                    disabled={saving}
+                    className="p-2 rounded text-text-muted hover:text-brand-primary hover:bg-brand-primary/10 transition"
+                    title="Añadir set"
+                  >
+                    + Set
+                  </button>
+                  <div className="w-px h-5 bg-border-subtle mx-1" />
+                  <button
+                    onClick={() => handleMovePista(pista.id, 'up')}
+                    disabled={isFirst || saving}
+                    className={`p-2 rounded transition ${
+                      isFirst
+                        ? 'text-text-muted/30 cursor-not-allowed'
+                        : 'text-text-muted hover:text-brand-primary hover:bg-brand-primary/10'
+                    }`}
+                    title="Mover arriba"
+                  >
+                    ⬆️
+                  </button>
+                  <button
+                    onClick={() => handleMovePista(pista.id, 'down')}
+                    disabled={isLast || saving}
+                    className={`p-2 rounded transition ${
+                      isLast
+                        ? 'text-text-muted/30 cursor-not-allowed'
+                        : 'text-text-muted hover:text-brand-primary hover:bg-brand-primary/10'
+                    }`}
+                    title="Mover abajo"
+                  >
+                    ⬇️
+                  </button>
+                  <button
+                    onClick={() => handleRemovePista(pista.id, pista.order)}
+                    disabled={saving}
+                    className="p-2 rounded text-danger/70 hover:text-danger hover:bg-danger/10 transition"
+                    title="Eliminar pista"
+                  >
+                    🗑️
+                  </button>
+                </div>
               </div>
 
               {/* Pareja nuestra */}
@@ -365,11 +370,7 @@ export default function PistasTab({ match, onUpdate }: Props) {
                   <select
                     value={pista.player1Id ?? ''}
                     onChange={(e) =>
-                      handleAssignPlayer(
-                        pista.id,
-                        1,
-                        e.target.value || null,
-                      )
+                      handleAssignPlayer(pista.id, 1, e.target.value || null)
                     }
                     disabled={saving}
                     className="w-full text-sm bg-surface-elevated border border-border-subtle text-text-primary rounded px-3 py-2 focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition disabled:opacity-50"
@@ -379,9 +380,7 @@ export default function PistasTab({ match, onUpdate }: Props) {
                       <option
                         key={p.userId}
                         value={p.userId}
-                        disabled={
-                          p.userId === pista.player2Id // no puede ser el mismo que el otro slot
-                        }
+                        disabled={p.userId === pista.player2Id}
                       >
                         {p.number != null ? `#${p.number} ` : ''}
                         {p.name} {p.lastName}
@@ -396,11 +395,7 @@ export default function PistasTab({ match, onUpdate }: Props) {
                   <select
                     value={pista.player2Id ?? ''}
                     onChange={(e) =>
-                      handleAssignPlayer(
-                        pista.id,
-                        2,
-                        e.target.value || null,
-                      )
+                      handleAssignPlayer(pista.id, 2, e.target.value || null)
                     }
                     disabled={saving}
                     className="w-full text-sm bg-surface-elevated border border-border-subtle text-text-primary rounded px-3 py-2 focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition disabled:opacity-50"
@@ -422,9 +417,16 @@ export default function PistasTab({ match, onUpdate }: Props) {
 
               {/* Sets */}
               <div>
-                <h4 className="text-sm font-semibold text-text-primary mb-2">
-                  Sets ({pista.sets.length})
-                </h4>
+                <div className="flex justify-between items-baseline mb-2 flex-wrap gap-2">
+                  <h4 className="text-sm font-semibold text-text-primary">
+                    Sets ({pista.sets.length})
+                  </h4>
+                  <p className="text-[10px] text-text-muted">
+                    🏠 Local: <strong className="text-text-secondary">{localName}</strong>
+                    {'  ·  '}
+                    ✈️ Visitante: <strong className="text-text-secondary">{visitanteName}</strong>
+                  </p>
+                </div>
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                   {pista.sets.map((set) => (
                     <div
@@ -467,6 +469,7 @@ export default function PistasTab({ match, onUpdate }: Props) {
                             )
                           }
                           className="w-14 text-center text-lg font-bold bg-surface border border-border-subtle text-text-primary rounded px-1 py-1 focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"
+                          title={`Local: ${localName}`}
                         />
                         <span className="text-text-muted">-</span>
                         <input
@@ -482,6 +485,7 @@ export default function PistasTab({ match, onUpdate }: Props) {
                             )
                           }
                           className="w-14 text-center text-lg font-bold bg-surface border border-border-subtle text-text-primary rounded px-1 py-1 focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"
+                          title={`Visitante: ${visitanteName}`}
                         />
                       </div>
                     </div>
