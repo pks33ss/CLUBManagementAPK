@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Card, CardBody } from '@/components/ui'
 import MetricSelect from '@/components/MetricSelect'
 import TrendChart from '@/components/TrendChart'
@@ -11,6 +13,7 @@ import type {
 import type { MatchResult } from '@/lib/api/matches'
 
 interface Props {
+  teamId: string
   data: BasketballTeamStats
   visibleMetrics: string[]
   availableTrendMetrics: AvailableTrendMetric[]
@@ -38,6 +41,7 @@ function fmtPlusMinus(v: number): string {
 }
 
 export default function BasketballTeamStatsTab({
+  teamId,
   data,
   visibleMetrics,
   availableTrendMetrics,
@@ -368,6 +372,7 @@ export default function BasketballTeamStatsTab({
                     {show('FT_PCT') && (
                       <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TL</th>
                     )}
+                    <th className="px-2 py-2 w-8" aria-label="Abrir" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-subtle">
@@ -380,6 +385,7 @@ export default function BasketballTeamStatsTab({
                       showWins={showWins}
                       showLosses={showLosses}
                       showDraws={showDraws}
+                      teamId={teamId}
                     />
                   ))}
                 </tbody>
@@ -399,6 +405,7 @@ function PlayerRow({
   showWins,
   showLosses,
   showDraws,
+  teamId,
 }: {
   p: BasketballTeamStatsPlayer
   show: (key: string) => boolean
@@ -406,11 +413,24 @@ function PlayerRow({
   showWins: boolean
   showLosses: boolean
   showDraws: boolean
+  teamId: string
 }) {
+  const router = useRouter()
+  const href = `/teams/${teamId}/players/${p.userId}/stats`
+
   return (
-    <tr className="hover:bg-surface-elevated transition">
+    <tr
+      onClick={() => router.push(href)}
+      className="hover:bg-surface-elevated transition cursor-pointer"
+    >
       <td className="px-2 py-2 font-medium text-text-primary whitespace-nowrap">
-        {p.name} {p.lastName}
+        <Link
+          href={href}
+          onClick={(e) => e.stopPropagation()}
+          className="hover:text-brand-primary hover:underline"
+        >
+          {p.name} {p.lastName}
+        </Link>
       </td>
       {show('MATCHES') && (
         <td className="px-2 py-2 text-center text-text-secondary">
@@ -553,6 +573,7 @@ function PlayerRow({
           </span>
         </td>
       )}
+      <td className="px-2 py-2 text-center text-text-muted">→</td>
     </tr>
   )
 }

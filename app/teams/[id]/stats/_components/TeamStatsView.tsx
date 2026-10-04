@@ -199,11 +199,12 @@ export default function TeamStatsView({
     if (isPadelStats(data.sport)) {
       return (
         <PadelTeamStatsTab
-          data={data.sport.data}
-          visibleMetrics={data.visibleMetrics ?? []}
-          availableTrendMetrics={availableTrendMetrics}
-          trendMetric={trendMetric}
-          onTrendMetricChange={setTrendMetric}
+           teamId={teamId}
+  data={data.sport.data}
+  visibleMetrics={data.visibleMetrics ?? []}
+  availableTrendMetrics={availableTrendMetrics}
+  trendMetric={trendMetric}
+  onTrendMetricChange={setTrendMetric}
         />
       )
     }
@@ -211,11 +212,12 @@ export default function TeamStatsView({
     if (isBasketballStats(data.sport)) {
       return (
         <BasketballTeamStatsTab
-          data={data.sport.data}
-          visibleMetrics={data.visibleMetrics ?? []}
-          availableTrendMetrics={availableTrendMetrics}
-          trendMetric={trendMetric}
-          onTrendMetricChange={setTrendMetric}
+          teamId={teamId}
+  data={data.sport.data}
+  visibleMetrics={data.visibleMetrics ?? []}
+  availableTrendMetrics={availableTrendMetrics}
+  trendMetric={trendMetric}
+  onTrendMetricChange={setTrendMetric}
         />
       )
     }

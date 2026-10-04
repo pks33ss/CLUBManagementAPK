@@ -25,6 +25,7 @@ export default function UserProfilePage() {
     }
 
     fetchUser()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [username, router])
 
   const fetchUser = async () => {

@@ -1,6 +1,8 @@
 'use client'
 
+import Link from 'next/link'
 import { Card, CardBody, Badge } from '@/components/ui'
+import { useActiveTeam } from '@/lib/ActiveTeamContext'
 import type { UserPublic } from '@/types/user'
 
 interface Props {
@@ -13,7 +15,19 @@ const ROLE_LABEL: Record<string, string> = {
 }
 
 export default function UserProfileHeader({ user }: Props) {
+  const { activeTeam } = useActiveTeam()
+
   const initials = `${user.name?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase()
+
+  // Opción C: equipo activo si el usuario pertenece a él; si no, el primero.
+  const statsTeamId = (() => {
+    if (!user.memberships || user.memberships.length === 0) return null
+    const activeId = activeTeam?.id
+    const inActive = activeId
+      ? user.memberships.find((m) => m.team.id === activeId)
+      : null
+    return (inActive ?? user.memberships[0]).team.id
+  })()
 
   return (
     <Card>
@@ -60,6 +74,17 @@ export default function UserProfileHeader({ user }: Props) {
               </p>
             )}
           </div>
+
+          {/* Botón de estadísticas individuales */}
+          {statsTeamId && (
+            <Link
+              href={`/teams/${statsTeamId}/players/${user.id}/stats`}
+              className="shrink-0 self-start md:self-center text-sm font-medium px-3 py-2 rounded-md bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 transition whitespace-nowrap"
+              title="Ver estadísticas individuales"
+            >
+              📊 Ver estadísticas
+            </Link>
+          )}
         </div>
       </CardBody>
     </Card>

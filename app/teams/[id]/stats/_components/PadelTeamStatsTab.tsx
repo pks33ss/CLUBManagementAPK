@@ -1,5 +1,7 @@
 'use client'
 
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { Card, CardBody } from '@/components/ui'
 import MetricSelect from '@/components/MetricSelect'
 import TrendChart from '@/components/TrendChart'
@@ -11,6 +13,7 @@ import type {
 import type { SetResult } from '@/lib/api/matches'
 
 interface Props {
+  teamId: string
   data: PadelTeamStats
   visibleMetrics: string[]
   availableTrendMetrics: AvailableTrendMetric[]
@@ -33,6 +36,7 @@ function ResultPill({ result }: { result: SetResult }) {
 }
 
 export default function PadelTeamStatsTab({
+  teamId,
   data,
   visibleMetrics,
   availableTrendMetrics,
@@ -317,11 +321,17 @@ export default function PadelTeamStatsTab({
                         Dif
                       </th>
                     )}
+                    <th className="px-2 py-2 w-8" aria-label="Abrir" />
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-subtle">
                   {players.map((p) => (
-                    <PlayerRow key={p.userId} p={p} show={show} />
+                    <PlayerRow
+                      key={p.userId}
+                      p={p}
+                      show={show}
+                      teamId={teamId}
+                    />
                   ))}
                 </tbody>
               </table>
@@ -340,14 +350,28 @@ export default function PadelTeamStatsTab({
 function PlayerRow({
   p,
   show,
+  teamId,
 }: {
   p: PadelTeamStatsPlayer
   show: (key: string) => boolean
+  teamId: string
 }) {
+  const router = useRouter()
+  const href = `/teams/${teamId}/players/${p.userId}/stats`
+
   return (
-    <tr className="hover:bg-surface-elevated transition">
+    <tr
+      onClick={() => router.push(href)}
+      className="hover:bg-surface-elevated transition cursor-pointer"
+    >
       <td className="px-3 py-2 font-medium text-text-primary">
-        {p.name} {p.lastName}
+        <Link
+          href={href}
+          onClick={(e) => e.stopPropagation()}
+          className="hover:text-brand-primary hover:underline"
+        >
+          {p.name} {p.lastName}
+        </Link>
       </td>
       {show('PLAYER_MATCHES') && (
         <td className="px-3 py-2 text-center text-text-secondary">
@@ -404,6 +428,7 @@ function PlayerRow({
           {p.gamesDiff > 0 ? `+${p.gamesDiff}` : p.gamesDiff}
         </td>
       )}
+      <td className="px-2 py-2 text-center text-text-muted">→</td>
     </tr>
   )
 }
