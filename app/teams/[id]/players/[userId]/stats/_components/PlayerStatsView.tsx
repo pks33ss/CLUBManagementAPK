@@ -229,7 +229,7 @@ export default function PlayerStatsView({
         teams={teams}
         
         hidePlayerFilter
-        forceShowTeamFilter
+  
       />
       {content}
     </div>
