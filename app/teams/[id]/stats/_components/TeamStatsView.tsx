@@ -55,7 +55,10 @@ export default function TeamStatsView({
   matches,
   teams,
 }: Props) {
-  const [filters, setFilters] = useState<StatsFiltersValue>(EMPTY_FILTERS)
+  const [filters, setFilters] = useState<StatsFiltersValue>(() => ({
+  ...EMPTY_FILTERS,
+  teamIds: [teamId],
+}))
   const [trendMetric, setTrendMetricState] = useState<string>(() =>
     readStoredTrendMetric(teamId),
   )

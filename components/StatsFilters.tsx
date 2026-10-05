@@ -27,6 +27,8 @@ export interface TeamOption {
   name: string
   category: string | null
   sport: string
+  /** Marca equipos de los que el usuario ya no forma parte (solo vista jugador). */
+  isFormer?: boolean
 }
 
 export interface StatsFiltersValue {
@@ -48,6 +50,7 @@ interface Props {
   teams?: TeamOption[]
   /** El team activo (para excluirlo del selector, ya que siempre está incluido) */
   activeTeamId?: string
+  /** Oculta el selector de "Jugador" (útil en la vista individual de jugador). */
   hidePlayerFilter?: boolean
 }
 
@@ -90,13 +93,16 @@ export default function StatsFilters({
     : []
 
   const teamOptions: MultiSelectOption[] = showTeams
-    ? teams!
-        .filter((t) => t.id !== activeTeamId)
-        .map((t) => ({
+    ? teams!.map((t) => {
+        const parts = [t.category]
+        if (t.isFormer) parts.push('Ex')
+        const sublabel = parts.filter(Boolean).join(' · ')
+        return {
           value: t.id,
           label: t.name,
-          sublabel: t.category ?? undefined,
-        }))
+          sublabel: sublabel || undefined,
+        }
+      })
     : []
 
   return (
@@ -150,33 +156,40 @@ export default function StatsFilters({
             onChange={(e) => onChange({ ...value, to: e.target.value })}
             disabled={loading}
           />
-{!hidePlayerFilter && (
-          <Select
-            label="Jugador"
-            value={value.playerId}
-            onChange={(e) =>
-              onChange({ ...value, playerId: e.target.value })
-            }
-            disabled={loading}
-          >
-            <option value="">Todos</option>
-            {players.map((p) => (
-              <option key={p.userId} value={p.userId}>
-                {p.name} {p.lastName}
-              </option>
-            ))}
-          </Select>
-)}
+
+          {!hidePlayerFilter && (
+            <Select
+              label="Jugador"
+              value={value.playerId}
+              onChange={(e) =>
+                onChange({ ...value, playerId: e.target.value })
+              }
+              disabled={loading}
+            >
+              <option value="">Todos</option>
+              {players.map((p) => (
+                <option key={p.userId} value={p.userId}>
+                  {p.name} {p.lastName}
+                </option>
+              ))}
+            </Select>
+          )}
+
           {showTeams && (
             <div className="md:col-span-2">
               <MultiSelect
                 label="Equipos"
                 options={teamOptions}
                 value={value.teamIds}
-                onChange={(next) => onChange({ ...value, teamIds: next })}
-                placeholder="Solo el equipo actual"
+                onChange={(next) => {
+                  // Al menos uno seleccionado: si el usuario deselecciona el
+                  // último, mantenemos el anterior.
+                  if (next.length === 0) return
+                  onChange({ ...value, teamIds: next })
+                }}
+                placeholder="Selecciona al menos un equipo"
                 disabled={loading}
-                emptyText="No hay otros equipos del mismo deporte"
+                emptyText="No hay equipos disponibles"
               />
             </div>
           )}

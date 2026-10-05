@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
+import { teamsApi } from '@/lib/api/teams'
 import { Card, CardBody } from '@/components/ui'
 import PlayerStatsView from './_components/PlayerStatsView'
 import type {
@@ -57,9 +58,9 @@ export default function PlayerStatsPage() {
       api
         .get(`/matches/team/${teamId}`)
         .catch(() => ({ data: [] as any[] })),
-      api.get(`/teams`).catch(() => ({ data: [] as any[] })),
+      teamsApi.getPlayerTeams(teamId, userId).catch(() => []),
     ])
-      .then(([teamRes, seasonsRes, matchesRes, teamsRes]) => {
+      .then(([teamRes, seasonsRes, matchesRes, playerTeamsRes]) => {
         if (cancelled) return
 
         const teamData: TeamLite = teamRes.data
@@ -88,19 +89,15 @@ export default function PlayerStatsPage() {
           : []
         setMatches(finishedMatches)
 
-        const rawTeams = teamsRes.data
-        const clubId = teamData.club?.id
-        const teamList: TeamOption[] = Array.isArray(rawTeams)
-          ? rawTeams
-              .filter((t: any) => t.sport === teamData.sport)
-              .filter((t: any) => (clubId ? t.club?.id === clubId : true))
-              .map((t: any) => ({
-                id: t.id,
-                name: t.name,
-                category: t.category ?? null,
-                sport: t.sport ?? '',
-              }))
-          : []
+        const teamList: TeamOption[] = Array.isArray(playerTeamsRes)
+  ? playerTeamsRes.map((t) => ({
+      id: t.id,
+      name: t.name,
+      category: t.category ?? null,
+      sport: t.sport ?? '',
+      isFormer: t.isFormer ?? false,
+    }))
+  : []
         setAllTeams(teamList)
       })
       .catch((err) => {

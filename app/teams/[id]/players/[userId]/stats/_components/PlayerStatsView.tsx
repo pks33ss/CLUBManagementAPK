@@ -67,7 +67,10 @@ export default function PlayerStatsView({
   teams,
   onPlayerLoaded,
 }: Props) {
-  const [filters, setFilters] = useState<StatsFiltersValue>(EMPTY_FILTERS)
+  const [filters, setFilters] = useState<StatsFiltersValue>(() => ({
+  ...EMPTY_FILTERS,
+  teamIds: [teamId],
+}))
   const [trendMetric, setTrendMetricState] = useState<string>(() =>
     readStoredTrendMetric(teamId, playerUserId),
   )
@@ -224,8 +227,9 @@ export default function PlayerStatsView({
         loading={loading}
         matches={matches}
         teams={teams}
-        activeTeamId={teamId}
+        
         hidePlayerFilter
+        forceShowTeamFilter
       />
       {content}
     </div>
