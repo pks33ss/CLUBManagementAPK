@@ -37,6 +37,22 @@ export interface AvailableTrendMetric {
   unit: string
 }
 
+// ─────────── EQUIPOS DEL JUGADOR (Fase 3.4.1) ───────────
+
+export interface PlayerTeamOption {
+  id: string
+  name: string
+  sport: string
+  category: string | null
+  club: { id: string; name: string }
+  role: string | null
+  roles: string[]
+  status: string | null
+  jerseyNumber: number | null
+  position: string | null
+  isFormer: boolean
+}
+
 // ─────────── PÁDEL ───────────
 
 export interface PadelTeamStatsPlayer {
@@ -364,7 +380,8 @@ export interface PadelPlayerStatsResponse extends PlayerStatsCommonHeader {
   byMatch: PlayerByMatchPadel[]
 }
 
-export interface BasketballPlayerStatsResponse extends PlayerStatsCommonHeader {
+export interface BasketballPlayerStatsResponse
+  extends PlayerStatsCommonHeader {
   summary: BasketballTeamStatsPlayer
   byMatch: PlayerByMatchBasketball[]
 }
@@ -428,6 +445,16 @@ export const teamsApi = {
       `/teams/${teamId}/players/${playerUserId}/stats${
         qs ? `?${qs}` : ''
       }`,
+    )
+    return data
+  },
+
+  async getPlayerTeams(
+    teamId: string,
+    playerUserId: string,
+  ): Promise<PlayerTeamOption[]> {
+    const { data } = await api.get(
+      `/teams/${teamId}/players/${playerUserId}/teams`,
     )
     return data
   },
