@@ -21,8 +21,8 @@ type TabKey = 'equipos' | 'personal' | 'deportivo' | 'lesiones'
 
 const TABS: { key: TabKey; label: string; icon: string }[] = [
   { key: 'equipos', label: 'Equipos', icon: '🏆' },
-  { key: 'personal', label: 'Personales', icon: '📋' },
-  { key: 'deportivo', label: 'Deportivos', icon: '🏃' },
+  { key: 'personal', label: 'Datos Pers.', icon: '📋' },
+  { key: 'deportivo', label: 'Datos Depor.', icon: '🏃' },
   { key: 'lesiones', label: 'Lesiones', icon: '🩹' },
 ]
 

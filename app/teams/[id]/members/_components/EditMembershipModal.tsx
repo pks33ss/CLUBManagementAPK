@@ -21,7 +21,7 @@ export default function EditMembershipModal({
   const isGhost = !!user?.isGhost
 
   const [form, setForm] = useState({
-    // Datos personales (solo editables si ghost)
+    // Datos básicos (solo editables si ghost)
     name: user?.name ?? '',
     lastName: user?.lastName ?? '',
     phone: (user as any)?.phone ?? '',
@@ -52,7 +52,7 @@ export default function EditMembershipModal({
         }),
       )
 
-      // 2) Datos personales (solo si es ghost)
+      // 2) Datos básicos (solo si es ghost)
       if (isGhost) {
         tasks.push(
           usersApi.updateGhostProfile(membership.userId, {
@@ -76,93 +76,75 @@ export default function EditMembershipModal({
     }
   }
 
-  const personalDisabled = !isGhost || saving
-
   return (
     <Modal
       isOpen={true}
       onClose={onClose}
-      title={`Editar ${user?.name} ${user?.lastName}`}
+      title={`Editar ficha de ${user?.name ?? ''} ${user?.lastName ?? ''}`.trim()}
       size="md"
     >
       <form onSubmit={handleSubmit} className="space-y-6">
-        {/* ============================================ */}
-        {/* DATOS PERSONALES                              */}
-        {/* ============================================ */}
-        <div>
-          <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
-            📋 Datos personales
-            {!isGhost && (
-              <span className="text-[10px] px-2 py-0.5 rounded-full bg-surface-elevated text-text-muted font-normal uppercase">
-                solo lectura
-              </span>
-            )}
-          </h3>
+        {/* DATOS BÁSICOS (solo si ghost) */}
+        {isGhost && (
+          <div>
+            <h3 className="text-sm font-semibold text-text-primary mb-3">
+              📋 Datos básicos
+            </h3>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="Nombre"
+                  type="text"
+                  value={form.name}
+                  onChange={(e) => setForm({ ...form, name: e.target.value })}
+                  disabled={saving}
+                />
+                <Input
+                  label="Apellidos"
+                  type="text"
+                  value={form.lastName}
+                  onChange={(e) =>
+                    setForm({ ...form, lastName: e.target.value })
+                  }
+                  disabled={saving}
+                />
+              </div>
 
-          {!isGhost && (
-            <p className="text-xs text-text-muted mb-3">
-              El usuario tiene cuenta propia. Solo él puede editar sus datos personales desde su perfil.
-            </p>
-          )}
-
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
               <Input
-                label="Nombre"
-                type="text"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                disabled={personalDisabled}
+                label="Teléfono"
+                type="tel"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                placeholder="+34 600 123 456"
+                disabled={saving}
               />
+
               <Input
-                label="Apellidos"
-                type="text"
-                value={form.lastName}
-                onChange={(e) => setForm({ ...form, lastName: e.target.value })}
-                disabled={personalDisabled}
+                label="Email"
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                placeholder="jugador@email.com"
+                helperText="Si pones un email, cuando el jugador se registre con él, reclamará esta cuenta."
+                disabled={saving}
+              />
+
+              <Textarea
+                label="Notas"
+                value={form.bio}
+                onChange={(e) => setForm({ ...form, bio: e.target.value })}
+                rows={2}
+                placeholder="Información adicional sobre el jugador"
+                disabled={saving}
               />
             </div>
-
-            <Input
-              label="Teléfono"
-              type="tel"
-              value={form.phone}
-              onChange={(e) => setForm({ ...form, phone: e.target.value })}
-              placeholder="+34 600 123 456"
-              disabled={personalDisabled}
-            />
-
-            <Input
-              label="Email"
-              type="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              placeholder="jugador@email.com"
-              helperText={
-                isGhost
-                  ? 'Si pones un email, cuando el jugador se registre con él, reclamará esta cuenta.'
-                  : undefined
-              }
-              disabled={personalDisabled}
-            />
-
-            <Textarea
-              label="Notas"
-              value={form.bio}
-              onChange={(e) => setForm({ ...form, bio: e.target.value })}
-              rows={3}
-              placeholder="Información adicional (alergias, observaciones, etc.)"
-              disabled={personalDisabled}
-            />
           </div>
-        </div>
+        )}
 
-        {/* ============================================ */}
-        {/* DATOS DEPORTIVOS                              */}
-        {/* ============================================ */}
+        {/* DATOS DEPORTIVOS (siempre) */}
         <div>
           <h3 className="text-sm font-semibold text-text-primary mb-3">
-            🏀 Datos deportivos
+            🏃 Datos deportivos
           </h3>
 
           <div className="grid grid-cols-2 gap-4">
@@ -187,6 +169,12 @@ export default function EditMembershipModal({
             />
           </div>
         </div>
+
+        {!isGhost && (
+          <p className="text-xs text-text-muted">
+            Los datos personales del jugador se editan desde su ficha completa.
+          </p>
+        )}
 
         {error && (
           <div className="bg-danger/10 text-danger border border-danger/20 p-3 rounded-lg text-sm">

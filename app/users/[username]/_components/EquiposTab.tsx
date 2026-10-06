@@ -64,13 +64,13 @@ export default function EquiposTab({ user, canEdit = false }: Props) {
 
                   {canEdit && (
                     <button
-                      type="button"
-                      onClick={() => setEditingMembership(m)}
-                      className="shrink-0 text-xs font-medium px-2.5 py-1.5 rounded-md bg-surface-elevated hover:bg-border-subtle text-text-secondary transition whitespace-nowrap"
-                      title="Editar dorsal y posición"
-                    >
-                      ✏️ Editar
-                    </button>
+  type="button"
+  onClick={() => setEditingMembership(m)}
+  className="shrink-0 text-xs font-medium px-2.5 py-1.5 rounded-md bg-surface-elevated hover:bg-border-subtle text-text-secondary transition whitespace-nowrap"
+  title="Editar dorsal, posición y datos básicos"
+>
+  ✏️ Editar dorsal y posición
+</button>
                   )}
                 </div>
               ))}

@@ -98,10 +98,29 @@ export default function LesionesTab({
                         </Badge>
                       </div>
                       <p className="text-xs text-text-muted">
-                        {new Date(inj.date).toLocaleDateString('es-ES')}
-                        {inj.bodyPart && ` · ${inj.bodyPart}`}
-                        {inj.severity && ` · ${inj.severity}`}
-                      </p>
+  {new Date(inj.date).toLocaleDateString('es-ES')}
+  {inj.bodyPart && ` · ${inj.bodyPart}`}
+  {inj.severity && ` · ${inj.severity}`}
+</p>
+{inj.expectedReturn && (
+  <p className="text-xs text-text-secondary mt-1">
+    <span className="text-text-muted">Vuelta prevista: </span>
+    {new Date(inj.expectedReturn).toLocaleDateString('es-ES')}
+    {inj.actualReturn && (
+      <>
+        {' · '}
+        <span className="text-text-muted">Vuelta real: </span>
+        {new Date(inj.actualReturn).toLocaleDateString('es-ES')}
+      </>
+    )}
+  </p>
+)}
+{!inj.expectedReturn && inj.actualReturn && (
+  <p className="text-xs text-text-secondary mt-1">
+    <span className="text-text-muted">Vuelta real: </span>
+    {new Date(inj.actualReturn).toLocaleDateString('es-ES')}
+  </p>
+)}
                       {inj.treatment && (
                         <p className="text-sm text-text-secondary mt-2">
                           <span className="text-text-muted">Tratamiento: </span>

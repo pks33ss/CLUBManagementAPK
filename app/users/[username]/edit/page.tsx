@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { usersApi } from '@/lib/api/users'
 import { Card, CardBody, Button, Input, Select, Textarea } from '@/components/ui'
-import type { PlayerProfile, UserPublic } from '@/types/user'
+import type { UserPublic } from '@/types/user'
 
 const SHIRT_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
 const PANTS_SIZES = ['XS', 'S', 'M', 'L', 'XL', 'XXL']
@@ -86,7 +86,6 @@ export default function EditPlayerProfilePage() {
       const u = await usersApi.getByUsername(username)
       setUser(u)
 
-      // Verificamos que puede editar
       const perms = await usersApi.getPermissions(u.id)
       if (!perms.canEditProfile) {
         setError('No tienes permisos para editar esta ficha')
@@ -145,37 +144,37 @@ export default function EditPlayerProfilePage() {
     if (!user) return
 
     const numOrNull = (v: string): number | null => {
-  const t = v.trim()
-  if (!t) return null
-  const n = Number(t)
-  return isNaN(n) ? null : n
-}
+      const t = v.trim()
+      if (!t) return null
+      const n = Number(t)
+      return isNaN(n) ? null : n
+    }
 
-    const payload: any = {
+    const payload = {
       birthDate: form.birthDate || null,
-      dni: form.dni,
-      fatherName: form.fatherName,
-      motherName: form.motherName,
-      fatherPhone: form.fatherPhone,
-      motherPhone: form.motherPhone,
-      address: form.address,
-      schoolOrCompany: form.schoolOrCompany,
-      allergies: form.allergies,
+      dni: form.dni || null,
+      fatherName: form.fatherName || null,
+      motherName: form.motherName || null,
+      fatherPhone: form.fatherPhone || null,
+      motherPhone: form.motherPhone || null,
+      address: form.address || null,
+      schoolOrCompany: form.schoolOrCompany || null,
+      allergies: form.allergies || null,
       height: numOrNull(form.height),
       wingspan: numOrNull(form.wingspan),
       weight: numOrNull(form.weight),
-      emergencyContactName: form.emergencyContactName,
-      emergencyContactPhone: form.emergencyContactPhone,
-      medicalInsurance: form.medicalInsurance,
-      medicalInsuranceNumber: form.medicalInsuranceNumber,
-      shirtSize: form.shirtSize,
-      pantsSize: form.pantsSize,
-      shoeSize: form.shoeSize,
+      emergencyContactName: form.emergencyContactName || null,
+      emergencyContactPhone: form.emergencyContactPhone || null,
+      medicalInsurance: form.medicalInsurance || null,
+      medicalInsuranceNumber: form.medicalInsuranceNumber || null,
+      shirtSize: form.shirtSize || null,
+      pantsSize: form.pantsSize || null,
+      shoeSize: form.shoeSize || null,
     }
 
     setSaving(true)
     try {
-      await usersApi.updatePlayerProfile(user.id, payload)
+      await usersApi.updatePlayerProfile(user.id, payload as any)
       router.push(`/users/${username}?tab=personal`)
     } catch (err: any) {
       setFormError(
