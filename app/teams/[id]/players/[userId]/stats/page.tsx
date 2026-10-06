@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
 import { teamsApi } from '@/lib/api/teams'
+import { matchesApi } from '@/lib/api/matches'
 import { Card, CardBody } from '@/components/ui'
 import PlayerStatsView from './_components/PlayerStatsView'
 import type {
@@ -39,7 +40,9 @@ export default function PlayerStatsPage() {
   const [allTeams, setAllTeams] = useState<TeamOption[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [season, setSeason] = useState<string>('')
 
+  // ── Carga inicial
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token) {
@@ -52,52 +55,29 @@ export default function PlayerStatsPage() {
 
     Promise.all([
       api.get(`/teams/${teamId}`),
-      api
-        .get(`/seasons/team/${teamId}`)
-        .catch(() => ({ data: [] as SeasonOption[] })),
-      api
-        .get(`/matches/team/${teamId}`)
-        .catch(() => ({ data: [] as any[] })),
+      matchesApi.getTeamSeasons(teamId).catch(() => [] as string[]),
       teamsApi.getPlayerTeams(teamId, userId).catch(() => []),
     ])
-      .then(([teamRes, seasonsRes, matchesRes, playerTeamsRes]) => {
+      .then(([teamRes, seasonsRes, playerTeamsRes]) => {
         if (cancelled) return
 
         const teamData: TeamLite = teamRes.data
         setTeam(teamData)
 
-        const rawSeasons = seasonsRes.data
-        const seasonList: SeasonOption[] = Array.isArray(rawSeasons)
-          ? rawSeasons.map((s: any) => ({
-              id: s.id,
-              name: s.name,
-              startDate: s.startDate ?? null,
-              endDate: s.endDate ?? null,
-            }))
+        const seasonList: SeasonOption[] = Array.isArray(seasonsRes)
+          ? seasonsRes.map((s) => ({ id: s, name: s, startDate: null, endDate: null }))
           : []
         setSeasons(seasonList)
 
-        const rawMatches = matchesRes.data
-        const finishedMatches: MatchOption[] = Array.isArray(rawMatches)
-          ? rawMatches
-              .filter((m: any) => m.status === 'FINISHED')
-              .map((m: any) => ({
-                id: m.id,
-                date: m.date,
-                opponent: m.opponent,
-              }))
-          : []
-        setMatches(finishedMatches)
-
         const teamList: TeamOption[] = Array.isArray(playerTeamsRes)
-  ? playerTeamsRes.map((t) => ({
-      id: t.id,
-      name: t.name,
-      category: t.category ?? null,
-      sport: t.sport ?? '',
-      isFormer: t.isFormer ?? false,
-    }))
-  : []
+          ? playerTeamsRes.map((t) => ({
+              id: t.id,
+              name: t.name,
+              category: t.category ?? null,
+              sport: t.sport ?? '',
+              isFormer: t.isFormer ?? false,
+            }))
+          : []
         setAllTeams(teamList)
       })
       .catch((err) => {
@@ -120,6 +100,39 @@ export default function PlayerStatsPage() {
       cancelled = true
     }
   }, [teamId, userId, router])
+
+  // ── Carga de partidos según temporada
+  const fetchMatches = useCallback(
+    async (s: string) => {
+      try {
+        const params = new URLSearchParams()
+        if (s) params.set('season', s)
+        const qs = params.toString()
+
+        const { data } = await api.get(
+          `/matches/team/${teamId}${qs ? `?${qs}` : ''}`,
+        )
+
+        const finished: MatchOption[] = Array.isArray(data)
+          ? data
+              .filter((m: any) => m.status === 'FINISHED')
+              .map((m: any) => ({
+                id: m.id,
+                date: m.date,
+                opponent: m.opponent,
+              }))
+          : []
+        setMatches(finished)
+      } catch {
+        setMatches([])
+      }
+    },
+    [teamId],
+  )
+
+  useEffect(() => {
+    fetchMatches(season)
+  }, [season, fetchMatches])
 
   const handlePlayerLoaded = useCallback(
     (p: { name: string; lastName: string }) => {
@@ -187,6 +200,7 @@ export default function PlayerStatsPage() {
         matches={matches}
         teams={allTeams}
         onPlayerLoaded={handlePlayerLoaded}
+        onSeasonChange={setSeason}
       />
     </div>
   )

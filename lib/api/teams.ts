@@ -6,7 +6,7 @@ import type { SetResult, MatchResult } from './matches'
 // ============================================
 
 export interface TeamStatsFilters {
-  seasonId?: string
+  season?: string
   from?: string
   to?: string
   playerId?: string
@@ -16,7 +16,7 @@ export interface TeamStatsFilters {
 }
 
 export interface PlayerStatsFilters {
-  seasonId?: string
+  season?: string
   from?: string
   to?: string
   matchIds?: string[]
@@ -266,7 +266,7 @@ export interface TeamStatsResponse {
     sport: string
   }>
   filters: {
-    seasonId: string | null
+    season: string | null
     from: string | null
     to: string | null
     playerId: string | null
@@ -352,7 +352,7 @@ export interface PlayerStatsCommonHeader {
   team: { id: string; name: string; sport: string }
   player: { userId: string; name: string; lastName: string }
   filters: {
-    seasonId: string | null
+    season: string | null
     from: string | null
     to: string | null
     matchIds: string[] | null
@@ -400,7 +400,7 @@ export const teamsApi = {
     filters: TeamStatsFilters = {},
   ): Promise<TeamStatsResponse> {
     const params = new URLSearchParams()
-    if (filters.seasonId) params.set('seasonId', filters.seasonId)
+    if (filters.season) params.set('season', filters.season)
     if (filters.from) params.set('from', filters.from)
     if (filters.to) params.set('to', filters.to)
     if (filters.playerId) params.set('playerId', filters.playerId)
@@ -427,7 +427,7 @@ export const teamsApi = {
     filters: PlayerStatsFilters = {},
   ): Promise<PlayerStatsResponse> {
     const params = new URLSearchParams()
-    if (filters.seasonId) params.set('seasonId', filters.seasonId)
+    if (filters.season) params.set('season', filters.season)
     if (filters.from) params.set('from', filters.from)
     if (filters.to) params.set('to', filters.to)
     if (filters.matchIds && filters.matchIds.length > 0) {

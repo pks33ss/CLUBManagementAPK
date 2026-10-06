@@ -25,6 +25,7 @@ interface Props {
   seasons: SeasonOption[]
   matches: MatchOption[]
   teams: TeamOption[]
+  onSeasonChange?: (seasonId: string) => void
 }
 
 function isPadelStats(
@@ -54,11 +55,12 @@ export default function TeamStatsView({
   seasons,
   matches,
   teams,
+  onSeasonChange,
 }: Props) {
   const [filters, setFilters] = useState<StatsFiltersValue>(() => ({
-  ...EMPTY_FILTERS,
-  teamIds: [teamId],
-}))
+    ...EMPTY_FILTERS,
+    teamIds: [teamId],
+  }))
   const [trendMetric, setTrendMetricState] = useState<string>(() =>
     readStoredTrendMetric(teamId),
   )
@@ -66,9 +68,9 @@ export default function TeamStatsView({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  // Persistencia + reset al cambiar de team
   useEffect(() => {
     setTrendMetricState(readStoredTrendMetric(teamId))
+    setFilters((f) => ({ ...f, teamIds: [teamId] }))
   }, [teamId])
 
   const setTrendMetric = (next: string) => {
@@ -78,7 +80,12 @@ export default function TeamStatsView({
     }
   }
 
-  // Fetch de stats (reacciona a filters y trendMetric)
+  // Avisar al padre cuando cambia la temporada
+  useEffect(() => {
+    onSeasonChange?.(filters.seasonId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.seasonId])
+
   useEffect(() => {
     let cancelled = false
     setLoading(true)
@@ -86,7 +93,7 @@ export default function TeamStatsView({
 
     teamsApi
       .getStats(teamId, {
-        seasonId: filters.seasonId || undefined,
+        season: filters.seasonId || undefined,
         from: filters.from || undefined,
         to: filters.to || undefined,
         playerId: filters.playerId || undefined,
@@ -114,22 +121,6 @@ export default function TeamStatsView({
   }, [teamId, filters, trendMetric])
 
   const sportType = data?.sport?.type ?? teamSport
-
-  // Si el trendMetric elegido no está disponible para este rol/equipo,
-  // caemos a 'winRate' (o al primero disponible).
-  useEffect(() => {
-    if (!data?.availableTrendMetrics) return
-    const available = data.availableTrendMetrics
-    if (available.length === 0) return
-    const stillThere = available.some((m) => m.key === trendMetric)
-    if (!stillThere) {
-      const fallback =
-        available.find((m) => m.key === DEFAULT_TREND_METRIC)?.key ??
-        available[0].key
-      setTrendMetric(fallback)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data?.availableTrendMetrics])
 
   const playerOptions: PlayerOption[] = useMemo(() => {
     if (!data) return []
@@ -202,12 +193,12 @@ export default function TeamStatsView({
     if (isPadelStats(data.sport)) {
       return (
         <PadelTeamStatsTab
-           teamId={teamId}
-  data={data.sport.data}
-  visibleMetrics={data.visibleMetrics ?? []}
-  availableTrendMetrics={availableTrendMetrics}
-  trendMetric={trendMetric}
-  onTrendMetricChange={setTrendMetric}
+          teamId={teamId}
+          data={data.sport.data}
+          visibleMetrics={data.visibleMetrics ?? []}
+          availableTrendMetrics={availableTrendMetrics}
+          trendMetric={trendMetric}
+          onTrendMetricChange={setTrendMetric}
         />
       )
     }
@@ -216,11 +207,11 @@ export default function TeamStatsView({
       return (
         <BasketballTeamStatsTab
           teamId={teamId}
-  data={data.sport.data}
-  visibleMetrics={data.visibleMetrics ?? []}
-  availableTrendMetrics={availableTrendMetrics}
-  trendMetric={trendMetric}
-  onTrendMetricChange={setTrendMetric}
+          data={data.sport.data}
+          visibleMetrics={data.visibleMetrics ?? []}
+          availableTrendMetrics={availableTrendMetrics}
+          trendMetric={trendMetric}
+          onTrendMetricChange={setTrendMetric}
         />
       )
     }
@@ -245,6 +236,7 @@ export default function TeamStatsView({
     sportType,
     availableTrendMetrics,
     trendMetric,
+    teamId,
     // eslint-disable-next-line react-hooks/exhaustive-deps
   ])
 
@@ -258,7 +250,6 @@ export default function TeamStatsView({
         loading={loading}
         matches={matches}
         teams={teams}
-        activeTeamId={teamId}
       />
       {content}
     </div>

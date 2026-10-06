@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
+import { matchesApi } from '@/lib/api/matches'
 import { Card, CardBody, Button } from '@/components/ui'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
 import { usePermissions } from '@/lib/usePermissions'
@@ -34,7 +35,9 @@ export default function TeamStatsPage() {
   const [matches, setMatches] = useState<MatchOption[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [season, setSeason] = useState<string>('')
 
+  // ── Carga inicial: team + seasons
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token) {
@@ -47,40 +50,17 @@ export default function TeamStatsPage() {
 
     Promise.all([
       api.get(`/teams/${teamId}`),
-      api
-        .get(`/seasons/team/${teamId}`)
-        .catch(() => ({ data: [] as SeasonOption[] })),
-      api
-        .get(`/matches/team/${teamId}`)
-        .catch(() => ({ data: [] as any[] })),
+      matchesApi.getTeamSeasons(teamId).catch(() => [] as string[]),
     ])
-      .then(([teamRes, seasonsRes, matchesRes]) => {
+      .then(([teamRes, seasonsRes]) => {
         if (cancelled) return
         const teamData: TeamLite = teamRes.data
         setTeam(teamData)
 
-        const rawSeasons = seasonsRes.data
-        const seasonList: SeasonOption[] = Array.isArray(rawSeasons)
-          ? rawSeasons.map((s: any) => ({
-              id: s.id,
-              name: s.name,
-              startDate: s.startDate ?? null,
-              endDate: s.endDate ?? null,
-            }))
+        const seasonList: SeasonOption[] = Array.isArray(seasonsRes)
+          ? seasonsRes.map((s) => ({ id: s, name: s, startDate: null, endDate: null }))
           : []
         setSeasons(seasonList)
-
-        const rawMatches = matchesRes.data
-        const finishedMatches: MatchOption[] = Array.isArray(rawMatches)
-          ? rawMatches
-              .filter((m: any) => m.status === 'FINISHED')
-              .map((m: any) => ({
-                id: m.id,
-                date: m.date,
-                opponent: m.opponent,
-              }))
-          : []
-        setMatches(finishedMatches)
       })
       .catch((err) => {
         if (cancelled) return
@@ -102,6 +82,39 @@ export default function TeamStatsPage() {
       cancelled = true
     }
   }, [teamId, router])
+
+  // ── Carga de partidos según temporada
+  const fetchMatches = useCallback(
+    async (s: string) => {
+      try {
+        const params = new URLSearchParams()
+        if (s) params.set('season', s)
+        const qs = params.toString()
+
+        const { data } = await api.get(
+          `/matches/team/${teamId}${qs ? `?${qs}` : ''}`,
+        )
+
+        const finished: MatchOption[] = Array.isArray(data)
+          ? data
+              .filter((m: any) => m.status === 'FINISHED')
+              .map((m: any) => ({
+                id: m.id,
+                date: m.date,
+                opponent: m.opponent,
+              }))
+          : []
+        setMatches(finished)
+      } catch {
+        setMatches([])
+      }
+    },
+    [teamId],
+  )
+
+  useEffect(() => {
+    fetchMatches(season)
+  }, [season, fetchMatches])
 
   const teamOptions: TeamOption[] = useMemo(() => {
     if (!team) return []
@@ -181,6 +194,7 @@ export default function TeamStatsPage() {
         seasons={seasons}
         matches={matches}
         teams={teamOptions}
+        onSeasonChange={setSeason}
       />
     </div>
   )

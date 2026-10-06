@@ -303,4 +303,8 @@ export const matchesApi = {
   async removePlayerStats(matchId: string, userId: string): Promise<void> {
     await api.delete(`/matches/${matchId}/stats/${userId}`)
   },
+    async getTeamSeasons(teamId: string): Promise<string[]> {
+    const { data } = await api.get(`/matches/team/${teamId}/seasons`)
+    return data
+  },
 }

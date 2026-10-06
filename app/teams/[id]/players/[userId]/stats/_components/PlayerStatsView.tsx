@@ -26,6 +26,7 @@ interface Props {
   matches: MatchOption[]
   teams: TeamOption[]
   onPlayerLoaded?: (player: { name: string; lastName: string }) => void
+  onSeasonChange?: (seasonId: string) => void
 }
 
 function isPadelResponse(
@@ -66,11 +67,12 @@ export default function PlayerStatsView({
   matches,
   teams,
   onPlayerLoaded,
+  onSeasonChange,
 }: Props) {
   const [filters, setFilters] = useState<StatsFiltersValue>(() => ({
-  ...EMPTY_FILTERS,
-  teamIds: [teamId],
-}))
+    ...EMPTY_FILTERS,
+    teamIds: [teamId],
+  }))
   const [trendMetric, setTrendMetricState] = useState<string>(() =>
     readStoredTrendMetric(teamId, playerUserId),
   )
@@ -80,6 +82,7 @@ export default function PlayerStatsView({
 
   useEffect(() => {
     setTrendMetricState(readStoredTrendMetric(teamId, playerUserId))
+    setFilters((f) => ({ ...f, teamIds: [teamId] }))
   }, [teamId, playerUserId])
 
   const setTrendMetric = (next: string) => {
@@ -92,6 +95,12 @@ export default function PlayerStatsView({
     }
   }
 
+  // Avisar al padre cuando cambia la temporada
+  useEffect(() => {
+    onSeasonChange?.(filters.seasonId)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.seasonId])
+
   useEffect(() => {
     let cancelled = false
     setLoading(true)
@@ -99,7 +108,7 @@ export default function PlayerStatsView({
 
     teamsApi
       .getPlayerStats(teamId, playerUserId, {
-        seasonId: filters.seasonId || undefined,
+        season: filters.seasonId || undefined,
         from: filters.from || undefined,
         to: filters.to || undefined,
         matchIds: filters.matchIds.length > 0 ? filters.matchIds : undefined,
@@ -227,9 +236,7 @@ export default function PlayerStatsView({
         loading={loading}
         matches={matches}
         teams={teams}
-        
         hidePlayerFilter
-  
       />
       {content}
     </div>
