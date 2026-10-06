@@ -1,18 +1,19 @@
 import api from '@/lib/api'
-import type { UserMe, UserPublic } from '@/types/user'
+import type {
+  UserMe,
+  UserPublic,
+  PlayerProfile,
+  Injury,
+  InjuryStatus,
+  UserPermissions,
+} from '@/types/user'
 
 export const usersApi = {
-  /**
-   * Mi perfil completo.
-   */
   async getMe(): Promise<UserMe> {
     const { data } = await api.get('/users/me')
     return data
   },
 
-  /**
-   * Actualizar mi perfil (name, lastName, phone, bio, avatar).
-   */
   async updateMe(payload: {
     name?: string
     lastName?: string
@@ -24,9 +25,6 @@ export const usersApi = {
     return data
   },
 
-  /**
-   * Buscar usuarios (limitado a mis clubes).
-   */
   async search(query: string): Promise<UserPublic[]> {
     const { data } = await api.get('/users/search', {
       params: { q: query },
@@ -34,19 +32,12 @@ export const usersApi = {
     return data
   },
 
-  /**
-   * Ficha pública por username.
-   */
   async getByUsername(username: string): Promise<UserPublic> {
     const clean = username.startsWith('@') ? username.slice(1) : username
     const { data } = await api.get(`/users/by-username/${clean}`)
     return data
   },
 
-  /**
-   * Crear usuario fantasma y añadirlo a un equipo.
-   * Solo para coach/assistant/admin del equipo.
-   */
   async createGhost(payload: {
     name: string
     lastName: string
@@ -68,10 +59,6 @@ export const usersApi = {
     return data
   },
 
-    /**
-   * Buscar un usuario registrado por email o username exacto
-   * para invitarlo a un equipo. Solo devuelve datos públicos.
-   */
   async lookupUser(params: { email?: string; username?: string }): Promise<{
     id: string
     name: string
@@ -82,14 +69,6 @@ export const usersApi = {
     return data
   },
 
-
-
-
-
-  /**
-   * Editar los datos personales de un user fantasma.
-   * Solo SUPER_ADMIN, ADMIN_CLUB del club o COACH+ del equipo.
-   */
   async updateGhostProfile(
     userId: string,
     payload: {
@@ -113,5 +92,74 @@ export const usersApi = {
     return data
   },
 
+  // ─────────── PLAYER PROFILE (Fase 4) ───────────
 
+  async getPermissions(userId: string): Promise<UserPermissions> {
+    const { data } = await api.get(`/users/${userId}/permissions`)
+    return data
+  },
+
+  async getPlayerProfile(userId: string): Promise<PlayerProfile | null> {
+    const { data } = await api.get(`/users/${userId}/player-profile`)
+    return data
+  },
+
+  async updatePlayerProfile(
+    userId: string,
+    payload: Partial<Omit<PlayerProfile, 'id' | 'userId' | 'createdAt' | 'updatedAt'>>,
+  ): Promise<PlayerProfile> {
+    const { data } = await api.put(`/users/${userId}/player-profile`, payload)
+    return data
+  },
+
+  async listInjuries(userId: string): Promise<Injury[]> {
+    const { data } = await api.get(`/users/${userId}/injuries`)
+    return data
+  },
+
+  async createInjury(
+    userId: string,
+    payload: {
+      date: string
+      description: string
+      bodyPart?: string
+      severity?: string
+      status?: InjuryStatus
+      expectedReturn?: string
+      actualReturn?: string
+      treatment?: string
+      doctor?: string
+      notes?: string
+    },
+  ): Promise<Injury> {
+    const { data } = await api.post(`/users/${userId}/injuries`, payload)
+    return data
+  },
+
+  async updateInjury(
+    userId: string,
+    injuryId: string,
+    payload: Partial<{
+      date: string
+      description: string
+      bodyPart: string
+      severity: string
+      status: InjuryStatus
+      expectedReturn: string
+      actualReturn: string
+      treatment: string
+      doctor: string
+      notes: string
+    }>,
+  ): Promise<Injury> {
+    const { data } = await api.put(
+      `/users/${userId}/injuries/${injuryId}`,
+      payload,
+    )
+    return data
+  },
+
+  async deleteInjury(userId: string, injuryId: string): Promise<void> {
+    await api.delete(`/users/${userId}/injuries/${injuryId}`)
+  },
 }

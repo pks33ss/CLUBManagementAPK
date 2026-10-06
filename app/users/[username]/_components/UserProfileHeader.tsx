@@ -7,6 +7,7 @@ import type { UserPublic } from '@/types/user'
 
 interface Props {
   user: UserPublic
+  canEditProfile?: boolean
 }
 
 const ROLE_LABEL: Record<string, string> = {
@@ -14,12 +15,14 @@ const ROLE_LABEL: Record<string, string> = {
   USER: '👤 Usuario',
 }
 
-export default function UserProfileHeader({ user }: Props) {
+export default function UserProfileHeader({
+  user,
+  canEditProfile = false,
+}: Props) {
   const { activeTeam } = useActiveTeam()
 
   const initials = `${user.name?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase()
 
-  // Opción C: equipo activo si el usuario pertenece a él; si no, el primero.
   const statsTeamId = (() => {
     if (!user.memberships || user.memberships.length === 0) return null
     const activeId = activeTeam?.id
@@ -29,11 +32,12 @@ export default function UserProfileHeader({ user }: Props) {
     return (inActive ?? user.memberships[0]).team.id
   })()
 
+  const profileUsername = user.username?.replace('@', '')
+
   return (
     <Card>
       <CardBody>
         <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
-          {/* Avatar */}
           <div className="w-24 h-24 rounded-full bg-brand-primary text-bg-base flex items-center justify-center text-3xl font-bold shrink-0">
             {user.avatar ? (
               <img
@@ -46,7 +50,6 @@ export default function UserProfileHeader({ user }: Props) {
             )}
           </div>
 
-          {/* Info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 flex-wrap mb-1">
               {user.username && (
@@ -75,16 +78,26 @@ export default function UserProfileHeader({ user }: Props) {
             )}
           </div>
 
-          {/* Botón de estadísticas individuales */}
-          {statsTeamId && (
-            <Link
-              href={`/teams/${statsTeamId}/players/${user.id}/stats`}
-              className="shrink-0 self-start md:self-center text-sm font-medium px-3 py-2 rounded-md bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 transition whitespace-nowrap"
-              title="Ver estadísticas individuales"
-            >
-              📊 Ver estadísticas
-            </Link>
-          )}
+          <div className="flex flex-col sm:flex-row gap-2 shrink-0 self-start md:self-center">
+            {statsTeamId && (
+              <Link
+                href={`/teams/${statsTeamId}/players/${user.id}/stats`}
+                className="text-sm font-medium px-3 py-2 rounded-md bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 transition whitespace-nowrap"
+                title="Ver estadísticas individuales"
+              >
+                📊 Ver estadísticas
+              </Link>
+            )}
+            {canEditProfile && profileUsername && (
+              <Link
+                href={`/users/${profileUsername}/edit`}
+                className="text-sm font-medium px-3 py-2 rounded-md bg-brand-primary text-bg-base hover:bg-brand-primary/90 transition whitespace-nowrap"
+                title="Editar ficha"
+              >
+                📝 Editar ficha
+              </Link>
+            )}
+          </div>
         </div>
       </CardBody>
     </Card>

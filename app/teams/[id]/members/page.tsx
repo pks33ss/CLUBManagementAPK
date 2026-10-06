@@ -5,12 +5,11 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { membershipsApi } from '@/lib/api/memberships'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
-import { Button, Card, CardBody } from '@/components/ui'
+import { Button } from '@/components/ui'
 import MembersList from './_components/MembersList'
 import PendingRequestsSection from './_components/PendingRequestsSection'
 import InviteMemberModal from './_components/InviteMemberModal'
-import EditMembershipModal from './_components/EditMembershipModal'
-import type { Membership, MembershipWithUser } from '@/types/membership'
+import type { MembershipWithUser } from '@/types/membership'
 import { useRouter, useParams, useSearchParams } from 'next/navigation'
 import { usePermissions } from '@/lib/usePermissions'
 
@@ -25,19 +24,10 @@ export default function TeamMembersPage() {
   const [error, setError] = useState('')
 
   const [showInviteModal, setShowInviteModal] = useState(false)
-  const [editingMembership, setEditingMembership] = useState<MembershipWithUser | null>(null)
   const searchParams = useSearchParams()
   const action = searchParams.get('action')
 
-  // ============================================
-  // PERMISOS (hook)
-  // ============================================
-
   const perms = usePermissions(teamId)
-
-  // ============================================
-  // CARGA DE MIEMBROS
-  // ============================================
 
   const fetchMembers = useCallback(async () => {
     try {
@@ -64,19 +54,11 @@ export default function TeamMembersPage() {
     }
   }, [teamId, router, fetchMembers, action])
 
-  // ============================================
-  // SEPARAR MIEMBROS Y SOLICITUDES
-  // ============================================
-
   const activeMembers = members.filter((m) => m.status === 'ACTIVE')
   const pendingRequests = members.filter((m) => m.status === 'PENDING')
   const inactiveMembers = members.filter(
     (m) => m.status === 'INACTIVE' || m.status === 'LEFT',
   )
-
-  // ============================================
-  // RENDER
-  // ============================================
 
   if (loading) {
     return <div className="text-center py-12 text-text-muted">Cargando miembros...</div>
@@ -105,7 +87,6 @@ export default function TeamMembersPage() {
         ← Volver al equipo
       </Link>
 
-      {/* Header */}
       <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">👥 Miembros del Equipo</h1>
@@ -124,7 +105,6 @@ export default function TeamMembersPage() {
         )}
       </div>
 
-      {/* Solicitudes pendientes */}
       {perms.canManage && pendingRequests.length > 0 && (
         <PendingRequestsSection
           requests={pendingRequests}
@@ -132,17 +112,14 @@ export default function TeamMembersPage() {
         />
       )}
 
-      {/* Lista de miembros activos */}
       <MembersList
         members={activeMembers}
         perms={perms}
         currentUserId={userMe?.id || ''}
-        onEdit={setEditingMembership}
         onUpdate={fetchMembers}
         title="Miembros activos"
       />
 
-      {/* Miembros inactivos (colapsable) */}
       {inactiveMembers.length > 0 && (
         <details className="mt-6">
           <summary className="cursor-pointer text-sm text-text-muted hover:text-text-primary transition">
@@ -153,7 +130,6 @@ export default function TeamMembersPage() {
               members={inactiveMembers}
               perms={perms}
               currentUserId={userMe?.id || ''}
-              onEdit={setEditingMembership}
               onUpdate={fetchMembers}
               title="Inactivos"
               showRejoin
@@ -162,19 +138,10 @@ export default function TeamMembersPage() {
         </details>
       )}
 
-      {/* Modales */}
       {showInviteModal && (
         <InviteMemberModal
           teamId={teamId}
           onClose={() => setShowInviteModal(false)}
-          onSuccess={fetchMembers}
-        />
-      )}
-
-      {editingMembership && (
-        <EditMembershipModal
-          membership={editingMembership}
-          onClose={() => setEditingMembership(null)}
           onSuccess={fetchMembers}
         />
       )}

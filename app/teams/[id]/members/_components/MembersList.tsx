@@ -15,7 +15,6 @@ interface Props {
   members: MembershipWithUser[]
   perms: UsePermissionsResult
   currentUserId: string
-  onEdit: (membership: MembershipWithUser) => void
   onUpdate: () => Promise<void> | void
   title?: string
   showRejoin?: boolean
@@ -29,7 +28,7 @@ const ROLE_VARIANT: Record<string, 'info' | 'success' | 'brand' | 'neutral'> = {
 }
 
 const ROLE_LABEL: Record<string, string> = {
-  COACH: '🏆 Entrenador',
+  COACH: '🎓 Entrenador',
   ASSISTANT: '🤝 Asistente',
   ADMIN_TEAM: '🛠️ Admin Equipo',
   PLAYER: '🏃 Jugador',
@@ -47,7 +46,6 @@ export default function MembersList({
   members,
   perms,
   currentUserId,
-  onEdit,
   onUpdate,
   title,
   showRejoin = false,
@@ -56,7 +54,6 @@ export default function MembersList({
   const [confirmRemove, setConfirmRemove] = useState<MembershipWithUser | null>(null)
   const [invitingMember, setInvitingMember] = useState<MembershipWithUser | null>(null)
   const [rolesModalMember, setRolesModalMember] = useState<MembershipWithUser | null>(null)
-  
 
   const handleRemove = async (m: MembershipWithUser) => {
     setProcessing(m.id)
@@ -92,8 +89,13 @@ export default function MembersList({
   const canEditRolesRow = (m: MembershipWithUser) =>
     perms.canManage || m.userId === currentUserId
 
-  // ✅ Editar datos personales: solo si es ghost y el user puede gestionar
- 
+  // Devuelve el href a la ficha del usuario en la pestaña Equipos, o null si no hay username
+  const userProfileHref = (m: MembershipWithUser): string | null => {
+    const uname = m.user?.username
+    if (!uname) return null
+    const clean = uname.replace('@', '')
+    return `/users/${clean}?tab=equipos`
+  }
 
   return (
     <>
@@ -128,6 +130,7 @@ export default function MembersList({
             <tbody className="divide-y divide-border-subtle">
               {members.map((m) => {
                 const targetRoles = getTargetRoles(m)
+                const profileHref = userProfileHref(m)
                 return (
                   <tr key={m.id} className="hover:bg-surface-elevated transition">
                     <td className="px-6 py-4">
@@ -146,7 +149,7 @@ export default function MembersList({
                         <div className="min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
                             <Link
-                              href={m.user?.username ? `/users/${m.user.username.replace('@', '')}` : '#'}
+                              href={profileHref ?? '#'}
                               className="font-medium text-text-primary hover:text-brand-primary transition truncate"
                             >
                               {m.user?.name} {m.user?.lastName}
@@ -193,15 +196,15 @@ export default function MembersList({
                               📨 Invitar
                             </button>
                           )}
-                          
-                          {canEditRow(m) && (
-                            <button
-                              onClick={() => onEdit(m)}
+
+                          {canEditRow(m) && profileHref && (
+                            <Link
+                              href={profileHref}
                               className="text-xs bg-surface-elevated hover:bg-border-subtle text-text-secondary px-3 py-1 rounded-full font-medium transition"
-                              title="Editar dorsal/posición"
+                              title="Ver ficha del jugador"
                             >
-                              ✏️
-                            </button>
+                              ✏️ Editar
+                            </Link>
                           )}
                           {canEditRolesRow(m) && (
                             <button
@@ -236,6 +239,7 @@ export default function MembersList({
         <div className="md:hidden divide-y divide-border-subtle">
           {members.map((m) => {
             const targetRoles = getTargetRoles(m)
+            const profileHref = userProfileHref(m)
             return (
               <div key={m.id} className="p-4 space-y-3">
                 <div className="flex items-start justify-between gap-3">
@@ -254,7 +258,7 @@ export default function MembersList({
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <Link
-                          href={m.user?.username ? `/users/${m.user.username.replace('@', '')}` : '#'}
+                          href={profileHref ?? '#'}
                           className="font-medium text-text-primary hover:text-brand-primary transition truncate block"
                         >
                           {m.user?.name} {m.user?.lastName}
@@ -297,7 +301,7 @@ export default function MembersList({
                         📨 Invitar
                       </button>
                     )}
-                    
+
                     {canEditRolesRow(m) && (
                       <button
                         onClick={() => setRolesModalMember(m)}
@@ -306,13 +310,13 @@ export default function MembersList({
                         🎭 Roles
                       </button>
                     )}
-                    {canEditRow(m) && (
-                      <button
-                        onClick={() => onEdit(m)}
-                        className="flex-1 min-w-[120px] text-xs bg-surface-elevated hover:bg-border-subtle text-text-secondary px-3 py-2 rounded-lg font-medium transition"
+                    {canEditRow(m) && profileHref && (
+                      <Link
+                        href={profileHref}
+                        className="flex-1 min-w-[120px] text-xs bg-surface-elevated hover:bg-border-subtle text-text-secondary px-3 py-2 rounded-lg font-medium transition text-center"
                       >
                         ✏️ Editar
-                      </button>
+                      </Link>
                     )}
                     {canRemoveRow(m) && (
                       <button
@@ -396,8 +400,6 @@ export default function MembersList({
           onClose={() => setInvitingMember(null)}
         />
       )}
-
-      
     </>
   )
 }

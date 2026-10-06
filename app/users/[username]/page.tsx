@@ -1,39 +1,65 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { usersApi } from '@/lib/api/users'
 import UserProfileHeader from './_components/UserProfileHeader'
-import { Card, CardBody, Badge } from '@/components/ui'
-import type { UserPublic } from '@/types/user'
+import EquiposTab from './_components/EquiposTab'
+import PersonalTab from './_components/PersonalTab'
+import DeportivoTab from './_components/DeportivoTab'
+import LesionesTab from './_components/LesionesTab'
+import { Card, CardBody } from '@/components/ui'
+import type {
+  UserPublic,
+  PlayerProfile,
+  Injury,
+  UserPermissions,
+} from '@/types/user'
+
+type TabKey = 'equipos' | 'personal' | 'deportivo' | 'lesiones'
+
+const TABS: { key: TabKey; label: string; icon: string }[] = [
+  { key: 'equipos', label: 'Equipos', icon: '🏆' },
+  { key: 'personal', label: 'Personales', icon: '📋' },
+  { key: 'deportivo', label: 'Deportivos', icon: '🏃' },
+  { key: 'lesiones', label: 'Lesiones', icon: '🩹' },
+]
+
+function isValidTab(v: string | null): v is TabKey {
+  return v === 'equipos' || v === 'personal' || v === 'deportivo' || v === 'lesiones'
+}
 
 export default function UserProfilePage() {
   const router = useRouter()
   const params = useParams()
+  const searchParams = useSearchParams()
   const username = params.username as string
 
+  const tabParam = searchParams.get('tab')
+  const tab: TabKey = isValidTab(tabParam) ? tabParam : 'equipos'
+
   const [user, setUser] = useState<UserPublic | null>(null)
+  const [profile, setProfile] = useState<PlayerProfile | null>(null)
+  const [injuries, setInjuries] = useState<Injury[]>([])
+  const [permissions, setPermissions] = useState<UserPermissions | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  useEffect(() => {
-    const token = localStorage.getItem('token')
-    if (!token) {
-      router.push('/login')
-      return
-    }
-
-    fetchUser()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [username, router])
-
-  const fetchUser = async () => {
+  const fetchUser = useCallback(async () => {
     setLoading(true)
     setError('')
     try {
       const data = await usersApi.getByUsername(username)
       setUser(data)
+
+      // Pedimos permisos en paralelo. Si falla, asumimos todo false.
+      try {
+        const perms = await usersApi.getPermissions(data.id)
+        setPermissions(perms)
+      } catch {
+        setPermissions({ canViewProfile: false, canEditProfile: false })
+      }
     } catch (err: any) {
       console.error('Error:', err)
       if (err.response?.status === 404) {
@@ -44,6 +70,58 @@ export default function UserProfilePage() {
     } finally {
       setLoading(false)
     }
+  }, [username])
+
+  // Cargar perfil y lesiones cuando ya tenemos user + permisos
+  const fetchProfileData = useCallback(async () => {
+    if (!user || !permissions?.canViewProfile) {
+      setProfile(null)
+      setInjuries([])
+      return
+    }
+    try {
+      const [p, i] = await Promise.all([
+        usersApi.getPlayerProfile(user.id),
+        usersApi.listInjuries(user.id),
+      ])
+      setProfile(p)
+      setInjuries(i)
+    } catch (err) {
+      console.error('Error cargando perfil/lesiones:', err)
+    }
+  }, [user, permissions?.canViewProfile])
+
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    if (!token) {
+      router.push('/login')
+      return
+    }
+    fetchUser()
+  }, [fetchUser, router])
+
+  useEffect(() => {
+    fetchProfileData()
+  }, [fetchProfileData])
+
+  const visibleTabs = useMemo(() => {
+    if (!permissions?.canViewProfile) {
+      return TABS.filter((t) => t.key === 'equipos')
+    }
+    return TABS
+  }, [permissions?.canViewProfile])
+
+  // Si el usuario intenta acceder a una tab no visible, redirigimos a "equipos"
+  useEffect(() => {
+    if (!permissions) return
+    const allowed = visibleTabs.some((t) => t.key === tab)
+    if (!allowed) {
+      router.replace(`/users/${username}?tab=equipos`)
+    }
+  }, [permissions, visibleTabs, tab, router, username])
+
+  const setTab = (next: TabKey) => {
+    router.replace(`/users/${username}?tab=${next}`, { scroll: false })
   }
 
   if (loading) {
@@ -63,7 +141,7 @@ export default function UserProfilePage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-4xl mx-auto">
       <Link
         href="/home"
         className="text-brand-primary hover:underline inline-block mb-6"
@@ -71,54 +149,53 @@ export default function UserProfilePage() {
         ← Volver
       </Link>
 
-      <UserProfileHeader user={user} />
+      <UserProfileHeader
+        user={user}
+        canEditProfile={permissions?.canEditProfile ?? false}
+      />
 
-      {/* Equipos */}
-      <Card className="mt-6">
-        <CardBody>
-          <h2 className="text-lg font-semibold text-text-primary mb-4">
-            🏆 Equipos actuales ({user.memberships?.length || 0})
-          </h2>
+      {/* Tabs */}
+      {visibleTabs.length > 1 && (
+        <div className="mt-6 flex flex-wrap gap-2 border-b border-border-subtle pb-2">
+          {visibleTabs.map((t) => {
+            const active = t.key === tab
+            return (
+              <button
+                key={t.key}
+                type="button"
+                onClick={() => setTab(t.key)}
+                className={`px-4 py-2 text-sm font-medium rounded-t-lg transition ${
+                  active
+                    ? 'bg-brand-primary/10 text-brand-primary border-b-2 border-brand-primary'
+                    : 'text-text-secondary hover:text-text-primary hover:bg-surface-elevated'
+                }`}
+              >
+                {t.icon} {t.label}
+              </button>
+            )
+          })}
+        </div>
+      )}
 
-          {!user.memberships || user.memberships.length === 0 ? (
-            <p className="text-text-muted text-center py-8">
-              No pertenece a ningún equipo actualmente
-            </p>
-          ) : (
-            <div className="space-y-2">
-              {user.memberships.map((m) => (
-                <Link
-                  key={m.id}
-                  href={`/teams/${m.team.id}`}
-                  className="flex items-center gap-4 p-3 rounded-lg border border-border-subtle hover:border-brand-primary/50 hover:bg-surface-elevated transition"
-                >
-                  {m.team.club?.logo ? (
-                    <img
-                      src={m.team.club.logo}
-                      alt={m.team.club.name}
-                      className="w-10 h-10 rounded-lg object-cover shrink-0"
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-lg bg-brand-primary/10 flex items-center justify-center text-xl shrink-0">
-                      🏆
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-text-primary truncate">
-                      {m.team.name}
-                    </p>
-                    <p className="text-xs text-text-muted truncate">
-                      {m.team.club?.name}
-                      {m.team.category && ` · ${m.team.category}`}
-                    </p>
-                  </div>
-                  <Badge variant="brand">{m.role}</Badge>
-                </Link>
-              ))}
-            </div>
-          )}
-        </CardBody>
-      </Card>
+      {/* Contenido */}
+      <div className="mt-6">
+        {tab === 'equipos' && (
+          <EquiposTab
+            user={user}
+            canEdit={permissions?.canEditProfile ?? false}
+          />
+        )}
+        {tab === 'personal' && <PersonalTab profile={profile} />}
+        {tab === 'deportivo' && <DeportivoTab profile={profile} />}
+        {tab === 'lesiones' && (
+          <LesionesTab
+            userId={user.id}
+            injuries={injuries}
+            canEdit={permissions?.canEditProfile ?? false}
+            onRefresh={fetchProfileData}
+          />
+        )}
+      </div>
     </div>
   )
 }
