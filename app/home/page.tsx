@@ -28,6 +28,8 @@ interface DashboardData {
   nextMatch: any
   attendance: any
   topPlayers: any[]
+  topPlayersMetrics: { key: string; label: string }[]
+  defaultTopPlayersMetric: string
   pendingCallups: any[]
   matchBalance: any
 }
@@ -287,7 +289,11 @@ export default function HomePage() {
             <NextTrainingCard training={data.nextTraining} />
             <NextMatchCard match={data.nextMatch} />
             <AttendanceCard attendance={data.attendance} />
-            <TopPlayersCard players={data.topPlayers} />
+            <TopPlayersCard
+  players={data.topPlayers}
+  metrics={data.topPlayersMetrics ?? []}
+  defaultMetric={data.defaultTopPlayersMetric ?? 'matchesPlayed'}
+/>
             <PendingCallupsCard callups={data.pendingCallups} />
             <MatchBalanceCard balance={data.matchBalance} />
           </div>
