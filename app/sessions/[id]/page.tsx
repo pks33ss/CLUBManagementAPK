@@ -7,6 +7,8 @@ import api from '@/lib/api'
 import TacticalBoard from '@/components/TacticalBoard'
 import { getSportIcon, getSportConfig } from '@/lib/sport'
 import { Button, Card, CardBody, Badge, Input, Textarea, Select, Modal } from '@/components/ui'
+import { LibraryPicker } from '@/app/library/_components/LibraryPicker' // ⬅️ NUEVO
+import type { LibraryExercise } from '@/lib/library' // ⬅️ NUEVO
 
 interface SessionDetail {
   id: string
@@ -23,7 +25,6 @@ interface SessionDetail {
       id: string
       name: string
     }
-    // ✅ Ahora memberships en lugar de players
     memberships: {
       id: string
       role: string
@@ -141,6 +142,10 @@ export default function SessionDetail() {
   const [editingShowTacticalBoard, setEditingShowTacticalBoard] = useState(false)
   const editingFileInputRef = useRef<HTMLInputElement>(null)
 
+  // ⬅️ NUEVO: estado del selector de biblioteca
+  const [showLibraryPicker, setShowLibraryPicker] = useState(false)
+  const [libraryPickerTarget, setLibraryPickerTarget] = useState<'new' | 'edit'>('new')
+
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token) {
@@ -155,28 +160,28 @@ export default function SessionDetail() {
       const response = await api.get(`/sessions/${sessionId}`)
       setSession(response.data)
 
-const memberships = (response.data.team.memberships || []).filter(
-  (m: any) =>
-    m.status === 'ACTIVE' &&
-    (m.roles ?? []).some((r: any) => r === 'PLAYER' || r.role === 'PLAYER'),
-)
+      const memberships = (response.data.team.memberships || []).filter(
+        (m: any) =>
+          m.status === 'ACTIVE' &&
+          (m.roles ?? []).some((r: any) => r === 'PLAYER' || r.role === 'PLAYER'),
+      )
 
-const playersList = memberships.map((m: any) => {
-  const attendance = response.data.attendances?.find(
-    (a: any) => a.userId === m.user.id
-  )
-  return {
-    id: m.user.id,
-    name: m.user.name,
-    lastName: m.user.lastName,
-    number: m.jerseyNumber,
-    status: attendance?.status || 'PENDING',
-    notes: attendance?.notes || '',
-    attendanceId: attendance?.id || null,
-  }
-})
+      const playersList = memberships.map((m: any) => {
+        const attendance = response.data.attendances?.find(
+          (a: any) => a.userId === m.user.id
+        )
+        return {
+          id: m.user.id,
+          name: m.user.name,
+          lastName: m.user.lastName,
+          number: m.jerseyNumber,
+          status: attendance?.status || 'PENDING',
+          notes: attendance?.notes || '',
+          attendanceId: attendance?.id || null,
+        }
+      })
 
-setPlayers(playersList)
+      setPlayers(playersList)
     } catch (error) {
       console.error('Error:', error)
     } finally {
@@ -593,34 +598,85 @@ setPlayers(playersList)
     }
   }
 
+  // ⬅️ NUEVO: aplicar ejercicio seleccionado de la biblioteca
+  const handleLibraryPick = (exercise: LibraryExercise) => {
+    if (libraryPickerTarget === 'new') {
+      // Rellenar el formulario de "Añadir Ejercicio"
+      setNewExercise({
+        name: exercise.name,
+        description: exercise.description || '',
+        category: exercise.category || '',
+        duration: exercise.duration || 10,
+        difficulty: exercise.difficulty || '',
+      })
+
+      // Links del ejercicio de biblioteca
+      const libLinks = exercise.media
+        .filter((m) => m.type === 'LINK')
+        .map((m) => ({ url: m.url, title: m.title || m.url }))
+      setExerciseLinks(libLinks)
+
+      // Imagen: primera IMAGE como pizarra (por reutilizar el campo existente)
+      const libImage = exercise.media.find((m) => m.type === 'IMAGE')
+      setBoardImage(libImage?.url || null)
+      setUploadedImage(null)
+    } else {
+      // Rellenar el formulario de "Editar Ejercicio"
+      // (ya se ha pedido confirmación desde el botón)
+      setEditingExercise({
+        ...editingExercise,
+        name: exercise.name,
+        description: exercise.description || '',
+        category: exercise.category || '',
+        duration: exercise.duration || 10,
+        difficulty: exercise.difficulty || '',
+      })
+
+      // Links: reemplazar los no-guardados, conservar los existentes que
+      // hubiera. Aquí, por simplicidad, reemplazamos TODOS los links.
+      const libLinks = exercise.media
+        .filter((m) => m.type === 'LINK')
+        .map((m) => ({
+          url: m.url,
+          title: m.title || m.url,
+          isNew: true, // se subirán al guardar
+        }))
+      setEditingLinks(libLinks)
+
+      // Imagen: la metemos como "nueva" para que se suba al guardar
+      const libImage = exercise.media.find((m) => m.type === 'IMAGE')
+      setEditingBoardImage(libImage?.url || null)
+      setEditingUploadedImage(null)
+    }
+  }
+
   // ============================================
   // FUNCIONES DE ASISTENCIA
   // ============================================
 
-const updateAttendance = async (userId: string, status: string) => {
-  setUpdating(true)
-  try {
-    // ✅ Rutas cambiadas: player → user
-    if (status === 'PENDING') {
-      await api.delete(`/attendance/session/${sessionId}/user/${userId}`)
-    } else {
-      await api.post(`/attendance/session/${sessionId}/user/${userId}`, {
-        status,
-      })
-    }
+  const updateAttendance = async (userId: string, status: string) => {
+    setUpdating(true)
+    try {
+      if (status === 'PENDING') {
+        await api.delete(`/attendance/session/${sessionId}/user/${userId}`)
+      } else {
+        await api.post(`/attendance/session/${sessionId}/user/${userId}`, {
+          status,
+        })
+      }
 
-    setPlayers(prev =>
-      prev.map(p =>
-        p.id === userId ? { ...p, status } : p
+      setPlayers(prev =>
+        prev.map(p =>
+          p.id === userId ? { ...p, status } : p
+        )
       )
-    )
-  } catch (error) {
-    console.error('Error updating attendance:', error)
-    alert('Error al actualizar la asistencia')
-  } finally {
-    setUpdating(false)
+    } catch (error) {
+      console.error('Error updating attendance:', error)
+      alert('Error al actualizar la asistencia')
+    } finally {
+      setUpdating(false)
+    }
   }
-}
 
   // ============================================
   // FUNCIONES DE UTILIDAD
@@ -1029,7 +1085,8 @@ const updateAttendance = async (userId: string, status: string) => {
           )}
         </CardBody>
       </Card>
-            {/* MODAL DE EDITAR ENTRENAMIENTO */}
+
+      {/* MODAL DE EDITAR ENTRENAMIENTO */}
       <Modal
         isOpen={showEditModal}
         onClose={() => setShowEditModal(false)}
@@ -1120,6 +1177,32 @@ const updateAttendance = async (userId: string, status: string) => {
       >
         {editingExercise && (
           <form onSubmit={updateExercise} className="space-y-4">
+            {/* ⬅️ NUEVO: botón usar de biblioteca */}
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => {
+                if (
+                  editingExercise.name ||
+                  editingExercise.description ||
+                  editingExercise.category
+                ) {
+                  if (
+                    !confirm(
+                      'Esto reemplazará los datos actuales del formulario con los del ejercicio de biblioteca. ¿Continuar?',
+                    )
+                  ) {
+                    return
+                  }
+                }
+                setLibraryPickerTarget('edit')
+                setShowLibraryPicker(true)
+              }}
+              className="w-full"
+            >
+              📚 Usar ejercicio de la biblioteca
+            </Button>
+
             <Input
               label="Nombre *"
               type="text"
@@ -1328,6 +1411,32 @@ const updateAttendance = async (userId: string, status: string) => {
         size="md"
       >
         <form onSubmit={addExercise} className="space-y-4">
+          {/* ⬅️ NUEVO: botón usar de biblioteca */}
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={() => {
+              if (
+                newExercise.name ||
+                newExercise.description ||
+                newExercise.category
+              ) {
+                if (
+                  !confirm(
+                    'Esto reemplazará los datos actuales del formulario con los del ejercicio de biblioteca. ¿Continuar?',
+                  )
+                ) {
+                  return
+                }
+              }
+              setLibraryPickerTarget('new')
+              setShowLibraryPicker(true)
+            }}
+            className="w-full"
+          >
+            📚 Usar ejercicio de la biblioteca
+          </Button>
+
           <Input
             label="Nombre del Ejercicio *"
             type="text"
@@ -1445,7 +1554,6 @@ const updateAttendance = async (userId: string, status: string) => {
               )}
             </div>
 
-            {/* Links */}
             <div className="border-t border-border-subtle pt-4">
               <label className="block text-sm font-medium text-text-secondary mb-2">
                 🔗 Añadir link a vídeo o recurso
@@ -1570,6 +1678,13 @@ const updateAttendance = async (userId: string, status: string) => {
           </div>
         </div>
       )}
+
+      {/* ⬅️ NUEVO: MODAL DE SELECCIÓN DE BIBLIOTECA */}
+      <LibraryPicker
+        isOpen={showLibraryPicker}
+        onClose={() => setShowLibraryPicker(false)}
+        onSelect={handleLibraryPick}
+      />
 
       {/* MODAL ELIMINAR ENTRENAMIENTO */}
       <Modal
