@@ -10,6 +10,7 @@ import {
   addLibraryLink,
   deleteLibraryMedia,
   type LibraryExercise,
+  type LibraryMedia,
 } from '@/lib/library'
 import { parseTags, formatTags } from '@/lib/libraryTags'
 
@@ -74,18 +75,15 @@ export function LibraryExerciseForm({
   )
   const [difficulty, setDifficulty] = useState(initial?.difficulty ?? '')
 
-  // ─── Imagen existente (solo edit) ───
-  const existingImage =
-    initial?.media.find((m) => m.type === 'IMAGE') ?? null
-
-  // ─── Pizarra / imagen nueva ───
-  // `boardImage` puede ser:
-  //  - La URL de la imagen existente (edit, sin cambios)
-  //  - Un data URL de la pizarra nueva (edit cambiada o create)
-  //  - null (sin imagen)
-  const [boardImage, setBoardImage] = useState<string | null>(
-    existingImage?.url ?? null,
+  // ─── Imágenes existentes (solo edit) ───
+  // Estado local: array de LibraryMedia IMAGE que ya están en BD.
+  // Se pueden quitar individualmente con la ✕.
+  const [existingImages, setExistingImages] = useState<LibraryMedia[]>(
+    (initial?.media ?? []).filter((m) => m.type === 'IMAGE'),
   )
+
+  // ─── Imagen nueva (pizarra o subida) ───
+  const [boardImage, setBoardImage] = useState<string | null>(null)
   const [uploadedImage, setUploadedImage] = useState<string | null>(null)
   const [showBoard, setShowBoard] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -104,6 +102,10 @@ export function LibraryExerciseForm({
 
   // ─── Estado ───
   const [saving, setSaving] = useState(false)
+
+  // ¿Hay alguna imagen nueva pendiente de subir?
+  const hasNewImage =
+    (boardImage && boardImage.startsWith('data:')) || !!uploadedImage
 
   // ============================================
   // HANDLERS DE MEDIA
@@ -127,6 +129,8 @@ export function LibraryExerciseForm({
       setUploadedImage(ev.target?.result as string)
     }
     reader.readAsDataURL(file)
+
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
   const handleAddLink = () => {
@@ -154,7 +158,6 @@ export function LibraryExerciseForm({
   const handleRemoveLink = async (index: number) => {
     const item = links[index]
 
-    // Si es un link ya existente, borrarlo en BD inmediatamente
     if (!item.isNew && item.id) {
       if (!confirm('¿Eliminar este link?')) return
       try {
@@ -169,12 +172,11 @@ export function LibraryExerciseForm({
     setLinks((prev) => prev.filter((_, i) => i !== index))
   }
 
-  const handleRemoveExistingImage = async () => {
-    if (!existingImage) return
-    if (!confirm('¿Eliminar la imagen actual?')) return
+  const handleRemoveExistingImage = async (media: LibraryMedia) => {
+    if (!confirm('¿Eliminar esta imagen?')) return
     try {
-      await deleteLibraryMedia(existingImage.id)
-      setBoardImage(null)
+      await deleteLibraryMedia(media.id)
+      setExistingImages((prev) => prev.filter((m) => m.id !== media.id))
     } catch (e) {
       console.error('Error borrando imagen:', e)
       alert('No se pudo borrar la imagen')
@@ -215,18 +217,17 @@ export function LibraryExerciseForm({
         id = exerciseId
       }
 
-      // 2. Subir pizarra nueva, si aplica
-      //    Si boardImage es un data URL (empieza por "data:") es nueva.
-      //    Si es una URL http existente, ya está en BD, no hay que subirla.
-      if (boardImage && boardImage.startsWith('data:')) {
+      // 2. Subir la pizarra nueva (si la hay)
+      const boardIsNew = boardImage && boardImage.startsWith('data:')
+      if (boardIsNew) {
         try {
-          await uploadLibraryImage(id, boardImage, 'Pizarra táctica')
+          await uploadLibraryImage(id, boardImage!, 'Pizarra táctica')
         } catch (err) {
           console.error('Error subiendo pizarra:', err)
         }
       }
 
-      // 3. Subir imagen subida, si hay
+      // 3. Subir la imagen subida (si la hay)
       if (uploadedImage) {
         try {
           await uploadLibraryImage(id, uploadedImage, 'Imagen del ejercicio')
@@ -246,19 +247,15 @@ export function LibraryExerciseForm({
         }
       }
 
-      // 5. Si en edit sustituimos la imagen existente por una nueva,
-      //    borrar la antigua (best-effort, no rompemos si falla).
-      if (
-        mode === 'edit' &&
-        existingImage &&
-        boardImage &&
-        boardImage !== existingImage.url &&
-        boardImage.startsWith('data:')
-      ) {
-        try {
-          await deleteLibraryMedia(existingImage.id)
-        } catch (err) {
-          console.error('Error borrando imagen antigua:', err)
+      // 5. Si hay imagen nueva, borrar TODAS las imágenes antiguas que
+      //    aún queden en BD (no las que el usuario ya haya borrado en UI).
+      if (mode === 'edit' && hasNewImage && existingImages.length > 0) {
+        for (const img of existingImages) {
+          try {
+            await deleteLibraryMedia(img.id)
+          } catch (err) {
+            console.error(`Error borrando imagen antigua ${img.id}:`, err)
+          }
         }
       }
 
@@ -340,27 +337,36 @@ export function LibraryExerciseForm({
         helperText="Separa los tags con comas. Se guardan en minúsculas y sin duplicados."
       />
 
-      {/* IMAGEN ACTUAL (solo edit y si existe) */}
-      {mode === 'edit' && existingImage && boardImage === existingImage.url && (
+      {/* IMÁGENES ACTUALES (solo edit, y solo si no hay nuevas pendientes) */}
+      {mode === 'edit' && existingImages.length > 0 && !hasNewImage && (
         <div className="border-t border-border-subtle pt-4">
           <label className="block text-sm font-medium text-text-secondary mb-2">
-            📸 Imagen actual
+            📸 Imagen{existingImages.length > 1 ? 's' : ''} actual
+            {existingImages.length > 1 ? 'es' : ''} ({existingImages.length})
           </label>
-          <div className="relative">
-            <img
-              src={existingImage.url}
-              alt="Imagen del ejercicio"
-              className="w-full rounded-lg border border-border-subtle"
-            />
-            <button
-              type="button"
-              onClick={handleRemoveExistingImage}
-              className="absolute top-2 right-2 bg-danger hover:bg-danger/80 text-white rounded-full w-8 h-8 flex items-center justify-center"
-              title="Eliminar imagen"
-            >
-              ✕
-            </button>
+          <div className="space-y-3">
+            {existingImages.map((img) => (
+              <div key={img.id} className="relative">
+                <img
+                  src={img.url}
+                  alt={img.title || 'Imagen del ejercicio'}
+                  className="w-full rounded-lg border border-border-subtle"
+                />
+                <button
+                  type="button"
+                  onClick={() => handleRemoveExistingImage(img)}
+                  className="absolute top-2 right-2 bg-danger hover:bg-danger/80 text-white rounded-full w-8 h-8 flex items-center justify-center"
+                  title="Eliminar imagen"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
           </div>
+          <p className="text-xs text-text-muted mt-2">
+            Si dibujas en pizarra o subes una imagen nueva, todas las actuales se
+            sustituirán al guardar.
+          </p>
         </div>
       )}
 
@@ -375,10 +381,10 @@ export function LibraryExerciseForm({
           🎨 {boardImage ? 'Editar dibujo en pizarra' : 'Dibujar en pizarra táctica'}
         </Button>
 
-        {/* Vista previa de la pizarra nueva (solo si es nueva, no la existente) */}
+        {/* Vista previa de la pizarra nueva */}
         {boardImage && boardImage.startsWith('data:') && (
           <div className="mt-3">
-            <p className="text-xs text-text-muted mb-2">Pizarra (nueva):</p>
+            <p className="text-xs text-text-muted mb-2">Pizarra nueva:</p>
             <div className="relative">
               <img
                 src={boardImage}
@@ -387,7 +393,7 @@ export function LibraryExerciseForm({
               />
               <button
                 type="button"
-                onClick={() => setBoardImage(existingImage?.url ?? null)}
+                onClick={() => setBoardImage(null)}
                 className="absolute top-2 right-2 bg-danger hover:bg-danger/80 text-white rounded-full w-8 h-8 flex items-center justify-center"
                 title="Descartar pizarra"
               >
@@ -525,7 +531,7 @@ export function LibraryExerciseForm({
       {/* PIZARRA TÁCTICA */}
       {showBoard && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[60]">
-          <div className="bg-surface border border-border-subtle rounded-xl max-w-4xl w-full p-6 max-h-[90vh] overflow-auto">
+          <div className="bg-surface border border-border-subtle rounded-xl max-w-5xl w-full p-6 max-h-[95vh] overflow-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold text-text-primary">
                 🎨 Pizarra Táctica

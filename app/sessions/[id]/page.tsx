@@ -7,8 +7,8 @@ import api from '@/lib/api'
 import TacticalBoard from '@/components/TacticalBoard'
 import { getSportIcon, getSportConfig } from '@/lib/sport'
 import { Button, Card, CardBody, Badge, Input, Textarea, Select, Modal } from '@/components/ui'
-import { LibraryPicker } from '@/app/library/_components/LibraryPicker' // ⬅️ NUEVO
-import type { LibraryExercise } from '@/lib/library' // ⬅️ NUEVO
+import { LibraryPicker } from '@/app/library/_components/LibraryPicker'
+import type { LibraryExercise } from '@/lib/library'
 
 interface SessionDetail {
   id: string
@@ -89,6 +89,13 @@ interface PlayerAttendance {
   attendanceId: string | null
 }
 
+interface ExerciseMedia {
+  id: string
+  url: string
+  type: string
+  title: string
+}
+
 export default function SessionDetail() {
   const router = useRouter()
   const params = useParams()
@@ -142,7 +149,9 @@ export default function SessionDetail() {
   const [editingShowTacticalBoard, setEditingShowTacticalBoard] = useState(false)
   const editingFileInputRef = useRef<HTMLInputElement>(null)
 
-  // ⬅️ NUEVO: estado del selector de biblioteca
+  // ✅ NUEVO: array de imágenes existentes en el ejercicio que se edita
+  const [editingExistingImages, setEditingExistingImages] = useState<ExerciseMedia[]>([])
+
   const [showLibraryPicker, setShowLibraryPicker] = useState(false)
   const [libraryPickerTarget, setLibraryPickerTarget] = useState<'new' | 'edit'>('new')
 
@@ -445,9 +454,15 @@ export default function SessionDetail() {
       }))
     setEditingLinks(existingLinks)
 
-    const existingImage = (exercise.media || [])
-      .find((m: any) => m.type === 'IMAGE')
-    setEditingBoardImage(existingImage?.url || null)
+    // ✅ NUEVO: guardar todas las imágenes existentes
+    const existingImages = (exercise.media || []).filter(
+      (m: any) => m.type === 'IMAGE',
+    )
+    setEditingExistingImages(existingImages)
+
+    // La imagen que se muestra por defecto es la primera IMAGE existente
+    const firstImage = existingImages[0]
+    setEditingBoardImage(firstImage?.url || null)
 
     setEditingNewLink({ url: '', title: '' })
     setEditingUploadedImage(null)
@@ -514,20 +529,21 @@ export default function SessionDetail() {
       setEditingUploadedImage(base64)
     }
     reader.readAsDataURL(file)
+
+    if (editingFileInputRef.current) editingFileInputRef.current.value = ''
   }
 
-  const removeExistingImage = async (exerciseId: string) => {
-    if (!editingExercise?.media) return
-
-    const imageMedia = editingExercise.media.find((m: any) => m.type === 'IMAGE')
-    if (!imageMedia) return
-
+  // ✅ NUEVO: borrar una imagen concreta existente
+  const removeExistingImage = async (image: ExerciseMedia) => {
     if (!confirm('¿Estás seguro de que quieres eliminar esta imagen?')) return
 
     try {
-      await api.delete(`/sessions/media/${imageMedia.id}`)
-      setEditingBoardImage(null)
-      fetchSession()
+      await api.delete(`/sessions/media/${image.id}`)
+      setEditingExistingImages((prev) => prev.filter((m) => m.id !== image.id))
+      // Si era la que se mostraba como "board image", limpiarla
+      if (editingBoardImage === image.url) {
+        setEditingBoardImage(null)
+      }
     } catch (error) {
       console.error('Error eliminando imagen:', error)
       alert('Error al eliminar la imagen')
@@ -541,6 +557,7 @@ export default function SessionDetail() {
     setUpdatingExercise(true)
 
     try {
+      // 1. Actualizar campos básicos
       await api.put(`/sessions/exercises/${editingExercise.id}`, {
         name: editingExercise.name,
         description: editingExercise.description || undefined,
@@ -549,7 +566,10 @@ export default function SessionDetail() {
         difficulty: editingExercise.difficulty || undefined,
       })
 
-      if (editingBoardImage && !editingBoardImage.startsWith('http')) {
+      // 2. Subir pizarra nueva (si es data URL, es nueva)
+      const isNewBoardImage =
+        editingBoardImage && editingBoardImage.startsWith('data:')
+      if (isNewBoardImage) {
         try {
           await api.post(`/sessions/exercises/${editingExercise.id}/upload-image`, {
             image: editingBoardImage,
@@ -560,6 +580,7 @@ export default function SessionDetail() {
         }
       }
 
+      // 3. Subir imagen nueva desde dispositivo
       if (editingUploadedImage) {
         try {
           await api.post(`/sessions/exercises/${editingExercise.id}/upload-image`, {
@@ -571,7 +592,8 @@ export default function SessionDetail() {
         }
       }
 
-      const newLinks = editingLinks.filter(l => l.isNew)
+      // 4. Subir links nuevos
+      const newLinks = editingLinks.filter((l) => l.isNew)
       for (const link of newLinks) {
         try {
           await api.post(`/sessions/exercises/${editingExercise.id}/add-link`, {
@@ -583,11 +605,25 @@ export default function SessionDetail() {
         }
       }
 
+      // 5. Si hay imagen nueva, borrar TODAS las imágenes antiguas que queden
+      const hasNewImage = !!(isNewBoardImage || editingUploadedImage)
+      if (hasNewImage && editingExistingImages.length > 0) {
+        for (const img of editingExistingImages) {
+          try {
+            await api.delete(`/sessions/media/${img.id}`)
+          } catch (err) {
+            console.error(`Error borrando imagen antigua ${img.id}:`, err)
+          }
+        }
+      }
+
+      // Resetear estados
       setShowEditExerciseModal(false)
       setEditingExercise(null)
       setEditingLinks([])
       setEditingBoardImage(null)
       setEditingUploadedImage(null)
+      setEditingExistingImages([])
       fetchSession()
       alert('✅ Ejercicio actualizado correctamente')
     } catch (error: any) {
@@ -598,10 +634,8 @@ export default function SessionDetail() {
     }
   }
 
-  // ⬅️ NUEVO: aplicar ejercicio seleccionado de la biblioteca
   const handleLibraryPick = (exercise: LibraryExercise) => {
     if (libraryPickerTarget === 'new') {
-      // Rellenar el formulario de "Añadir Ejercicio"
       setNewExercise({
         name: exercise.name,
         description: exercise.description || '',
@@ -610,19 +644,15 @@ export default function SessionDetail() {
         difficulty: exercise.difficulty || '',
       })
 
-      // Links del ejercicio de biblioteca
       const libLinks = exercise.media
         .filter((m) => m.type === 'LINK')
         .map((m) => ({ url: m.url, title: m.title || m.url }))
       setExerciseLinks(libLinks)
 
-      // Imagen: primera IMAGE como pizarra (por reutilizar el campo existente)
       const libImage = exercise.media.find((m) => m.type === 'IMAGE')
       setBoardImage(libImage?.url || null)
       setUploadedImage(null)
     } else {
-      // Rellenar el formulario de "Editar Ejercicio"
-      // (ya se ha pedido confirmación desde el botón)
       setEditingExercise({
         ...editingExercise,
         name: exercise.name,
@@ -632,18 +662,15 @@ export default function SessionDetail() {
         difficulty: exercise.difficulty || '',
       })
 
-      // Links: reemplazar los no-guardados, conservar los existentes que
-      // hubiera. Aquí, por simplicidad, reemplazamos TODOS los links.
       const libLinks = exercise.media
         .filter((m) => m.type === 'LINK')
         .map((m) => ({
           url: m.url,
           title: m.title || m.url,
-          isNew: true, // se subirán al guardar
+          isNew: true,
         }))
       setEditingLinks(libLinks)
 
-      // Imagen: la metemos como "nueva" para que se suba al guardar
       const libImage = exercise.media.find((m) => m.type === 'IMAGE')
       setEditingBoardImage(libImage?.url || null)
       setEditingUploadedImage(null)
@@ -1177,7 +1204,6 @@ export default function SessionDetail() {
       >
         {editingExercise && (
           <form onSubmit={updateExercise} className="space-y-4">
-            {/* ⬅️ NUEVO: botón usar de biblioteca */}
             <Button
               type="button"
               variant="secondary"
@@ -1304,22 +1330,57 @@ export default function SessionDetail() {
               </div>
             </div>
 
-            {/* Imagen actual */}
-            {editingBoardImage && (
+            {/* Imágenes actuales (solo si NO hay imagen nueva pendiente) */}
+            {editingExistingImages.length > 0 &&
+              !editingBoardImage?.startsWith('data:') &&
+              !editingUploadedImage && (
+                <div className="border-t border-border-subtle pt-4">
+                  <label className="block text-sm font-medium text-text-secondary mb-2">
+                    📸 Imagen{editingExistingImages.length > 1 ? 's' : ''} actual
+                    {editingExistingImages.length > 1 ? 'es' : ''} ({editingExistingImages.length})
+                  </label>
+                  <div className="space-y-3">
+                    {editingExistingImages.map((img) => (
+                      <div key={img.id} className="relative">
+                        <img
+                          src={img.url}
+                          alt={img.title || 'Imagen del ejercicio'}
+                          className="w-full rounded-lg border border-border-subtle"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeExistingImage(img)}
+                          className="absolute top-2 right-2 bg-danger hover:bg-danger/80 text-white rounded-full w-8 h-8 flex items-center justify-center"
+                          title="Eliminar imagen"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-text-muted mt-2">
+                    Si dibujas en pizarra o subes una imagen nueva, las actuales se sustituirán al guardar.
+                  </p>
+                </div>
+              )}
+
+            {/* Pizarra nueva */}
+            {editingBoardImage && editingBoardImage.startsWith('data:') && (
               <div className="border-t border-border-subtle pt-4">
                 <label className="block text-sm font-medium text-text-secondary mb-2">
-                  📸 Imagen actual
+                  🎨 Pizarra nueva
                 </label>
                 <div className="relative">
                   <img
                     src={editingBoardImage}
-                    alt="Imagen del ejercicio"
+                    alt="Pizarra táctica"
                     className="w-full rounded-lg border border-border-subtle"
                   />
                   <button
                     type="button"
-                    onClick={() => removeExistingImage(editingExercise.id)}
+                    onClick={() => setEditingBoardImage(null)}
                     className="absolute top-2 right-2 bg-danger hover:bg-danger/80 text-white rounded-full w-8 h-8 flex items-center justify-center"
+                    title="Descartar pizarra"
                   >
                     ✕
                   </button>
@@ -1411,7 +1472,6 @@ export default function SessionDetail() {
         size="md"
       >
         <form onSubmit={addExercise} className="space-y-4">
-          {/* ⬅️ NUEVO: botón usar de biblioteca */}
           <Button
             type="button"
             variant="secondary"
@@ -1630,7 +1690,7 @@ export default function SessionDetail() {
       {/* MODAL DE LA PIZARRA TÁCTICA */}
       {showTacticalBoard && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[60]">
-          <div className="bg-surface border border-border-subtle rounded-xl max-w-4xl w-full p-6 max-h-[90vh] overflow-auto">
+          <div className="bg-surface border border-border-subtle rounded-xl max-w-5xl w-full p-6 max-h-[95vh] overflow-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold text-text-primary">🎨 Pizarra Táctica</h3>
               <button
@@ -1656,7 +1716,7 @@ export default function SessionDetail() {
       {/* MODAL DE LA PIZARRA TÁCTICA (EDICIÓN) */}
       {editingShowTacticalBoard && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[70]">
-          <div className="bg-surface border border-border-subtle rounded-xl max-w-4xl w-full p-6 max-h-[90vh] overflow-auto">
+          <div className="bg-surface border border-border-subtle rounded-xl max-w-5xl w-full p-6 max-h-[95vh] overflow-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold text-text-primary">🎨 Pizarra Táctica</h3>
               <button
@@ -1679,7 +1739,7 @@ export default function SessionDetail() {
         </div>
       )}
 
-      {/* ⬅️ NUEVO: MODAL DE SELECCIÓN DE BIBLIOTECA */}
+      {/* MODAL DE SELECCIÓN DE BIBLIOTECA */}
       <LibraryPicker
         isOpen={showLibraryPicker}
         onClose={() => setShowLibraryPicker(false)}
