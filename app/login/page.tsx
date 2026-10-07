@@ -6,6 +6,7 @@ import Link from 'next/link'
 import api from '@/lib/api'
 import { Button, Input } from '@/components/ui'
 import { Logo } from '@/components/ui/Logo'
+import { GoogleLogin } from '@react-oauth/google'
 
 export default function Login() {
   const router = useRouter()
@@ -30,9 +31,42 @@ export default function Login() {
       localStorage.setItem('user', JSON.stringify(response.data.user))
 
       router.push('/home')
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error:', err)
-      setError('Credenciales inválidas. Intenta de nuevo.')
+      const message =
+        err.response?.data?.message ||
+        'Credenciales inválidas. Intenta de nuevo.'
+      setError(message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGoogleSuccess = async (credentialResponse: any) => {
+    if (!credentialResponse?.credential) {
+      setError('No se pudo obtener el token de Google')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+
+    try {
+      const response = await api.post('/auth/google', {
+        idToken: credentialResponse.credential,
+      })
+
+      localStorage.setItem('token', response.data.accessToken)
+      localStorage.setItem('refreshToken', response.data.refreshToken)
+      localStorage.setItem('user', JSON.stringify(response.data.user))
+
+      router.push('/home')
+    } catch (err: any) {
+      console.error('Error Google login:', err)
+      const message =
+        err.response?.data?.message ||
+        'No se pudo iniciar sesión con Google'
+      setError(message)
     } finally {
       setLoading(false)
     }
@@ -43,9 +77,11 @@ export default function Login() {
       <div className="bg-surface border border-border-subtle rounded-2xl shadow-2xl w-full max-w-md p-8">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-6">
-<Logo variant="full" height={120} priority />
-</div>
-<p className="text-text-secondary text-center">Gestión deportiva profesional</p>
+            <Logo variant="full" height={120} priority />
+          </div>
+          <p className="text-text-secondary text-center">
+            Gestión deportiva profesional
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -84,14 +120,42 @@ export default function Login() {
           >
             {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
           </Button>
-
-          <p className="text-center text-sm text-text-secondary mt-6">
-            ¿No tienes cuenta?{' '}
-            <Link href="/register" className="text-brand-primary hover:underline font-medium">
-              Regístrate
-            </Link>
-          </p>
         </form>
+
+        {/* Separador */}
+        <div className="flex items-center gap-3 my-6">
+          <div className="flex-1 h-px bg-border-subtle" />
+          <span className="text-xs text-text-muted uppercase font-medium">
+            o
+          </span>
+          <div className="flex-1 h-px bg-border-subtle" />
+        </div>
+
+        {/* Botón de Google */}
+        <div className="flex justify-center">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => {
+              setError('Error al iniciar sesión con Google')
+            }}
+            theme="outline"
+            size="large"
+            width="320"
+            text="continue_with"
+            shape="rectangular"
+            logo_alignment="center"
+          />
+        </div>
+
+        <p className="text-center text-sm text-text-secondary mt-6">
+          ¿No tienes cuenta?{' '}
+          <Link
+            href="/register"
+            className="text-brand-primary hover:underline font-medium"
+          >
+            Regístrate
+          </Link>
+        </p>
       </div>
     </div>
   )
