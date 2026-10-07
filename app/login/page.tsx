@@ -3,10 +3,18 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import api from '@/lib/api'
 import { Button, Input } from '@/components/ui'
 import { Logo } from '@/components/ui/Logo'
-import { GoogleLogin } from '@react-oauth/google'
+
+// El botón de Google se carga solo en el cliente.
+// `ssr: false` evita que el prerender de Next.js falle porque
+// GoogleLogin necesita el GoogleOAuthProvider en runtime.
+const GoogleLoginButton = dynamic(
+  () => import('@/components/GoogleLoginButton'),
+  { ssr: false, loading: () => null },
+)
 
 export default function Login() {
   const router = useRouter()
@@ -131,21 +139,11 @@ export default function Login() {
           <div className="flex-1 h-px bg-border-subtle" />
         </div>
 
-        {/* Botón de Google */}
-        <div className="flex justify-center">
-          <GoogleLogin
-            onSuccess={handleGoogleSuccess}
-            onError={() => {
-              setError('Error al iniciar sesión con Google')
-            }}
-            theme="outline"
-            size="large"
-            width="320"
-            text="continue_with"
-            shape="rectangular"
-            logo_alignment="center"
-          />
-        </div>
+        {/* Botón de Google (client-only) */}
+        <GoogleLoginButton
+          onSuccess={handleGoogleSuccess}
+          onError={() => setError('Error al iniciar sesión con Google')}
+        />
 
         <p className="text-center text-sm text-text-secondary mt-6">
           ¿No tienes cuenta?{' '}

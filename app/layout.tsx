@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import type { Metadata, Viewport } from 'next'
 import { ClientLayout } from './client-layout'
 import { ActiveTeamProvider } from '@/lib/ActiveTeamContext'
+import { Providers } from './providers'
 
 const inter = Inter({
   subsets: ['latin'],
@@ -40,9 +41,11 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body>
-        <ActiveTeamProvider>
-          <ClientLayout>{children}</ClientLayout>
-        </ActiveTeamProvider>
+        <Providers>
+          <ActiveTeamProvider>
+            <ClientLayout>{children}</ClientLayout>
+          </ActiveTeamProvider>
+        </Providers>
       </body>
     </html>
   )
