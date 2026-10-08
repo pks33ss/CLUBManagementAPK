@@ -47,6 +47,8 @@ export const usersApi = {
     jerseyNumber?: number
     position?: string
     role?: string
+    // ✅ NUEVO — si es true y hay email, se envía invitación de registro
+    sendInvitation?: boolean
   }): Promise<{
     id: string
     username: string | null
@@ -54,6 +56,8 @@ export const usersApi = {
     lastName: string
     email: string | null
     isGhost: boolean
+    // ✅ NUEVO — true si se envió el email de invitación
+    invitationSent?: boolean
   }> {
     const { data } = await api.post('/users/ghost', payload)
     return data
