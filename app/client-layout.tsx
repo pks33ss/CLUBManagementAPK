@@ -40,7 +40,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       }
     }
 
-    // Cargar invitaciones pendientes
     const token = localStorage.getItem('token')
     if (token && !authRoutes.includes(pathname)) {
       invitationsApi
@@ -58,7 +57,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     router.push('/login')
   }
 
-  // Helper para clases activas
   const linkClass = (href: string, base = 'transition') => {
     const isActive =
       href === '/'
@@ -92,31 +90,19 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-bg-base">
-      {/* ============================================ */}
-      {/* BARRA SUPERIOR                                */}
-      {/* ============================================ */}
+      {/* BARRA SUPERIOR */}
       <nav className="bg-surface border-b border-border-subtle sticky top-0 z-30">
         <div className="px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 gap-4">
-            {/* IZQUIERDA: hamburguesa + equipo activo (clicables) */}
+            {/* IZQUIERDA */}
             <div className="flex items-center gap-3 min-w-0">
               <button
                 onClick={() => setSidebarOpen(true)}
                 className="p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary shrink-0"
                 title="Menú"
               >
-                <svg
-                  className="w-6 h-6"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M4 6h16M4 12h16M4 18h16"
-                  />
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
                 </svg>
               </button>
 
@@ -149,80 +135,52 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
               )}
             </div>
 
-            {/* CENTRO: secciones del equipo activo (solo desktop) */}
+            {/* CENTRO (solo desktop) */}
             {activeTeam && (
               <div className="hidden lg:flex items-center gap-1 flex-1 justify-center overflow-x-auto scrollbar-menu">
-                <Link
-                  href="/home"
-                  className={linkClass('/home', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}
-                >
+                <Link href="/home" className={linkClass('/home', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
                   🏠 Inicio
                 </Link>
                 <Link
                   href={`/teams/${activeTeam.id}`}
-                  className={linkClass(
-                    `/teams/${activeTeam.id}`,
-                    'px-3 py-2 rounded-lg text-sm whitespace-nowrap',
-                  )}
+                  className={linkClass(`/teams/${activeTeam.id}`, 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}
                 >
                   🏆 Equipo
                 </Link>
-                <Link
-                  href="/sessions"
-                  className={linkClass('/sessions', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}
-                >
+                <Link href="/sessions" className={linkClass('/sessions', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
                   🏋️ Entrenamientos
                 </Link>
-                <Link
-                  href="/matches"
-                  className={linkClass('/matches', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}
-                >
+                <Link href="/matches" className={linkClass('/matches', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
                   🏆 Partidos
                 </Link>
                 <Link
                   href={`/teams/${activeTeam.id}/stats`}
-                  className={linkClass(
-                    `/teams/${activeTeam.id}/stats`,
-                    'px-3 py-2 rounded-lg text-sm whitespace-nowrap',
-                  )}
+                  className={linkClass(`/teams/${activeTeam.id}/stats`, 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}
                 >
                   📊 Estadísticas
                 </Link>
-                <Link
-                  href="/calendar"
-                  className={linkClass('/calendar', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}
-                >
+                <Link href="/calendar" className={linkClass('/calendar', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
                   📅 Calendario
                 </Link>
-                <Link
-                  href="/players"
-                  className={linkClass('/players', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}
-                >
+                <Link href="/players" className={linkClass('/players', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
                   👥 Jugadores
                 </Link>
-                <Link
-                  href="/attendance/overview"
-                  className={linkClass('/attendance', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}
-                >
+                <Link href="/attendance/overview" className={linkClass('/attendance', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
                   📊 Asistencias
                 </Link>
-                <Link
-                  href="/seasons"
-                  className={linkClass('/seasons', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}
-                >
+                <Link href="/seasons" className={linkClass('/seasons', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
                   📋 Planificación
                 </Link>
-                {/* ⬅️ NUEVO: Biblioteca */}
-                <Link
-                  href="/library"
-                  className={linkClass('/library', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}
-                >
+                <Link href="/library" className={linkClass('/library', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
                   📚 Biblioteca
+                </Link>
+                <Link href="/playbook" className={linkClass('/playbook', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
+                  📘 Playbook
                 </Link>
               </div>
             )}
 
-            {/* DERECHA: invitaciones + usuario + logout */}
+            {/* DERECHA */}
             <div className="flex items-center gap-3 shrink-0">
               {pendingInvitations > 0 && (
                 <Link
@@ -276,78 +234,48 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         </div>
       </nav>
 
-      {/* ============================================ */}
-      {/* BARRA DE SECCIONES (solo móvil)               */}
-      {/* ============================================ */}
+      {/* BARRA DE SECCIONES MÓVIL */}
       {activeTeam && (
         <div className="lg:hidden bg-surface border-b border-border-subtle overflow-x-auto scrollbar-menu">
           <div className="flex items-center gap-1 px-2 py-2">
-            <Link
-              href="/home"
-              className={linkClass('/home', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}
-            >
+            <Link href="/home" className={linkClass('/home', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}>
               🏠 Inicio
             </Link>
             <Link
               href={`/teams/${activeTeam.id}`}
-              className={linkClass(
-                `/teams/${activeTeam.id}`,
-                'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0',
-              )}
+              className={linkClass(`/teams/${activeTeam.id}`, 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}
             >
               🏆 Equipo
             </Link>
-            <Link
-              href="/sessions"
-              className={linkClass('/sessions', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}
-            >
+            <Link href="/sessions" className={linkClass('/sessions', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}>
               🏋️ Entren.
             </Link>
-            <Link
-              href="/matches"
-              className={linkClass('/matches', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}
-            >
+            <Link href="/matches" className={linkClass('/matches', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}>
               🏆 Partidos
             </Link>
             <Link
               href={`/teams/${activeTeam.id}/stats`}
-              className={linkClass(
-                `/teams/${activeTeam.id}/stats`,
-                'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0',
-              )}
+              className={linkClass(`/teams/${activeTeam.id}/stats`, 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}
             >
               📊 Estad.
             </Link>
-            <Link
-              href="/calendar"
-              className={linkClass('/calendar', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}
-            >
+            <Link href="/calendar" className={linkClass('/calendar', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}>
               📅 Calend.
             </Link>
-            <Link
-              href="/players"
-              className={linkClass('/players', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}
-            >
+            <Link href="/players" className={linkClass('/players', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}>
               👥 Jugadores
             </Link>
-            <Link
-              href="/attendance/overview"
-              className={linkClass('/attendance', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}
-            >
+            <Link href="/attendance/overview" className={linkClass('/attendance', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}>
               📊 Asist.
             </Link>
-            <Link
-              href="/seasons"
-              className={linkClass('/seasons', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}
-            >
+            <Link href="/seasons" className={linkClass('/seasons', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}>
               📋 Planif.
             </Link>
-            {/* ⬅️ NUEVO: Biblioteca */}
-            <Link
-              href="/library"
-              className={linkClass('/library', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}
-            >
+            <Link href="/library" className={linkClass('/library', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}>
               📚 Biblio.
+            </Link>
+            <Link href="/playbook" className={linkClass('/playbook', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}>
+              📘 Playbook
             </Link>
           </div>
         </div>
@@ -359,10 +287,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       {/* SIDEBAR */}
       {sidebarOpen && (
         <>
-          <div
-            className="fixed inset-0 bg-black/70 z-40"
-            onClick={() => setSidebarOpen(false)}
-          />
+          <div className="fixed inset-0 bg-black/70 z-40" onClick={() => setSidebarOpen(false)} />
 
           <div className="fixed top-0 left-0 h-full w-80 max-w-[85vw] bg-surface shadow-2xl z-50 flex flex-col border-r border-border-subtle">
             <div className="p-4 border-b border-border-subtle flex items-center justify-between">
