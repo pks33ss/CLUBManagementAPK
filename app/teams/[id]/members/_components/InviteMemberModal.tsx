@@ -37,6 +37,8 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
     jerseyNumber: '',
     position: '',
   })
+  // ✅ NUEVO — por defecto enviamos invitación si hay email
+  const [sendInvitation, setSendInvitation] = useState(true)
 
   // Registered (Usuario Registrado)
   const [registeredQuery, setRegisteredQuery] = useState('')
@@ -72,9 +74,6 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
     return () => clearTimeout(timer)
   }, [query])
 
-  // ─────────────────────────────────────────────
-  // Añadir directamente (sin invitación)
-  // ─────────────────────────────────────────────
   const handleAddExisting = async (user: UserPublic) => {
     setAdding(user.id)
     setError('')
@@ -93,9 +92,6 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
     }
   }
 
-  // ─────────────────────────────────────────────
-  // Invitar a user existente (crea invitación)
-  // ─────────────────────────────────────────────
   const handleInviteExisting = async (user: UserPublic) => {
     setProcessing(true)
     setError('')
@@ -126,9 +122,6 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
     }
   }
 
-  // ─────────────────────────────────────────────
-  // Crear fantasma + añadirlo al equipo
-  // ─────────────────────────────────────────────
   const handleCreateNew = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!createForm.name || !createForm.lastName) {
@@ -139,7 +132,7 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
     setProcessing(true)
     setError('')
     try {
-      await usersApi.createGhost({
+      const result = await usersApi.createGhost({
         name: createForm.name,
         lastName: createForm.lastName,
         teamId,
@@ -150,16 +143,22 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
           : undefined,
         position: createForm.position || undefined,
         role: 'PLAYER',
+        // ✅ NUEVO — enviar invitación si hay email y el checkbox está marcado
+        sendInvitation: !!createForm.email && sendInvitation,
       })
 
       await onSuccess()
       onClose()
+
+      // Feedback opcional
+      if (result?.invitationSent) {
+        console.log('✅ Invitación enviada al nuevo miembro')
+      }
     } catch (err: any) {
       console.error('Error:', err)
       const code = err.response?.data?.code
 
       if (code === 'USER_ALREADY_EXISTS_USE_EMAIL_INVITE') {
-        // Redirigir a "Usuario Registrado" con el email pre-rellenado
         setMode('registered')
         setRegisteredQuery(createForm.email)
         setError(
@@ -173,9 +172,6 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
     }
   }
 
-  // ─────────────────────────────────────────────
-  // Invitar a usuario ya registrado (por email o @username)
-  // ─────────────────────────────────────────────
   const handleInviteRegistered = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!registeredQuery.trim()) return
@@ -187,12 +183,10 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
       registeredQuery.includes('@') && !registeredQuery.startsWith('@')
 
     try {
-      // 1) Lookup para validar que existe y obtener su id
       const found = await usersApi.lookupUser(
         isEmail ? { email: registeredQuery } : { username: registeredQuery },
       )
 
-      // 2) Crear invitación con userId + email
       const invitation = await invitationsApi.create({
         teamId,
         role,
@@ -202,7 +196,7 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
       })
 
       setInvitationCode(invitation.code)
-      setInvitationLink(null) // Siempre IN_APP → sin link
+      setInvitationLink(null)
     } catch (err: any) {
       console.error('Error:', err)
       const code = err.response?.data?.code
@@ -306,7 +300,6 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
 
   return (
     <Modal isOpen={true} onClose={onClose} title="Invitar miembro al equipo" size="md">
-      {/* Rol */}
       <Select
         label="Rol en el equipo"
         value={role}
@@ -319,7 +312,6 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
         <option value="ADMIN_TEAM">🛠️ Admin Equipo</option>
       </Select>
 
-      {/* Tabs */}
       <div className="flex gap-1 mb-4 border-b border-border-subtle overflow-x-auto">
         <button
           onClick={() => setMode('search')}
@@ -353,9 +345,7 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
         </button>
       </div>
 
-      {/* ─────────────────────────────────────── */}
       {/* MODO BUSCAR EN CLUB */}
-      {/* ─────────────────────────────────────── */}
       {mode === 'search' && (
         <div className="space-y-4">
           <div className="bg-surface-elevated border border-border-subtle rounded-lg p-3 text-xs text-text-muted space-y-1">
@@ -442,9 +432,7 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
         </div>
       )}
 
-      {/* ─────────────────────────────────────── */}
       {/* MODO CREAR NUEVO */}
-      {/* ─────────────────────────────────────── */}
       {mode === 'create' && (
         <form onSubmit={handleCreateNew} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
@@ -475,6 +463,28 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
             }
             helperText="Opcional. Si lo pones, podrá recibir invitaciones por email"
           />
+
+          {/* ✅ NUEVO — Checkbox solo si hay email */}
+          {createForm.email && (
+            <label className="flex items-start gap-3 cursor-pointer bg-brand-primary/5 border border-brand-primary/20 rounded-lg p-3">
+              <input
+                type="checkbox"
+                checked={sendInvitation}
+                onChange={(e) => setSendInvitation(e.target.checked)}
+                className="mt-0.5 w-5 h-5 cursor-pointer accent-brand-primary"
+              />
+              <div className="text-sm">
+                <p className="font-medium text-text-primary">
+                  Enviar invitación por email
+                </p>
+                <p className="text-xs text-text-muted mt-0.5">
+                  Se le enviará un email a <strong>{createForm.email}</strong>{' '}
+                  para que se registre y se una al equipo. Si lo desmarcas, se
+                  añadirá al equipo sin avisarle.
+                </p>
+              </div>
+            </label>
+          )}
 
           <Input
             label="Teléfono"
@@ -530,9 +540,7 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
         </form>
       )}
 
-      {/* ─────────────────────────────────────── */}
       {/* MODO USUARIO REGISTRADO */}
-      {/* ─────────────────────────────────────── */}
       {mode === 'registered' && (
         <form onSubmit={handleInviteRegistered} className="space-y-4">
           <div className="bg-surface-elevated border border-border-subtle rounded-lg p-3 text-xs text-text-muted space-y-1">
