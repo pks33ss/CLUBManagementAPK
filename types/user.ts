@@ -53,6 +53,9 @@ export interface UserMe {
   role: string
   isGhost: boolean
   createdAt: string
+  // ✅ NUEVO — Preferencias de notificaciones por email
+  emailNotificationsEnabled: boolean
+  emailOptOut: boolean
   memberships: Membership[]
   tutorRelationships: TutorRelationship[]
   playerRelationships: TutorRelationship[]

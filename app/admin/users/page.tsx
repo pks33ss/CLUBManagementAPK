@@ -1,9 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
+import {
+  listEmailSettings,
+  updateEmailSetting,
+  bulkUpdateEmailSettings,
+  type EmailSettingsUser,
+} from '@/lib/adminEmailSettings'
 import { Button, Card, Badge, Input, Select, Modal } from '@/components/ui'
 
 interface User {
@@ -15,6 +21,8 @@ interface User {
   role: string
   createdAt: string
   clubs: { club: { id: string; name: string } }[]
+  emailNotificationsEnabled?: boolean
+  emailOptOut?: boolean
 }
 
 export default function UsersManagement() {
@@ -45,6 +53,11 @@ export default function UsersManagement() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [deleting, setDeleting] = useState(false)
 
+  // ─── Estado de email settings ───
+  const [emailSettings, setEmailSettings] = useState<Map<string, boolean>>(new Map())
+  const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set())
+  const [bulkLoading, setBulkLoading] = useState(false)
+
   useEffect(() => {
     const userStr = localStorage.getItem('user')
     if (!userStr) {
@@ -60,8 +73,29 @@ export default function UsersManagement() {
       return
     }
 
-    fetchUsers()
+    fetchAll()
   }, [])
+
+  const fetchAll = async () => {
+    try {
+      const [usersRes, emailRes] = await Promise.all([
+        api.get('/users'),
+        listEmailSettings(),
+      ])
+      setUsers(usersRes.data)
+
+      const map = new Map<string, boolean>()
+      emailRes.forEach((u) => {
+        map.set(u.id, u.emailNotificationsEnabled)
+      })
+      setEmailSettings(map)
+    } catch (error: any) {
+      console.error('Error:', error)
+      setError(error.response?.data?.message || 'Error al cargar datos')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const fetchUsers = async () => {
     try {
@@ -69,11 +103,83 @@ export default function UsersManagement() {
       setUsers(response.data)
     } catch (error: any) {
       console.error('Error:', error)
-      setError(error.response?.data?.message || 'Error al cargar usuarios')
-    } finally {
-      setLoading(false)
     }
   }
+
+  // ============================================
+  // EMAIL SETTINGS
+  // ============================================
+
+  const toggleOne = async (userId: string) => {
+    const current = emailSettings.get(userId) ?? false
+    const newValue = !current
+
+    setEmailSettings((prev) => {
+      const next = new Map(prev)
+      next.set(userId, newValue)
+      return next
+    })
+    setTogglingIds((prev) => new Set(prev).add(userId))
+
+    try {
+      await updateEmailSetting(userId, newValue)
+    } catch (e) {
+      console.error('Error actualizando email setting:', e)
+      setEmailSettings((prev) => {
+        const next = new Map(prev)
+        next.set(userId, current)
+        return next
+      })
+      alert('Error al actualizar la preferencia de email')
+    } finally {
+      setTogglingIds((prev) => {
+        const next = new Set(prev)
+        next.delete(userId)
+        return next
+      })
+    }
+  }
+
+  const toggleAll = async (enabled: boolean) => {
+    // ⚠️ Solo enviamos usuarios CON email (el backend ignora los demás)
+    const userIds = users.filter((u) => u.email).map((u) => u.id)
+    if (userIds.length === 0) return
+
+    // Optimistic update
+    const prevMap = new Map(emailSettings)
+    const nextMap = new Map(emailSettings)
+    userIds.forEach((id) => nextMap.set(id, enabled))
+    setEmailSettings(nextMap)
+
+    setBulkLoading(true)
+    try {
+      await bulkUpdateEmailSettings(userIds, enabled)
+    } catch (e) {
+      console.error('Error bulk update:', e)
+      setEmailSettings(prevMap)
+      alert('Error al actualizar todos los usuarios')
+    } finally {
+      setBulkLoading(false)
+    }
+  }
+
+  // Estado agregado: SOLO cuenta usuarios con email
+  const emailStats = useMemo(() => {
+    const withEmail = users.filter((u) => u.email)
+    const total = withEmail.length
+    let active = 0
+    withEmail.forEach((u) => {
+      if (emailSettings.get(u.id)) active++
+    })
+    return { total, active }
+  }, [users, emailSettings])
+
+  const allChecked = emailStats.total > 0 && emailStats.active === emailStats.total
+  const noneChecked = emailStats.active === 0
+
+  // ============================================
+  // ACCIONES EXISTENTES
+  // ============================================
 
   const createUser = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -83,7 +189,7 @@ export default function UsersManagement() {
       await api.post('/users', newUser)
       setShowCreateModal(false)
       setNewUser({ email: '', password: '', name: '', lastName: '', role: 'USER' })
-      fetchUsers()
+      await fetchAll()
       alert('✅ Usuario creado correctamente')
     } catch (error: any) {
       console.error('Error:', error)
@@ -106,8 +212,6 @@ export default function UsersManagement() {
     }
   }
 
-  // ✅ Calcula el texto a escribir para confirmar el borrado.
-  // Prioridad: email → username → últimos 6 del id
   const getConfirmText = (user: User): string => {
     return user.email ?? user.username ?? user.id.slice(-6)
   }
@@ -132,7 +236,7 @@ export default function UsersManagement() {
       setShowDeleteModal(false)
       setDeleteUser(null)
       setDeleteConfirmText('')
-      fetchUsers()
+      await fetchAll()
       alert('✅ Usuario eliminado permanentemente (hard delete)')
     } catch (error: any) {
       console.error('Error:', error)
@@ -221,6 +325,42 @@ export default function UsersManagement() {
         </Button>
       </div>
 
+      {/* INDICADOR DE EMAILS */}
+      <Card className="mb-4">
+        <div className="p-4 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3">
+            <span className="text-2xl">📧</span>
+            <div>
+              <p className="text-sm font-medium text-text-primary">
+                Notificaciones por email
+              </p>
+              <p className="text-xs text-text-muted">
+                {emailStats.active} de {emailStats.total} usuarios con email reciben notificaciones
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => toggleAll(true)}
+              disabled={bulkLoading || allChecked || emailStats.total === 0}
+            >
+              Activar todos
+            </Button>
+            <Button
+              size="sm"
+              variant="danger"
+              onClick={() => toggleAll(false)}
+              disabled={bulkLoading || noneChecked || emailStats.total === 0}
+            >
+              Desactivar todos
+            </Button>
+          </div>
+        </div>
+      </Card>
+
       <Card>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -230,67 +370,92 @@ export default function UsersManagement() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">Email</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">Rol Global</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">Clubs</th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-text-muted uppercase">
+                  📧 Recibe emails
+                </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase">Acciones</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
-              {users.map((user) => (
-                <tr key={user.id} className="hover:bg-surface-elevated transition">
-                  <td className="px-6 py-4">
-                    <p className="font-medium text-text-primary">
-                      {user.name} {user.lastName}
-                    </p>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-text-secondary">
-                    {user.email ?? <span className="text-text-muted italic">(sin email)</span>}
-                  </td>
-                  <td className="px-6 py-4">
-                    <Badge variant={getRoleVariant(user.role)}>
-                      {getRoleText(user.role)}
-                    </Badge>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-text-secondary">
-                    {user.clubs && user.clubs.length > 0 ? (
-                      <div className="space-y-1">
-                        {user.clubs.map((c, i) => (
-                          <div key={i}>🏛️ {c.club.name}</div>
-                        ))}
+              {users.map((user) => {
+                const enabled = emailSettings.get(user.id) ?? false
+                const isToggling = togglingIds.has(user.id)
+                const hasEmail = !!user.email
+
+                return (
+                  <tr key={user.id} className="hover:bg-surface-elevated transition">
+                    <td className="px-6 py-4">
+                      <p className="font-medium text-text-primary">
+                        {user.name} {user.lastName}
+                      </p>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-text-secondary">
+                      {user.email ?? <span className="text-text-muted italic">(sin email)</span>}
+                    </td>
+                    <td className="px-6 py-4">
+                      <Badge variant={getRoleVariant(user.role)}>
+                        {getRoleText(user.role)}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-text-secondary">
+                      {user.clubs && user.clubs.length > 0 ? (
+                        <div className="space-y-1">
+                          {user.clubs.map((c, i) => (
+                            <div key={i}>🏛️ {c.club.name}</div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-text-muted">-</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <input
+                        type="checkbox"
+                        checked={hasEmail && enabled}
+                        disabled={isToggling || !hasEmail}
+                        onChange={() => toggleOne(user.id)}
+                        className="w-5 h-5 cursor-pointer accent-brand-primary disabled:opacity-40 disabled:cursor-not-allowed"
+                        title={
+                          !hasEmail
+                            ? 'Sin email, no puede recibir'
+                            : enabled
+                              ? 'Desactivar emails'
+                              : 'Activar emails'
+                        }
+                      />
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="flex gap-2 justify-end items-center">
+                        <select
+                          value={user.role}
+                          onChange={(e) => updateRole(user.id, e.target.value)}
+                          className="text-xs bg-surface-elevated border border-border-subtle text-text-primary rounded px-2 py-1 focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"
+                          disabled={user.id === currentUser?.id}
+                        >
+                          <option value="SUPER_ADMIN">Super Admin</option>
+                          <option value="USER">Usuario</option>
+                        </select>
+                        <button
+                          onClick={() => openResetPasswordModal(user)}
+                          className="text-warning hover:text-warning/80 p-1"
+                          disabled={user.id === currentUser?.id}
+                          title="Resetear contraseña"
+                        >
+                          🔑
+                        </button>
+                        <button
+                          onClick={() => openDeleteModal(user)}
+                          className="text-danger hover:text-danger/80 p-1"
+                          disabled={user.id === currentUser?.id}
+                          title="Eliminar usuario"
+                        >
+                          🗑️
+                        </button>
                       </div>
-                    ) : (
-                      <span className="text-text-muted">-</span>
-                    )}
-                  </td>
-                  <td className="px-6 py-4 text-right">
-                    <div className="flex gap-2 justify-end items-center">
-                      <select
-                        value={user.role}
-                        onChange={(e) => updateRole(user.id, e.target.value)}
-                        className="text-xs bg-surface-elevated border border-border-subtle text-text-primary rounded px-2 py-1 focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"
-                        disabled={user.id === currentUser?.id}
-                      >
-                        <option value="SUPER_ADMIN">Super Admin</option>
-                        <option value="USER">Usuario</option>
-                      </select>
-                      <button
-                        onClick={() => openResetPasswordModal(user)}
-                        className="text-warning hover:text-warning/80 p-1"
-                        disabled={user.id === currentUser?.id}
-                        title="Resetear contraseña"
-                      >
-                        🔑
-                      </button>
-                      <button
-                        onClick={() => openDeleteModal(user)}
-                        className="text-danger hover:text-danger/80 p-1"
-                        disabled={user.id === currentUser?.id}
-                        title="Eliminar usuario"
-                      >
-                        🗑️
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
