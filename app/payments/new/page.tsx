@@ -1,13 +1,27 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Card, CardBody } from '@/components/ui'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
 import { CreateConceptForm } from '../_components/CreateConceptForm'
 
+export const dynamic = 'force-dynamic'
+
 export default function NewPaymentConceptPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="text-center py-12 text-text-muted">Cargando...</div>
+      }
+    >
+      <NewPaymentConceptContent />
+    </Suspense>
+  )
+}
+
+function NewPaymentConceptContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { activeTeam, allTeams, loading } = useActiveTeam()
