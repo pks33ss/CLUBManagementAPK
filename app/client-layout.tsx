@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
+import { usePaymentsNav } from '@/lib/usePaymentsNav'
 import { getSportIcon } from '@/lib/sport'
 import { Logo } from '@/components/ui/Logo'
 import { invitationsApi } from '@/lib/api/invitations'
@@ -21,6 +22,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     removeFavorite,
     isFavorite,
   } = useActiveTeam()
+
+  const { showStaff, showPlayer } = usePaymentsNav()
 
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -177,6 +180,20 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                 <Link href="/playbook" className={linkClass('/playbook', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
                   📘 Playbook
                 </Link>
+
+                {/* 💰 PAGOS — STAFF */}
+                {showStaff && (
+                  <Link href="/payments" className={linkClass('/payments', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
+                    💰 Pagos
+                  </Link>
+                )}
+
+                {/* 💰 MIS PAGOS — JUGADOR */}
+                {showPlayer && (
+                  <Link href="/my-payments" className={linkClass('/my-payments', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
+                    💰 Mis pagos
+                  </Link>
+                )}
               </div>
             )}
 
@@ -277,6 +294,17 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             <Link href="/playbook" className={linkClass('/playbook', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}>
               📘 Playbook
             </Link>
+
+            {showStaff && (
+              <Link href="/payments" className={linkClass('/payments', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}>
+                💰 Pagos
+              </Link>
+            )}
+            {showPlayer && (
+              <Link href="/my-payments" className={linkClass('/my-payments', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}>
+                💰 Mis pagos
+              </Link>
+            )}
           </div>
         </div>
       )}
@@ -420,6 +448,28 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                   </span>
                 )}
               </Link>
+
+              {/* 💰 PAGOS — SIDEBAR */}
+              {showStaff && (
+                <Link
+                  href="/payments"
+                  onClick={() => setSidebarOpen(false)}
+                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary"
+                >
+                  <span className="text-lg">💰</span>
+                  <span className="text-sm font-medium">Pagos</span>
+                </Link>
+              )}
+              {showPlayer && (
+                <Link
+                  href="/my-payments"
+                  onClick={() => setSidebarOpen(false)}
+                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary"
+                >
+                  <span className="text-lg">💰</span>
+                  <span className="text-sm font-medium">Mis pagos</span>
+                </Link>
+              )}
 
               <Link
                 href={activeTeam ? `/teams/${activeTeam.id}/stats/config` : '#'}

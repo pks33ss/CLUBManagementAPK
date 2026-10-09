@@ -4,7 +4,16 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
-import { Button, Card, CardBody, Badge, Input, Textarea, Modal } from '@/components/ui'
+import {
+  Button,
+  Card,
+  CardBody,
+  Badge,
+  Input,
+  Textarea,
+  Modal,
+} from '@/components/ui'
+import { ClubRemindersSection } from './_components/ClubRemindersSection'
 
 interface ClubDetail {
   id: string
@@ -31,7 +40,7 @@ interface ClubDetail {
     name: string
     category: string
     season: string
-    memberships: { id: string }[] 
+    memberships: { id: string }[]
   }[]
 }
 
@@ -89,7 +98,7 @@ export default function ClubDetail() {
       if (userStr) {
         const user = JSON.parse(userStr)
         const myMember = response.data.members?.find(
-          (m: any) => m.userId === user.id
+          (m: any) => m.userId === user.id,
         )
         setUserRole(myMember?.role || '')
       }
@@ -201,35 +210,51 @@ export default function ClubDetail() {
     }
   }
 
-  const getRoleVariant = (role: string): 'brand' | 'info' | 'success' | 'neutral' => {
+  const getRoleVariant = (
+    role: string,
+  ): 'brand' | 'info' | 'success' | 'neutral' => {
     switch (role) {
-      case 'ADMIN_CLUB': return 'brand'
-      case 'COACH': return 'info'
-      case 'ASSISTANT': return 'success'
-      default: return 'neutral'
+      case 'ADMIN_CLUB':
+        return 'brand'
+      case 'COACH':
+        return 'info'
+      case 'ASSISTANT':
+        return 'success'
+      default:
+        return 'neutral'
     }
   }
 
   const getRoleText = (role: string) => {
     switch (role) {
-      case 'ADMIN_CLUB': return '🏛️ Admin Club'
-      case 'COACH': return '🏀 Entrenador'
-      case 'ASSISTANT': return '🤝 Asistente'
-      default: return role
+      case 'ADMIN_CLUB':
+        return '🏛️ Admin Club'
+      case 'COACH':
+        return '🏀 Entrenador'
+      case 'ASSISTANT':
+        return '🤝 Asistente'
+      default:
+        return role
     }
   }
 
-  const isAdmin = userRole === 'ADMIN_CLUB' || currentUser?.role === 'SUPER_ADMIN'
+  const isAdmin =
+    userRole === 'ADMIN_CLUB' || currentUser?.role === 'SUPER_ADMIN'
 
   if (loading) {
-    return <div className="text-center py-12 text-text-muted">Cargando club...</div>
+    return (
+      <div className="text-center py-12 text-text-muted">Cargando club...</div>
+    )
   }
 
   if (error || !club) {
     return (
       <div className="text-center py-12">
         <p className="text-danger">{error || 'Club no encontrado'}</p>
-        <Link href="/dashboard" className="text-brand-primary hover:underline mt-4 inline-block">
+        <Link
+          href="/dashboard"
+          className="text-brand-primary hover:underline mt-4 inline-block"
+        >
           ← Volver al dashboard
         </Link>
       </div>
@@ -238,7 +263,10 @@ export default function ClubDetail() {
 
   return (
     <div>
-      <Link href="/dashboard" className="text-brand-primary hover:underline inline-block mb-6">
+      <Link
+        href="/dashboard"
+        className="text-brand-primary hover:underline inline-block mb-6"
+      >
         ← Volver a Mis Clubs
       </Link>
 
@@ -259,7 +287,9 @@ export default function ClubDetail() {
                 </div>
               )}
               <div className="flex-1 min-w-0">
-                <h1 className="text-2xl font-bold text-text-primary">{club.name}</h1>
+                <h1 className="text-2xl font-bold text-text-primary">
+                  {club.name}
+                </h1>
                 <p className="text-text-secondary mt-1">
                   {club.description || 'Sin descripción'}
                 </p>
@@ -276,7 +306,11 @@ export default function ClubDetail() {
                 <Button size="sm" onClick={openEditModal}>
                   ✏️ Editar
                 </Button>
-                <Button size="sm" variant="danger" onClick={() => setShowDeleteModal(true)}>
+                <Button
+                  size="sm"
+                  variant="danger"
+                  onClick={() => setShowDeleteModal(true)}
+                >
                   🗑️ Eliminar
                 </Button>
               </div>
@@ -286,28 +320,39 @@ export default function ClubDetail() {
           {/* Estadísticas */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-border-subtle">
             <div className="text-center">
-              <p className="text-2xl font-bold text-text-primary">{club.teams?.length || 0}</p>
+              <p className="text-2xl font-bold text-text-primary">
+                {club.teams?.length || 0}
+              </p>
               <p className="text-xs text-text-muted">Equipos</p>
             </div>
             <div className="text-center">
-              <p className="text-2xl font-bold text-text-primary">{club.members?.length || 0}</p>
+              <p className="text-2xl font-bold text-text-primary">
+                {club.members?.length || 0}
+              </p>
               <p className="text-xs text-text-muted">Miembros</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-text-primary">
-                {club.teams?.reduce((acc, t) => acc + (t.memberships?.length || 0), 0) || 0}
+                {club.teams?.reduce(
+                  (acc, t) => acc + (t.memberships?.length || 0),
+                  0,
+                ) || 0}
               </p>
               <p className="text-xs text-text-muted">Jugadores</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-brand-primary">
-                {club.members?.filter(m => m.role === 'ADMIN_CLUB').length || 0}
+                {club.members?.filter((m) => m.role === 'ADMIN_CLUB').length ||
+                  0}
               </p>
               <p className="text-xs text-text-muted">Admins</p>
             </div>
           </div>
         </CardBody>
       </Card>
+
+      {/* RECORDATORIOS DE PAGO */}
+      <ClubRemindersSection clubId={clubId} canManage={isAdmin} />
 
       {/* EQUIPOS */}
       <Card className="mb-6">
@@ -334,12 +379,16 @@ export default function ClubDetail() {
                   className="bg-surface-elevated hover:bg-brand-primary/5 rounded-lg p-4 border border-border-subtle hover:border-brand-primary/50 transition"
                 >
                   <h3 className="font-medium text-text-primary">{team.name}</h3>
-                  <p className="text-sm text-text-secondary">{team.category || 'Sin categoría'}</p>
-                  <p className="text-xs text-text-muted mt-1">{team.season || 'Temporada no especificada'}</p>
+                  <p className="text-sm text-text-secondary">
+                    {team.category || 'Sin categoría'}
+                  </p>
+                  <p className="text-xs text-text-muted mt-1">
+                    {team.season || 'Temporada no especificada'}
+                  </p>
                   <div className="mt-2">
                     <Badge variant="brand">
-  👥 {team.memberships?.length ?? 0} jugadores
-</Badge>
+                      👥 {team.memberships?.length ?? 0} jugadores
+                    </Badge>
                   </div>
                 </Link>
               ))}
@@ -377,7 +426,9 @@ export default function ClubDetail() {
                     <p className="font-medium text-text-primary">
                       {member.user.name} {member.user.lastName}
                     </p>
-                    <p className="text-sm text-text-muted">{member.user.email}</p>
+                    <p className="text-sm text-text-muted">
+                      {member.user.email}
+                    </p>
                   </div>
                   <Badge variant={getRoleVariant(member.role)}>
                     {getRoleText(member.role)}
@@ -404,9 +455,17 @@ export default function ClubDetail() {
           <div className="flex items-center gap-4">
             <div className="w-20 h-20 rounded-xl overflow-hidden bg-brand-primary/10 border border-brand-primary/30 flex items-center justify-center flex-shrink-0">
               {logoPreview ? (
-                <img src={logoPreview} alt="Preview" className="w-full h-full object-cover" />
+                <img
+                  src={logoPreview}
+                  alt="Preview"
+                  className="w-full h-full object-cover"
+                />
               ) : club.logo ? (
-                <img src={club.logo} alt={club.name} className="w-full h-full object-cover" />
+                <img
+                  src={club.logo}
+                  alt={club.name}
+                  className="w-full h-full object-cover"
+                />
               ) : (
                 <span className="text-3xl">🏆</span>
               )}
@@ -484,7 +543,9 @@ export default function ClubDetail() {
           <Textarea
             label="Descripción"
             value={editForm.description}
-            onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+            onChange={(e) =>
+              setEditForm({ ...editForm, description: e.target.value })
+            }
             rows={3}
           />
 
@@ -492,7 +553,9 @@ export default function ClubDetail() {
             label="Dirección"
             type="text"
             value={editForm.address}
-            onChange={(e) => setEditForm({ ...editForm, address: e.target.value })}
+            onChange={(e) =>
+              setEditForm({ ...editForm, address: e.target.value })
+            }
             placeholder="Calle, número, ciudad"
           />
 
@@ -501,14 +564,18 @@ export default function ClubDetail() {
               label="Teléfono"
               type="tel"
               value={editForm.phone}
-              onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+              onChange={(e) =>
+                setEditForm({ ...editForm, phone: e.target.value })
+              }
               placeholder="+34 600 123 456"
             />
             <Input
               label="Email"
               type="email"
               value={editForm.email}
-              onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+              onChange={(e) =>
+                setEditForm({ ...editForm, email: e.target.value })
+              }
               placeholder="club@email.com"
             />
           </div>
@@ -543,8 +610,10 @@ export default function ClubDetail() {
         size="sm"
       >
         <p className="text-text-secondary mb-6">
-          ¿Estás seguro de que quieres eliminar el club <strong className="text-text-primary">{club.name}</strong>?
-          Esta acción no se puede deshacer y eliminará todos los equipos, jugadores y entrenamientos asociados.
+          ¿Estás seguro de que quieres eliminar el club{' '}
+          <strong className="text-text-primary">{club.name}</strong>? Esta
+          acción no se puede deshacer y eliminará todos los equipos, jugadores
+          y entrenamientos asociados.
         </p>
         <div className="flex gap-3">
           <Button
