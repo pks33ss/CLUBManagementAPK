@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, ReactElement } from 'react'
 import type { Tool } from './types'
 import { COLOR_PALETTE, STROKE_WIDTHS } from './constants'
 import {
@@ -58,7 +58,7 @@ type CurvedVariant =
 const STRAIGHT_OPTIONS: Array<{
   value: StraightVariant
   label: string
-  Icon: (p: { size?: number }) => JSX.Element
+  Icon: (p: { size?: number }) => ReactElement
 }> = [
   { value: 'arrow', label: 'Recta sólida', Icon: IconArrow },
   { value: 'arrow-dashed', label: 'Pase (discontinua)', Icon: IconArrowDashed },
@@ -68,7 +68,7 @@ const STRAIGHT_OPTIONS: Array<{
 const CURVED_OPTIONS: Array<{
   value: CurvedVariant
   label: string
-  Icon: (p: { size?: number }) => JSX.Element
+  Icon: (p: { size?: number }) => ReactElement
 }> = [
   { value: 'curved-arrow', label: 'Curva sólida', Icon: IconCurvedArrow },
   {
