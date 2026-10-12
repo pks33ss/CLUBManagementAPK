@@ -354,11 +354,11 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
 
   return (
     <Modal
-      isOpen={true}
-      onClose={onClose}
-      title="Invitar miembro al equipo"
-      size="md"
-    >
+  isOpen={true}
+  onClose={onClose}
+  title="Invitar miembro al equipo"
+  size="lg"
+>
       <Select
         label="Rol en el equipo"
         value={role}
@@ -372,38 +372,38 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
         ))}
       </Select>
 
-      <div className="flex gap-1 mb-4 border-b border-border-subtle overflow-x-auto">
-        <button
-          onClick={() => setMode('search')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition whitespace-nowrap ${
-            mode === 'search'
-              ? 'border-brand-primary text-brand-primary'
-              : 'border-transparent text-text-muted hover:text-text-primary'
-          }`}
-        >
-          🔍 Buscar en club
-        </button>
-        <button
-          onClick={() => setMode('create')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition whitespace-nowrap ${
-            mode === 'create'
-              ? 'border-brand-primary text-brand-primary'
-              : 'border-transparent text-text-muted hover:text-text-primary'
-          }`}
-        >
-          ➕ Crear nuevo
-        </button>
-        <button
-          onClick={() => setMode('registered')}
-          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition whitespace-nowrap ${
-            mode === 'registered'
-              ? 'border-brand-primary text-brand-primary'
-              : 'border-transparent text-text-muted hover:text-text-primary'
-          }`}
-        >
-          ✉️ Usuario Registrado
-        </button>
-      </div>
+<div className="flex mb-4 border-b border-border-subtle">
+  <button
+    onClick={() => setMode('search')}
+    className={`flex-1 px-2 py-2 text-xs sm:text-sm font-medium border-b-2 -mb-px transition ${
+      mode === 'search'
+        ? 'border-brand-primary text-brand-primary'
+        : 'border-transparent text-text-muted hover:text-text-primary'
+    }`}
+  >
+    🔍 Buscar en club
+  </button>
+  <button
+    onClick={() => setMode('create')}
+    className={`flex-1 px-2 py-2 text-xs sm:text-sm font-medium border-b-2 -mb-px transition ${
+      mode === 'create'
+        ? 'border-brand-primary text-brand-primary'
+        : 'border-transparent text-text-muted hover:text-text-primary'
+    }`}
+  >
+    ➕ Crear nuevo
+  </button>
+  <button
+    onClick={() => setMode('registered')}
+    className={`flex-1 px-2 py-2 text-xs sm:text-sm font-medium border-b-2 -mb-px transition ${
+      mode === 'registered'
+        ? 'border-brand-primary text-brand-primary'
+        : 'border-transparent text-text-muted hover:text-text-primary'
+    }`}
+  >
+    ✉️ Usuario Registrado
+  </button>
+</div>
 
       {/* MODO BUSCAR EN CLUB */}
       {mode === 'search' && (
