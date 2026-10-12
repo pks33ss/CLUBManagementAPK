@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import api from '@/lib/api'
 import { usersApi } from '@/lib/api/users'
 import { invitationsApi } from '@/lib/api/invitations'
 import { Button, Input, Select, Modal } from '@/components/ui'
@@ -17,18 +16,25 @@ interface Props {
 type Mode = 'search' | 'create' | 'registered'
 type Role = 'PLAYER' | 'COACH' | 'ASSISTANT' | 'ADMIN_TEAM'
 
+const ROLE_LABELS: Record<Role, string> = {
+  PLAYER: '🏃 Jugador',
+  COACH: '🏆 Entrenador',
+  ASSISTANT: '🤝 Asistente',
+  ADMIN_TEAM: '🛠️ Admin Equipo',
+}
+
 export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props) {
   const [mode, setMode] = useState<Mode>('search')
   const [role, setRole] = useState<Role>('PLAYER')
 
-  // Search (Buscar en club)
+  // Search
   const [query, setQuery] = useState('')
   const [results, setResults] = useState<UserPublic[]>([])
   const [searching, setSearching] = useState(false)
   const [searched, setSearched] = useState(false)
   const [adding, setAdding] = useState<string | null>(null)
 
-  // Create (Crear nuevo)
+  // Create
   const [createForm, setCreateForm] = useState({
     name: '',
     lastName: '',
@@ -37,10 +43,9 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
     jerseyNumber: '',
     position: '',
   })
-  // ✅ NUEVO — por defecto enviamos invitación si hay email
   const [sendInvitation, setSendInvitation] = useState(true)
 
-  // Registered (Usuario Registrado)
+  // Registered
   const [registeredQuery, setRegisteredQuery] = useState('')
 
   // Result
@@ -48,6 +53,7 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
   const [invitationCode, setInvitationCode] = useState<string | null>(null)
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState('')
+  const [copied, setCopied] = useState(false)
 
   // Debounced search
   useEffect(() => {
@@ -103,12 +109,7 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
         userId: user.id,
       })
       setInvitationCode(invitation.code)
-
-      if (invitation.channel === 'LINK') {
-        setInvitationLink(invitation.invitationLink)
-      } else {
-        setInvitationLink(null)
-      }
+      setInvitationLink(invitation.invitationLink ?? null)
     } catch (err: any) {
       console.error('Error:', err)
       const code = err.response?.data?.code
@@ -142,15 +143,13 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
           ? parseInt(createForm.jerseyNumber)
           : undefined,
         position: createForm.position || undefined,
-        role: 'PLAYER',
-        // ✅ NUEVO — enviar invitación si hay email y el checkbox está marcado
+        role, // ✅ Rol elegido por el usuario
         sendInvitation: !!createForm.email && sendInvitation,
       })
 
       await onSuccess()
       onClose()
 
-      // Feedback opcional
       if (result?.invitationSent) {
         console.log('✅ Invitación enviada al nuevo miembro')
       }
@@ -165,7 +164,7 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
           'Ese email ya está registrado. Te llevamos a "Usuario Registrado" para invitarlo.',
         )
       } else {
-        setError(err.response?.data?.message || 'Error al crear el jugador')
+        setError(err.response?.data?.message || 'Error al crear el miembro')
       }
     } finally {
       setProcessing(false)
@@ -190,13 +189,13 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
       const invitation = await invitationsApi.create({
         teamId,
         role,
-        channel: 'IN_APP',
+        channel: 'LINK',
         userId: found.id,
         email: isEmail ? registeredQuery : undefined,
       })
 
       setInvitationCode(invitation.code)
-      setInvitationLink(null)
+      setInvitationLink(invitation.invitationLink ?? null)
     } catch (err: any) {
       console.error('Error:', err)
       const code = err.response?.data?.code
@@ -212,16 +211,65 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
     }
   }
 
-  const copyLink = () => {
-    if (!invitationLink) return
-    navigator.clipboard.writeText(invitationLink)
-    alert('✅ Link copiado')
+  // ============================================
+  // COPIAR LINK (con fallback)
+  // ============================================
+
+  const copyLink = async () => {
+    if (!invitationLink) {
+      setError('No hay link disponible')
+      return
+    }
+
+    try {
+      // Intento moderno
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(invitationLink)
+      } else {
+        // Fallback: textarea temporal + execCommand
+        const textArea = document.createElement('textarea')
+        textArea.value = invitationLink
+        textArea.style.position = 'fixed'
+        textArea.style.left = '-9999px'
+        document.body.appendChild(textArea)
+        textArea.select()
+        document.execCommand('copy')
+        document.body.removeChild(textArea)
+      }
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (err) {
+      console.error('Error copiando:', err)
+      setError('No se pudo copiar. Selecciona el link manualmente.')
+    }
   }
 
+  // ============================================
+  // COMPARTIR POR WHATSAPP
+  // ============================================
+
   const shareWhatsApp = () => {
-    if (!invitationLink) return
-    const msg = `¡Hola! 👋 Te invito al equipo en JoinSport. Únete aquí: ${invitationLink}`
+    if (!invitationLink) {
+      setError('No hay link disponible')
+      return
+    }
+    const roleLabel = ROLE_LABELS[role]
+    const msg = `¡Hola! 👋 Te invito al equipo en JoinSport como ${roleLabel.replace(/^[^ ]+ /, '')}. Únete aquí: ${invitationLink}`
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
+  }
+
+  // ============================================
+  // ENVIAR POR EMAIL (desde backend)
+  // ============================================
+
+  const sendByEmail = async () => {
+    if (!invitationCode) return
+    // Nota: el envío real por email lo hace el backend cuando se crea la invitación
+    // con channel EMAIL. En este flujo ya la hemos creado con LINK, así que solo
+    // mostramos un aviso. Podríamos añadir un endpoint para reenviar por email.
+    setError(
+      'Para enviar por email, crea la invitación con "Buscar en club" o "Usuario Registrado" y el canal será email automáticamente.',
+    )
   }
 
   // ============================================
@@ -230,15 +278,18 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
 
   if (invitationCode) {
     return (
-      <Modal isOpen={true} onClose={onClose} title="Invitación creada" size="md">
+      <Modal
+        isOpen={true}
+        onClose={onClose}
+        title="✅ Invitación creada"
+        size="md"
+      >
         <div className="space-y-4">
           <div className="bg-success/10 border border-success/20 rounded-lg p-4 text-center">
             <div className="text-4xl mb-2">✅</div>
             <p className="text-success font-medium">¡Listo!</p>
             <p className="text-xs text-text-muted mt-1">
-              {invitationLink
-                ? 'Comparte este link con la persona invitada. Caduca en 7 días.'
-                : 'La invitación está en la bandeja del usuario. La verá cuando entre en la app.'}
+              Comparte este link con la persona invitada. Caduca en 7 días.
             </p>
           </div>
 
@@ -251,7 +302,7 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
             </code>
           </div>
 
-          {invitationLink ? (
+          {invitationLink && (
             <>
               <div>
                 <label className="block text-sm font-medium text-text-secondary mb-1">
@@ -261,22 +312,25 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
                   type="text"
                   value={invitationLink}
                   readOnly
-                  className="w-full bg-surface-elevated border border-border-subtle rounded-lg px-3 py-2 text-text-primary text-sm"
+                  onClick={(e) => (e.target as HTMLInputElement).select()}
+                  className="w-full bg-surface-elevated border border-border-subtle rounded-lg px-3 py-2 text-text-primary text-sm font-mono"
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                 <Button variant="secondary" onClick={copyLink}>
-                  🔗 Copiar link
+                  {copied ? '✓ Copiado' : '🔗 Copiar link'}
                 </Button>
                 <Button onClick={shareWhatsApp}>💬 WhatsApp</Button>
+                <Button variant="secondary" onClick={sendByEmail}>
+                  📧 Email
+                </Button>
+              </div>
+
+              <div className="bg-brand-primary/10 border border-brand-primary/20 rounded-lg p-3 text-xs text-text-secondary">
+                💡 <strong>Rol asignado:</strong> {ROLE_LABELS[role]}
               </div>
             </>
-          ) : (
-            <div className="bg-brand-primary/10 border border-brand-primary/20 rounded-lg p-3 text-sm text-text-secondary">
-              ✉️ La invitación está en la bandeja del usuario. La verá en su
-              sección <strong>Invitaciones</strong> cuando entre en la app.
-            </div>
           )}
 
           <Button
@@ -299,17 +353,23 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
   // ============================================
 
   return (
-    <Modal isOpen={true} onClose={onClose} title="Invitar miembro al equipo" size="md">
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title="Invitar miembro al equipo"
+      size="md"
+    >
       <Select
         label="Rol en el equipo"
         value={role}
         onChange={(e) => setRole(e.target.value as Role)}
         className="mb-4"
       >
-        <option value="PLAYER">🏃 Jugador</option>
-        <option value="COACH">🏆 Entrenador</option>
-        <option value="ASSISTANT">🤝 Asistente</option>
-        <option value="ADMIN_TEAM">🛠️ Admin Equipo</option>
+        {Object.entries(ROLE_LABELS).map(([value, label]) => (
+          <option key={value} value={value}>
+            {label}
+          </option>
+        ))}
       </Select>
 
       <div className="flex gap-1 mb-4 border-b border-border-subtle overflow-x-auto">
@@ -356,7 +416,7 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
             </p>
             <p>
               <strong className="text-text-primary">📨 Invitar:</strong> crea
-              una invitación que el jugador debe aceptar con un link.
+              una invitación con link que el miembro debe aceptar.
             </p>
           </div>
 
@@ -440,7 +500,9 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
               label="Nombre *"
               type="text"
               value={createForm.name}
-              onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+              onChange={(e) =>
+                setCreateForm({ ...createForm, name: e.target.value })
+              }
               required
             />
             <Input
@@ -464,7 +526,6 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
             helperText="Opcional. Si lo pones, podrá recibir invitaciones por email"
           />
 
-          {/* ✅ NUEVO — Checkbox solo si hay email */}
           {createForm.email && (
             <label className="flex items-start gap-3 cursor-pointer bg-brand-primary/5 border border-brand-primary/20 rounded-lg p-3">
               <input
@@ -534,7 +595,9 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
               loading={processing}
               className="flex-1"
             >
-              {processing ? 'Creando...' : 'Añadir jugador'}
+              {processing
+                ? 'Creando...'
+                : `Añadir ${ROLE_LABELS[role].replace(/^[^ ]+ /, '').toLowerCase()}`}
             </Button>
           </div>
         </form>
