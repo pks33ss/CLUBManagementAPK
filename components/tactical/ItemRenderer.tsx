@@ -10,6 +10,8 @@ import {
 } from 'react-konva'
 import type { DrawableItem } from './types'
 
+import { DASHED_PATTERN } from './constants'
+
 interface ItemRendererProps {
   item: DrawableItem
   isSelected: boolean
@@ -202,8 +204,9 @@ export function ItemRenderer({
     )
   }
 
-  // ─── Flecha recta ───
-  if (item.type === 'arrow') {
+   // ─── Flecha recta (sólida o discontinua) ───
+  if (item.type === 'arrow' || item.type === 'arrow-dashed') {
+    const isDashed = item.type === 'arrow-dashed'
     return (
       <Group
         x={0} y={0}
@@ -223,6 +226,7 @@ export function ItemRenderer({
           strokeWidth={item.strokeWidth}
           pointerLength={12}
           pointerWidth={12}
+          dash={isDashed ? DASHED_PATTERN : undefined}
           hitStrokeWidth={Math.max(20, item.strokeWidth * 4)}
         />
       </Group>
@@ -254,8 +258,9 @@ export function ItemRenderer({
     )
   }
 
-  // ─── Flecha curva ───
-  if (item.type === 'curved-arrow') {
+  // ─── Flecha curva (sólida o discontinua) ───
+  if (item.type === 'curved-arrow' || item.type === 'curved-arrow-dashed') {
+    const isDashed = item.type === 'curved-arrow-dashed'
     const [x1, y1, cx1, cy1, cx2, cy2, x2, y2] = item.points
     const curvePoints = cubicBezierPoints(x1, y1, cx1, cy1, cx2, cy2, x2, y2, 48)
     const head = arrowheadPoints(x2, y2, x2 - cx2, y2 - cy2)
@@ -277,6 +282,7 @@ export function ItemRenderer({
           strokeWidth={item.strokeWidth}
           lineCap="round"
           lineJoin="round"
+          dash={isDashed ? DASHED_PATTERN : undefined}
           hitStrokeWidth={Math.max(20, item.strokeWidth * 4)}
         />
         <Arrow
@@ -610,7 +616,12 @@ interface ItemHandlesProps {
 export function ItemHandles({ item, onControlPointDrag }: ItemHandlesProps) {
   const selectionColor = '#00E676'
 
-  if (item.type === 'arrow' || item.type === 'line' || item.type === 'bounce-arrow') {
+    if (
+    item.type === 'arrow' ||
+    item.type === 'arrow-dashed' ||
+    item.type === 'line' ||
+    item.type === 'bounce-arrow'
+  ) {
     return (
       <>
         <ControlHandle x={item.points[0]} y={item.points[1]} onDrag={(x, y) => onControlPointDrag(0, x, y)} />
@@ -619,7 +630,11 @@ export function ItemHandles({ item, onControlPointDrag }: ItemHandlesProps) {
     )
   }
 
-  if (item.type === 'curved-arrow' || item.type === 'bounce-curved-arrow') {
+   if (
+    item.type === 'curved-arrow' ||
+    item.type === 'curved-arrow-dashed' ||
+    item.type === 'bounce-curved-arrow'
+  ) {
     const [x1, y1, cx1, cy1, cx2, cy2, x2, y2] = item.points
     return (
       <>

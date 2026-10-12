@@ -186,7 +186,12 @@ export default function TacticalBoard({
       return
     }
 
-    if (tool === 'arrow' || tool === 'line' || tool === 'bounce-arrow') {
+    if (
+      tool === 'arrow' ||
+      tool === 'arrow-dashed' ||
+      tool === 'line' ||
+      tool === 'bounce-arrow'
+    ) {
       setCurrentItem({
         id: uid(),
         type: tool,
@@ -197,7 +202,11 @@ export default function TacticalBoard({
       return
     }
 
-    if (tool === 'curved-arrow' || tool === 'bounce-curved-arrow') {
+    if (
+      tool === 'curved-arrow' ||
+      tool === 'curved-arrow-dashed' ||
+      tool === 'bounce-curved-arrow'
+    ) {
       setCurrentItem({
         id: uid(),
         type: tool,
@@ -260,8 +269,9 @@ export default function TacticalBoard({
     const pos = getPointer()
     if (!pos) return
 
-    if (
+        if (
       currentItem.type === 'arrow' ||
+      currentItem.type === 'arrow-dashed' ||
       currentItem.type === 'line' ||
       currentItem.type === 'bounce-arrow'
     ) {
@@ -269,8 +279,9 @@ export default function TacticalBoard({
         ...currentItem,
         points: [currentItem.points[0], currentItem.points[1], pos.x, pos.y],
       })
-    } else if (
+     } else if (
       currentItem.type === 'curved-arrow' ||
+      currentItem.type === 'curved-arrow-dashed' ||
       currentItem.type === 'bounce-curved-arrow'
     ) {
       const [x1, y1] = currentItem.points
@@ -316,12 +327,14 @@ export default function TacticalBoard({
       setCurrentItem(null); return
     }
 
-    const isTwoPointLine =
+        const isTwoPointLine =
       currentItem.type === 'arrow' ||
+      currentItem.type === 'arrow-dashed' ||
       currentItem.type === 'line' ||
       currentItem.type === 'bounce-arrow'
     const isCurved =
       currentItem.type === 'curved-arrow' ||
+      currentItem.type === 'curved-arrow-dashed' ||
       currentItem.type === 'bounce-curved-arrow'
 
     if (
@@ -348,9 +361,11 @@ export default function TacticalBoard({
     delete cleaned.startY
     pushItem(cleaned)
 
-    if (
+       if (
       cleaned.type === 'curved-arrow' ||
+      cleaned.type === 'curved-arrow-dashed' ||
       cleaned.type === 'arrow' ||
+      cleaned.type === 'arrow-dashed' ||
       cleaned.type === 'line' ||
       cleaned.type === 'bounce-arrow' ||
       cleaned.type === 'bounce-curved-arrow'

@@ -6,7 +6,9 @@ export type Tool =
   | 'select'
   | 'pencil'
   | 'arrow'
+  | 'arrow-dashed'
   | 'curved-arrow'
+  | 'curved-arrow-dashed'
   | 'bounce-arrow'
   | 'bounce-curved-arrow'
   | 'line'
@@ -31,12 +33,12 @@ export interface PencilItem extends BaseItem {
 }
 
 export interface ArrowItem extends BaseItem {
-  type: 'arrow' | 'line'
+  type: 'arrow' | 'line' | 'arrow-dashed'
   points: number[] // [x1, y1, x2, y2]
 }
 
 export interface CurvedArrowItem extends BaseItem {
-  type: 'curved-arrow'
+  type: 'curved-arrow' | 'curved-arrow-dashed'
   // Curva cúbica: [x1, y1, cx1, cy1, cx2, cy2, x2, y2]
   points: number[]
 }
@@ -141,7 +143,11 @@ export function isRectItem(item: DrawableItem): item is RectItem {
 }
 
 export function isLineItem(item: DrawableItem): item is ArrowItem {
-  return item.type === 'arrow' || item.type === 'line'
+  return (
+    item.type === 'arrow' ||
+    item.type === 'line' ||
+    item.type === 'arrow-dashed'
+  )
 }
 
 export function isPencilItem(item: DrawableItem): item is PencilItem {
@@ -149,18 +155,27 @@ export function isPencilItem(item: DrawableItem): item is PencilItem {
 }
 
 export function isCurvedArrowItem(item: DrawableItem): item is CurvedArrowItem {
-  return item.type === 'curved-arrow'
+  return (
+    item.type === 'curved-arrow' || item.type === 'curved-arrow-dashed'
+  )
 }
 
 /** ¿Este item guarda puntos como array plano? (para mover sumando delta) */
 export function isPointsItem(
   item: DrawableItem,
-): item is PencilItem | ArrowItem | CurvedArrowItem | BounceArrowItem | BounceCurvedArrowItem {
+): item is
+  | PencilItem
+  | ArrowItem
+  | CurvedArrowItem
+  | BounceArrowItem
+  | BounceCurvedArrowItem {
   return (
     item.type === 'pencil' ||
     item.type === 'arrow' ||
+    item.type === 'arrow-dashed' ||
     item.type === 'line' ||
     item.type === 'curved-arrow' ||
+    item.type === 'curved-arrow-dashed' ||
     item.type === 'bounce-arrow' ||
     item.type === 'bounce-curved-arrow'
   )

@@ -217,3 +217,41 @@ export function IconTrash({ size = 20 }: IconProps) {
     </svg>
   )
 }
+
+/**
+ * Flecha recta discontinua: línea con trazo discontinuo y punta.
+ * Simula un "pase" recto.
+ */
+export function IconArrowDashed({ size = 20 }: IconProps) {
+  return (
+    <svg {...baseProps(size)}>
+      <line x1="5" y1="19" x2="12" y2="12" strokeDasharray="3 3" />
+      <line x1="15" y1="9" x2="19" y2="5" strokeDasharray="3 3" />
+      <polyline points="9 5 19 5 19 15" />
+    </svg>
+  )
+}
+
+/**
+ * Flecha curva discontinua: curva con trazo discontinuo y punta.
+ * Simula un "pase" curvo.
+ */
+export function IconCurvedArrowDashed({ size = 20 }: IconProps) {
+  return (
+    <svg {...baseProps(size)}>
+      <path d="M5 19c0-7 7-12 14-12" strokeDasharray="3 3" />
+      <polyline points="14 3 19 7 14 11" />
+    </svg>
+  )
+}
+
+/**
+ * Chevron hacia abajo para indicar que un botón tiene dropdown.
+ */
+export function IconChevronDown({ size = 10 }: IconProps) {
+  return (
+    <svg {...baseProps(size)}>
+      <polyline points="6 9 12 15 18 9" />
+    </svg>
+  )
+}

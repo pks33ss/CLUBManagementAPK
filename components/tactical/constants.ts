@@ -5,6 +5,9 @@
 /** Tamaño del sistema interno de coordenadas. */
 export const CANVAS_SIZE = 800
 
+/** Patrón de puntos para líneas discontinuas (estilo "pase"). */
+export const DASHED_PATTERN = [12, 8]
+
 /** Paleta de colores disponible. */
 export const COLOR_PALETTE = [
   '#ffffff',
