@@ -11,6 +11,7 @@ import { LibraryPicker } from '@/app/library/_components/LibraryPicker'
 import type { LibraryExercise } from '@/lib/library'
 import { useTacticalBackground } from '@/lib/useTacticalBackground'
 
+
 interface SessionDetail {
   id: string
   title: string
@@ -155,6 +156,7 @@ export default function SessionDetail() {
 
   const [showLibraryPicker, setShowLibraryPicker] = useState(false)
   const [libraryPickerTarget, setLibraryPickerTarget] = useState<'new' | 'edit'>('new')
+const { userBackground, updateBackground } = useTacticalBackground()
 
   useEffect(() => {
     const token = localStorage.getItem('token')
