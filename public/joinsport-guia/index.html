@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#00E676">
+<meta name="description" content="Guía de funcionalidades de JoinSport: gestión deportiva para clubes y entrenadores.">
+<title>JoinSport · Guía de funcionalidades</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #F2F5F2;
+  --surface: #FFFFFF;
+  --ink: #0C2B1E;
+  --muted: #4B6055;
+  --line: #D3DDD6;
+  --brand: #00E676;
+  --brand-ink: #00391C;
+  --deep: #0C2B1E;
+  --deep-ink: #E8F2EC;
+  --display: "Bricolage Grotesque", "Trebuchet MS", system-ui, sans-serif;
+  --body: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --radius: 18px;
+  box-sizing: border-box;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 16px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3 { font-family: var(--display); line-height: 1.1; letter-spacing: -0.02em; margin: 0; }
+p { margin: 0; }
+a { color: inherit; text-decoration: none; }
+ul { margin: 0; padding: 0; list-style: none; }
+:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; border-radius: 6px; }
+
+.wrap { width: min(820px, 100% - 3rem); margin-inline: auto; }
+
+/* ==================== PORTADA ==================== */
+.cover {
+  background: linear-gradient(180deg, var(--surface) 0%, #F8FBF8 100%);
+  border-bottom: 3px solid var(--ink);
+  padding: 4rem 0 3rem;
+}
+.cover .wrap { text-align: center; }
+.cover-logo {
+  display: block;
+  width: 14rem;
+  max-width: 70%;
+  height: auto;
+  margin: 0 auto 1.75rem;
+  border-radius: 24px;
+  box-shadow: 0 12px 32px rgba(12, 43, 30, 0.18);
+}
+.cover h1 {
+  font-size: clamp(2.2rem, 6vw, 3.4rem);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+.cover .subtitle {
+  margin-top: 1rem;
+  font-size: 1.15rem;
+  color: var(--muted);
+  max-width: 34rem;
+  margin-inline: auto;
+}
+.cover .meta {
+  margin-top: 2.25rem;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 1.5rem 2.5rem;
+  font-size: .95rem;
+  color: var(--muted);
+}
+.cover .meta strong { color: var(--ink); font-weight: 600; }
+
+/* ==================== SECCIONES ==================== */
+.section { padding: 3rem 0; page-break-inside: avoid; }
+.section + .section { border-top: 1px solid var(--line); }
+.section-label {
+  font-family: var(--display);
+  font-size: .8rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: .75rem;
+}
+.section h2 {
+  font-size: clamp(1.6rem, 3.4vw, 2.1rem);
+  font-weight: 800;
+}
+.section h2 + p.lead {
+  margin-top: .9rem;
+  font-size: 1.05rem;
+  color: var(--muted);
+  max-width: 42rem;
+}
+
+/* ==================== PARA QUIÉN ==================== */
+.audience {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1rem;
+  margin-top: 1.75rem;
+}
+.audience-card {
+  background: var(--surface);
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.35rem;
+}
+.audience-card .icon { font-size: 1.6rem; line-height: 1; }
+.audience-card h3 {
+  font-size: 1.15rem;
+  font-weight: 800;
+  margin-top: .5rem;
+}
+.audience-card p {
+  color: var(--muted);
+  font-size: .95rem;
+  margin-top: .35rem;
+}
+
+/* ==================== MÓDULOS ==================== */
+.modules { margin-top: 2rem; display: grid; gap: 1.25rem; }
+.module {
+  background: var(--surface);
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  padding: 1.35rem 1.5rem;
+  page-break-inside: avoid;
+}
+.module-head {
+  display: flex;
+  align-items: baseline;
+  gap: .85rem;
+  margin-bottom: .6rem;
+}
+.module-icon { font-size: 1.6rem; line-height: 1; }
+.module h3 {
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+.module .tag {
+  margin-left: auto;
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: .25rem .7rem;
+  border-radius: 999px;
+  background: var(--brand);
+  color: var(--brand-ink);
+  white-space: nowrap;
+}
+.module p.desc {
+  color: var(--muted);
+  font-size: .98rem;
+  margin-bottom: .75rem;
+}
+.module ul {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: .35rem 1.25rem;
+  padding-left: 0;
+}
+.module li {
+  position: relative;
+  padding-left: 1.15rem;
+  font-size: .92rem;
+  color: var(--ink);
+}
+.module li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: .55em;
+  width: .45rem; height: .45rem;
+  border-radius: 50%;
+  background: var(--brand);
+  border: 1.5px solid var(--ink);
+}
+
+/* ==================== ROLES ==================== */
+.table-wrap {
+  margin-top: 1.75rem;
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--surface);
+}
+table { border-collapse: collapse; width: 100%; font-size: .93rem; }
+th, td { padding: .75rem 1rem; text-align: left; border-bottom: 1px solid var(--line); }
+th {
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: .85rem;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background: #F8FBF8;
+}
+tbody tr:last-child td { border-bottom: 0; }
+td.on { color: var(--ink); font-weight: 600; }
+td.off { color: var(--muted); }
+
+/* ==================== MULTI-DEPORTE ==================== */
+.sports {
+  display: flex;
+  flex-wrap: wrap;
+  gap: .6rem;
+  margin-top: 1.25rem;
+}
+.sport-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .55rem 1rem;
+  border-radius: 999px;
+  border: 2px solid var(--ink);
+  background: var(--surface);
+  font-weight: 600;
+  font-size: .95rem;
+}
+.sport-chip.featured { background: var(--brand); color: var(--brand-ink); }
+.sport-chip .emoji { font-size: 1.1rem; }
+
+/* ==================== FREE BANNER ==================== */
+.free-banner {
+  margin-top: 2rem;
+  background: var(--deep);
+  color: var(--deep-ink);
+  border-radius: var(--radius);
+  padding: 2rem 1.75rem;
+  text-align: center;
+}
+.free-banner h3 {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: var(--brand);
+}
+.free-banner p {
+  margin-top: .6rem;
+  color: var(--deep-ink);
+  opacity: .92;
+  font-size: 1rem;
+}
+
+/* ==================== PASOS ==================== */
+.steps {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  margin-top: 1.75rem;
+}
+.step {
+  background: var(--surface);
+  border: 2px solid var(--ink);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.35rem;
+}
+.step .num {
+  display: inline-grid;
+  place-items: center;
+  width: 2.25rem; height: 2.25rem;
+  border-radius: 50%;
+  background: var(--brand);
+  color: var(--brand-ink);
+  border: 2px solid var(--ink);
+  font-family: var(--display);
+  font-weight: 800;
+  font-size: 1.05rem;
+  margin-bottom: .75rem;
+}
+.step h3 { font-size: 1.05rem; font-weight: 800; }
+.step p { color: var(--muted); font-size: .92rem; margin-top: .35rem; }
+
+/* ==================== FOOTER ==================== */
+.guide-footer {
+  margin-top: 3rem;
+  padding: 2.5rem 0 4rem;
+  background: var(--deep);
+  color: var(--deep-ink);
+  page-break-before: auto;
+}
+.guide-footer .wrap { text-align: center; }
+.guide-footer h3 {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--brand);
+}
+.guide-footer p {
+  margin-top: .6rem;
+  opacity: .9;
+}
+.guide-footer .contacts {
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  font-weight: 600;
+}
+.guide-footer .contacts a { border-bottom: 2px solid var(--brand); }
+.guide-footer small {
+  display: block;
+  margin-top: 2.5rem;
+  opacity: .65;
+  font-size: .82rem;
+}
+
+/* ==================== PRINT ==================== */
+@media print {
+  :root { --bg: #FFFFFF; }
+  body {
+    font-size: 11pt;
+    background: #FFFFFF;
+    color: #000000;
+  }
+  .cover {
+    border-bottom: 2px solid #000;
+    padding: 2cm 0 1.5cm;
+    background: #FFFFFF;
+  }
+    .cover-logo {
+    width: 9rem;
+    margin-bottom: 1rem;
+    box-shadow: none;
+    border-radius: 16px;
+  }
+  .section { padding: 1.2cm 0; }
+  .module, .audience-card, .step {
+    border-width: 1px;
+    box-shadow: none;
+  }
+  .free-banner, .guide-footer {
+    background: #F5F5F5;
+    color: #000;
+    border: 1px solid #CCC;
+  }
+  .free-banner h3, .guide-footer h3 { color: #000; }
+  .guide-footer a { border-bottom: none; text-decoration: underline; }
+  a[href]::after { content: " (" attr(href) ")"; font-size: 0.85em; color: #666; }
+  .no-print { display: none; }
+  .page-break { page-break-before: always; }
+  .module { page-break-inside: avoid; }
+  .audience, .steps, .module ul { grid-template-columns: 1fr 1fr; }
+}
+
+/* ==================== RESPONSIVE ==================== */
+@media (max-width: 640px) {
+  .wrap { width: min(820px, 100% - 2rem); }
+  .cover { padding: 3rem 0 2rem; }
+    .cover-logo { width: 10rem; margin-bottom: 1.25rem; }
+  .audience, .steps, .module ul { grid-template-columns: 1fr; }
+}
+
+/* ==================== BOTÓN FLOTANTE DE IMPRIMIR ==================== */
+.print-btn {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  display: inline-flex;
+  align-items: center;
+  gap: .55rem;
+  padding: .85rem 1.35rem;
+  border-radius: 999px;
+  background: var(--brand);
+  color: var(--brand-ink);
+  border: 2px solid var(--ink);
+  font-family: var(--body);
+  font-weight: 700;
+  font-size: .95rem;
+  cursor: pointer;
+  box-shadow: 4px 4px 0 var(--ink);
+  transition: transform .15s ease;
+  z-index: 50;
+}
+.print-btn:hover { transform: translateY(-2px); }
+@media print { .print-btn { display: none; } }
+</style>
+</head>
+<body>
+
+<!-- ==================== PORTADA ==================== -->
+<div class="cover">
+  <div class="wrap">
+        <img
+      src="/logo-full.png"
+      alt="JoinSport"
+      class="cover-logo"
+    />
+    <h1>Guía de funcionalidades</h1>
+    <p class="subtitle">Todo lo que puedes hacer con JoinSport: la plataforma de gestión deportiva para clubes y entrenadores.</p>
+    <div class="meta">
+      <span><strong>Versión:</strong> Octubre 2026</span>
+      <span><strong>App:</strong> <a href="https://app.joinsportapp.com">app.joinsportapp.com</a></span>
+      <span><strong>Contacto:</strong> <a href="mailto:support@joinsportapp.com">support@joinsportapp.com</a></span>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== QUÉ ES ==================== -->
+<section class="section">
+  <div class="wrap">
+    <div class="section-label">¿Qué es JoinSport?</div>
+    <h2>Todo tu club, en un solo lugar.</h2>
+    <p class="lead">
+      JoinSport centraliza la gestión diaria de clubes y equipos deportivos: fichas de jugadores,
+      entrenamientos, partidos, asistencias, cuotas, biblioteca de ejercicios y comunicación interna.
+      Todo en una sola aplicación, disponible desde cualquier dispositivo.
+    </p>
+  </div>
+</section>
+
+<!-- ==================== PARA QUIÉN ==================== -->
+<section class="section">
+  <div class="wrap">
+    <div class="section-label">Para quién es</div>
+    <h2>Cuatro perfiles, una misma plataforma.</h2>
+    <div class="audience">
+      <div class="audience-card">
+        <div class="icon">🏛️</div>
+        <h3>Clubes</h3>
+        <p>Coordina varios equipos y categorías, gestiona el cuerpo técnico, controla cuotas y ten una vista global del club.</p>
+      </div>
+      <div class="audience-card">
+        <div class="icon">🏆</div>
+        <h3>Entrenadores</h3>
+        <p>Planifica sesiones, pasa lista en segundos, diseña jugadas y guarda tu biblioteca personal de ejercicios.</p>
+      </div>
+      <div class="audience-card">
+        <div class="icon">🏃</div>
+        <h3>Jugadores</h3>
+        <p>Consulta tus horarios, revisa tus estadísticas, lleva el control de tus cuotas y accede a tu perfil deportivo.</p>
+      </div>
+      <div class="audience-card">
+        <div class="icon">👨‍👩‍👧</div>
+        <h3>Familias</h3>
+        <p>Sigue la temporada de tus hijos, gestiona pagos y justificantes, y comunícate directamente con el club.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== MÓDULOS ==================== -->
+<section class="section page-break">
+  <div class="wrap">
+    <div class="section-label">Funcionalidades</div>
+    <h2>Diez módulos para no perder el hilo.</h2>
+    <p class="lead">Todo lo que necesitas para la gestión diaria, agrupado por áreas.</p>
+
+    <div class="modules">
+
+      <div class="module">
+        <div class="module-head">
+          <span class="module-icon">🏆</span>
+          <h3>Clubes y equipos</h3>
+        </div>
+        <p class="desc">Crea tu club y organiza los equipos por categoría y temporada. Cada equipo con su propio cuerpo técnico, jugadores y calendario.</p>
+        <ul>
+          <li>Clubes con múltiples equipos</li>
+          <li>Categorías y temporadas</li>
+          <li>Colores y logo del club</li>
+          <li>Multi-deporte (baloncesto, pádel, fútbol, balonmano, voleibol, tenis)</li>
+        </ul>
+      </div>
+
+      <div class="module">
+        <div class="module-head">
+          <span class="module-icon">👥</span>
+          <h3>Miembros y roles</h3>
+        </div>
+        <p class="desc">Invita a miembros y asigna roles. Cada persona ve lo que le toca y nada más.</p>
+        <ul>
+          <li>Roles: Admin Club, Entrenador, Asistente, Admin Equipo, Jugador</li>
+          <li>Invitaciones por email, WhatsApp o link</li>
+          <li>Jugadores sin cuenta (fantasmas) gestionables</li>
+          <li>Permisos granulares por equipo</li>
+        </ul>
+      </div>
+
+      <div class="module">
+        <div class="module-head">
+          <span class="module-icon">📅</span>
+          <h3>Calendario y entrenamientos</h3>
+        </div>
+        <p class="desc">Planifica la semana del club con entrenamientos, partidos y eventos. Todo filtrable por equipo y por tipo.</p>
+        <ul>
+          <li>Entrenamientos con fecha, hora y lugar</li>
+          <li>Sesiones compuestas de ejercicios</li>
+          <li>Calendario unificado del club</li>
+          <li>Eventos: entrenos, partidos, reuniones, torneos</li>
+        </ul>
+      </div>
+
+      <div class="module">
+        <div class="module-head">
+          <span class="module-icon">🎯</span>
+          <h3>Partidos y estadísticas</h3>
+        </div>
+        <p class="desc">Gestiona la temporada competitiva y las estadísticas de cada jugador, deporte a deporte.</p>
+        <ul>
+          <li>Partidos con resultado y anotaciones</li>
+          <li>Estadísticas individuales por partido</li>
+          <li>Convocatorias y confirmaciones</li>
+          <li>Estadísticas agregadas por equipo y jugador</li>
+        </ul>
+      </div>
+
+      <div class="module">
+        <div class="module-head">
+          <span class="module-icon">🩺</span>
+          <h3>Perfil del jugador</h3>
+        </div>
+        <p class="desc">Ficha completa de cada jugador con datos personales, médicos y deportivos, además de su historial de lesiones.</p>
+        <ul>
+          <li>Datos personales y de contacto</li>
+          <li>Información médica y de emergencia</li>
+          <li>Medidas deportivas y tallas</li>
+          <li>Historial de lesiones con seguimiento</li>
+        </ul>
+      </div>
+
+      <div class="module">
+        <div class="module-head">
+          <span class="module-icon">💰</span>
+          <h3>Pagos y cuotas</h3>
+        </div>
+        <p class="desc">Controla quién ha pagado, cuánto y cuándo. Con recordatorios automáticos y recibos descargables.</p>
+        <ul>
+          <li>Conceptos de pago por equipo o club</li>
+          <li>Pagos totales o parciales</li>
+          <li>Recordatorios automáticos por email</li>
+          <li>Recibos en PDF descargables</li>
+          <li>Exportación a CSV</li>
+          <li>Dashboard con totales y pendientes</li>
+        </ul>
+      </div>
+
+      <div class="module">
+        <div class="module-head">
+          <span class="module-icon">📚</span>
+          <h3>Biblioteca de ejercicios</h3>
+        </div>
+        <p class="desc">Tu colección personal de ejercicios, lista para usar en cualquier sesión.</p>
+        <ul>
+          <li>Ejercicios con categoría, dificultad y duración</li>
+          <li>Etiquetas para organizar</li>
+          <li>Imágenes, enlaces y pizarra táctica</li>
+          <li>Reutilizables en cualquier entrenamiento</li>
+        </ul>
+      </div>
+
+      <div class="module">
+        <div class="module-head">
+          <span class="module-icon">📘</span>
+          <h3>Playbook y pizarra táctica</h3>
+        </div>
+        <p class="desc">Diseña jugadas paso a paso con la pizarra táctica integrada. Guárdalas en tu playbook y muéstralas en presentación.</p>
+        <ul>
+          <li>Pizarra con jugadores, conos y balón</li>
+          <li>Flechas rectas, curvas, pases y botes</li>
+          <li>Deshacer/rehacer y atajos de teclado</li>
+          <li>Playbook por equipo con presentación</li>
+          <li>Multi-deporte (baloncesto, pádel...)</li>
+        </ul>
+      </div>
+
+      <div class="module">
+        <div class="module-head">
+          <span class="module-icon">✉️</span>
+          <h3>Invitaciones y comunicación</h3>
+        </div>
+        <p class="desc">Invita por email, WhatsApp o link. Todo el equipo conectado desde el primer día.</p>
+        <ul>
+          <li>Invitaciones con caducidad automática</li>
+          <li>Envío por email, WhatsApp o link</li>
+          <li>Confirmaciones en la app</li>
+          <li>Notificaciones administrativas por email</li>
+        </ul>
+      </div>
+
+      <div class="module">
+        <div class="module-head">
+          <span class="module-icon">📊</span>
+          <h3>Informes y análisis</h3>
+        </div>
+        <p class="desc">Consulta el rendimiento del equipo y el estado general del club de un vistazo.</p>
+        <ul>
+          <li>Dashboard de asistencias</li>
+          <li>Estadísticas de equipo por jugador</li>
+          <li>Resumen de pagos y pendientes</li>
+          <li>Histórico por temporada</li>
+        </ul>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ==================== ROLES ==================== -->
+<section class="section">
+  <div class="wrap">
+    <div class="section-label">Roles y permisos</div>
+    <h2>Cada uno ve lo que le toca.</h2>
+    <p class="lead">Asigna un rol al invitar y la gestión se mantiene ordenada: cada perfil ve solo lo que necesita.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Rol</th>
+            <th>Equipos</th>
+            <th>Sesiones y partidos</th>
+            <th>Asistencias</th>
+            <th>Pagos</th>
+            <th>Ajustes del club</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Admin del club</td>
+            <td class="on">Total</td>
+            <td class="on">Total</td>
+            <td class="on">Total</td>
+            <td class="on">Total</td>
+            <td class="on">Sí</td>
+          </tr>
+          <tr>
+            <td>Entrenador</td>
+            <td class="on">Sus equipos</td>
+            <td class="on">Sus equipos</td>
+            <td class="on">Sus equipos</td>
+            <td class="on">Sus equipos</td>
+            <td class="off">No</td>
+          </tr>
+          <tr>
+            <td>Asistente</td>
+            <td class="on">Sus equipos</td>
+            <td class="on">Sus equipos</td>
+            <td class="on">Sus equipos</td>
+            <td class="off">No</td>
+            <td class="off">No</td>
+          </tr>
+          <tr>
+            <td>Admin de equipo</td>
+            <td class="on">Su equipo</td>
+            <td class="on">Su equipo</td>
+            <td class="on">Su equipo</td>
+            <td class="on">Su equipo</td>
+            <td class="off">No</td>
+          </tr>
+          <tr>
+            <td>Jugador</td>
+            <td class="off">Solo perfil</td>
+            <td class="on">Sus horarios</td>
+            <td class="on">Su historial</td>
+            <td class="on">Sus pagos</td>
+            <td class="off">No</td>
+          </tr>
+          <tr>
+            <td>Familia / tutor</td>
+            <td class="off">Solo perfil</td>
+            <td class="on">Sus horarios</td>
+            <td class="off">No</td>
+            <td class="on">Sus pagos</td>
+            <td class="off">No</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== MULTI-DEPORTE ==================== -->
+<section class="section">
+  <div class="wrap">
+    <div class="section-label">Multi-deporte</div>
+    <h2>Pensado para cualquier deporte de equipo.</h2>
+    <p class="lead">
+      JoinSport es multi-deporte. Actualmente los módulos más desarrollados son los de
+      <strong>baloncesto</strong> y <strong>pádel</strong>, pero la plataforma está preparada para
+      incorporar nuevos deportes con sus propias estadísticas y configuraciones.
+    </p>
+    <div class="sports">
+      <span class="sport-chip featured"><span class="emoji">🏀</span> Baloncesto</span>
+      <span class="sport-chip featured"><span class="emoji">🎾</span> Pádel</span>
+      <span class="sport-chip"><span class="emoji">⚽</span> Fútbol</span>
+      <span class="sport-chip"><span class="emoji">🤾</span> Balonmano</span>
+      <span class="sport-chip"><span class="emoji">🏐</span> Voleibol</span>
+      <span class="sport-chip"><span class="emoji">🎾</span> Tenis</span>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== GRATIS ==================== -->
+<section class="section">
+  <div class="wrap">
+    <div class="free-banner">
+      <h3>Actualmente, gratis.</h3>
+      <p>
+        JoinSport es hoy una plataforma <strong>100% gratuita</strong> para clubes y entrenadores.
+        Sin planes de pago, sin límite de jugadores y sin publicidad.
+        Nuestro objetivo es que la gestión deportiva sea fácil para todos.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== CÓMO EMPEZAR ==================== -->
+<section class="section">
+  <div class="wrap">
+    <div class="section-label">Cómo empezar</div>
+    <h2>En tres pasos ya estás dentro.</h2>
+    <div class="steps">
+      <div class="step">
+        <div class="num">1</div>
+        <h3>Crea tu club</h3>
+        <p>Regístrate y crea tu club en menos de un minuto. Añade su nombre, logo y descripción.</p>
+      </div>
+      <div class="step">
+        <div class="num">2</div>
+        <h3>Crea tus equipos</h3>
+        <p>Dentro del club, añade los equipos por categoría y temporada. Cada uno con sus propios miembros.</p>
+      </div>
+      <div class="step">
+        <div class="num">3</div>
+        <h3>Invita a tu gente</h3>
+        <p>Invita a entrenadores, jugadores y familias por email, WhatsApp o link. Ya puedes empezar a trabajar.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== FOOTER ==================== -->
+<footer class="guide-footer">
+  <div class="wrap">
+    <h3>¿Hablamos?</h3>
+    <p>Si tienes cualquier duda sobre JoinSport, estamos aquí para ayudarte.</p>
+    <div class="contacts">
+      <a href="mailto:support@joinsportapp.com">✉️ support@joinsportapp.com</a>
+      <a href="https://joinsportapp.com">🌐 joinsportapp.com</a>
+            <a href="https://x.com/joinsportapp" class="social-link">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true" style="vertical-align:-2px;margin-right:.35rem">
+          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+        </svg>
+        @joinsportapp
+      </a>
+    </div>
+    <small>
+      © 2026 JoinSport · Gestión deportiva para clubes y entrenadores · Documento informativo
+    </small>
+  </div>
+</footer>
+
+<!-- ==================== BOTÓN IMPRIMIR ==================== -->
+<button class="print-btn no-print" onclick="window.print()" aria-label="Imprimir o guardar como PDF">
+  🖨️ Guardar como PDF
+</button>
+
+</body>
+</html>
