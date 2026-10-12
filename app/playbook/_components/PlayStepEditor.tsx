@@ -4,6 +4,7 @@ import { useRef, useState } from 'react'
 import { Button, Textarea } from '@/components/ui'
 import TacticalBoard from '@/components/TacticalBoard'
 import type { PlayStep } from '@/lib/playbook'
+import { useTacticalBackground } from '@/lib/useTacticalBackground'
 
 interface Props {
   step: PlayStep
@@ -17,6 +18,8 @@ export function PlayStepEditor({ step, onSave, onCancel, saving }: Props) {
   const [imageUrl, setImageUrl] = useState<string | null>(step.imageUrl)
   const [showBoard, setShowBoard] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+const { userBackground, updateBackground } = useTacticalBackground()
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -145,13 +148,17 @@ export function PlayStepEditor({ step, onSave, onCancel, saving }: Props) {
               </button>
             </div>
             <TacticalBoard
-              width={800}
-              height={800}
-              onSave={(dataUrl) => {
-                setImageUrl(dataUrl)
-                setShowBoard(false)
-              }}
-            />
+  width={800}
+  height={800}
+  onSave={(dataUrl) => {
+    setImageUrl(dataUrl)
+    setShowBoard(false)
+  }}
+  userBackground={userBackground}
+  onBackgroundChange={(url, mode) => {
+    void updateBackground(url, mode)
+  }}
+/>
           </div>
         </div>
       )}

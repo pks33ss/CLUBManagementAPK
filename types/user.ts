@@ -41,6 +41,8 @@ export interface UserPublicMembership {
   }
 }
 
+export type TacticalBackgroundMode = 'HALF' | 'FULL'
+
 export interface UserMe {
   id: string
   email: string | null
@@ -53,9 +55,15 @@ export interface UserMe {
   role: string
   isGhost: boolean
   createdAt: string
-  // ✅ NUEVO — Preferencias de notificaciones por email
+
+  // Preferencias de notificaciones por email
   emailNotificationsEnabled: boolean
   emailOptOut: boolean
+
+  // ✅ NUEVO — Fondo personalizado de la pizarra táctica
+  tacticalBackgroundUrl: string | null
+  tacticalBackgroundMode: TacticalBackgroundMode
+
   memberships: Membership[]
   tutorRelationships: TutorRelationship[]
   playerRelationships: TutorRelationship[]
@@ -67,7 +75,6 @@ export interface PlayerProfile {
   id: string
   userId: string
 
-  // Personales
   birthDate: string | null
   dni: string | null
   fatherName: string | null
@@ -78,20 +85,16 @@ export interface PlayerProfile {
   schoolOrCompany: string | null
   allergies: string | null
 
-  // Deportivos
   height: number | null
   wingspan: number | null
   weight: number | null
 
-  // Emergencia
   emergencyContactName: string | null
   emergencyContactPhone: string | null
 
-  // Seguro médico
   medicalInsurance: string | null
   medicalInsuranceNumber: string | null
 
-  // Tallas
   shirtSize: string | null
   pantsSize: string | null
   shoeSize: string | null

@@ -6,6 +6,7 @@ import type {
   Injury,
   InjuryStatus,
   UserPermissions,
+  TacticalBackgroundMode,
 } from '@/types/user'
 
 export const usersApi = {
@@ -22,6 +23,19 @@ export const usersApi = {
     avatar?: string
   }): Promise<UserMe> {
     const { data } = await api.put('/users/me', payload)
+    return data
+  },
+
+  // ✅ NUEVO — Fondo personalizado de la pizarra táctica
+  async updateTacticalBackground(payload: {
+    url?: string | null
+    mode?: TacticalBackgroundMode
+  }): Promise<{
+    id: string
+    tacticalBackgroundUrl: string | null
+    tacticalBackgroundMode: TacticalBackgroundMode
+  }> {
+    const { data } = await api.put('/users/me/tactical-background', payload)
     return data
   },
 
@@ -47,7 +61,6 @@ export const usersApi = {
     jerseyNumber?: number
     position?: string
     role?: string
-    // ✅ NUEVO — si es true y hay email, se envía invitación de registro
     sendInvitation?: boolean
   }): Promise<{
     id: string
@@ -56,7 +69,6 @@ export const usersApi = {
     lastName: string
     email: string | null
     isGhost: boolean
-    // ✅ NUEVO — true si se envió el email de invitación
     invitationSent?: boolean
   }> {
     const { data } = await api.post('/users/ghost', payload)

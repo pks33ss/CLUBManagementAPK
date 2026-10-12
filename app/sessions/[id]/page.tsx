@@ -9,6 +9,7 @@ import { getSportIcon, getSportConfig } from '@/lib/sport'
 import { Button, Card, CardBody, Badge, Input, Textarea, Select, Modal } from '@/components/ui'
 import { LibraryPicker } from '@/app/library/_components/LibraryPicker'
 import type { LibraryExercise } from '@/lib/library'
+import { useTacticalBackground } from '@/lib/useTacticalBackground'
 
 interface SessionDetail {
   id: string
@@ -1702,13 +1703,17 @@ export default function SessionDetail() {
             </div>
 
             <TacticalBoard
-              width={800}
-              height={800}
-              onSave={(dataUrl) => {
-                setBoardImage(dataUrl)
-                setShowTacticalBoard(false)
-              }}
-            />
+  width={800}
+  height={800}
+  onSave={(dataUrl) => {
+    setBoardImage(dataUrl)
+    setShowTacticalBoard(false)
+  }}
+  userBackground={userBackground}
+  onBackgroundChange={(url, mode) => {
+    void updateBackground(url, mode)
+  }}
+/>
           </div>
         </div>
       )}
@@ -1727,14 +1732,18 @@ export default function SessionDetail() {
               </button>
             </div>
 
-            <TacticalBoard
-              width={800}
-              height={800}
-              onSave={(dataUrl) => {
-                setEditingBoardImage(dataUrl)
-                setEditingShowTacticalBoard(false)
-              }}
-            />
+           <TacticalBoard
+  width={800}
+  height={800}
+  onSave={(dataUrl) => {
+    setEditingBoardImage(dataUrl)
+    setEditingShowTacticalBoard(false)
+  }}
+  userBackground={userBackground}
+  onBackgroundChange={(url, mode) => {
+    void updateBackground(url, mode)
+  }}
+/>
           </div>
         </div>
       )}

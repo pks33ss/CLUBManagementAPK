@@ -255,3 +255,47 @@ export function IconChevronDown({ size = 10 }: IconProps) {
     </svg>
   )
 }
+
+/**
+ * Icono "media pista": cancha cuadrada con línea de medio campo.
+ */
+export function IconHalfCourt({ size = 20 }: IconProps) {
+  return (
+    <svg {...baseProps(size)}>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <line x1="3" y1="12" x2="21" y2="12" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  )
+}
+
+/**
+ * Icono "pista completa": cancha rectangular con dos aros.
+ */
+export function IconFullCourt({ size = 20 }: IconProps) {
+  return (
+    <svg {...baseProps(size)}>
+      <rect x="2" y="6" width="20" height="12" rx="1" />
+      <line x1="12" y1="6" x2="12" y2="18" />
+      <circle cx="12" cy="12" r="2.5" />
+      <path d="M6 6 L6 10" />
+      <path d="M18 6 L18 10" />
+      <path d="M6 14 L6 18" />
+      <path d="M18 14 L18 18" />
+    </svg>
+  )
+}
+
+/**
+ * Icono "fondo": imagen con paisaje.
+ */
+export function IconBackground({ size = 20 }: IconProps) {
+  return (
+    <svg {...baseProps(size)}>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <circle cx="9" cy="9" r="2" />
+      <path d="M21 15 L16 10 L5 21" />
+    </svg>
+  )
+}
+

@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect, useRef, useState, ReactElement } from 'react'
-import type { Tool } from './types'
+import { useEffect, useRef, useState } from 'react'
+import type { Tool, TacticalBackgroundMode } from './types'
 import { COLOR_PALETTE, STROKE_WIDTHS } from './constants'
 import {
   IconCursor,
@@ -27,7 +27,9 @@ import {
   IconBack,
   IconTrash,
   IconChevronDown,
+  IconBackground,
 } from './icons'
+import { CourtModeToggle } from './CourtModeToggle'
 
 interface ToolbarProps {
   tool: Tool
@@ -47,6 +49,10 @@ interface ToolbarProps {
   onSendToBack: () => void
   onClearAll: () => void
   onSave?: () => void
+  // ✅ NUEVO
+  mode: TacticalBackgroundMode
+  onModeChange: (m: TacticalBackgroundMode) => void
+  onOpenBackgroundPicker: () => void
 }
 
 type StraightVariant = 'arrow' | 'arrow-dashed' | 'bounce-arrow'
@@ -58,7 +64,7 @@ type CurvedVariant =
 const STRAIGHT_OPTIONS: Array<{
   value: StraightVariant
   label: string
-  Icon: (p: { size?: number }) => ReactElement
+  Icon: (p: { size?: number }) => JSX.Element
 }> = [
   { value: 'arrow', label: 'Recta sólida', Icon: IconArrow },
   { value: 'arrow-dashed', label: 'Pase (discontinua)', Icon: IconArrowDashed },
@@ -68,7 +74,7 @@ const STRAIGHT_OPTIONS: Array<{
 const CURVED_OPTIONS: Array<{
   value: CurvedVariant
   label: string
-  Icon: (p: { size?: number }) => ReactElement
+  Icon: (p: { size?: number }) => JSX.Element
 }> = [
   { value: 'curved-arrow', label: 'Curva sólida', Icon: IconCurvedArrow },
   {
@@ -101,14 +107,15 @@ export function Toolbar({
   onSendToBack,
   onClearAll,
   onSave,
+  mode,
+  onModeChange,
+  onOpenBackgroundPicker,
 }: ToolbarProps) {
-  // Recordar la última opción elegida en cada botón
   const [straightVariant, setStraightVariant] =
     useState<StraightVariant>('arrow')
   const [curvedVariant, setCurvedVariant] =
     useState<CurvedVariant>('curved-arrow')
 
-  // Si el tool activo es uno de la familia, recordarlo
   useEffect(() => {
     if (
       tool === 'arrow' ||
@@ -154,7 +161,6 @@ export function Toolbar({
           <IconPencil />
         </ToolButton>
 
-        {/* ─── Rectas: botón + dropdown ─── */}
         <SplitButton
           active={isStraightActive}
           currentIcon={<activeStraight.Icon />}
@@ -171,7 +177,6 @@ export function Toolbar({
           }))}
         />
 
-        {/* ─── Curvas: botón + dropdown ─── */}
         <SplitButton
           active={isCurvedActive}
           currentIcon={<activeCurved.Icon />}
@@ -188,7 +193,6 @@ export function Toolbar({
           }))}
         />
 
-        {/* El resto de herramientas de dibujo sin dropdown */}
         <ToolButton
           active={tool === 'line'}
           onClick={() => onToolChange('line')}
@@ -293,6 +297,22 @@ export function Toolbar({
         ))}
       </div>
 
+      {/* ✅ NUEVO — Fondo y modo */}
+      <div className="flex gap-1 border-r border-border-subtle pr-3 flex-wrap items-center">
+        <ToolButton
+          active={false}
+          onClick={onOpenBackgroundPicker}
+          title="Cambiar fondo de la pizarra"
+        >
+          <IconBackground />
+        </ToolButton>
+
+        <CourtModeToggle
+          mode={mode}
+          onChange={onModeChange}
+        />
+      </div>
+
       <div className="flex gap-1 flex-wrap items-center">
         <ActionButton onClick={onUndo} title="Deshacer" disabled={!canUndo}>
           <IconUndo />
@@ -344,10 +364,6 @@ export function Toolbar({
   )
 }
 
-// ============================================
-// BOTÓN SIMPLE
-// ============================================
-
 function ToolButton({
   active,
   onClick,
@@ -375,10 +391,6 @@ function ToolButton({
   )
 }
 
-// ============================================
-// BOTÓN CON DROPDOWN (SplitButton)
-// ============================================
-
 interface SplitButtonOption {
   label: string
   icon: React.ReactNode
@@ -402,7 +414,6 @@ function SplitButton({
   const [open, setOpen] = useState(false)
   const wrapRef = useRef<HTMLDivElement>(null)
 
-  // Cerrar al hacer click fuera
   useEffect(() => {
     if (!open) return
     const onDocClick = (e: MouseEvent) => {
@@ -416,7 +427,6 @@ function SplitButton({
 
   return (
     <div ref={wrapRef} className="relative inline-flex">
-      {/* Botón principal */}
       <button
         onClick={onClick}
         title={title}
@@ -430,7 +440,6 @@ function SplitButton({
         {currentIcon}
       </button>
 
-      {/* Botón del chevron */}
       <button
         onClick={() => setOpen((v) => !v)}
         type="button"
@@ -444,7 +453,6 @@ function SplitButton({
         <IconChevronDown />
       </button>
 
-      {/* Dropdown */}
       {open && (
         <div className="absolute top-full left-0 mt-1 z-50 bg-surface border border-border-subtle rounded-lg shadow-xl py-1 min-w-[200px]">
           {options.map((opt, i) => (
@@ -473,10 +481,6 @@ function SplitButton({
     </div>
   )
 }
-
-// ============================================
-// BOTÓN DE ACCIÓN (undo/redo/etc)
-// ============================================
 
 function ActionButton({
   onClick,

@@ -13,7 +13,7 @@ import {
   type LibraryMedia,
 } from '@/lib/library'
 import { parseTags, formatTags } from '@/lib/libraryTags'
-
+import { useTacticalBackground } from '@/lib/useTacticalBackground'
 // ============================================
 // TIPOS
 // ============================================
@@ -106,6 +106,8 @@ export function LibraryExerciseForm({
   // ¿Hay alguna imagen nueva pendiente de subir?
   const hasNewImage =
     (boardImage && boardImage.startsWith('data:')) || !!uploadedImage
+
+const { userBackground, updateBackground } = useTacticalBackground()
 
   // ============================================
   // HANDLERS DE MEDIA
@@ -545,13 +547,17 @@ export function LibraryExerciseForm({
               </button>
             </div>
             <TacticalBoard
-              width={800}
-              height={800}
-              onSave={(dataUrl) => {
-                setBoardImage(dataUrl)
-                setShowBoard(false)
-              }}
-            />
+  width={800}
+  height={800}
+  onSave={(dataUrl) => {
+    setBoardImage(dataUrl)
+    setShowBoard(false)
+  }}
+  userBackground={userBackground}
+  onBackgroundChange={(url, mode) => {
+    void updateBackground(url, mode)
+  }}
+/>
           </div>
         </div>
       )}

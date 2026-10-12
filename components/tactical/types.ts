@@ -34,24 +34,21 @@ export interface PencilItem extends BaseItem {
 
 export interface ArrowItem extends BaseItem {
   type: 'arrow' | 'line' | 'arrow-dashed'
-  points: number[] // [x1, y1, x2, y2]
+  points: number[]
 }
 
 export interface CurvedArrowItem extends BaseItem {
   type: 'curved-arrow' | 'curved-arrow-dashed'
-  // Curva cúbica: [x1, y1, cx1, cy1, cx2, cy2, x2, y2]
   points: number[]
 }
 
 export interface BounceArrowItem extends BaseItem {
   type: 'bounce-arrow'
-  // [x1, y1, x2, y2] — la onda se genera a partir de estos dos puntos
   points: number[]
 }
 
 export interface BounceCurvedArrowItem extends BaseItem {
   type: 'bounce-curved-arrow'
-  // Cúbica base: [x1, y1, cx1, cy1, cx2, cy2, x2, y2]
   points: number[]
 }
 
@@ -118,12 +115,27 @@ export type DrawableItem =
   | CircleItem
   | RectItem
 
+// ✅ NUEVO — Modo de pista
+export type TacticalBackgroundMode = 'HALF' | 'FULL'
+
 export interface TacticalBoardProps {
   width?: number
   height?: number
   onSave?: (dataUrl: string) => void
   sport?: string
   backgroundImage?: string
+
+  /** ✅ NUEVO — Fondo personalizado del usuario */
+  userBackground?: {
+    url: string
+    mode: TacticalBackgroundMode
+  } | null
+
+  /** ✅ NUEVO — Callback cuando el usuario guarda/actualiza su fondo */
+  onBackgroundChange?: (
+    url: string | null,
+    mode: TacticalBackgroundMode,
+  ) => void
 }
 
 export function isPointItem(
@@ -160,7 +172,6 @@ export function isCurvedArrowItem(item: DrawableItem): item is CurvedArrowItem {
   )
 }
 
-/** ¿Este item guarda puntos como array plano? (para mover sumando delta) */
 export function isPointsItem(
   item: DrawableItem,
 ): item is

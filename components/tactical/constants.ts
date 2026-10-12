@@ -1,9 +1,14 @@
+import type { TacticalBackgroundMode } from './types'
+
 // ============================================
 // CONSTANTES DE LA PIZARRA TÁCTICA
 // ============================================
 
-/** Tamaño del sistema interno de coordenadas. */
+/** Tamaño del sistema interno de coordenadas (media pista = cuadrado). */
 export const CANVAS_SIZE = 800
+
+/** Alto del canvas cuando el modo es "pista completa" (proporción 1.69:1). */
+export const CANVAS_FULL_HEIGHT = 473
 
 /** Patrón de puntos para líneas discontinuas (estilo "pase"). */
 export const DASHED_PATTERN = [12, 8]
@@ -29,14 +34,41 @@ export const STROKE_WIDTHS = [
   { value: 8, label: 'Grueso' },
 ]
 
-/** Mapa de deporte → imagen de fondo. */
-export const SPORT_BACKGROUNDS: Record<string, string> = {
-  BASKETBALL: '/courts/basketball.png',
-  FOOTBALL: '/courts/football.png',
-  PADEL: '/courts/padel.png',
-  TENNIS: '/courts/tennis.png',
-  VOLLEYBALL: '/courts/volleyball.png',
-  HANDBALL: '/courts/handball.png',
+/**
+ * Mapa de deporte → imagen de fondo por defecto.
+ * - `half`: media pista (canvas cuadrado)
+ * - `full`: pista completa (canvas rectangular)
+ */
+export const SPORT_BACKGROUNDS: Record<
+  string,
+  { half?: string; full?: string }
+> = {
+  BASKETBALL: {
+    half: '/courts/basketball-half_JS.png',
+    full: '/courts/basketball-full_JS.png',
+  },
+  PADEL: {
+    half: '/courts/padel-half_JS.png',
+    full: '/courts/padel-full_JS.png',
+  },
+  // Deportes sin imagen por defecto → usan el fallback en código
+  FOOTBALL: {},
+  TENNIS: {},
+  VOLLEYBALL: {},
+  HANDBALL: {},
+}
+
+/**
+ * Devuelve la URL del fondo por defecto para un deporte y un modo.
+ * Si no hay imagen específica, devuelve `null` (el board usará el fallback).
+ */
+export function getSportBackground(
+  sport: string,
+  mode: TacticalBackgroundMode,
+): string | null {
+  const entry = SPORT_BACKGROUNDS[sport]
+  if (!entry) return null
+  return (mode === 'FULL' ? entry.full : entry.half) ?? null
 }
 
 /** Genera un id único. */

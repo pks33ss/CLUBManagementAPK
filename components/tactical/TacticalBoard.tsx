@@ -9,6 +9,7 @@ import type {
   DrawableItem,
   TacticalBoardProps,
   Tool,
+  TacticalBackgroundMode,
   ArrowItem,
   CurvedArrowItem,
   BounceArrowItem,
@@ -22,10 +23,16 @@ import type {
   TextItem,
 } from './types'
 import { isPointItem, isRectItem, isPointsItem } from './types'
-import { CANVAS_SIZE, SPORT_BACKGROUNDS, uid } from './constants'
+import {
+  CANVAS_SIZE,
+  CANVAS_FULL_HEIGHT,
+  getSportBackground,
+  uid,
+} from './constants'
 import { Toolbar } from './Toolbar'
 import { ItemRenderer, ItemHandles } from './ItemRenderer'
 import { TextInputOverlay } from './TextInputOverlay'
+import { BackgroundPickerModal } from './BackgroundPickerModal'
 
 export default function TacticalBoard({
   width = CANVAS_SIZE,
@@ -33,10 +40,58 @@ export default function TacticalBoard({
   onSave,
   sport = 'BASKETBALL',
   backgroundImage,
+  userBackground,
+  onBackgroundChange,
 }: TacticalBoardProps) {
-  const backgroundUrl =
-    backgroundImage ?? SPORT_BACKGROUNDS[sport] ?? SPORT_BACKGROUNDS.BASKETBALL
-  const [courtImage, courtStatus] = useImage(backgroundUrl, 'anonymous')
+  // ============================================
+  // FONDO — LÓGICA DE PRIORIDAD
+  // ============================================
+
+  // Modo actual (persistido en el perfil del user o el default)
+  const [mode, setMode] = useState<TacticalBackgroundMode>(
+    userBackground?.mode ?? 'HALF',
+  )
+
+  // Override temporal (solo para esta pizarra, no persiste)
+  const [localBackgroundUrl, setLocalBackgroundUrl] = useState<string | null>(
+    null,
+  )
+
+  // Sincronizar modo si el user cambia su preferencia desde fuera
+  useEffect(() => {
+    if (userBackground?.mode && userBackground.mode !== mode) {
+      setMode(userBackground.mode)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userBackground?.mode])
+
+  // Resetear override local cuando cambia el modo
+  useEffect(() => {
+    setLocalBackgroundUrl(null)
+  }, [mode])
+
+  // URL final: override local > personalizado > deporte por defecto
+  const finalBackgroundUrl = useMemo(() => {
+    if (localBackgroundUrl) return localBackgroundUrl
+    if (userBackground?.url) return userBackground.url
+    if (backgroundImage) return backgroundImage
+    return getSportBackground(sport, mode)
+  }, [localBackgroundUrl, userBackground?.url, backgroundImage, sport, mode])
+
+  const [courtImage, courtStatus] = useImage(
+    finalBackgroundUrl ?? '',
+    'anonymous',
+  )
+
+  // Aspect ratio del canvas
+  const canvasHeight = mode === 'FULL' ? CANVAS_FULL_HEIGHT : CANVAS_SIZE
+
+  // Modal de fondo
+  const [bgPickerOpen, setBgPickerOpen] = useState(false)
+
+  // ============================================
+  // ESTADO DE LA PIZARRA
+  // ============================================
 
   const [items, setItems] = useState<DrawableItem[]>([])
   const [redoStack, setRedoStack] = useState<DrawableItem[][]>([])
@@ -63,7 +118,7 @@ export default function TacticalBoard({
   const stageRef = useRef<Konva.Stage>(null)
 
   const scale = boardSize.width / CANVAS_SIZE
-  const scaleY = boardSize.height / CANVAS_SIZE
+  const scaleY = boardSize.height / canvasHeight
 
   // ============================================
   // RESPONSIVE
@@ -74,13 +129,21 @@ export default function TacticalBoard({
       if (!containerRef.current) return
       const w = containerRef.current.clientWidth
       const availableHeight = window.innerHeight - 260
-      const size = Math.min(w, Math.max(300, availableHeight), 900)
-      setBoardSize({ width: size, height: size })
+
+      const ratio = canvasHeight / CANVAS_SIZE
+      const maxByWidth = w
+      const maxByHeight = availableHeight / ratio
+      const size = Math.min(maxByWidth, Math.max(300, maxByHeight), 900)
+
+      setBoardSize({
+        width: size,
+        height: size * ratio,
+      })
     }
     update()
     window.addEventListener('resize', update)
     return () => window.removeEventListener('resize', update)
-  }, [])
+  }, [canvasHeight])
 
   // ============================================
   // HISTORIAL
@@ -269,7 +332,7 @@ export default function TacticalBoard({
     const pos = getPointer()
     if (!pos) return
 
-        if (
+    if (
       currentItem.type === 'arrow' ||
       currentItem.type === 'arrow-dashed' ||
       currentItem.type === 'line' ||
@@ -279,7 +342,7 @@ export default function TacticalBoard({
         ...currentItem,
         points: [currentItem.points[0], currentItem.points[1], pos.x, pos.y],
       })
-     } else if (
+    } else if (
       currentItem.type === 'curved-arrow' ||
       currentItem.type === 'curved-arrow-dashed' ||
       currentItem.type === 'bounce-curved-arrow'
@@ -324,10 +387,11 @@ export default function TacticalBoard({
     if (!currentItem) return
 
     if (currentItem.type === 'pencil' && currentItem.points.length < 4) {
-      setCurrentItem(null); return
+      setCurrentItem(null)
+      return
     }
 
-        const isTwoPointLine =
+    const isTwoPointLine =
       currentItem.type === 'arrow' ||
       currentItem.type === 'arrow-dashed' ||
       currentItem.type === 'line' ||
@@ -341,19 +405,30 @@ export default function TacticalBoard({
       isTwoPointLine &&
       currentItem.points[0] === currentItem.points[2] &&
       currentItem.points[1] === currentItem.points[3]
-    ) { setCurrentItem(null); return }
+    ) {
+      setCurrentItem(null)
+      return
+    }
 
     if (
       isCurved &&
       currentItem.points[0] === currentItem.points[6] &&
       currentItem.points[1] === currentItem.points[7]
-    ) { setCurrentItem(null); return }
+    ) {
+      setCurrentItem(null)
+      return
+    }
 
     if (currentItem.type === 'circle' && currentItem.radius < 5) {
-      setCurrentItem(null); return
+      setCurrentItem(null)
+      return
     }
-    if (currentItem.type === 'rect' && (currentItem.width < 5 || currentItem.height < 5)) {
-      setCurrentItem(null); return
+    if (
+      currentItem.type === 'rect' &&
+      (currentItem.width < 5 || currentItem.height < 5)
+    ) {
+      setCurrentItem(null)
+      return
     }
 
     const cleaned = { ...currentItem } as any
@@ -361,7 +436,7 @@ export default function TacticalBoard({
     delete cleaned.startY
     pushItem(cleaned)
 
-       if (
+    if (
       cleaned.type === 'curved-arrow' ||
       cleaned.type === 'curved-arrow-dashed' ||
       cleaned.type === 'arrow' ||
@@ -441,7 +516,7 @@ export default function TacticalBoard({
   )
 
   // ============================================
-  // MODAL DE TEXTO (crear / editar)
+  // MODAL DE TEXTO
   // ============================================
 
   const handleTextModalSubmit = (
@@ -459,7 +534,7 @@ export default function TacticalBoard({
         color,
         strokeWidth,
         x: CANVAS_SIZE / 2 - 50,
-        y: CANVAS_SIZE / 2 - 10,
+        y: canvasHeight / 2 - 10,
         text,
         fontSize,
       } as TextItem)
@@ -476,6 +551,24 @@ export default function TacticalBoard({
     }
 
     setTextModal(null)
+  }
+
+  // ============================================
+  // MODAL DE FONDO
+  // ============================================
+
+  const handleBackgroundApply = (
+    url: string | null,
+    newMode: TacticalBackgroundMode,
+    persist: boolean,
+  ) => {
+    if (persist) {
+      // Persiste en el perfil del user (el padre actualizará userBackground)
+      onBackgroundChange?.(url, newMode)
+    } else {
+      // Solo para esta pizarra
+      setLocalBackgroundUrl(url)
+    }
   }
 
   // ============================================
@@ -506,16 +599,19 @@ export default function TacticalBoard({
         target.tagName === 'INPUT' ||
         target.tagName === 'TEXTAREA' ||
         target.isContentEditable
-      ) return
+      )
+        return
 
       const ctrl = e.ctrlKey || e.metaKey
       if (ctrl && e.key.toLowerCase() === 'z' && !e.shiftKey) {
-        e.preventDefault(); undo()
+        e.preventDefault()
+        undo()
       } else if (
         (ctrl && e.key.toLowerCase() === 'y') ||
         (ctrl && e.shiftKey && e.key.toLowerCase() === 'z')
       ) {
-        e.preventDefault(); redo()
+        e.preventDefault()
+        redo()
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         if (selectedId) {
           e.preventDefault()
@@ -527,11 +623,21 @@ export default function TacticalBoard({
         setSelectedId(null)
         setCurrentItem(null)
         setTextModal(null)
+        setBgPickerOpen(false)
       } else if (!ctrl) {
         const map: Record<string, Tool> = {
-          v: 'select', p: 'pencil', a: 'arrow', f: 'curved-arrow',
-          l: 'line', j: 'player', c: 'cone', b: 'ball', t: 'text',
-          o: 'circle', r: 'rect', e: 'eraser',
+          v: 'select',
+          p: 'pencil',
+          a: 'arrow',
+          f: 'curved-arrow',
+          l: 'line',
+          j: 'player',
+          c: 'cone',
+          b: 'ball',
+          t: 'text',
+          o: 'circle',
+          r: 'rect',
+          e: 'eraser',
         }
         const newTool = map[e.key.toLowerCase()]
         if (newTool) setTool(newTool)
@@ -593,16 +699,37 @@ export default function TacticalBoard({
   const fallbackBackground = useMemo(
     () => (
       <>
-        <Rect x={0} y={0} width={CANVAS_SIZE} height={CANVAS_SIZE} fill="#1a5c2e" />
-        <Rect x={20} y={20} width={CANVAS_SIZE - 40} height={CANVAS_SIZE - 40}
-          stroke="#ffffff" strokeWidth={3} fill="transparent" />
-        <Line points={[CANVAS_SIZE / 2, 20, CANVAS_SIZE / 2, CANVAS_SIZE - 20]}
-          stroke="#ffffff" strokeWidth={3} />
-        <Circle x={CANVAS_SIZE / 2} y={CANVAS_SIZE / 2} radius={70}
-          stroke="#ffffff" strokeWidth={3} />
+        <Rect
+          x={0}
+          y={0}
+          width={CANVAS_SIZE}
+          height={canvasHeight}
+          fill="#1a5c2e"
+        />
+        <Rect
+          x={20}
+          y={20}
+          width={CANVAS_SIZE - 40}
+          height={canvasHeight - 40}
+          stroke="#ffffff"
+          strokeWidth={3}
+          fill="transparent"
+        />
+        <Line
+          points={[CANVAS_SIZE / 2, 20, CANVAS_SIZE / 2, canvasHeight - 20]}
+          stroke="#ffffff"
+          strokeWidth={3}
+        />
+        <Circle
+          x={CANVAS_SIZE / 2}
+          y={canvasHeight / 2}
+          radius={70}
+          stroke="#ffffff"
+          strokeWidth={3}
+        />
       </>
     ),
-    [],
+    [canvasHeight],
   )
 
   const cursor = tool === 'select' ? 'default' : 'crosshair'
@@ -614,28 +741,42 @@ export default function TacticalBoard({
   return (
     <div className="flex flex-col gap-3">
       <Toolbar
-        tool={tool} onToolChange={setTool}
-        color={color} onColorChange={setColor}
-        strokeWidth={strokeWidth} onStrokeWidthChange={setStrokeWidth}
+        tool={tool}
+        onToolChange={setTool}
+        color={color}
+        onColorChange={setColor}
+        strokeWidth={strokeWidth}
+        onStrokeWidthChange={setStrokeWidth}
         canUndo={items.length > 0}
         canRedo={redoStack.length > 0}
         canActOnSelection={!!selectedId}
         hasItems={items.length > 0}
-        onUndo={undo} onRedo={redo}
+        onUndo={undo}
+        onRedo={redo}
         onDuplicate={duplicateSelected}
         onBringToFront={bringToFront}
         onSendToBack={sendToBack}
         onClearAll={clearAll}
         onSave={onSave ? handleSave : undefined}
+        mode={mode}
+        onModeChange={setMode}
+        onOpenBackgroundPicker={() => setBgPickerOpen(true)}
       />
 
-      <div ref={containerRef}
-        className="bg-surface border border-border-subtle rounded-xl p-3 flex justify-center">
-        <div className="rounded-lg overflow-hidden border border-border-subtle"
-          style={{ width: boardSize.width, height: boardSize.height }}>
-          <Stage ref={stageRef}
-            width={boardSize.width} height={boardSize.height}
-            scaleX={scale} scaleY={scaleY}
+      <div
+        ref={containerRef}
+        className="bg-surface border border-border-subtle rounded-xl p-3 flex justify-center"
+      >
+        <div
+          className="rounded-lg overflow-hidden border border-border-subtle"
+          style={{ width: boardSize.width, height: boardSize.height }}
+        >
+          <Stage
+            ref={stageRef}
+            width={boardSize.width}
+            height={boardSize.height}
+            scaleX={scale}
+            scaleY={scaleY}
             onMouseDown={handlePointerDown}
             onMouseMove={handlePointerMove}
             onMouseUp={handlePointerUp}
@@ -643,12 +784,18 @@ export default function TacticalBoard({
             onTouchStart={handlePointerDown}
             onTouchMove={handlePointerMove}
             onTouchEnd={handlePointerUp}
-            style={{ cursor, touchAction: 'none' }}>
-
+            style={{ cursor, touchAction: 'none' }}
+          >
             <Layer listening={false}>
               {showCourtImage ? (
-                <KonvaImage image={courtImage} width={CANVAS_SIZE} height={CANVAS_SIZE} />
-              ) : fallbackBackground}
+                <KonvaImage
+                  image={courtImage}
+                  width={CANVAS_SIZE}
+                  height={canvasHeight}
+                />
+              ) : (
+                fallbackBackground
+              )}
             </Layer>
 
             <Layer>
@@ -660,30 +807,38 @@ export default function TacticalBoard({
                   onSelect={() => {
                     if (tool === 'select') setSelectedId(item.id)
                   }}
-                  onDragEndDelta={(dx, dy) => handleItemDragEndDelta(item, dx, dy)}
+                  onDragEndDelta={(dx, dy) =>
+                    handleItemDragEndDelta(item, dx, dy)
+                  }
                   onDoubleClick={() => handleItemDoubleClick(item)}
                   draggable={tool === 'select'}
                 />
               ))}
 
               {currentItem && (
-                <ItemRenderer item={currentItem} isSelected={false} draggable={false} />
+                <ItemRenderer
+                  item={currentItem}
+                  isSelected={false}
+                  draggable={false}
+                />
               )}
             </Layer>
 
             <Layer>
-              {tool === 'select' && selectedId && (() => {
-                const selected = items.find((it) => it.id === selectedId)
-                if (!selected) return null
-                return (
-                  <ItemHandles
-                    item={selected}
-                    onControlPointDrag={(index, x, y) =>
-                      handleControlPointDrag(selected.id, index, x, y)
-                    }
-                  />
-                )
-              })()}
+              {tool === 'select' &&
+                selectedId &&
+                (() => {
+                  const selected = items.find((it) => it.id === selectedId)
+                  if (!selected) return null
+                  return (
+                    <ItemHandles
+                      item={selected}
+                      onControlPointDrag={(index, x, y) =>
+                        handleControlPointDrag(selected.id, index, x, y)
+                      }
+                    />
+                  )
+                })()}
             </Layer>
           </Stage>
         </div>
@@ -697,6 +852,17 @@ export default function TacticalBoard({
           initialColor={textModal.initialColor}
           onSubmit={handleTextModalSubmit}
           onCancel={() => setTextModal(null)}
+        />
+      )}
+
+      {bgPickerOpen && (
+        <BackgroundPickerModal
+          isOpen={bgPickerOpen}
+          onClose={() => setBgPickerOpen(false)}
+          onApply={handleBackgroundApply}
+          currentMode={mode}
+          hasCustomBackground={!!userBackground?.url}
+          customBackgroundUrl={userBackground?.url ?? null}
         />
       )}
     </div>

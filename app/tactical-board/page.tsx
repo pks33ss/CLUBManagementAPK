@@ -4,9 +4,12 @@ import { useState } from 'react'
 import Link from 'next/link'
 import TacticalBoard from '@/components/TacticalBoard'
 import { Card, CardBody } from '@/components/ui'
+import { useTacticalBackground } from '@/lib/useTacticalBackground'
 
 export default function TacticalBoardPage() {
   const [savedImage, setSavedImage] = useState<string | null>(null)
+
+const { userBackground, updateBackground } = useTacticalBackground()
 
   const handleSave = (dataUrl: string) => {
     setSavedImage(dataUrl)
@@ -24,7 +27,13 @@ export default function TacticalBoardPage() {
         <p className="text-text-secondary">Dibuja jugadas y ejercicios sobre la pista</p>
       </div>
 
-      <TacticalBoard onSave={handleSave} />
+      <TacticalBoard
+  onSave={handleSave}
+  userBackground={userBackground}
+  onBackgroundChange={(url, mode) => {
+    void updateBackground(url, mode)
+  }}
+/>
 
       {savedImage && (
         <Card className="mt-6">
