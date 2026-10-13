@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 interface Props {
   match: {
     id: string
@@ -34,7 +36,10 @@ export default function NextMatchCard({ match }: Props) {
   }[match.location]
 
   return (
-    <div className="bg-surface rounded-xl shadow-sm border border-border-subtle p-6 hover:border-brand-primary/30 transition">
+    <Link
+      href={`/matches/${match.id}`}
+      className="block bg-surface rounded-xl shadow-sm border border-border-subtle p-6 hover:border-brand-primary/50 hover:bg-brand-primary/5 transition"
+    >
       <div className="flex items-center gap-2 text-warning mb-3">
         <span className="text-xl">🏆</span>
         <h3 className="font-semibold text-sm uppercase tracking-wide">
@@ -70,6 +75,6 @@ export default function NextMatchCard({ match }: Props) {
             : `En ${daysUntil} días`}
         </div>
       )}
-    </div>
+    </Link>
   )
 }

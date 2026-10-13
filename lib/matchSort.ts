@@ -1,16 +1,16 @@
 // frontend-web/lib/matchSort.ts
 
 export type MatchSortKey =
-  | 'date-desc'
   | 'date-asc'
+  | 'date-desc'
   | 'location'
   | 'opponent-asc'
   | 'result-win'
   | 'result-loss'
 
 export const SORT_OPTIONS: { value: MatchSortKey; label: string }[] = [
+  { value: 'date-asc',     label: '📅 Fecha (más próximos)' },
   { value: 'date-desc',    label: '📅 Fecha (más lejanos)' },
-  { value: 'date-asc',     label: '📅 Fecha (más proximos)' },
   { value: 'location',     label: '🏠 Local primero' },
   { value: 'opponent-asc', label: '🔤 Rival (A-Z)' },
   { value: 'result-win',   label: '🏆 Victorias primero' },
@@ -20,10 +20,10 @@ export const SORT_OPTIONS: { value: MatchSortKey; label: string }[] = [
 const STORAGE_KEY = 'matches-sort-preference'
 
 export function getSavedSort(): MatchSortKey {
-  if (typeof window === 'undefined') return 'date-desc'
+  if (typeof window === 'undefined') return 'date-asc'
   const saved = localStorage.getItem(STORAGE_KEY) as MatchSortKey | null
   const isValid = saved && SORT_OPTIONS.some((o) => o.value === saved)
-  return isValid ? saved : 'date-desc'
+  return isValid ? saved : 'date-asc'
 }
 
 export function saveSort(key: MatchSortKey) {
@@ -56,13 +56,13 @@ export function sortMatches<T extends SortableMatch>(
   const copy = [...matches]
 
   switch (sortKey) {
-    case 'date-desc':
-      return copy.sort(
-        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
-      )
     case 'date-asc':
       return copy.sort(
         (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+      )
+    case 'date-desc':
+      return copy.sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
       )
     case 'location': {
       const order: Record<string, number> = { HOME: 0, AWAY: 1, NEUTRAL: 2 }

@@ -1,3 +1,5 @@
+import Link from 'next/link'
+
 interface Props {
   training: {
     id: string
@@ -27,7 +29,10 @@ export default function NextTrainingCard({ training }: Props) {
   )
 
   return (
-    <div className="bg-surface rounded-xl shadow-sm border border-border-subtle p-6 hover:border-brand-primary/30 transition">
+    <Link
+      href={`/sessions/${training.id}`}
+      className="block bg-surface rounded-xl shadow-sm border border-border-subtle p-6 hover:border-brand-primary/50 hover:bg-brand-primary/5 transition"
+    >
       <div className="flex items-center gap-2 text-info mb-3">
         <span className="text-xl">🏋️</span>
         <h3 className="font-semibold text-sm uppercase tracking-wide">
@@ -61,6 +66,6 @@ export default function NextTrainingCard({ training }: Props) {
             : `En ${daysUntil} días`}
         </div>
       )}
-    </div>
+    </Link>
   )
 }

@@ -72,13 +72,23 @@ export default function SessionsPage() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
-    return date.toLocaleDateString('es-ES', {
+
+    const datePart = date.toLocaleDateString('es-ES', {
       day: '2-digit',
       month: '2-digit',
       year: 'numeric',
+    })
+
+    const weekdayPart = date.toLocaleDateString('es-ES', {
+      weekday: 'long',
+    })
+
+    const timePart = date.toLocaleTimeString('es-ES', {
       hour: '2-digit',
       minute: '2-digit',
     })
+
+    return `${datePart} (${weekdayPart}), ${timePart}`
   }
 
   const sport = getSportConfig(activeTeam?.sport)

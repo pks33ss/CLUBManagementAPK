@@ -22,16 +22,41 @@ export interface SportConfig {
 }
 
 // ============================================
+// DEPORTES SOPORTADOS / EN DESARROLLO
+// ============================================
+
+/**
+ * Deportes con soporte completo (estables).
+ * Cualquier deporte que no esté aquí se considera "en desarrollo".
+ */
+export const STABLE_SPORTS: Sport[] = ['BASKETBALL', 'PADEL']
+
+/**
+ * Devuelve true si el deporte está en desarrollo (no estable).
+ */
+export function isSportInDevelopment(
+  sport: string | null | undefined,
+): boolean {
+  if (!sport) return false
+  return !STABLE_SPORTS.includes(sport as Sport)
+}
+
+// ============================================
 // LISTA DE DEPORTES (para selectores)
 // ============================================
 
-export const SPORTS: { value: Sport; label: string; icon: string }[] = [
-  { value: 'BASKETBALL', label: 'Baloncesto', icon: '🏀' },
-  { value: 'FOOTBALL',   label: 'Fútbol',     icon: '⚽' },
-  { value: 'PADEL',      label: 'Pádel',      icon: '🎾' },
-  { value: 'TENNIS',     label: 'Tenis',      icon: '🎾' },
-  { value: 'VOLLEYBALL', label: 'Voleibol',   icon: '🏐' },
-  { value: 'HANDBALL',   label: 'Balonmano',  icon: '🤾' },
+export const SPORTS: {
+  value: Sport
+  label: string
+  icon: string
+  inDevelopment: boolean
+}[] = [
+  { value: 'BASKETBALL', label: 'Baloncesto', icon: '🏀', inDevelopment: false },
+  { value: 'FOOTBALL',   label: 'Fútbol',     icon: '⚽', inDevelopment: true },
+  { value: 'PADEL',      label: 'Pádel',      icon: '🎾', inDevelopment: false },
+  { value: 'TENNIS',     label: 'Tenis',      icon: '🎾', inDevelopment: true },
+  { value: 'VOLLEYBALL', label: 'Voleibol',   icon: '🏐', inDevelopment: true },
+  { value: 'HANDBALL',   label: 'Balonmano',  icon: '🤾', inDevelopment: true },
 ]
 
 // ============================================

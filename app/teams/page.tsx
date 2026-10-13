@@ -4,7 +4,7 @@ import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
-import { SPORTS, getSportConfig } from '@/lib/sport'
+import { SPORTS, getSportConfig, isSportInDevelopment } from '@/lib/sport'
 import type { Sport } from '@/lib/sport'
 import { Button, Card, CardBody, Badge, Input, Select, Modal } from '@/components/ui'
 
@@ -97,6 +97,8 @@ function TeamsContent() {
   if (loading) {
     return <div className="text-center py-12 text-text-muted">Cargando equipos...</div>
   }
+
+  const sportInDevelopment = isSportInDevelopment(newTeam.sport)
 
   return (
     <div>
@@ -259,18 +261,35 @@ function TeamsContent() {
             placeholder="Ej: Junior A"
           />
 
-          <Select
-            label="Deporte *"
-            value={newTeam.sport}
-            onChange={(e) => setNewTeam({ ...newTeam, sport: e.target.value as Sport })}
-            required
-          >
-            {SPORTS.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.icon} {s.label}
-              </option>
-            ))}
-          </Select>
+          <div>
+            <Select
+              label="Deporte *"
+              value={newTeam.sport}
+              onChange={(e) => setNewTeam({ ...newTeam, sport: e.target.value as Sport })}
+              required
+            >
+              {SPORTS.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.icon} {s.label}
+                  {s.inDevelopment ? ' (en desarrollo)' : ''}
+                </option>
+              ))}
+            </Select>
+
+            {sportInDevelopment && (
+              <div className="mt-2 bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
+                <p className="text-sm font-semibold text-amber-600 flex items-center gap-2">
+                  <span aria-hidden="true">⚠️</span>
+                  Deporte en desarrollo
+                </p>
+                <p className="text-xs text-amber-700/90 mt-1 leading-relaxed">
+                  El soporte para este deporte está en desarrollo. Algunas
+                  funciones pueden no estar disponibles todavía. Puedes crear
+                  el equipo igualmente.
+                </p>
+              </div>
+            )}
+          </div>
 
           <Select
             label="Categoría"

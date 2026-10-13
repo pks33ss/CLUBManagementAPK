@@ -13,7 +13,6 @@ import AttendanceCard from './_components/AttendanceCard'
 import TopPlayersCard from './_components/TopPlayersCard'
 import PendingCallupsCard from './_components/PendingCallupsCard'
 import MatchBalanceCard from './_components/MatchBalanceCard'
-import TeamDropdownSelector from './_components/TeamDropdownSelector'
 
 interface DashboardData {
   team: {
@@ -38,12 +37,9 @@ export default function HomePage() {
   const router = useRouter()
   const {
     activeTeam,
-    favorites,
     allTeams,
     loading: loadingTeams,
     setActiveTeam,
-    addFavorite,
-    isFavorite,
   } = useActiveTeam()
 
   const [currentUser, setCurrentUser] = useState<any>(null)
@@ -178,98 +174,17 @@ export default function HomePage() {
   return (
     <div className="space-y-6">
       {/* HEADER */}
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-text-primary">
-            👋 ¡Hola{currentUser?.name ? `, ${currentUser.name}` : ''}!
-          </h1>
-          <p className="text-text-secondary text-sm mt-1">
-            {sportConfig.icon} Resumen de{' '}
-            <span className="font-medium text-text-primary">{activeTeam.name}</span>
-            {' · '}
-            {activeTeam.club?.name}
-          </p>
-        </div>
-
-        {/* Dropdown selector + botón favorito + ver equipo */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <TeamDropdownSelector
-            teams={allTeams}
-            currentTeamId={activeTeam.id}
-            onChange={setActiveTeam}
-          />
-
-          <button
-            onClick={() => {
-              if (!isFavorite(activeTeam.id)) {
-                addFavorite(activeTeam.id)
-              }
-            }}
-            disabled={isFavorite(activeTeam.id)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg transition text-sm font-medium border ${
-              isFavorite(activeTeam.id)
-                ? 'bg-warning/10 text-warning border-warning/30 cursor-default'
-                : 'bg-surface-elevated text-text-secondary border-border-subtle hover:text-text-primary hover:border-brand-primary/50'
-            }`}
-          >
-            {isFavorite(activeTeam.id) ? '⭐ Favorito' : '☆ Favorito'}
-          </button>
-            {/* ✅ NUEVO — Ver equipo */}
-  <Button
-    variant="primary"
-    onClick={() => router.push(`/teams/${activeTeam.id}`)}
-    className="flex items-center gap-2"
-  >
-    👥 Ver equipo
-  </Button>
-        </div>
+      <div>
+        <h1 className="text-2xl font-bold text-text-primary">
+          👋 ¡Hola{currentUser?.name ? `, ${currentUser.name}` : ''}!
+        </h1>
+        <p className="text-text-secondary text-sm mt-1">
+          {sportConfig.icon} Resumen de{' '}
+          <span className="font-medium text-text-primary">{activeTeam.name}</span>
+          {' · '}
+          {activeTeam.club?.name}
+        </p>
       </div>
-
-      {/* GRID DE FAVORITOS */}
-      {favorites.length > 1 && (
-        <Card>
-          <CardBody className="p-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-text-secondary">
-                ⭐ Cambio rápido de equipo
-              </h3>
-            </div>
-            <div className="flex gap-2 overflow-x-auto pb-1">
-              {favorites.map((team) => {
-                const isActive = team.id === activeTeam.id
-                return (
-                  <button
-                    key={team.id}
-                    onClick={() => setActiveTeam(team)}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition whitespace-nowrap shrink-0 ${
-                      isActive
-                        ? 'border-brand-primary/50 bg-brand-primary/10'
-                        : 'border-border-subtle hover:border-brand-primary/30 hover:bg-brand-primary/5'
-                    }`}
-                  >
-                    {team.club?.logo ? (
-                      <img
-                        src={team.club.logo}
-                        alt={team.club.name}
-                        className="w-6 h-6 rounded object-cover"
-                      />
-                    ) : (
-                      <span className="text-base">{getSportIcon(team.sport)}</span>
-                    )}
-                    <span
-                      className={`text-sm ${
-                        isActive ? 'font-semibold text-brand-primary' : 'text-text-secondary'
-                      }`}
-                    >
-                      {team.name}
-                    </span>
-                  </button>
-                )
-              })}
-            </div>
-          </CardBody>
-        </Card>
-      )}
 
       {/* ERROR */}
       {error && (
@@ -290,10 +205,10 @@ export default function HomePage() {
             <NextMatchCard match={data.nextMatch} />
             <AttendanceCard attendance={data.attendance} />
             <TopPlayersCard
-  players={data.topPlayers}
-  metrics={data.topPlayersMetrics ?? []}
-  defaultMetric={data.defaultTopPlayersMetric ?? 'matchesPlayed'}
-/>
+              players={data.topPlayers}
+              metrics={data.topPlayersMetrics ?? []}
+              defaultMetric={data.defaultTopPlayersMetric ?? 'matchesPlayed'}
+            />
             <PendingCallupsCard callups={data.pendingCallups} />
             <MatchBalanceCard balance={data.matchBalance} />
           </div>

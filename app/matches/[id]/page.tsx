@@ -209,7 +209,7 @@ export default function MatchDetailPage() {
 
       {/* Tabs */}
       <div className="border-b border-border-subtle mb-6">
-        <div className="flex gap-1 overflow-x-auto">
+        <div className="flex gap-1 overflow-x-auto overflow-y-hidden">
           {tabs.map((tab) => (
             <button
               key={tab.id}

@@ -13,18 +13,24 @@ interface Props {
 }
 
 export default function PendingCallupsCard({ callups }: Props) {
+  const hasPending = callups.length > 0
+
   return (
     <div className="bg-surface rounded-xl shadow-sm border border-border-subtle p-6 hover:border-brand-primary/30 transition">
-      <div className="flex items-center gap-2 text-danger mb-4">
-        <span className="text-xl">⚠️</span>
+      <div
+        className={`flex items-center gap-2 mb-4 ${
+          hasPending ? 'text-danger' : 'text-success'
+        }`}
+      >
+        <span className="text-xl">{hasPending ? '⚠️' : '✅'}</span>
         <h3 className="font-semibold text-sm uppercase tracking-wide">
           Convocatorias pendientes
         </h3>
       </div>
 
-      {callups.length === 0 ? (
+      {!hasPending ? (
         <p className="text-sm text-text-muted">
-          ✅ Todo en orden. No hay convocatorias pendientes de confirmar.
+          Todo en orden. No hay convocatorias pendientes de confirmar.
         </p>
       ) : (
         <div className="space-y-2">

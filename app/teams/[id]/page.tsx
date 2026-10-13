@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
-import { getSportConfig } from '@/lib/sport'
+import { getSportConfig, isSportInDevelopment } from '@/lib/sport'
 import { Button, Card, CardBody, Badge, Input, Select, Modal } from '@/components/ui'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
 import { usePermissions } from '@/lib/usePermissions'
@@ -196,6 +196,7 @@ export default function TeamDetail() {
   }
 
   const sport = getSportConfig(team.sport)
+  const sportInDevelopment = isSportInDevelopment(team.sport)
 
   const players = team.memberships.filter((m) =>
     (m.roles ?? [m.role]).includes('PLAYER'),
@@ -232,9 +233,14 @@ export default function TeamDetail() {
         <CardBody>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-              <h1 className="text-3xl font-bold text-text-primary">
-                {sport.icon} {team.name}
-              </h1>
+              <div className="flex items-center gap-3 flex-wrap">
+                <h1 className="text-3xl font-bold text-text-primary">
+                  {sport.icon} {team.name}
+                </h1>
+                {sportInDevelopment && (
+                  <Badge variant="warning">⚠️ Deporte en desarrollo</Badge>
+                )}
+              </div>
               <p className="text-text-secondary mt-1">
                 {sport.name} · {team.category || 'Sin categoría'} • {team.season || 'Temporada no especificada'}
               </p>
@@ -244,16 +250,6 @@ export default function TeamDetail() {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              <Button href={`/teams/${teamId}/matches`} variant="secondary" size="sm">
-                🏆 Partidos
-              </Button>
-              <Button href={`/teams/${teamId}/members`} variant="secondary" size="sm">
-                👥 Miembros
-              </Button>
-              <Button href={`/teams/${teamId}/stats`} variant="secondary" size="sm">
-                📊 Estadísticas
-              </Button>
-
               {/* ✅ Botón de "solicitar unirme" si no tiene membership */}
               {!myMembership && currentUserId && (
                 <Button
@@ -268,17 +264,6 @@ export default function TeamDetail() {
               {/* ✅ Aviso si tiene solicitud pendiente */}
               {isPending && (
                 <Badge variant="warning">⏳ Solicitud pendiente</Badge>
-              )}
-
-              {/* ✅ Botón "añadirme un rol" si ya es miembro pero le faltan roles */}
-              {isActiveMember && !hasAllRoles && (
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={() => setShowAddRoleModal(true)}
-                >
-                  ➕ Añadirme un rol
-                </Button>
               )}
 
               {/* ✅ Editar: solo si canEdit */}
@@ -376,9 +361,34 @@ export default function TeamDetail() {
       {/* ENTRENADORES */}
       <Card className="mt-6">
         <CardBody>
-          <h2 className="text-xl font-semibold text-text-primary mb-4">
-            👔 Entrenadores ({coaches.length})
-          </h2>
+          <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
+            <h2 className="text-xl font-semibold text-text-primary">
+              👔 Entrenadores ({coaches.length})
+            </h2>
+
+            <div className="flex flex-wrap gap-2">
+              {/* ✅ Botón "añadirme un rol" si ya es miembro pero le faltan roles */}
+              {isActiveMember && !hasAllRoles && (
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => setShowAddRoleModal(true)}
+                >
+                  ➕ Añadirme un rol
+                </Button>
+              )}
+
+              {/* ✅ Miembros del equipo */}
+              <Button
+                size="sm"
+                variant="secondary"
+                href={`/teams/${teamId}/members`}
+              >
+                👥 Miembros
+              </Button>
+            </div>
+          </div>
+
           {coaches.length === 0 ? (
             <p className="text-text-muted text-center py-4">No hay entrenadores asignados</p>
           ) : (

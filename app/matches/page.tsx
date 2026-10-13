@@ -6,7 +6,7 @@ import Link from 'next/link'
 import api from '@/lib/api'
 import { getSportIcon } from '@/lib/sport'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
-import { Button, Card, CardBody, Badge, Select } from '@/components/ui'
+import { Button, Card, CardBody, Badge } from '@/components/ui'
 import { formatMatchScore } from '@/lib/formatMatchScore'
 import {
   MatchSortKey,
@@ -44,20 +44,101 @@ interface Match {
   }
 }
 
+interface TeamStats {
+  totalMatches: number
+  wins: number
+  losses: number
+  draws: number
+  totalPoints: number
+  totalOpponentPoints: number
+  avgPoints: number
+  avgOpponentPoints: number
+  winRate: number
+}
+
+// ============================================
+// HELPERS
+// ============================================
+
+const round2 = (n: number) => Math.round(n * 100) / 100
+
+/**
+ * Agrega una lista de TeamStats (uno por equipo) en un único TeamStats.
+ * Devuelve null si la lista está vacía.
+ */
+function aggregateStats(statsList: TeamStats[]): TeamStats | null {
+  if (statsList.length === 0) return null
+
+  const totalMatches = statsList.reduce((acc, s) => acc + s.totalMatches, 0)
+  const wins = statsList.reduce((acc, s) => acc + s.wins, 0)
+  const losses = statsList.reduce((acc, s) => acc + s.losses, 0)
+  const draws = statsList.reduce((acc, s) => acc + s.draws, 0)
+  const totalPoints = statsList.reduce((acc, s) => acc + s.totalPoints, 0)
+  const totalOpponentPoints = statsList.reduce(
+    (acc, s) => acc + s.totalOpponentPoints,
+    0,
+  )
+
+  return {
+    totalMatches,
+    wins,
+    losses,
+    draws,
+    totalPoints,
+    totalOpponentPoints,
+    avgPoints: totalMatches > 0 ? round2(totalPoints / totalMatches) : 0,
+    avgOpponentPoints:
+      totalMatches > 0 ? round2(totalOpponentPoints / totalMatches) : 0,
+    winRate: totalMatches > 0 ? round2((wins / totalMatches) * 100) : 0,
+  }
+}
+
+// ============================================
+// COMPONENTE
+// ============================================
+
 export default function AllMatches() {
   const router = useRouter()
-  const { activeTeam, loading: loadingTeams } = useActiveTeam()
+  const { activeTeam, allTeams, loading: loadingTeams } = useActiveTeam()
 
   const [matches, setMatches] = useState<Match[]>([])
+  const [teamStats, setTeamStats] = useState<TeamStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<'all' | 'scheduled' | 'finished'>('all')
-  const [sortKey, setSortKey] = useState<MatchSortKey>('date-desc')
+  const [sortKey, setSortKey] = useState<MatchSortKey>('date-asc')
   const [showCreateModal, setShowCreateModal] = useState(false)
 
+  // Multi-selector de equipos
+  const [selectedTeams, setSelectedTeams] = useState<string[]>([])
+  const [showTeamSelector, setShowTeamSelector] = useState(false)
+
+  // ✅ Preferencia de ordenación
   useEffect(() => {
     setSortKey(getSavedSort())
   }, [])
 
+  // ✅ Sincronizar selección con activeTeam
+  useEffect(() => {
+    if (activeTeam) {
+      setSelectedTeams([activeTeam.id])
+    } else {
+      setSelectedTeams([])
+    }
+  }, [activeTeam])
+
+  // ✅ Cerrar dropdown al hacer click fuera
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (!target.closest('.team-selector-container')) {
+        setShowTeamSelector(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // ✅ Fetch cuando cambia la selección de equipos
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token) {
@@ -65,27 +146,81 @@ export default function AllMatches() {
       return
     }
 
-    if (!activeTeam) {
+    if (selectedTeams.length === 0) {
       setMatches([])
+      setTeamStats(null)
       setLoading(false)
       return
     }
 
-    fetchMatches(activeTeam.id)
-  }, [activeTeam, router])
+    fetchData(selectedTeams)
+  }, [selectedTeams, router])
 
-  const fetchMatches = async (teamId: string) => {
+  const fetchData = async (teamIds: string[]) => {
     setLoading(true)
     try {
-      const response = await api.get(`/matches/team/${teamId}`)
-      setMatches(response.data)
+      const results = await Promise.all(
+        teamIds.map(async (id) => {
+          const [matchesRes, statsRes] = await Promise.all([
+            api.get(`/matches/team/${id}`),
+            api.get(`/matches/team/${id}/stats`),
+          ])
+          return {
+            matches: matchesRes.data as Match[],
+            stats: statsRes.data as TeamStats,
+          }
+        }),
+      )
+
+      const mergedMatches = results.flatMap((r) => r.matches)
+      const mergedStats = aggregateStats(results.map((r) => r.stats))
+
+      setMatches(mergedMatches)
+      setTeamStats(mergedStats)
     } catch (error) {
       console.error('Error fetching matches:', error)
       setMatches([])
+      setTeamStats(null)
     } finally {
       setLoading(false)
     }
   }
+
+  // ============================================
+  // MULTI-SELECTOR
+  // ============================================
+
+  const toggleTeam = (teamId: string) => {
+    setSelectedTeams((prev) =>
+      prev.includes(teamId)
+        ? prev.filter((id) => id !== teamId)
+        : [...prev, teamId],
+    )
+  }
+
+  const selectAllTeams = () => {
+    setSelectedTeams(allTeams.map((t) => t.id))
+  }
+
+  const deselectAllTeams = () => {
+    setSelectedTeams([])
+  }
+
+  const getSelectedTeamsText = () => {
+    if (selectedTeams.length === 0) return 'Selecciona equipos...'
+    if (selectedTeams.length === allTeams.length) return 'Todos mis equipos'
+    if (selectedTeams.length === 1) {
+      const team = allTeams.find((t) => t.id === selectedTeams[0])
+      return team?.name || '1 equipo'
+    }
+    return `${selectedTeams.length} equipos seleccionados`
+  }
+
+  const showTeamBadge = selectedTeams.length > 1
+
+  // ============================================
+  // TEXTO / VARIANTES DE PARTIDOS
+  // ============================================
 
   const getTypeText = (type: string) => {
     switch (type) {
@@ -167,6 +302,10 @@ export default function AllMatches() {
     })
   }
 
+  // ============================================
+  // DATOS DERIVADOS
+  // ============================================
+
   const filteredMatches = matches.filter((m) => {
     if (filter === 'all') return true
     if (filter === 'scheduled') return m.status === 'SCHEDULED' || m.status === 'POSTPONED'
@@ -175,6 +314,10 @@ export default function AllMatches() {
   })
 
   const sortedAndFiltered = sortMatches(filteredMatches, sortKey)
+
+  // ============================================
+  // RENDER
+  // ============================================
 
   if (loadingTeams || loading) {
     return <div className="text-center py-12 text-text-muted">Cargando partidos...</div>
@@ -211,6 +354,116 @@ export default function AllMatches() {
           Nuevo Partido
         </Button>
       </div>
+
+      {/* Multi-selector de equipos */}
+      <div className="team-selector-container relative mb-6 max-w-md">
+        <label className="block text-sm font-medium text-text-secondary mb-1">
+          Equipos
+        </label>
+        <button
+          type="button"
+          onClick={() => setShowTeamSelector(!showTeamSelector)}
+          className="w-full bg-surface-elevated border border-border-subtle rounded-lg px-4 py-2 text-left flex justify-between items-center hover:border-brand-primary/50 transition"
+        >
+          <span className={selectedTeams.length === 0 ? 'text-text-muted' : 'text-text-primary'}>
+            {getSelectedTeamsText()}
+          </span>
+          <span className="text-text-muted">▼</span>
+        </button>
+
+        {showTeamSelector && (
+          <div className="absolute z-10 w-full mt-1 bg-surface border border-border-subtle rounded-lg shadow-lg max-h-80 overflow-auto">
+            <div className="p-2 border-b border-border-subtle flex gap-2">
+              <button
+                type="button"
+                onClick={selectAllTeams}
+                className="flex-1 text-xs bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 py-1.5 rounded transition"
+              >
+                ✓ Todos
+              </button>
+              <button
+                type="button"
+                onClick={deselectAllTeams}
+                className="flex-1 text-xs bg-surface-elevated text-text-secondary hover:bg-border-subtle py-1.5 rounded transition"
+              >
+                ✕ Ninguno
+              </button>
+            </div>
+
+            {allTeams.length === 0 ? (
+              <div className="p-4 text-sm text-text-muted text-center">
+                No tienes equipos asignados
+              </div>
+            ) : (
+              allTeams.map((team) => (
+                <label
+                  key={team.id}
+                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-surface-elevated cursor-pointer transition"
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedTeams.includes(team.id)}
+                    onChange={() => toggleTeam(team.id)}
+                    className="w-4 h-4 accent-brand-primary"
+                  />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-text-primary flex items-center gap-1">
+                      <span>{getSportIcon(team.sport)}</span>
+                      <span>{team.name}</span>
+                    </p>
+                    <p className="text-xs text-text-muted">
+                      {team.category || 'Sin categoría'}
+                      {team.club?.name ? ` · ${team.club.name}` : ''}
+                    </p>
+                  </div>
+                </label>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Estadísticas agregadas */}
+      {teamStats && teamStats.totalMatches > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
+          <Card>
+            <CardBody className="text-center p-4">
+              <p className="text-3xl font-bold text-text-primary">{teamStats.totalMatches}</p>
+              <p className="text-sm text-text-muted">Partidos</p>
+            </CardBody>
+          </Card>
+          <Card>
+            <CardBody className="text-center p-4">
+              <p className="text-3xl font-bold text-success">{teamStats.wins}</p>
+              <p className="text-sm text-text-muted">Victorias</p>
+            </CardBody>
+          </Card>
+          <Card>
+            <CardBody className="text-center p-4">
+              <p className="text-3xl font-bold text-danger">{teamStats.losses}</p>
+              <p className="text-sm text-text-muted">Derrotas</p>
+            </CardBody>
+          </Card>
+          <Card>
+            <CardBody className="text-center p-4">
+              <p className="text-3xl font-bold text-brand-primary">{teamStats.winRate}%</p>
+              <p className="text-sm text-text-muted">% Victorias</p>
+            </CardBody>
+          </Card>
+          <Card>
+            <CardBody className="text-center p-4">
+              <p className="text-3xl font-bold text-text-primary">{teamStats.avgPoints}</p>
+              <p className="text-sm text-text-muted">Puntos/Partido</p>
+            </CardBody>
+          </Card>
+          <Card>
+            <CardBody className="text-center p-4">
+              <p className="text-3xl font-bold text-text-primary">{teamStats.avgOpponentPoints}</p>
+              <p className="text-sm text-text-muted">Puntos / Partido (Rival)</p>
+            </CardBody>
+          </Card>
+        </div>
+      )}
 
       {/* Filtros + Ordenación */}
       {matches.length > 0 && (
@@ -262,25 +515,23 @@ export default function AllMatches() {
               </select>
             </div>
           </div>
-
-          <div className="px-4 pb-3">
-            <Link
-              href={`/teams/${activeTeam.id}/matches`}
-              className="text-xs text-brand-primary hover:underline"
-            >
-              Ver detalle del equipo →
-            </Link>
-          </div>
         </Card>
       )}
 
       {/* Lista de partidos */}
-      {sortedAndFiltered.length === 0 ? (
+      {selectedTeams.length === 0 ? (
+        <div className="text-center py-12 bg-surface rounded-xl shadow border border-border-subtle">
+          <div className="text-4xl mb-4">🔍</div>
+          <p className="text-text-secondary">
+            Selecciona al menos un equipo para ver sus partidos
+          </p>
+        </div>
+      ) : sortedAndFiltered.length === 0 ? (
         <div className="text-center py-12 bg-surface rounded-xl shadow border border-border-subtle">
           <div className="text-4xl mb-4">🏆</div>
           <p className="text-text-secondary">
             {matches.length === 0
-              ? 'No hay partidos registrados para este equipo'
+              ? 'No hay partidos registrados para los equipos seleccionados'
               : 'No hay partidos que coincidan con el filtro'}
           </p>
           <Button onClick={() => setShowCreateModal(true)} className="mt-4">
@@ -303,9 +554,12 @@ export default function AllMatches() {
                         </Badge>
                         <Badge variant="neutral">{getTypeText(match.type)}</Badge>
                         <Badge variant="neutral">{getLocationText(match.location)}</Badge>
-                        <Badge variant="brand">
-                          {getSportIcon(match.team?.sport)} {match.team?.name}
-                        </Badge>
+                        {/* ✅ Badge del equipo solo cuando hay >1 equipo seleccionado */}
+                        {showTeamBadge && (
+                          <Badge variant="brand">
+                            {getSportIcon(match.team?.sport)} {match.team?.name}
+                          </Badge>
+                        )}
                       </div>
                       <h3 className="text-lg font-bold text-text-primary">{match.opponent}</h3>
                       <p className="text-sm text-text-secondary mt-1">📅 {formatDate(match.date)}</p>
@@ -361,7 +615,7 @@ export default function AllMatches() {
           teamId={activeTeam.id}
           teamSport={activeTeam.sport ?? undefined}
           onClose={() => setShowCreateModal(false)}
-          onSuccess={() => fetchMatches(activeTeam.id)}
+          onSuccess={() => fetchData(selectedTeams)}
         />
       )}
     </div>

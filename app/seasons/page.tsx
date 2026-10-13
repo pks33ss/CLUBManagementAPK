@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
@@ -18,12 +18,73 @@ interface Season {
   _count: { blocks: number }
 }
 
+// ============================================
+// ORDEN PERSONALIZADO (localStorage por equipo)
+// ============================================
+
+const orderKey = (teamId: string) => `seasons-order-${teamId}`
+
+const getSavedOrder = (teamId: string): string[] => {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = localStorage.getItem(orderKey(teamId))
+    if (!raw) return []
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
+}
+
+const saveOrder = (teamId: string, ids: string[]) => {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(orderKey(teamId), JSON.stringify(ids))
+  } catch {
+    // Ignorar errores de quota / modo privado
+  }
+}
+
+/**
+ * Aplica el orden guardado a una lista de seasons.
+ * - Las que están en `savedOrder` van primero, en ese orden.
+ * - Las que no, van después en el orden original.
+ */
+function applySavedOrder(seasons: Season[], savedOrder: string[]): Season[] {
+  if (savedOrder.length === 0) return seasons
+
+  const byId = new Map(seasons.map((s) => [s.id, s]))
+  const ordered: Season[] = []
+
+  for (const id of savedOrder) {
+    const s = byId.get(id)
+    if (s) {
+      ordered.push(s)
+      byId.delete(id)
+    }
+  }
+
+  // Resto: las que no estaban en el orden guardado, en orden original
+  for (const s of seasons) {
+    if (byId.has(s.id)) ordered.push(s)
+  }
+
+  return ordered
+}
+
+// ============================================
+// COMPONENTE
+// ============================================
+
 export default function SeasonsPage() {
   const router = useRouter()
   const { activeTeam, loading: loadingTeams } = useActiveTeam()
 
   const [seasons, setSeasons] = useState<Season[]>([])
   const [loading, setLoading] = useState(true)
+
+  // Orden manual por usuario y equipo
+  const [savedOrder, setSavedOrder] = useState<string[]>([])
 
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState({
@@ -45,10 +106,12 @@ export default function SeasonsPage() {
 
     if (!activeTeam) {
       setSeasons([])
+      setSavedOrder([])
       setLoading(false)
       return
     }
 
+    setSavedOrder(getSavedOrder(activeTeam.id))
     fetchSeasons(activeTeam.id)
   }, [activeTeam, router])
 
@@ -86,6 +149,29 @@ export default function SeasonsPage() {
     } finally {
       setSaving(false)
     }
+  }
+
+  // ============================================
+  // ORDEN DERIVADO
+  // ============================================
+
+  const orderedSeasons = useMemo(
+    () => applySavedOrder(seasons, savedOrder),
+    [seasons, savedOrder],
+  )
+
+  const moveSeason = (index: number, direction: -1 | 1) => {
+    if (!activeTeam) return
+    const targetIndex = index + direction
+    if (targetIndex < 0 || targetIndex >= orderedSeasons.length) return
+
+    const reordered = [...orderedSeasons]
+    const [moved] = reordered.splice(index, 1)
+    reordered.splice(targetIndex, 0, moved)
+
+    const ids = reordered.map((s) => s.id)
+    setSavedOrder(ids)
+    saveOrder(activeTeam.id, ids)
   }
 
   const formatDateRange = (start: string | null, end: string | null) => {
@@ -139,7 +225,7 @@ export default function SeasonsPage() {
       </div>
 
       {/* Lista */}
-      {seasons.length === 0 ? (
+      {orderedSeasons.length === 0 ? (
         <div className="text-center py-12 bg-surface rounded-xl shadow border border-border-subtle">
           <div className="text-5xl mb-4">📅</div>
           <h3 className="text-lg font-semibold text-text-primary mb-2">
@@ -154,36 +240,75 @@ export default function SeasonsPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {seasons.map((season) => (
-            <Card key={season.id} hover>
-              <Link href={`/seasons/${season.id}`} className="block p-5">
-                <div className="flex items-start gap-3">
-                  <div
-                    className="w-1 rounded-full self-stretch min-h-[60px]"
-                    style={{ backgroundColor: season.color || '#00E676' }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <h3 className="text-lg font-semibold text-text-primary truncate">
-                      {season.name}
-                    </h3>
-                    {season.description && (
-                      <p className="text-sm text-text-secondary mt-1 line-clamp-2">
-                        {season.description}
-                      </p>
-                    )}
-                    <p className="text-xs text-text-muted mt-2">
-                      📆 {formatDateRange(season.startDate, season.endDate)}
-                    </p>
-                    <div className="mt-3">
-                      <Badge variant="brand">
-                        📦 {season._count.blocks} bloque{season._count.blocks !== 1 ? 's' : ''}
-                      </Badge>
+          {orderedSeasons.map((season, index) => {
+            const isFirst = index === 0
+            const isLast = index === orderedSeasons.length - 1
+
+            return (
+              <div key={season.id} className="relative">
+                <Card hover>
+                  <Link href={`/seasons/${season.id}`} className="block p-5">
+                    <div className="flex items-start gap-3">
+                      <div
+                        className="w-1 rounded-full self-stretch min-h-[60px]"
+                        style={{ backgroundColor: season.color || '#00E676' }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <h3 className="text-lg font-semibold text-text-primary truncate pr-12">
+                          {season.name}
+                        </h3>
+                        {season.description && (
+                          <p className="text-sm text-text-secondary mt-1 line-clamp-2">
+                            {season.description}
+                          </p>
+                        )}
+                        <p className="text-xs text-text-muted mt-2">
+                          📆 {formatDateRange(season.startDate, season.endDate)}
+                        </p>
+                        <div className="mt-3">
+                          <Badge variant="brand">
+                            📦 {season._count.blocks} bloque{season._count.blocks !== 1 ? 's' : ''}
+                          </Badge>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  </Link>
+                </Card>
+
+                {/* Controles de orden (fuera del Link) */}
+                <div className="absolute top-2 right-2 flex gap-1">
+                  <button
+                    type="button"
+                    onClick={() => moveSeason(index, -1)}
+                    disabled={isFirst}
+                    title="Mover arriba"
+                    aria-label="Mover arriba"
+                    className={`w-6 h-6 flex items-center justify-center rounded text-xs transition ${
+                      isFirst
+                        ? 'opacity-0 pointer-events-none'
+                        : 'bg-surface-elevated/90 hover:bg-surface-elevated text-text-secondary hover:text-text-primary border border-border-subtle'
+                    }`}
+                  >
+                    ↑
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => moveSeason(index, 1)}
+                    disabled={isLast}
+                    title="Mover abajo"
+                    aria-label="Mover abajo"
+                    className={`w-6 h-6 flex items-center justify-center rounded text-xs transition ${
+                      isLast
+                        ? 'opacity-0 pointer-events-none'
+                        : 'bg-surface-elevated/90 hover:bg-surface-elevated text-text-secondary hover:text-text-primary border border-border-subtle'
+                    }`}
+                  >
+                    ↓
+                  </button>
                 </div>
-              </Link>
-            </Card>
-          ))}
+              </div>
+            )
+          })}
         </div>
       )}
 

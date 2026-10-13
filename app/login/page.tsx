@@ -154,6 +154,18 @@ export default function Login() {
             Regístrate
           </Link>
         </p>
+
+        {/* Aviso: aplicación en desarrollo */}
+        <div className="mt-6 bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
+          <p className="text-sm font-semibold text-amber-600 flex items-center gap-2">
+            <span aria-hidden="true">⚠️</span>
+            Aplicación en desarrollo
+          </p>
+          <p className="text-xs text-amber-700/90 mt-1 leading-relaxed">
+            Esta versión está en fase de desarrollo. Algunas funciones pueden
+            cambiar o no estar disponibles todavía.
+          </p>
+        </div>
       </div>
     </div>
   )

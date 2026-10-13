@@ -56,7 +56,7 @@ export default function TeamMatches() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [filter, setFilter] = useState<'all' | 'scheduled' | 'finished'>('all')
-  const [sortKey, setSortKey] = useState<MatchSortKey>('date-desc')
+  const [sortKey, setSortKey] = useState<MatchSortKey>('date-asc')
   const [showCreateModal, setShowCreateModal] = useState(false)
 
   useEffect(() => {
@@ -215,7 +215,7 @@ export default function TeamMatches() {
 
       {/* Estadísticas del equipo */}
       {teamStats && teamStats.totalMatches > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
           <Card>
             <CardBody className="text-center p-4">
               <p className="text-3xl font-bold text-text-primary">{teamStats.totalMatches}</p>
@@ -244,6 +244,12 @@ export default function TeamMatches() {
             <CardBody className="text-center p-4">
               <p className="text-3xl font-bold text-text-primary">{teamStats.avgPoints}</p>
               <p className="text-sm text-text-muted">Puntos/Partido</p>
+            </CardBody>
+          </Card>
+          <Card>
+            <CardBody className="text-center p-4">
+              <p className="text-3xl font-bold text-text-primary">{teamStats.avgOpponentPoints}</p>
+              <p className="text-sm text-text-muted">Puntos / Partido (Rival)</p>
             </CardBody>
           </Card>
         </div>
