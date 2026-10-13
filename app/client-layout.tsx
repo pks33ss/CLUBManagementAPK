@@ -8,12 +8,14 @@ import { usePaymentsNav } from '@/lib/usePaymentsNav'
 import { getSportIcon } from '@/lib/sport'
 import { Logo } from '@/components/ui/Logo'
 import { invitationsApi } from '@/lib/api/invitations'
+import { getVisibleTabs } from '@/lib/menuTabs'
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const router = useRouter()
   const {
     activeTeam,
+    userMe,
     favorites,
     allTeams,
     loading: loadingTeams,
@@ -91,6 +93,9 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     return <>{children}</>
   }
 
+  const teamId = activeTeam?.id ?? ''
+  const visibleTabs = getVisibleTabs(userMe?.hiddenTabs, { showStaff, showPlayer })
+
   return (
     <div className="min-h-screen bg-bg-base">
       {/* BARRA SUPERIOR */}
@@ -141,59 +146,18 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             {/* CENTRO (solo desktop) */}
             {activeTeam && (
               <div className="hidden lg:flex items-center gap-1 flex-1 justify-center overflow-x-auto scrollbar-menu">
-                <Link href="/home" className={linkClass('/home', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
-                  🏠 Inicio
-                </Link>
-                <Link
-                  href={`/teams/${activeTeam.id}`}
-                  className={linkClass(`/teams/${activeTeam.id}`, 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}
-                >
-                  🏆 Equipo
-                </Link>
-                <Link href="/sessions" className={linkClass('/sessions', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
-                  🏋️ Entrenamientos
-                </Link>
-                <Link href="/matches" className={linkClass('/matches', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
-                  🏆 Partidos
-                </Link>
-                <Link
-                  href={`/teams/${activeTeam.id}/stats`}
-                  className={linkClass(`/teams/${activeTeam.id}/stats`, 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}
-                >
-                  📊 Estadísticas
-                </Link>
-                <Link href="/calendar" className={linkClass('/calendar', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
-                  📅 Calendario
-                </Link>
-                <Link href="/players" className={linkClass('/players', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
-                  👥 Jugadores
-                </Link>
-                <Link href="/attendance/overview" className={linkClass('/attendance', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
-                  📊 Asistencias
-                </Link>
-                <Link href="/seasons" className={linkClass('/seasons', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
-                  📋 Planificación
-                </Link>
-                <Link href="/library" className={linkClass('/library', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
-                  📚 Biblioteca
-                </Link>
-                <Link href="/playbook" className={linkClass('/playbook', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
-                  📘 Playbook
-                </Link>
-
-                {/* 💰 PAGOS — STAFF */}
-                {showStaff && (
-                  <Link href="/payments" className={linkClass('/payments', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
-                    💰 Pagos
-                  </Link>
-                )}
-
-                {/* 💰 MIS PAGOS — JUGADOR */}
-                {showPlayer && (
-                  <Link href="/my-payments" className={linkClass('/my-payments', 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}>
-                    💰 Mis pagos
-                  </Link>
-                )}
+                {visibleTabs.map((tab) => {
+                  const href = tab.href(teamId)
+                  return (
+                    <Link
+                      key={tab.id}
+                      href={href}
+                      className={linkClass(href, 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}
+                    >
+                      {tab.label}
+                    </Link>
+                  )
+                })}
               </div>
             )}
 
@@ -214,9 +178,9 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
               {currentUser && (
                 <Link
-                  href="/profile"
+                  href="/settings"
                   className="flex items-center gap-2 hover:bg-surface-elevated rounded-lg p-2 transition"
-                  title="Perfil"
+                  title="Configuración"
                 >
                   {currentUser.avatar ? (
                     <img
@@ -255,56 +219,18 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       {activeTeam && (
         <div className="lg:hidden bg-surface border-b border-border-subtle overflow-x-auto scrollbar-menu">
           <div className="flex items-center gap-1 px-2 py-2">
-            <Link href="/home" className={linkClass('/home', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}>
-              🏠 Inicio
-            </Link>
-            <Link
-              href={`/teams/${activeTeam.id}`}
-              className={linkClass(`/teams/${activeTeam.id}`, 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}
-            >
-              🏆 Equipo
-            </Link>
-            <Link href="/sessions" className={linkClass('/sessions', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}>
-              🏋️ Entren.
-            </Link>
-            <Link href="/matches" className={linkClass('/matches', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}>
-              🏆 Partidos
-            </Link>
-            <Link
-              href={`/teams/${activeTeam.id}/stats`}
-              className={linkClass(`/teams/${activeTeam.id}/stats`, 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}
-            >
-              📊 Estad.
-            </Link>
-            <Link href="/calendar" className={linkClass('/calendar', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}>
-              📅 Calend.
-            </Link>
-            <Link href="/players" className={linkClass('/players', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}>
-              👥 Jugadores
-            </Link>
-            <Link href="/attendance/overview" className={linkClass('/attendance', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}>
-              📊 Asist.
-            </Link>
-            <Link href="/seasons" className={linkClass('/seasons', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}>
-              📋 Planif.
-            </Link>
-            <Link href="/library" className={linkClass('/library', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}>
-              📚 Biblio.
-            </Link>
-            <Link href="/playbook" className={linkClass('/playbook', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}>
-              📘 Playbook
-            </Link>
-
-            {showStaff && (
-              <Link href="/payments" className={linkClass('/payments', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}>
-                💰 Pagos
-              </Link>
-            )}
-            {showPlayer && (
-              <Link href="/my-payments" className={linkClass('/my-payments', 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}>
-                💰 Mis pagos
-              </Link>
-            )}
+            {visibleTabs.map((tab) => {
+              const href = tab.href(teamId)
+              return (
+                <Link
+                  key={tab.id}
+                  href={href}
+                  className={linkClass(href, 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}
+                >
+                  {tab.labelShort ?? tab.label}
+                </Link>
+              )
+            })}
           </div>
         </div>
       )}
@@ -449,28 +375,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                 )}
               </Link>
 
-              {/* 💰 PAGOS — SIDEBAR */}
-              {showStaff && (
-                <Link
-                  href="/payments"
-                  onClick={() => setSidebarOpen(false)}
-                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary"
-                >
-                  <span className="text-lg">💰</span>
-                  <span className="text-sm font-medium">Pagos</span>
-                </Link>
-              )}
-              {showPlayer && (
-                <Link
-                  href="/my-payments"
-                  onClick={() => setSidebarOpen(false)}
-                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary"
-                >
-                  <span className="text-lg">💰</span>
-                  <span className="text-sm font-medium">Mis pagos</span>
-                </Link>
-              )}
-
               <Link
                 href={activeTeam ? `/teams/${activeTeam.id}/stats/config` : '#'}
                 onClick={() => setSidebarOpen(false)}
@@ -480,7 +384,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                 <span className="text-sm font-medium">Configuración stats</span>
               </Link>
               <Link
-                href="/profile"
+                href="/settings"
                 onClick={() => setSidebarOpen(false)}
                 className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary"
               >

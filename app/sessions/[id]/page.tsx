@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
-import TacticalBoard from '@/components/TacticalBoard'
+import TacticalBoard from '@/components/tactical/TacticalBoard'
 import { getSportIcon, getSportConfig } from '@/lib/sport'
 import { Button, Card, CardBody, Badge, Input, Textarea, Select, Modal } from '@/components/ui'
 import { LibraryPicker } from '@/app/library/_components/LibraryPicker'
@@ -156,7 +156,7 @@ export default function SessionDetail() {
 
   const [showLibraryPicker, setShowLibraryPicker] = useState(false)
   const [libraryPickerTarget, setLibraryPickerTarget] = useState<'new' | 'edit'>('new')
-const { userBackground, updateBackground } = useTacticalBackground()
+  const { userBackground, updateBackground } = useTacticalBackground()
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -1705,17 +1705,21 @@ const { userBackground, updateBackground } = useTacticalBackground()
             </div>
 
             <TacticalBoard
-  width={800}
-  height={800}
-  onSave={(dataUrl) => {
-    setBoardImage(dataUrl)
-    setShowTacticalBoard(false)
-  }}
-  userBackground={userBackground}
-  onBackgroundChange={(url, mode) => {
-    void updateBackground(url, mode)
-  }}
-/>
+              width={800}
+              height={800}
+              onSave={(dataUrl) => {
+                setBoardImage(dataUrl)
+                setShowTacticalBoard(false)
+              }}
+              userBackground={userBackground}
+              onBackgroundChange={(url, mode) => {
+                if (mode === 'HALF') {
+                  void updateBackground({ urlHalf: url })
+                } else {
+                  void updateBackground({ urlFull: url })
+                }
+              }}
+            />
           </div>
         </div>
       )}
@@ -1734,18 +1738,22 @@ const { userBackground, updateBackground } = useTacticalBackground()
               </button>
             </div>
 
-           <TacticalBoard
-  width={800}
-  height={800}
-  onSave={(dataUrl) => {
-    setEditingBoardImage(dataUrl)
-    setEditingShowTacticalBoard(false)
-  }}
-  userBackground={userBackground}
-  onBackgroundChange={(url, mode) => {
-    void updateBackground(url, mode)
-  }}
-/>
+            <TacticalBoard
+              width={800}
+              height={800}
+              onSave={(dataUrl) => {
+                setEditingBoardImage(dataUrl)
+                setEditingShowTacticalBoard(false)
+              }}
+              userBackground={userBackground}
+              onBackgroundChange={(url, mode) => {
+                if (mode === 'HALF') {
+                  void updateBackground({ urlHalf: url })
+                } else {
+                  void updateBackground({ urlFull: url })
+                }
+              }}
+            />
           </div>
         </div>
       )}

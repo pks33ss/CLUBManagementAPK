@@ -70,13 +70,17 @@ export default function TacticalBoard({
     setLocalBackgroundUrl(null)
   }, [mode])
 
-  // URL final: override local > personalizado > deporte por defecto
+  // URL personalizada del modo actual
+  const userUrlForMode =
+    mode === 'FULL' ? userBackground?.urlFull : userBackground?.urlHalf
+
+  // URL final: override local > personalizado del modo > deporte por defecto
   const finalBackgroundUrl = useMemo(() => {
     if (localBackgroundUrl) return localBackgroundUrl
-    if (userBackground?.url) return userBackground.url
+    if (userUrlForMode) return userUrlForMode
     if (backgroundImage) return backgroundImage
     return getSportBackground(sport, mode)
-  }, [localBackgroundUrl, userBackground?.url, backgroundImage, sport, mode])
+  }, [localBackgroundUrl, userUrlForMode, backgroundImage, sport, mode])
 
   const [courtImage, courtStatus] = useImage(
     finalBackgroundUrl ?? '',
@@ -559,15 +563,17 @@ export default function TacticalBoard({
 
   const handleBackgroundApply = (
     url: string | null,
-    newMode: TacticalBackgroundMode,
+    targetMode: TacticalBackgroundMode,
     persist: boolean,
   ) => {
     if (persist) {
       // Persiste en el perfil del user (el padre actualizará userBackground)
-      onBackgroundChange?.(url, newMode)
+      onBackgroundChange?.(url, targetMode)
     } else {
-      // Solo para esta pizarra
-      setLocalBackgroundUrl(url)
+      // Solo para esta pizarra (y solo si estamos editando el modo actual)
+      if (targetMode === mode) {
+        setLocalBackgroundUrl(url)
+      }
     }
   }
 
@@ -861,8 +867,16 @@ export default function TacticalBoard({
           onClose={() => setBgPickerOpen(false)}
           onApply={handleBackgroundApply}
           currentMode={mode}
-          hasCustomBackground={!!userBackground?.url}
-          customBackgroundUrl={userBackground?.url ?? null}
+          hasCustomBackground={
+            mode === 'FULL'
+              ? !!userBackground?.urlFull
+              : !!userBackground?.urlHalf
+          }
+          customBackgroundUrl={
+            mode === 'FULL'
+              ? userBackground?.urlFull ?? null
+              : userBackground?.urlHalf ?? null
+          }
         />
       )}
     </div>

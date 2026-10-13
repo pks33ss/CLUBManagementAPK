@@ -7,14 +7,32 @@ import type { TacticalBackgroundMode } from './types'
 interface Props {
   isOpen: boolean
   onClose: () => void
-  /** Llamado cuando el usuario confirma una imagen (nueva o reset). */
-  onApply: (url: string | null, mode: TacticalBackgroundMode, persist: boolean) => void
-  /** Modo actual del board (para mostrar y conservar). */
+  /**
+   * Llamado cuando el usuario confirma una imagen.
+   * `mode` es el modo del fondo que se está editando.
+   * `persist` = true siempre desde Apariencia; desde la pizarra puede ser false.
+   */
+  onApply: (
+    url: string | null,
+    mode: TacticalBackgroundMode,
+    persist: boolean,
+  ) => void
+  /** Modo del fondo que se está editando (no el modo del board). */
   currentMode: TacticalBackgroundMode
-  /** ¿El user tiene un fondo personalizado guardado en su perfil? */
+  /** ¿El user tiene un fondo personalizado para ese modo? */
   hasCustomBackground: boolean
-  /** URL del fondo personalizado actual (si existe). */
+  /** URL del fondo personalizado actual para ese modo. */
   customBackgroundUrl?: string | null
+  /**
+   * Si es `true`, el modal solo ofrece "Guardar" (persistente).
+   * Se usa desde /settings, donde no tiene sentido "Solo aquí".
+   */
+  persistOnly?: boolean
+}
+
+const MODE_LABEL: Record<TacticalBackgroundMode, string> = {
+  HALF: 'Media pista',
+  FULL: 'Pista completa',
 }
 
 export function BackgroundPickerModal({
@@ -24,6 +42,7 @@ export function BackgroundPickerModal({
   currentMode,
   hasCustomBackground,
   customBackgroundUrl,
+  persistOnly = false,
 }: Props) {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [preview, setPreview] = useState<string | null>(null)
@@ -80,7 +99,7 @@ export function BackgroundPickerModal({
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="🖼️ Fondo de la pizarra"
+      title={`🖼️ Fondo — ${MODE_LABEL[currentMode]}`}
       size="md"
     >
       <div className="space-y-4">
@@ -112,7 +131,7 @@ export function BackgroundPickerModal({
           </div>
         ) : (
           <p className="text-sm text-text-muted text-center py-4">
-            Usando el fondo por defecto del deporte.
+            Usando el fondo por defecto del deporte para {MODE_LABEL[currentMode].toLowerCase()}.
           </p>
         )}
 
@@ -135,18 +154,26 @@ export function BackgroundPickerModal({
 
         {/* ACCIONES */}
         {preview && (
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              variant="secondary"
-              onClick={() => handleApply(false)}
-              title="Usar esta imagen solo en esta pizarra"
-            >
-              Solo aquí
-            </Button>
-            <Button onClick={() => handleApply(true)}>
-              Guardar en mi perfil
-            </Button>
-          </div>
+          <>
+            {persistOnly ? (
+              <Button onClick={() => handleApply(true)} className="w-full">
+                💾 Guardar
+              </Button>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="secondary"
+                  onClick={() => handleApply(false)}
+                  title="Usar esta imagen solo en esta pizarra"
+                >
+                  Solo aquí
+                </Button>
+                <Button onClick={() => handleApply(true)}>
+                  Guardar en mi perfil
+                </Button>
+              </div>
+            )}
+          </>
         )}
 
         {hasCustomBackground && !preview && (
@@ -159,10 +186,12 @@ export function BackgroundPickerModal({
           <p className="text-danger text-sm text-center">{error}</p>
         )}
 
-        <p className="text-xs text-text-muted text-center pt-2 border-t border-border-subtle">
-          Si guardas la imagen en tu perfil, se usará por defecto en todas tus
-          pizarras futuras.
-        </p>
+        {!persistOnly && (
+          <p className="text-xs text-text-muted text-center pt-2 border-t border-border-subtle">
+            Si guardas la imagen en tu perfil, se usará por defecto en todas tus
+            pizarras futuras.
+          </p>
+        )}
       </div>
     </Modal>
   )

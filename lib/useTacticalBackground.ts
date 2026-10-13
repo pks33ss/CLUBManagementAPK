@@ -5,66 +5,54 @@ import { usersApi } from '@/lib/api/users'
 import type { TacticalBackgroundMode } from '@/types/user'
 
 export interface TacticalBackground {
-  url: string
+  urlHalf: string | null
+  urlFull: string | null
   mode: TacticalBackgroundMode
 }
 
 export interface UseTacticalBackgroundResult {
-  /** Fondo actual del user (o null si usa el del deporte). */
+  /** Fondo actual del user (o null si aún no cargó). */
   userBackground: TacticalBackground | null
   /** ¿Estamos cargando la preferencia inicial? */
   loading: boolean
   /**
-   * Guarda el fondo en el perfil del user.
-   * Si `url` es null, resetea a "sin fondo personalizado".
+   * Guarda los fondos en el perfil del user.
+   * Pasa solo los campos que quieras modificar.
    */
-  updateBackground: (
-    url: string | null,
-    mode: TacticalBackgroundMode,
-  ) => Promise<void>
+  updateBackground: (payload: {
+    urlHalf?: string | null
+    urlFull?: string | null
+    mode?: TacticalBackgroundMode
+  }) => Promise<void>
 }
 
 /**
- * Carga y persiste el fondo personalizado de la pizarra táctica.
+ * Carga y persiste los fondos personalizados de la pizarra táctica.
  * Se apoya en el endpoint `PUT /users/me/tactical-background`.
  */
-export function useTacticalBackground(
-  initial?: {
-    url: string | null
-    mode: TacticalBackgroundMode
-  } | null,
-): UseTacticalBackgroundResult {
+export function useTacticalBackground(): UseTacticalBackgroundResult {
   const [userBackground, setUserBackground] = useState<TacticalBackground | null>(
-    initial?.url ? { url: initial.url, mode: initial.mode } : null,
+    null,
   )
-  const [loading, setLoading] = useState(!initial)
+  const [loading, setLoading] = useState(true)
 
-  // Cargar del backend si no nos han pasado `initial`
+  // Cargar del backend al montar
   useEffect(() => {
-    if (initial) {
-      setUserBackground(initial.url ? { url: initial.url, mode: initial.mode } : null)
-      setLoading(false)
-      return
-    }
-
     let cancelled = false
     setLoading(true)
     usersApi
       .getMe()
       .then((me) => {
         if (cancelled) return
-        setUserBackground(
-          me.tacticalBackgroundUrl
-            ? {
-                url: me.tacticalBackgroundUrl,
-                mode: me.tacticalBackgroundMode ?? 'HALF',
-              }
-            : null,
-        )
+        setUserBackground({
+          urlHalf: me.tacticalBackgroundUrlHalf ?? null,
+          urlFull: me.tacticalBackgroundUrlFull ?? null,
+          mode: (me.tacticalBackgroundMode as TacticalBackgroundMode) ?? 'HALF',
+        })
       })
       .catch((e) => {
         if (cancelled) return
-        console.error('Error cargando fondo personalizado:', e)
+        console.error('Error cargando fondos personalizados:', e)
         setUserBackground(null)
       })
       .finally(() => {
@@ -74,18 +62,38 @@ export function useTacticalBackground(
     return () => {
       cancelled = true
     }
-  }, [initial])
+  }, [])
 
   const updateBackground = useCallback(
-    async (url: string | null, mode: TacticalBackgroundMode) => {
-      // Optimistic update: reflejar en UI inmediatamente
-      setUserBackground(url ? { url, mode } : null)
+    async (payload: {
+      urlHalf?: string | null
+      urlFull?: string | null
+      mode?: TacticalBackgroundMode
+    }) => {
+      // Optimistic update
+      setUserBackground((prev) => {
+        const base: TacticalBackground = prev ?? {
+          urlHalf: null,
+          urlFull: null,
+          mode: 'HALF',
+        }
+        return {
+          urlHalf: payload.urlHalf !== undefined ? payload.urlHalf : base.urlHalf,
+          urlFull: payload.urlFull !== undefined ? payload.urlFull : base.urlFull,
+          mode: payload.mode !== undefined ? payload.mode : base.mode,
+        }
+      })
 
       try {
-        await usersApi.updateTacticalBackground({ url, mode })
+        const res = await usersApi.updateTacticalBackground(payload)
+        // Sincronizar con la respuesta real del backend
+        setUserBackground({
+          urlHalf: res.tacticalBackgroundUrlHalf ?? null,
+          urlFull: res.tacticalBackgroundUrlFull ?? null,
+          mode: (res.tacticalBackgroundMode as TacticalBackgroundMode) ?? 'HALF',
+        })
       } catch (e) {
-        console.error('Error guardando fondo personalizado:', e)
-        // Revertir en caso de error
+        console.error('Error guardando fondos personalizados:', e)
         throw e
       }
     },

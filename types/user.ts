@@ -60,9 +60,13 @@ export interface UserMe {
   emailNotificationsEnabled: boolean
   emailOptOut: boolean
 
-  // ✅ NUEVO — Fondo personalizado de la pizarra táctica
-  tacticalBackgroundUrl: string | null
+  // ✅ NUEVO — Fondos personalizados de la pizarra táctica (uno por modo)
+  tacticalBackgroundUrlHalf: string | null
+  tacticalBackgroundUrlFull: string | null
   tacticalBackgroundMode: TacticalBackgroundMode
+
+  // ✅ NUEVO — Preferencias de navegación (pestañas ocultas)
+  hiddenTabs: string[]
 
   memberships: Membership[]
   tutorRelationships: TutorRelationship[]

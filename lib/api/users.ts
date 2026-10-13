@@ -26,16 +26,26 @@ export const usersApi = {
     return data
   },
 
-  // ✅ NUEVO — Fondo personalizado de la pizarra táctica
+  // ✅ ACTUALIZADO — Fondos personalizados de la pizarra táctica (uno por modo)
   async updateTacticalBackground(payload: {
-    url?: string | null
+    urlHalf?: string | null
+    urlFull?: string | null
     mode?: TacticalBackgroundMode
   }): Promise<{
     id: string
-    tacticalBackgroundUrl: string | null
+    tacticalBackgroundUrlHalf: string | null
+    tacticalBackgroundUrlFull: string | null
     tacticalBackgroundMode: TacticalBackgroundMode
   }> {
     const { data } = await api.put('/users/me/tactical-background', payload)
+    return data
+  },
+
+  // ✅ NUEVO — Preferencias de navegación
+  async updatePreferences(payload: {
+    hiddenTabs?: string[]
+  }): Promise<{ id: string; hiddenTabs: string[] }> {
+    const { data } = await api.put('/users/me/preferences', payload)
     return data
   },
 
