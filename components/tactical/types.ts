@@ -125,9 +125,10 @@ export interface TacticalBoardProps {
   sport?: string
   backgroundImage?: string
 
-  /** ✅ NUEVO — Fondo personalizado del usuario */
+  /** ✅ NUEVO — Fondos personalizados del usuario (uno por modo) */
   userBackground?: {
-    url: string
+    urlHalf: string | null
+    urlFull: string | null
     mode: TacticalBackgroundMode
   } | null
 

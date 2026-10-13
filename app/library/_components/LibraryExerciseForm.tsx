@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { Button, Input, Textarea, Select } from '@/components/ui'
-import TacticalBoard from '@/components/TacticalBoard'
+import TacticalBoard from '@/components/tactical/TacticalBoard'
 import {
   createLibraryExercise,
   updateLibraryExercise,
@@ -555,7 +555,11 @@ const { userBackground, updateBackground } = useTacticalBackground()
   }}
   userBackground={userBackground}
   onBackgroundChange={(url, mode) => {
-    void updateBackground(url, mode)
+    if (mode === 'HALF') {
+      void updateBackground({ urlHalf: url })
+    } else {
+      void updateBackground({ urlFull: url })
+    }
   }}
 />
           </div>

@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { Button, Textarea } from '@/components/ui'
-import TacticalBoard from '@/components/TacticalBoard'
+import TacticalBoard from '@/components/tactical/TacticalBoard'
 import type { PlayStep } from '@/lib/playbook'
 import { useTacticalBackground } from '@/lib/useTacticalBackground'
 
@@ -156,7 +156,11 @@ const { userBackground, updateBackground } = useTacticalBackground()
   }}
   userBackground={userBackground}
   onBackgroundChange={(url, mode) => {
-    void updateBackground(url, mode)
+    if (mode === 'HALF') {
+      void updateBackground({ urlHalf: url })
+    } else {
+      void updateBackground({ urlFull: url })
+    }
   }}
 />
           </div>
