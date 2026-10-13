@@ -14,13 +14,14 @@ type GroupBy = 'none' | 'team' | 'position'
 
 export default function PlayersPage() {
   const router = useRouter()
-  const { activeTeam, loading: loadingTeams } = useActiveTeam()
+  const { activeTeam, allTeams, loading: loadingTeams } = useActiveTeam()
 
   const [players, setPlayers] = useState<ClubPlayer[]>([])
   const [loadingPlayers, setLoadingPlayers] = useState(false)
 
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([])
+  const [showTeamSelector, setShowTeamSelector] = useState(false)
   const [sortField, setSortField] = useState<SortField>('name')
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc')
   const [groupBy, setGroupBy] = useState<GroupBy>('none')
@@ -30,6 +31,27 @@ export default function PlayersPage() {
     const token = localStorage.getItem('token')
     if (!token) router.push('/login')
   }, [router])
+
+  // Sincronizar selección con activeTeam
+  useEffect(() => {
+    if (activeTeam) {
+      setSelectedTeamIds([activeTeam.id])
+    } else {
+      setSelectedTeamIds([])
+    }
+  }, [activeTeam])
+
+  // Cerrar dropdown al click fuera
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement
+      if (!target.closest('.team-selector-container')) {
+        setShowTeamSelector(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
 
   // Cargar jugadores del club activo
   useEffect(() => {
@@ -56,15 +78,6 @@ export default function PlayersPage() {
     fetchPlayers()
   }, [activeTeam?.club?.id])
 
-  // Lista de equipos únicos del club (deducidos de las memberships)
-  const allClubTeams = Array.from(
-    new Map(
-      players
-        .flatMap((p) => p.memberships)
-        .map((m) => [m.teamId, { id: m.teamId, name: m.teamName, sport: m.teamSport, category: m.teamCategory }]),
-    ).values(),
-  ).sort((a, b) => a.name.localeCompare(b.name))
-
   // Filtros
   const filtered = players.filter((p) => {
     // Filtro de texto
@@ -74,7 +87,7 @@ export default function PlayersPage() {
       if (!haystack.includes(q)) return false
     }
 
-    // Filtro por equipo
+    // Filtro por equipos seleccionados
     if (selectedTeamIds.length > 0) {
       const hasTeam = p.memberships.some((m) => selectedTeamIds.includes(m.teamId))
       if (!hasTeam) return false
@@ -119,10 +132,29 @@ export default function PlayersPage() {
   })()
 
   const groupKeys = Object.keys(grouped).sort()
+
   const toggleTeam = (teamId: string) => {
     setSelectedTeamIds((prev) =>
       prev.includes(teamId) ? prev.filter((id) => id !== teamId) : [...prev, teamId],
     )
+  }
+
+  const selectAllTeams = () => {
+    setSelectedTeamIds(allTeams.map((t) => t.id))
+  }
+
+  const deselectAllTeams = () => {
+    setSelectedTeamIds([])
+  }
+
+  const getSelectedTeamsText = () => {
+    if (selectedTeamIds.length === 0) return 'Selecciona equipos...'
+    if (selectedTeamIds.length === allTeams.length) return 'Todos mis equipos'
+    if (selectedTeamIds.length === 1) {
+      const team = allTeams.find((t) => t.id === selectedTeamIds[0])
+      return team?.name || '1 equipo'
+    }
+    return `${selectedTeamIds.length} equipos seleccionados`
   }
 
   const handleSort = (field: SortField) => {
@@ -133,7 +165,8 @@ export default function PlayersPage() {
     }
   }
 
-  const getSortIcon = (field: SortField) => (sortField === field ? (sortOrder === 'asc' ? '↑' : '↓') : '↕️')
+  const getSortIcon = (field: SortField) =>
+    sortField === field ? (sortOrder === 'asc' ? '↑' : '↓') : '↕️'
 
   // ============================================
   // RENDER
@@ -181,40 +214,73 @@ export default function PlayersPage() {
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Nombre, apellido o @username..."
             />
-            <div>
+
+            {/* Multi-selector de equipos */}
+            <div className="team-selector-container relative">
               <label className="block text-sm font-medium text-text-secondary mb-1">
                 Filtrar por equipo
               </label>
-              <div className="flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => setSelectedTeamIds([])}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition border ${
-                    selectedTeamIds.length === 0
-                      ? 'bg-brand-primary/20 text-brand-primary border-brand-primary/40'
-                      : 'bg-surface-elevated text-text-secondary border-border-subtle hover:border-brand-primary/40'
-                  }`}
-                >
-                  Todos
-                </button>
-                {allClubTeams.map((team) => {
-                  const isActive = selectedTeamIds.includes(team.id)
-                  return (
+              <button
+                type="button"
+                onClick={() => setShowTeamSelector(!showTeamSelector)}
+                className="w-full bg-surface-elevated border border-border-subtle rounded-lg px-4 py-2 text-left flex justify-between items-center hover:border-brand-primary/50 transition"
+              >
+                <span className={selectedTeamIds.length === 0 ? 'text-text-muted' : 'text-text-primary'}>
+                  {getSelectedTeamsText()}
+                </span>
+                <span className="text-text-muted">▼</span>
+              </button>
+
+              {showTeamSelector && (
+                <div className="absolute z-20 w-full mt-1 bg-surface border border-border-subtle rounded-lg shadow-lg max-h-80 overflow-auto">
+                  <div className="p-2 border-b border-border-subtle flex gap-2">
                     <button
-                      key={team.id}
                       type="button"
-                      onClick={() => toggleTeam(team.id)}
-                      className={`px-3 py-1.5 rounded-full text-xs font-medium transition border ${
-                        isActive
-                          ? 'bg-brand-primary/20 text-brand-primary border-brand-primary/40'
-                          : 'bg-surface-elevated text-text-secondary border-border-subtle hover:border-brand-primary/40'
-                      }`}
+                      onClick={selectAllTeams}
+                      className="flex-1 text-xs bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 py-1.5 rounded transition"
                     >
-                      {getSportIcon(team.sport)} {team.name}
+                      ✓ Todos
                     </button>
-                  )
-                })}
-              </div>
+                    <button
+                      type="button"
+                      onClick={deselectAllTeams}
+                      className="flex-1 text-xs bg-surface-elevated text-text-secondary hover:bg-border-subtle py-1.5 rounded transition"
+                    >
+                      ✕ Ninguno
+                    </button>
+                  </div>
+
+                  {allTeams.length === 0 ? (
+                    <div className="p-4 text-sm text-text-muted text-center">
+                      No tienes equipos asignados
+                    </div>
+                  ) : (
+                    allTeams.map((team) => (
+                      <label
+                        key={team.id}
+                        className="flex items-center gap-3 px-4 py-2.5 hover:bg-surface-elevated cursor-pointer transition"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={selectedTeamIds.includes(team.id)}
+                          onChange={() => toggleTeam(team.id)}
+                          className="w-4 h-4 accent-brand-primary"
+                        />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-text-primary flex items-center gap-1">
+                            <span>{getSportIcon(team.sport)}</span>
+                            <span>{team.name}</span>
+                          </p>
+                          <p className="text-xs text-text-muted">
+                            {team.category || 'Sin categoría'}
+                            {team.club?.name ? ` · ${team.club.name}` : ''}
+                          </p>
+                        </div>
+                      </label>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           </div>
 
@@ -287,7 +353,10 @@ export default function PlayersPage() {
                   <thead className="bg-surface-elevated">
                     <tr>
                       <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">
-                        <button onClick={() => handleSort('name')} className="flex items-center gap-1 hover:text-text-primary">
+                        <button
+                          onClick={() => handleSort('name')}
+                          className="flex items-center gap-1 hover:text-text-primary"
+                        >
                           Nombre {getSortIcon('name')}
                         </button>
                       </th>
@@ -301,9 +370,6 @@ export default function PlayersPage() {
                       )}
                       <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">
                         Posición
-                      </th>
-                      <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase">
-                        Acciones
                       </th>
                     </tr>
                   </thead>
@@ -330,11 +396,6 @@ export default function PlayersPage() {
                               >
                                 {player.name} {player.lastName}
                               </Link>
-                              {player.isGhost && (
-                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning font-bold uppercase">
-                                  sin cuenta
-                                </span>
-                              )}
                             </div>
                           </div>
                         </td>
@@ -356,18 +417,6 @@ export default function PlayersPage() {
                         )}
                         <td className="px-6 py-4 text-sm text-text-secondary">
                           {player.memberships.map((m) => m.position).filter(Boolean).join(', ') || '—'}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          {player.username ? (
-                            <Link
-                              href={`/users/${player.username.replace('@', '')}`}
-                              className="text-brand-primary hover:text-brand-primary-light transition text-sm"
-                            >
-                              Ver ficha →
-                            </Link>
-                          ) : (
-                            <span className="text-xs text-text-muted">Sin username</span>
-                          )}
                         </td>
                       </tr>
                     ))}

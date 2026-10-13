@@ -49,6 +49,24 @@ const STATUS_STYLE: Record<FlagStatus, string> = {
   NO: 'bg-danger/20 text-danger hover:bg-danger/30',
 }
 
+// ✅ Etiquetas legibles para los mensajes de confirmación del bulk
+const STATUS_LABEL: Record<FlagStatus, string> = {
+  PENDING: 'Pendiente',
+  YES: 'Sí',
+  NO: 'No',
+}
+
+// ✅ Columnas sobre las que se puede hacer "marcar todos"
+const BULK_COLUMNS: {
+  key: keyof CallupFlags
+  label: string
+  description: string
+}[] = [
+  { key: 'availableStatus', label: 'Disponible', description: 'Disponible' },
+  { key: 'calledUpStatus',  label: 'Convocado',  description: 'Convocado'  },
+  { key: 'confirmedStatus', label: 'Confirmado', description: 'Confirmado' },
+]
+
 export default function CallupsTab({ match, onUpdate }: Props) {
   const [saving, setSaving] = useState<string | null>(null)
   const [showAddModal, setShowAddModal] = useState(false)
@@ -62,10 +80,10 @@ export default function CallupsTab({ match, onUpdate }: Props) {
 
     // ✅ Ahora iteramos sobre memberships con rol PLAYER
     const teamPlayers = (match.team.memberships ?? []).filter(
-  (m) =>
-    m.status === 'ACTIVE' &&
-    (m.roles ?? []).some((r: any) => r === 'PLAYER' || r.role === 'PLAYER'),
-)
+      (m) =>
+        m.status === 'ACTIVE' &&
+        (m.roles ?? []).some((r: any) => r === 'PLAYER' || r.role === 'PLAYER'),
+    )
 
     for (const m of teamPlayers) {
       const callup = match.callups.find((c: any) => c.userId === m.user.id)
@@ -126,6 +144,38 @@ export default function CallupsTab({ match, onUpdate }: Props) {
     } catch (err) {
       console.error(err)
       alert('Error al actualizar')
+    } finally {
+      setSaving(null)
+    }
+  }
+
+  // ============================================
+  // BULK — Marcar todos para una columna
+  // ============================================
+
+  const setAllForColumn = async (
+    key: keyof CallupFlags,
+    newStatus: FlagStatus,
+  ) => {
+    const columnLabel = BULK_COLUMNS.find((c) => c.key === key)?.description ?? ''
+    const confirmed = confirm(
+      `¿Marcar a TODOS como "${columnLabel} = ${STATUS_LABEL[newStatus]}"?\n\nSe sobreescribirán los valores actuales de los ${rows.length} jugadores.`,
+    )
+    if (!confirmed) return
+
+    setSaving(`bulk-${key}`)
+    try {
+      await Promise.all(
+        rows.map((row) =>
+          api.put(`/matches/${match.id}/callups/${row.userId}`, {
+            [key]: newStatus,
+          }),
+        ),
+      )
+      onUpdate()
+    } catch (err) {
+      console.error(err)
+      alert('Error al actualizar en bloque')
     } finally {
       setSaving(null)
     }
@@ -235,9 +285,34 @@ export default function CallupsTab({ match, onUpdate }: Props) {
 
         <div className="hidden md:grid grid-cols-[1fr_90px_90px_90px_48px] gap-2 px-3 py-2 bg-surface-elevated rounded-lg mb-2 text-xs font-semibold text-text-muted uppercase items-center">
           <div>Jugador</div>
-          <div className="text-center whitespace-nowrap">Disponible</div>
-          <div className="text-center whitespace-nowrap">Convocado</div>
-          <div className="text-center whitespace-nowrap">Confirmado</div>
+
+          {BULK_COLUMNS.map((col) => (
+            <div key={col.key} className="flex flex-col items-center gap-1">
+              <div className="text-center whitespace-nowrap">{col.label}</div>
+              <div className="flex gap-0.5">
+                {(['PENDING', 'YES', 'NO'] as FlagStatus[]).map((s) => {
+                  const isBulkSaving = saving === `bulk-${col.key}`
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      disabled={isBulkSaving || rows.length === 0}
+                      onClick={() => setAllForColumn(col.key, s)}
+                      title={`Marcar todos como ${col.label} = ${STATUS_LABEL[s]}`}
+                      className={`w-6 h-6 rounded flex items-center justify-center text-[11px] transition ${STATUS_STYLE[s]} ${
+                        isBulkSaving || rows.length === 0
+                          ? 'opacity-50 cursor-not-allowed'
+                          : 'cursor-pointer'
+                      }`}
+                    >
+                      {STATUS_ICON[s]}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ))}
+
           <div></div>
         </div>
 

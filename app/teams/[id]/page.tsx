@@ -73,7 +73,7 @@ export default function TeamDetail() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  // Modales de "solicitar unirme" y "añadirme un rol"
+  // Modales de "solicitar unirme" y "cambiar mi rol"
   const [showJoinModal, setShowJoinModal] = useState(false)
   const [showAddRoleModal, setShowAddRoleModal] = useState(false)
 
@@ -336,11 +336,6 @@ export default function TeamDetail() {
                       <p className="text-sm text-text-secondary truncate">
                         {m.position || 'Sin posición'}
                       </p>
-                      {m.user.isGhost && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning font-bold uppercase inline-block mt-1">
-                          sin cuenta
-                        </span>
-                      )}
                     </div>
                   </Link>
 
@@ -367,14 +362,14 @@ export default function TeamDetail() {
             </h2>
 
             <div className="flex flex-wrap gap-2">
-              {/* ✅ Botón "añadirme un rol" si ya es miembro pero le faltan roles */}
+              {/* ✅ Botón "cambiar mi rol" si ya es miembro pero le faltan roles */}
               {isActiveMember && !hasAllRoles && (
                 <Button
                   size="sm"
                   variant="primary"
                   onClick={() => setShowAddRoleModal(true)}
                 >
-                  ➕ Añadirme un rol
+                  ➕ Cambiar mi Rol
                 </Button>
               )}
 
@@ -516,7 +511,7 @@ export default function TeamDetail() {
         />
       )}
 
-      {/* MODAL AÑADIRME UN ROL */}
+      {/* MODAL CAMBIAR MI ROL */}
       {showAddRoleModal && myMembership && (
         <AddSelfRoleModal
           membershipId={myMembership.id}
