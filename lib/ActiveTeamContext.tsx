@@ -17,6 +17,7 @@ import type { Membership } from '@/types/membership'
 import type { TutorRelationship } from '@/types/tutor-relationship'
 import type { UserMe } from '@/types/user'
 import type { Team } from '@/types/team'
+import { applyTheme, resetTheme } from '@/lib/theme'
 
 interface ActiveTeamContextType {
   // Equipo activo
@@ -68,6 +69,33 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
   }, [activeTeam])
 
   // ============================================
+  // THEME — aplicar colores del club/equipo activo
+  // ============================================
+
+  useEffect(() => {
+      
+    if (!activeTeam) {
+      resetTheme()
+      return
+    }
+
+    // Prioridad: equipo → club → default
+    const primary =
+      activeTeam.primaryColor ?? activeTeam.club?.primaryColor ?? null
+    const secondary =
+      activeTeam.secondaryColor ?? activeTeam.club?.secondaryColor ?? null
+
+    applyTheme({ primary, secondary })
+  }, [activeTeam])
+
+  // Reset al desmontar el provider
+  useEffect(() => {
+    return () => {
+      resetTheme()
+    }
+  }, [])
+
+  // ============================================
   // HELPERS
   // ============================================
 
@@ -80,10 +108,15 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
     category: m.team!.category ?? null,
     sport: m.team!.sport ?? null,
     season: null,
+    primaryColor: m.team!.primaryColor ?? null,
+    secondaryColor: m.team!.secondaryColor ?? null,
+    logo: m.team!.logo ?? null,
     club: {
       id: m.team!.club.id,
       name: m.team!.club.name,
       logo: m.team!.club.logo ?? null,
+      primaryColor: m.team!.club.primaryColor ?? null,
+      secondaryColor: m.team!.club.secondaryColor ?? null,
     },
   })
 
@@ -145,13 +178,24 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
         category: f.team.category ?? null,
         sport: f.team.sport ?? null,
         season: f.team.season ?? null,
+        primaryColor: f.team.primaryColor ?? null,
+        secondaryColor: f.team.secondaryColor ?? null,
+        logo: f.team.logo ?? null,
         club: f.team.club
           ? {
               id: f.team.club.id,
               name: f.team.club.name,
               logo: f.team.club.logo ?? null,
+              primaryColor: f.team.club.primaryColor ?? null,
+              secondaryColor: f.team.club.secondaryColor ?? null,
             }
-          : { id: '', name: '', logo: null },
+          : {
+              id: '',
+              name: '',
+              logo: null,
+              primaryColor: null,
+              secondaryColor: null,
+            },
       }))
       setFavorites(favTeams)
     } catch (err) {
@@ -173,14 +217,10 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
 
       // ✅ Si el savedActiveId no está en nuestras listas (favoritos + memberships),
       // pero es el que ya tenemos activo en memoria, lo respetamos.
-      // Esto permite a SUPER_ADMIN/ADMIN_CLUB "fijar" un equipo del que no son
-      // miembros y navegar por la app sin que el contexto lo sustituya.
       if (!foundActive) {
         if (activeTeamRef.current?.id === savedActiveId) {
-          return // ya está fijado, no tocar
+          return
         }
-        // Si no lo tenemos en memoria, seguimos el flujo normal
-        // (caerá a favoritos[0] o teams[0])
       }
     }
 
@@ -193,13 +233,10 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
     }
 
     if (foundActive) {
-      setActiveTeamState((prev) => (prev?.id === foundActive!.id ? prev : foundActive))
+      setActiveTeamState(foundActive)
       if (typeof window !== 'undefined') {
         localStorage.setItem('activeTeamId', foundActive.id)
       }
-    } else {
-      // No hay nada que activar: dejar el activeTeam actual como está
-      // (podría estar fijado por el user manualmente)
     }
   }
 
@@ -248,7 +285,7 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
 
   const setActiveTeam = (team: Team) => {
     setActiveTeamState(team)
-    activeTeamRef.current = team // ✅ actualización inmediata de la ref
+    activeTeamRef.current = team
     if (typeof window !== 'undefined') {
       localStorage.setItem('activeTeamId', team.id)
     }

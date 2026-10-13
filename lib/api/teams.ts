@@ -458,4 +458,42 @@ export const teamsApi = {
     )
     return data
   },
+
+    // ============================================
+  // IDENTIDAD VISUAL (colores + logo)
+  // ============================================
+
+  /**
+   * Actualizar datos del equipo (incluye colores y logo).
+   */
+  async update(
+    teamId: string,
+    payload: {
+      name?: string
+      category?: string | null
+      season?: string | null
+      primaryColor?: string | null
+      secondaryColor?: string | null
+      logo?: string | null
+    },
+  ): Promise<any> {
+    const { data } = await api.put(`/teams/${teamId}`, payload)
+    return data
+  },
+
+  /**
+   * Subir logo del equipo (base64).
+   */
+  async uploadLogo(teamId: string, image: string): Promise<{ logo: string }> {
+    const { data } = await api.post(`/teams/${teamId}/upload-logo`, { image })
+    return data
+  },
+
+  /**
+   * Eliminar logo del equipo.
+   */
+  async removeLogo(teamId: string): Promise<{ logo: null }> {
+    const { data } = await api.delete(`/teams/${teamId}/logo`)
+    return data
+  },
 }

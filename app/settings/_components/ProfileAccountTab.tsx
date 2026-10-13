@@ -5,7 +5,6 @@ import api from '@/lib/api'
 import { usersApi } from '@/lib/api/users'
 import { Button, Card, CardBody, Input, Textarea } from '@/components/ui'
 import type { UserMe } from '@/types/user'
-import { updateMyEmailOptOut } from '@/lib/userEmailPreferences'
 
 interface Props {
   userMe: UserMe
@@ -34,12 +33,6 @@ export default function ProfileAccountTab({ userMe, onUpdate }: Props) {
     confirmPassword: '',
   })
 
-  // ─── Estado para el toggle de notificaciones por email ───
-  const [togglingEmail, setTogglingEmail] = useState(false)
-  const [emailError, setEmailError] = useState('')
-  const [emailSuccess, setEmailSuccess] = useState('')
-
-  // Sync con el contexto si cambia
   useEffect(() => {
     setProfile({
       name: userMe.name || '',
@@ -141,40 +134,6 @@ export default function ProfileAccountTab({ userMe, onUpdate }: Props) {
     }
   }
 
-  // ============================================
-  // NOTIFICACIONES POR EMAIL
-  // ============================================
-
-  const isOptedOut = userMe.emailOptOut === true
-  const adminDisabled = userMe.emailNotificationsEnabled === false
-
-  const handleToggleEmail = async () => {
-    setTogglingEmail(true)
-    setEmailError('')
-    setEmailSuccess('')
-
-    const newValue = !isOptedOut
-
-    try {
-      await updateMyEmailOptOut(newValue)
-      await onUpdate()
-      setEmailSuccess(
-        newValue
-          ? '✅ Has desactivado las notificaciones por email'
-          : '✅ Has activado las notificaciones por email',
-      )
-      setTimeout(() => setEmailSuccess(''), 3000)
-    } catch (err: any) {
-      console.error('Error:', err)
-      setEmailError(
-        err.response?.data?.message ||
-          'Error al actualizar las preferencias de email',
-      )
-    } finally {
-      setTogglingEmail(false)
-    }
-  }
-
   return (
     <div className="space-y-6">
       {error && (
@@ -191,10 +150,11 @@ export default function ProfileAccountTab({ userMe, onUpdate }: Props) {
       {/* Información personal */}
       <Card>
         <CardBody>
-          <h2 className="text-lg font-semibold text-text-primary mb-4">👤 Información Personal</h2>
+          <h2 className="text-lg font-semibold text-text-primary mb-4">
+            👤 Información Personal
+          </h2>
 
           <form onSubmit={saveProfile} className="space-y-4">
-            {/* Avatar */}
             <div className="flex items-center gap-6">
               <div className="relative">
                 {profile.avatar ? (
@@ -229,7 +189,9 @@ export default function ProfileAccountTab({ userMe, onUpdate }: Props) {
                   {profile.name} {profile.lastName}
                 </p>
                 {userMe.username && (
-                  <p className="text-sm text-brand-primary font-medium">{userMe.username}</p>
+                  <p className="text-sm text-brand-primary font-medium">
+                    {userMe.username}
+                  </p>
                 )}
                 <p className="text-sm text-text-muted">{userMe.email}</p>
                 {profile.avatar && (
@@ -249,14 +211,18 @@ export default function ProfileAccountTab({ userMe, onUpdate }: Props) {
                 label="Nombre *"
                 type="text"
                 value={profile.name}
-                onChange={(e) => setProfile({ ...profile, name: e.target.value })}
+                onChange={(e) =>
+                  setProfile({ ...profile, name: e.target.value })
+                }
                 required
               />
               <Input
                 label="Apellido *"
                 type="text"
                 value={profile.lastName}
-                onChange={(e) => setProfile({ ...profile, lastName: e.target.value })}
+                onChange={(e) =>
+                  setProfile({ ...profile, lastName: e.target.value })
+                }
                 required
               />
             </div>
@@ -273,7 +239,9 @@ export default function ProfileAccountTab({ userMe, onUpdate }: Props) {
               label="Teléfono"
               type="tel"
               value={profile.phone}
-              onChange={(e) => setProfile({ ...profile, phone: e.target.value })}
+              onChange={(e) =>
+                setProfile({ ...profile, phone: e.target.value })
+              }
               placeholder="+34 600 123 456"
             />
 
@@ -301,79 +269,21 @@ export default function ProfileAccountTab({ userMe, onUpdate }: Props) {
         </CardBody>
       </Card>
 
-      {/* Notificaciones por email */}
-      <Card>
-        <CardBody>
-          <h2 className="text-lg font-semibold text-text-primary mb-4">
-            📧 Notificaciones por email
-          </h2>
-
-          <p className="text-sm text-text-secondary mb-4">
-            Elige si quieres recibir notificaciones por email (invitaciones a
-            equipos, avisos del club, etc.).
-          </p>
-
-          {/* Estado actual */}
-          <div className="flex items-center justify-between gap-4 bg-surface-elevated rounded-lg p-4 border border-border-subtle mb-4">
-            <div>
-              <p className="font-medium text-text-primary">
-                {isOptedOut ? 'Notificaciones desactivadas' : 'Notificaciones activadas'}
-              </p>
-              <p className="text-xs text-text-muted mt-1">
-                {isOptedOut
-                  ? 'No recibirás ningún email del sistema.'
-                  : 'Recibirás emails según la configuración del club.'}
-              </p>
-            </div>
-            <Button
-              variant={isOptedOut ? 'primary' : 'danger'}
-              size="sm"
-              onClick={handleToggleEmail}
-              disabled={togglingEmail}
-              loading={togglingEmail}
-            >
-              {togglingEmail
-                ? 'Guardando...'
-                : isOptedOut
-                  ? '✅ Activar'
-                  : '🚫 Desactivar'}
-            </Button>
-          </div>
-
-          {/* Aviso si el admin tiene desactivado */}
-          {adminDisabled && !isOptedOut && (
-            <div className="bg-warning/10 border border-warning/30 text-warning rounded-lg p-3 text-sm">
-              ⚠️ Tu cuenta tiene las notificaciones por email desactivadas por
-              un administrador. Aunque las actives aquí, no recibirás emails
-              hasta que el administrador lo permita.
-            </div>
-          )}
-
-          {/* Feedback */}
-          {emailError && (
-            <div className="bg-danger/10 text-danger border border-danger/20 p-3 rounded-lg text-sm mt-3">
-              {emailError}
-            </div>
-          )}
-          {emailSuccess && (
-            <div className="bg-success/10 text-success border border-success/20 p-3 rounded-lg text-sm mt-3">
-              {emailSuccess}
-            </div>
-          )}
-        </CardBody>
-      </Card>
-
       {/* Cambio de contraseña */}
       <Card>
         <CardBody>
-          <h2 className="text-lg font-semibold text-text-primary mb-4">🔒 Cambiar Contraseña</h2>
+          <h2 className="text-lg font-semibold text-text-primary mb-4">
+            🔒 Cambiar Contraseña
+          </h2>
 
           <form onSubmit={changePassword} className="space-y-4">
             <Input
               label="Contraseña actual *"
               type="password"
               value={passwords.currentPassword}
-              onChange={(e) => setPasswords({ ...passwords, currentPassword: e.target.value })}
+              onChange={(e) =>
+                setPasswords({ ...passwords, currentPassword: e.target.value })
+              }
               required
             />
 
@@ -381,7 +291,9 @@ export default function ProfileAccountTab({ userMe, onUpdate }: Props) {
               label="Nueva contraseña *"
               type="password"
               value={passwords.newPassword}
-              onChange={(e) => setPasswords({ ...passwords, newPassword: e.target.value })}
+              onChange={(e) =>
+                setPasswords({ ...passwords, newPassword: e.target.value })
+              }
               required
               minLength={6}
             />
@@ -390,7 +302,9 @@ export default function ProfileAccountTab({ userMe, onUpdate }: Props) {
               label="Confirmar nueva contraseña *"
               type="password"
               value={passwords.confirmPassword}
-              onChange={(e) => setPasswords({ ...passwords, confirmPassword: e.target.value })}
+              onChange={(e) =>
+                setPasswords({ ...passwords, confirmPassword: e.target.value })
+              }
               required
               minLength={6}
             />

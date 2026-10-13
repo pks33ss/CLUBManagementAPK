@@ -120,10 +120,10 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                   className="flex items-center gap-2 min-w-0 rounded-lg hover:bg-surface-elevated transition p-1 -m-1"
                   title={`Ir al equipo ${activeTeam.name}`}
                 >
-                  {activeTeam.club?.logo ? (
+                                    {(activeTeam.logo ?? activeTeam.club?.logo) ? (
                     <img
-                      src={activeTeam.club.logo}
-                      alt={activeTeam.club.name}
+                      src={activeTeam.logo ?? activeTeam.club?.logo ?? ''}
+                      alt={activeTeam.name}
                       className="w-8 h-8 rounded-lg object-cover border border-border-subtle shrink-0"
                     />
                   ) : (
@@ -352,37 +352,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             </div>
 
             <div className="p-4 border-t border-border-subtle space-y-1">
-              <Link
-                href="/dashboard"
-                onClick={() => setSidebarOpen(false)}
-                className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary"
-              >
-                <span className="text-lg">🛒</span>
-                <span className="text-sm font-medium">Mis Clubs</span>
-              </Link>
-
-              <Link
-                href="/invitations"
-                onClick={() => setSidebarOpen(false)}
-                className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary"
-              >
-                <span className="text-lg">✉️</span>
-                <span className="text-sm font-medium">Invitaciones</span>
-                {pendingInvitations > 0 && (
-                  <span className="ml-auto bg-danger text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5">
-                    {pendingInvitations}
-                  </span>
-                )}
-              </Link>
-
-              <Link
-                href={activeTeam ? `/teams/${activeTeam.id}/stats/config` : '#'}
-                onClick={() => setSidebarOpen(false)}
-                className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary"
-              >
-                <span className="text-lg">📊</span>
-                <span className="text-sm font-medium">Configuración stats</span>
-              </Link>
               <Link
                 href="/settings"
                 onClick={() => setSidebarOpen(false)}

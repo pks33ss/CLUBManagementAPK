@@ -3,25 +3,31 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
+import { usePermissions } from '@/lib/usePermissions'
 import ProfileAccountTab from './_components/ProfileAccountTab'
-import ProfileMembershipsTab from './_components/ProfileMembershipsTab'
-import ProfileTutorsTab from './_components/ProfileTutorsTab'
-import ProfilePlayersTab from './_components/ProfilePlayersTab'
-import ProfileMenuTab from './_components/ProfileMenuTab'
-import ProfileAppearanceTab from './_components/ProfileAppearanceTab'
+import ProfileNotificationsTab from './_components/ProfileNotificationsTab'
+import ProfileCustomizationTab from './_components/ProfileCustomizationTab'
+import ProfileMyNetworkTab from './_components/ProfileMyNetworkTab'
+import ProfilePermissionsTab from './_components/ProfilePermissionsTab'
 
 type Tab =
   | 'account'
   | 'notifications'
-  | 'appearance'
-  | 'menu'
-  | 'memberships'
-  | 'relations'
-  | 'invitations'
+  | 'customization'
+  | 'network'
+  | 'permissions'
 
 export default function SettingsPage() {
   const router = useRouter()
-  const { userMe, memberships, tutors, players, loading, refreshUserData } = useActiveTeam()
+  const {
+    userMe,
+    activeTeam,
+    loading,
+    refreshUserData,
+  } = useActiveTeam()
+
+  const perms = usePermissions(activeTeam?.id ?? null)
+
   const [activeTab, setActiveTab] = useState<Tab>('account')
 
   useEffect(() => {
@@ -32,7 +38,11 @@ export default function SettingsPage() {
   }, [router])
 
   if (loading) {
-    return <div className="text-center py-12 text-text-muted">Cargando configuración...</div>
+    return (
+      <div className="text-center py-12 text-text-muted">
+        Cargando configuración...
+      </div>
+    )
   }
 
   if (!userMe) {
@@ -49,24 +59,35 @@ export default function SettingsPage() {
     )
   }
 
-  const tabs: { id: Tab; label: string; icon: string; count?: number }[] = [
-    { id: 'account',       label: 'Mi cuenta',     icon: '👤' },
-    { id: 'notifications', label: 'Notificaciones', icon: '🔔' },
-    { id: 'appearance',    label: 'Apariencia',    icon: '🎨' },
-    { id: 'menu',          label: 'Menú',          icon: '🧭' },
-    { id: 'memberships',   label: 'Mis equipos',   icon: '🏆', count: memberships.length },
-    { id: 'relations',     label: 'Relaciones',    icon: '👥', count: tutors.length + players.length },
-    { id: 'invitations',   label: 'Invitaciones',  icon: '✉️' },
+  // Construcción dinámica de tabs
+  const tabs: { id: Tab; label: string; icon: string }[] = [
+    { id: 'account',       label: 'Mi cuenta',       icon: '👤' },
+    { id: 'notifications', label: 'Notificaciones',  icon: '🔔' },
+    { id: 'customization', label: 'Personalización', icon: '🎨' },
+    { id: 'network',       label: 'Mi red',          icon: '🧑‍🤝‍🧑' },
   ]
+
+  // Pestaña condicional: solo si hay equipo activo y permisos
+  if (activeTeam && perms.canEdit) {
+    tabs.push({
+      id: 'permissions',
+      label: 'Permisos',
+      icon: '🔐',
+    })
+  }
 
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-text-primary">⚙️ Configuración</h1>
+        <h1 className="text-2xl font-bold text-text-primary">
+          ⚙️ Configuración
+        </h1>
         <p className="text-text-secondary">
           {userMe.username && (
             <>
-              <span className="text-brand-primary font-medium">{userMe.username}</span>
+              <span className="text-brand-primary font-medium">
+                {userMe.username}
+              </span>
               {' · '}
             </>
           )}
@@ -89,17 +110,6 @@ export default function SettingsPage() {
             >
               <span>{tab.icon}</span>
               <span>{tab.label}</span>
-              {tab.count !== undefined && tab.count > 0 && (
-                <span
-                  className={`text-xs px-1.5 py-0.5 rounded-full ${
-                    activeTab === tab.id
-                      ? 'bg-brand-primary text-bg-base'
-                      : 'bg-surface-elevated text-text-muted'
-                  }`}
-                >
-                  {tab.count}
-                </span>
-              )}
             </button>
           ))}
         </div>
@@ -110,32 +120,11 @@ export default function SettingsPage() {
         {activeTab === 'account' && (
           <ProfileAccountTab userMe={userMe} onUpdate={refreshUserData} />
         )}
-        {activeTab === 'notifications' && <PlaceholderTab title="Notificaciones" icon="🔔" />}
-        {activeTab === 'appearance' && <ProfileAppearanceTab />}
-        {activeTab === 'menu' && <ProfileMenuTab />}
-        {activeTab === 'memberships' && (
-          <ProfileMembershipsTab memberships={memberships} onUpdate={refreshUserData} />
-        )}
-        {activeTab === 'relations' && (
-          <div className="space-y-6">
-            <ProfileTutorsTab tutors={tutors} onUpdate={refreshUserData} />
-            <ProfilePlayersTab players={players} onUpdate={refreshUserData} />
-          </div>
-        )}
-        {activeTab === 'invitations' && <PlaceholderTab title="Invitaciones" icon="✉️" />}
+        {activeTab === 'notifications' && <ProfileNotificationsTab />}
+        {activeTab === 'customization' && <ProfileCustomizationTab />}
+        {activeTab === 'network' && <ProfileMyNetworkTab />}
+        {activeTab === 'permissions' && <ProfilePermissionsTab />}
       </div>
-    </div>
-  )
-}
-
-function PlaceholderTab({ title, icon }: { title: string; icon: string }) {
-  return (
-    <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
-      <div className="text-6xl mb-4">{icon}</div>
-      <h3 className="text-xl font-semibold text-text-primary mb-2">{title}</h3>
-      <p className="text-text-secondary">
-        Esta sección estará disponible próximamente.
-      </p>
     </div>
   )
 }
