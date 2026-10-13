@@ -9,6 +9,8 @@ import { getSportIcon } from '@/lib/sport'
 import { Logo } from '@/components/ui/Logo'
 import { invitationsApi } from '@/lib/api/invitations'
 import { getVisibleTabs } from '@/lib/menuTabs'
+import RegisterServiceWorker from '@/components/RegisterServiceWorker'
+import InstallPrompt from '@/components/InstallPrompt'
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -237,6 +239,11 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
       {/* CONTENIDO */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">{children}</main>
+            {/* Registro del Service Worker (PWA) */}
+      <RegisterServiceWorker />
+
+      {/* Popup de instalación en móvil */}
+      <InstallPrompt />
 
       {/* SIDEBAR */}
       {sidebarOpen && (
