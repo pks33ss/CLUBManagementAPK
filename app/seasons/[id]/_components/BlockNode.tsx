@@ -58,9 +58,10 @@ export default function BlockNode({
     >
       {/* Header del bloque */}
       <div
-        className={`${style.bg} px-4 py-3 flex items-center justify-between cursor-pointer hover:brightness-95 transition`}
+        className={`${style.bg} px-3 py-3 md:px-4 md:py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2 cursor-pointer hover:brightness-95 transition`}
         onClick={() => onToggle(block.id)}
       >
+        {/* Fila 1: toggle + emoji + nombre + contadores */}
         <div className="flex items-center gap-2 min-w-0 flex-1">
           <span className="text-lg shrink-0">{isExpanded ? '▼' : '▶'}</span>
           <span className="text-lg shrink-0">{style.emoji}</span>
@@ -80,7 +81,7 @@ export default function BlockNode({
             )}
           </div>
 
-          {/* Contadores */}
+          {/* Contadores (solo desktop) */}
           <span className="text-xs text-text-muted shrink-0 hidden sm:inline">
             {block.children.length > 0 && `${block.children.length} sub-bloques`}
             {block.children.length > 0 && block.sections.length > 0 && ' · '}
@@ -88,50 +89,50 @@ export default function BlockNode({
           </span>
         </div>
 
-        {/* Acciones */}
+        {/* Fila 2 en móvil, inline en desktop: acciones */}
         {canManage && (
           <div
-            className="flex items-center gap-1 shrink-0 ml-2"
+            className="flex items-center gap-1 flex-wrap md:justify-end md:shrink-0"
             onClick={(e) => e.stopPropagation()}
           >
             <button
               onClick={() => onMove(block, 'up')}
-              className="p-1.5 rounded hover:bg-surface-elevated transition text-text-muted"
+              className="p-1 md:p-1.5 rounded hover:bg-surface-elevated transition text-text-muted"
               title="Mover arriba"
             >
               ⬆️
             </button>
             <button
               onClick={() => onMove(block, 'down')}
-              className="p-1.5 rounded hover:bg-surface-elevated transition text-text-muted"
+              className="p-1 md:p-1.5 rounded hover:bg-surface-elevated transition text-text-muted"
               title="Mover abajo"
             >
               ⬇️
             </button>
             <button
               onClick={() => onCreateChild(block.id)}
-              className="p-1.5 rounded hover:bg-surface-elevated transition text-brand-primary"
+              className="p-1 md:p-1.5 rounded hover:bg-surface-elevated transition text-brand-primary"
               title="Añadir sub-bloque"
             >
               ➕📦
             </button>
             <button
               onClick={() => onCreateSection(block.id)}
-              className="p-1.5 rounded hover:bg-surface-elevated transition text-success"
+              className="p-1 md:p-1.5 rounded hover:bg-surface-elevated transition text-success"
               title="Añadir sección"
             >
               ➕📄
             </button>
             <button
               onClick={() => onEdit(block)}
-              className="p-1.5 rounded hover:bg-surface-elevated transition text-brand-primary"
+              className="p-1 md:p-1.5 rounded hover:bg-surface-elevated transition text-brand-primary"
               title="Editar"
             >
               ✏️
             </button>
             <button
               onClick={() => onDelete(block)}
-              className="p-1.5 rounded hover:bg-surface-elevated transition text-danger"
+              className="p-1 md:p-1.5 rounded hover:bg-surface-elevated transition text-danger"
               title="Eliminar"
             >
               🗑️
