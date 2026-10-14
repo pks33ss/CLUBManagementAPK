@@ -3,6 +3,7 @@
 
 'use client'
 
+import { useEffect } from 'react'
 import { usePermissionsContext } from './permissions-provider'
 import type {
   PermissionAction,
@@ -13,22 +14,49 @@ import type {
 // usePermission — chequeo puntual
 // ─────────────────────────────────────────────
 
-/**
- * Devuelve `true` si el usuario puede hacer `resource:action`.
- * Si `opts.teamId` está definido, también comprueba el set por equipo.
- *
- * **Importante**: mientras la matriz no está cargada, devuelve `false`.
- * Esto evita mostrar botones que el usuario no debería ver. Para casos
- * donde prefieras "ocultar al cargar y luego mostrar", usa `loading`.
- */
+interface UsePermissionOpts {
+  /** Club al que aplicar el chequeo. Por defecto, el del activeTeam. */
+  clubId?: string | null
+  /** Equipo para chequeo con scope. */
+  teamId?: string | null
+  /**
+   * Si el club aún no está cargado, esto es lo que devuelve mientras
+   * se carga. Por defecto `false` (para no mostrar botones que luego
+   * desaparezcan).
+   */
+  fallback?: boolean
+}
+
 export function usePermission(
   resource: PermissionResource,
   action: PermissionAction,
-  opts?: { teamId?: string | null; fallback?: boolean },
+  opts?: UsePermissionOpts,
 ): boolean {
-  const { can, loading } = usePermissionsContext()
-  if (loading) return opts?.fallback ?? false
-  return can(resource, action, opts)
+  const { can, ensureClubLoaded, permissionsByClub, loading } =
+    usePermissionsContext()
+
+  const targetClub = opts?.clubId
+
+  // Si nos piden un club concreto y no está cargado, lo pedimos.
+  useEffect(() => {
+    if (targetClub && !permissionsByClub[targetClub]) {
+      ensureClubLoaded(targetClub)
+    }
+  }, [targetClub, permissionsByClub, ensureClubLoaded])
+
+ 
+  // Si estamos esperando el club, devolvemos el fallback.
+  if (targetClub && !permissionsByClub[targetClub]) {
+    return opts?.fallback ?? false
+  }
+  if (loading && !targetClub) {
+    return opts?.fallback ?? false
+  }
+
+  return can(resource, action, {
+    clubId: opts?.clubId,
+    teamId: opts?.teamId,
+  })
 }
 
 // ─────────────────────────────────────────────
@@ -40,13 +68,3 @@ export function usePermissionsMatrix() {
     usePermissionsContext()
   return { permissions, loading, error, reload, clubId }
 }
-
-// ─────────────────────────────────────────────
-// useMyPermissionsLegacy — puente al hook antiguo (solo si hace falta)
-// ─────────────────────────────────────────────
-
-/**
- * Adapter para no romper el código que ya consumía el hook viejo
- * (`lib/usePermissions.ts`). Cuando migremos todas las páginas, se borra.
- */
-// (no lo exportamos; se mantiene el viejo tal cual)

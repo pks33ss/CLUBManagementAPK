@@ -14,6 +14,7 @@ import {
   Modal,
 } from '@/components/ui'
 import { ClubRemindersSection } from './_components/ClubRemindersSection'
+import { Can } from '@/lib/permissions/can'
 
 interface ClubDetail {
   id: string
@@ -228,9 +229,9 @@ export default function ClubDetail() {
   const getRoleText = (role: string) => {
     switch (role) {
       case 'ADMIN_CLUB':
-        return '🏛️ Admin Club'
+        return '🛡️ Admin Club'
       case 'COACH':
-        return '🏀 Entrenador'
+        return '🎓 Entrenador'
       case 'ASSISTANT':
         return '🤝 Asistente'
       default:
@@ -238,6 +239,9 @@ export default function ClubDetail() {
     }
   }
 
+  // NOTA: `isAdmin` se mantiene para el botón "Eliminar club" porque
+  // la matriz no tiene un recurso específico para "borrar club".
+  // Todos los demás checks binarios se migran a <Can>.
   const isAdmin =
     userRole === 'ADMIN_CLUB' || currentUser?.role === 'SUPER_ADMIN'
 
@@ -301,11 +305,17 @@ export default function ClubDetail() {
               </div>
             </div>
 
-            {isAdmin && (
-              <div className="flex gap-2 flex-shrink-0">
+            <div className="flex gap-2 flex-shrink-0">
+              {/* NUEVO: gating con <Can>. Editar club = club_settings:edit. */}
+              <Can clubId={clubId} resource="club_settings" action="edit">
                 <Button size="sm" onClick={openEditModal}>
                   ✏️ Editar
                 </Button>
+              </Can>
+
+              {/* NOTA: "Eliminar" sigue con isAdmin porque la matriz
+                  no cubre "borrar club". */}
+              {isAdmin && (
                 <Button
                   size="sm"
                   variant="danger"
@@ -313,8 +323,8 @@ export default function ClubDetail() {
                 >
                   🗑️ Eliminar
                 </Button>
-              </div>
-            )}
+              )}
+            </div>
           </div>
 
           {/* Estadísticas */}
@@ -352,7 +362,12 @@ export default function ClubDetail() {
       </Card>
 
       {/* RECORDATORIOS DE PAGO */}
-      <ClubRemindersSection clubId={clubId} canManage={isAdmin} />
+      {/* NUEVO: el editor solo se muestra si el usuario tiene
+          club_settings:edit. La comprobación interna de `canManage` en
+          ClubRemindersSection ya no la hacemos aquí: la hace <Can>. */}
+      <Can clubId={clubId} resource="club_settings" action="edit">
+        <ClubRemindersSection clubId={clubId} canManage={true} />
+      </Can>
 
       {/* EQUIPOS */}
       <Card className="mb-6">
@@ -361,9 +376,12 @@ export default function ClubDetail() {
             <h2 className="text-xl font-semibold text-text-primary">
               🏆 Equipos ({club.teams?.length || 0})
             </h2>
-            <Button size="sm" href={`/teams?club=${clubId}`}>
-              Gestionar Equipos
-            </Button>
+            {/* NUEVO: gating con <Can>. */}
+            <Can clubId={clubId} resource="team" action="view">
+              <Button size="sm" href={`/teams?club=${clubId}`}>
+                Gestionar Equipos
+              </Button>
+            </Can>
           </div>
 
           {!club.teams || club.teams.length === 0 ? (
@@ -404,11 +422,12 @@ export default function ClubDetail() {
             <h2 className="text-xl font-semibold text-text-primary">
               👥 Miembros ({club.members?.length || 0})
             </h2>
-            {isAdmin && (
+            {/* NUEVO: gating con <Can>. */}
+            <Can clubId={clubId} resource="member" action="edit">
               <Button size="sm" href={`/clubs/${clubId}/members`}>
                 Gestionar Miembros
               </Button>
-            )}
+            </Can>
           </div>
 
           {!club.members || club.members.length === 0 ? (

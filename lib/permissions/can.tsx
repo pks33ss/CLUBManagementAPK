@@ -13,28 +13,25 @@ import type {
 interface CanProps {
   resource: PermissionResource
   action: PermissionAction
-  /** Opcional: si el permiso depende de un equipo concreto. */
+  /** Si se pasa, chequea contra ese club. Si no, contra el del activeTeam. */
+  clubId?: string | null
+  /** Si se pasa, chequea también contra el set por equipo. */
   teamId?: string | null
-  /** Si el usuario no tiene permiso, se renderiza esto en su lugar. */
+  /** Si no hay permiso, renderiza esto en su lugar. */
   fallback?: ReactNode
   children: ReactNode
 }
 
-/**
- * Ejemplo:
- *   <Can resource="team" action="edit" teamId={teamId}>
- *     <button>Editar</button>
- *   </Can>
- *
- * Si no hay permiso → no se renderiza nada (o el `fallback`).
- */
 export function Can({
   resource,
   action,
+  clubId,
   teamId,
   fallback = null,
   children,
 }: CanProps) {
-  const allowed = usePermission(resource, action, { teamId })
+  const allowed = usePermission(resource, action, { clubId, teamId })
+  
+ 
   return allowed ? <>{children}</> : <>{fallback}</>
 }
