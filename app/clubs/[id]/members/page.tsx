@@ -10,7 +10,7 @@ interface Member {
   id: string
   userId: string
   clubId: string
-  role: string
+  roleRef: { id: string; name: string } | null
   isActive: boolean
   joinedAt: string
   user: {
@@ -73,7 +73,7 @@ export default function ClubMembers() {
       if (userStr) {
         const user = JSON.parse(userStr)
         const myMember = response.data.find((m: Member) => m.userId === user.id)
-        setUserRole(myMember?.role || '')
+        setUserRole(myMember?.roleRef?.name || '')
       }
     } catch (error: any) {
       console.error('Error:', error)
@@ -116,7 +116,7 @@ export default function ClubMembers() {
 
   const openRoleModal = (member: Member) => {
     setSelectedMember(member)
-    setSelectedRole(member.role)
+    setSelectedRole(member.roleRef?.name ?? '')
     setShowRoleModal(true)
   }
 
@@ -228,12 +228,13 @@ export default function ClubMembers() {
       case 'ADMIN_CLUB': return '🏛️ Admin Club'
       case 'COACH': return '🏆 Entrenador'
       case 'ASSISTANT': return '🤝 Asistente'
+      case 'MEMBER': return '👤 Miembro'
       default: return role
     }
   }
 
   const isAdmin =
-  userRole === 'ADMIN_CLUB' || currentUser?.role === 'SUPER_ADMIN'
+    userRole === 'ADMIN_CLUB' || currentUser?.role === 'SUPER_ADMIN'
 
   if (loading) {
     return <div className="text-center py-12 text-text-muted">Cargando miembros...</div>
@@ -288,127 +289,131 @@ export default function ClubMembers() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
-              {members.map((member) => (
-                <tr key={member.id} className="hover:bg-surface-elevated transition">
-                  <td className="px-6 py-4">
-                    <p className="font-medium text-text-primary">
-                      {member.user.name} {member.user.lastName}
-                    </p>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-text-secondary">
-                    {member.user.email}
-                  </td>
-                  <td className="px-6 py-4">
-                    <Badge variant={getRoleVariant(member.role)}>
-                      {getRoleText(member.role)}
-                    </Badge>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-text-secondary">
-                    {new Date(member.joinedAt).toLocaleDateString('es-ES')}
-                  </td>
-                  {isAdmin && (
-                    <td className="px-6 py-4 text-right">
-                      <div className="flex gap-2 justify-end">
-                        <button
-                          onClick={() => openRoleModal(member)}
-                          className="text-xs px-3 py-1 rounded-full font-medium transition hover:opacity-80 bg-surface-elevated text-text-secondary"
-                          disabled={member.userId === currentUser?.id}
-                          title="Cambiar rol"
-                        >
-                          {getRoleText(member.role)} ✏️
-                        </button>
-                        <button
-                          onClick={() => openTeamsModal(member)}
-                          className="text-warning hover:text-warning/80 p-1"
-                          disabled={member.userId === currentUser?.id}
-                          title="Gestionar equipos"
-                        >
-                          🏀
-                        </button>
-                        <button
-                          onClick={() => openResetPasswordModal(member)}
-                          className="text-warning hover:text-warning/80 p-1"
-                          disabled={member.userId === currentUser?.id}
-                          title="Resetear contraseña"
-                        >
-                          🔑
-                        </button>
-                        <button
-                          onClick={() => removeMember(member.id, `${member.user.name} ${member.user.lastName}`)}
-                          className="text-danger hover:text-danger/80 p-1"
-                          disabled={member.userId === currentUser?.id}
-                          title="Eliminar miembro"
-                        >
-                          🗑️
-                        </button>
-                      </div>
+              {members.map((member) => {
+                const roleName = member.roleRef?.name ?? ''
+                return (
+                  <tr key={member.id} className="hover:bg-surface-elevated transition">
+                    <td className="px-6 py-4">
+                      <p className="font-medium text-text-primary">
+                        {member.user.name} {member.user.lastName}
+                      </p>
                     </td>
-                  )}
-                </tr>
-              ))}
+                    <td className="px-6 py-4 text-sm text-text-secondary">
+                      {member.user.email}
+                    </td>
+                    <td className="px-6 py-4">
+                      <Badge variant={getRoleVariant(roleName)}>
+                        {getRoleText(roleName)}
+                      </Badge>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-text-secondary">
+                      {new Date(member.joinedAt).toLocaleDateString('es-ES')}
+                    </td>
+                    {isAdmin && (
+                      <td className="px-6 py-4 text-right">
+                        <div className="flex gap-2 justify-end">
+                          <button
+                            onClick={() => openRoleModal(member)}
+                            className="text-xs px-3 py-1 rounded-full font-medium transition hover:opacity-80 bg-surface-elevated text-text-secondary"
+                            disabled={member.userId === currentUser?.id}
+                            title="Cambiar rol"
+                          >
+                            {getRoleText(roleName)} ✏️
+                          </button>
+                          <button
+                            onClick={() => openTeamsModal(member)}
+                            className="text-warning hover:text-warning/80 p-1"
+                            disabled={member.userId === currentUser?.id}
+                            title="Gestionar equipos"
+                          >
+                            🏀
+                          </button>
+                          <button
+                            onClick={() => openResetPasswordModal(member)}
+                            className="text-warning hover:text-warning/80 p-1"
+                            disabled={member.userId === currentUser?.id}
+                            title="Resetear contraseña"
+                          >
+                            🔑
+                          </button>
+                          <button
+                            onClick={() => removeMember(member.id, `${member.user.name} ${member.user.lastName}`)}
+                            className="text-danger hover:text-danger/80 p-1"
+                            disabled={member.userId === currentUser?.id}
+                            title="Eliminar miembro"
+                          >
+                            🗑️
+                          </button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
 
         {/* Vista móvil: cards */}
         <div className="md:hidden divide-y divide-border-subtle">
-          {members.map((member) => (
-            <div key={member.id} className="p-4 space-y-3">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-text-primary truncate">
-                    {member.user.name} {member.user.lastName}
-                  </p>
-                  <p className="text-xs text-text-muted truncate">{member.user.email}</p>
-                  <p className="text-xs text-text-muted mt-0.5">
-                    Desde {new Date(member.joinedAt).toLocaleDateString('es-ES')}
-                  </p>
+          {members.map((member) => {
+            const roleName = member.roleRef?.name ?? ''
+            return (
+              <div key={member.id} className="p-4 space-y-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-text-primary truncate">
+                      {member.user.name} {member.user.lastName}
+                    </p>
+                    <p className="text-xs text-text-muted truncate">{member.user.email}</p>
+                    <p className="text-xs text-text-muted mt-0.5">
+                      Desde {new Date(member.joinedAt).toLocaleDateString('es-ES')}
+                    </p>
+                  </div>
+                  <Badge variant={getRoleVariant(roleName)}>
+                    {getRoleText(roleName)}
+                  </Badge>
                 </div>
-                <Badge variant={getRoleVariant(member.role)}>
-                  {getRoleText(member.role)}
-                </Badge>
+
+                {isAdmin && member.userId !== currentUser?.id && (
+                  <div className="flex flex-wrap gap-2 pt-2 border-t border-border-subtle">
+                    <button
+                      onClick={() => openRoleModal(member)}
+                      className="flex-1 min-w-[120px] text-xs bg-surface-elevated hover:bg-border-subtle text-text-secondary px-3 py-2 rounded-lg font-medium transition"
+                    >
+                      ✏️ Cambiar rol
+                    </button>
+                    <button
+                      onClick={() => openTeamsModal(member)}
+                      className="flex-1 min-w-[120px] text-xs bg-warning/10 hover:bg-warning/20 text-warning px-3 py-2 rounded-lg font-medium transition"
+                    >
+                      🏀 Equipos
+                    </button>
+                    <button
+                      onClick={() => openResetPasswordModal(member)}
+                      className="flex-1 min-w-[120px] text-xs bg-warning/10 hover:bg-warning/20 text-warning px-3 py-2 rounded-lg font-medium transition"
+                    >
+                      🔑 Contraseña
+                    </button>
+                    <button
+                      onClick={() => removeMember(member.id, `${member.user.name} ${member.user.lastName}`)}
+                      className="flex-1 min-w-[120px] text-xs bg-danger/10 hover:bg-danger/20 text-danger px-3 py-2 rounded-lg font-medium transition"
+                    >
+                      🗑️ Eliminar
+                    </button>
+                  </div>
+                )}
+
+                {isAdmin && member.userId === currentUser?.id && (
+                  <p className="text-xs text-text-muted italic pt-2 border-t border-border-subtle">
+                    No puedes modificar tu propio rol
+                  </p>
+                )}
               </div>
-
-              {isAdmin && member.userId !== currentUser?.id && (
-                <div className="flex flex-wrap gap-2 pt-2 border-t border-border-subtle">
-                  <button
-                    onClick={() => openRoleModal(member)}
-                    className="flex-1 min-w-[120px] text-xs bg-surface-elevated hover:bg-border-subtle text-text-secondary px-3 py-2 rounded-lg font-medium transition"
-                  >
-                    ✏️ Cambiar rol
-                  </button>
-                  <button
-                    onClick={() => openTeamsModal(member)}
-                    className="flex-1 min-w-[120px] text-xs bg-warning/10 hover:bg-warning/20 text-warning px-3 py-2 rounded-lg font-medium transition"
-                  >
-                    🏀 Equipos
-                  </button>
-                  <button
-                    onClick={() => openResetPasswordModal(member)}
-                    className="flex-1 min-w-[120px] text-xs bg-warning/10 hover:bg-warning/20 text-warning px-3 py-2 rounded-lg font-medium transition"
-                  >
-                    🔑 Contraseña
-                  </button>
-                  <button
-                    onClick={() => removeMember(member.id, `${member.user.name} ${member.user.lastName}`)}
-                    className="flex-1 min-w-[120px] text-xs bg-danger/10 hover:bg-danger/20 text-danger px-3 py-2 rounded-lg font-medium transition"
-                  >
-                    🗑️ Eliminar
-                  </button>
-                </div>
-              )}
-
-              {isAdmin && member.userId === currentUser?.id && (
-                <p className="text-xs text-text-muted italic pt-2 border-t border-border-subtle">
-                  No puedes modificar tu propio rol
-                </p>
-              )}
-            </div>
-          ))}
+            )
+          })}
         </div>
       </Card>
-
-      
 
       {/* MODAL DE INVITAR */}
       <Modal

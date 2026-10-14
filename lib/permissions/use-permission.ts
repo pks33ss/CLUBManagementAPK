@@ -1,5 +1,7 @@
 // frontend-web/lib/permissions/use-permission.ts
 // Lote 8.6 — Hooks de gating basados en el Context.
+// Lote 8.8 — Añadido manejo de error para no bloquear la UI
+//            cuando la matriz no se puede cargar.
 
 'use client'
 
@@ -44,7 +46,6 @@ export function usePermission(
     }
   }, [targetClub, permissionsByClub, ensureClubLoaded])
 
- 
   // Si estamos esperando el club, devolvemos el fallback.
   if (targetClub && !permissionsByClub[targetClub]) {
     return opts?.fallback ?? false
@@ -64,7 +65,7 @@ export function usePermission(
 // ─────────────────────────────────────────────
 
 export function usePermissionsMatrix() {
-  const { permissions, loading, error, reload, clubId } =
+  const { permissions, loading, error, reload, clubId, invalidate } =
     usePermissionsContext()
-  return { permissions, loading, error, reload, clubId }
+  return { permissions, loading, error, reload, clubId, invalidate }
 }

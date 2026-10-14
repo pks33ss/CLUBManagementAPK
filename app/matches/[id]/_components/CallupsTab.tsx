@@ -49,14 +49,12 @@ const STATUS_STYLE: Record<FlagStatus, string> = {
   NO: 'bg-danger/20 text-danger hover:bg-danger/30',
 }
 
-// ✅ Etiquetas legibles para los mensajes de confirmación del bulk
 const STATUS_LABEL: Record<FlagStatus, string> = {
   PENDING: 'Pendiente',
   YES: 'Sí',
   NO: 'No',
 }
 
-// ✅ Columnas sobre las que se puede hacer "marcar todos"
 const BULK_COLUMNS: {
   key: keyof CallupFlags
   label: string
@@ -66,6 +64,24 @@ const BULK_COLUMNS: {
   { key: 'calledUpStatus',  label: 'Convocado',  description: 'Convocado'  },
   { key: 'confirmedStatus', label: 'Confirmado', description: 'Confirmado' },
 ]
+
+// Filtro de rol que acepta todos los formatos del backend:
+//   - roles: ["PLAYER"]
+//   - roles: [{ roleRef: { name: "PLAYER" } }]
+//   - roles: [{ name: "PLAYER" }]
+//   - role:  "PLAYER"
+const isPlayerRole = (r: any): boolean => {
+  if (typeof r === 'string') return r === 'PLAYER'
+  if (r?.roleRef?.name === 'PLAYER') return true
+  if (r?.name === 'PLAYER') return true
+  if (r?.role === 'PLAYER') return true
+  return false
+}
+
+const hasPlayerRole = (m: any): boolean => {
+  if (m?.role === 'PLAYER') return true
+  return (m?.roles ?? []).some(isPlayerRole)
+}
 
 export default function CallupsTab({ match, onUpdate }: Props) {
   const [saving, setSaving] = useState<string | null>(null)
@@ -78,11 +94,8 @@ export default function CallupsTab({ match, onUpdate }: Props) {
     const rows: PlayerRow[] = []
     const seen = new Set<string>()
 
-    // ✅ Ahora iteramos sobre memberships con rol PLAYER
     const teamPlayers = (match.team.memberships ?? []).filter(
-      (m) =>
-        m.status === 'ACTIVE' &&
-        (m.roles ?? []).some((r: any) => r === 'PLAYER' || r.role === 'PLAYER'),
+      (m) => m.status === 'ACTIVE' && hasPlayerRole(m),
     )
 
     for (const m of teamPlayers) {
@@ -104,7 +117,6 @@ export default function CallupsTab({ match, onUpdate }: Props) {
       seen.add(m.user.id)
     }
 
-    // Convocados que no están en el equipo (jugadores de otros equipos del club)
     for (const c of match.callups) {
       if (seen.has(c.userId)) continue
       rows.push({
@@ -148,10 +160,6 @@ export default function CallupsTab({ match, onUpdate }: Props) {
       setSaving(null)
     }
   }
-
-  // ============================================
-  // BULK — Marcar todos para una columna
-  // ============================================
 
   const setAllForColumn = async (
     key: keyof CallupFlags,
@@ -200,7 +208,6 @@ export default function CallupsTab({ match, onUpdate }: Props) {
     if (selectedPlayers.length === 0) return
     setSaving('adding')
     try {
-      // ✅ Body usa userIds en lugar de playerIds
       await api.post(`/matches/${match.id}/callups`, { userIds: selectedPlayers })
       setSelectedPlayers([])
       setShowAddModal(false)

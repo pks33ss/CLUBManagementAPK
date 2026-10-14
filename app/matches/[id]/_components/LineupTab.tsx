@@ -26,7 +26,6 @@ interface Lineup {
 
 const QUARTERS = ['Q1', 'Q2', 'Q3', 'Q4', 'OT'] as const
 
-// ✅ Ahora trabaja con memberships (role PLAYER)
 interface EligiblePlayer {
   userId: string
   name: string
@@ -36,9 +35,23 @@ interface EligiblePlayer {
   isGhost: boolean
 }
 
+// Filtro de rol que acepta todos los formatos del backend.
+const isPlayerRole = (r: any): boolean => {
+  if (typeof r === 'string') return r === 'PLAYER'
+  if (r?.roleRef?.name === 'PLAYER') return true
+  if (r?.name === 'PLAYER') return true
+  if (r?.role === 'PLAYER') return true
+  return false
+}
+
+const hasPlayerRole = (m: any): boolean => {
+  if (m?.role === 'PLAYER') return true
+  return (m?.roles ?? []).some(isPlayerRole)
+}
+
 const getEligiblePlayers = (match: MatchDetail): EligiblePlayer[] => {
   const teamPlayers: EligiblePlayer[] = (match.team.memberships ?? [])
-    .filter((m) => m.role === 'PLAYER' && m.status === 'ACTIVE')
+    .filter((m) => m.status === 'ACTIVE' && hasPlayerRole(m))
     .map((m) => ({
       userId: m.user.id,
       name: m.user.name,

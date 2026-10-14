@@ -20,7 +20,6 @@ import type { Team } from '@/types/team'
 import { applyTheme, resetTheme } from '@/lib/theme'
 
 interface ActiveTeamContextType {
-  // Equipo activo
   activeTeam: Team | null
   favorites: Team[]
   allTeams: Team[]
@@ -29,16 +28,13 @@ interface ActiveTeamContextType {
   removeFavorite: (teamId: string) => Promise<void>
   isFavorite: (teamId: string) => boolean
 
-  // Datos del usuario
   userMe: UserMe | null
   memberships: Membership[]
   tutors: TutorRelationship[]
   players: TutorRelationship[]
 
-  // Estado
   loading: boolean
 
-  // Recarga
   refresh: () => Promise<void>
   refreshUserData: () => Promise<void>
 }
@@ -62,24 +58,21 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const loadingRef = useRef(false)
 
-  // ✅ Ref para leer el activeTeam actual desde dentro de loadTeamsFromMemberships
   const activeTeamRef = useRef<Team | null>(null)
   useEffect(() => {
     activeTeamRef.current = activeTeam
   }, [activeTeam])
 
   // ============================================
-  // THEME — aplicar colores del club/equipo activo
+  // THEME
   // ============================================
 
   useEffect(() => {
-      
     if (!activeTeam) {
       resetTheme()
       return
     }
 
-    // Prioridad: equipo → club → default
     const primary =
       activeTeam.primaryColor ?? activeTeam.club?.primaryColor ?? null
     const secondary =
@@ -88,7 +81,6 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
     applyTheme({ primary, secondary })
   }, [activeTeam])
 
-  // Reset al desmontar el provider
   useEffect(() => {
     return () => {
       resetTheme()
@@ -99,9 +91,6 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
   // HELPERS
   // ============================================
 
-  /**
-   * Convierte un Membership (con team embebido) en un Team del contexto.
-   */
   const membershipToTeam = (m: Membership): Team => ({
     id: m.team!.id,
     name: m.team!.name,
@@ -148,16 +137,14 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
   }
 
   // ============================================
-  // CARGA DE EQUIPOS (desde memberships)
+  // CARGA DE EQUIPOS
   // ============================================
 
   const loadTeamsFromMemberships = async (memberships: Membership[]) => {
-    // 1) Solo memberships ACTIVE o PENDING
     const relevant = memberships.filter(
       (m) => m.status === 'ACTIVE' || m.status === 'PENDING',
     )
 
-    // 2) Convertir a Team y deduplicar por id
     const teamsMap = new Map<string, Team>()
     for (const m of relevant) {
       if (!m.team) continue
@@ -168,7 +155,6 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
     const teams = Array.from(teamsMap.values())
     setAllTeams(teams)
 
-    // 3) Favoritos (endpoint separado)
     let favTeams: Team[] = []
     try {
       const favRes = await api.get('/favorites')
@@ -203,9 +189,11 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
       setFavorites([])
     }
 
-    // 4) Resolver el equipo activo
+    // Resolución del equipo activo.
     const savedActiveId =
-      typeof window !== 'undefined' ? localStorage.getItem('activeTeamId') : null
+      typeof window !== 'undefined'
+        ? localStorage.getItem('activeTeamId')
+        : null
 
     let foundActive: Team | null = null
 
@@ -215,12 +203,10 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
         teams.find((t) => t.id === savedActiveId) ||
         null
 
-      // ✅ Si el savedActiveId no está en nuestras listas (favoritos + memberships),
-      // pero es el que ya tenemos activo en memoria, lo respetamos.
-      if (!foundActive) {
-        if (activeTeamRef.current?.id === savedActiveId) {
-          return
-        }
+      // Si no está en nuestras listas pero es el que ya teníamos en memoria,
+      // lo respetamos (puede ser un equipo aún no cargado).
+      if (!foundActive && activeTeamRef.current?.id === savedActiveId) {
+        return
       }
     }
 
@@ -236,6 +222,13 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
       setActiveTeamState(foundActive)
       if (typeof window !== 'undefined') {
         localStorage.setItem('activeTeamId', foundActive.id)
+      }
+    } else {
+      // No hay ningún equipo válido: limpiamos.
+      setActiveTeamState(null)
+      activeTeamRef.current = null
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('activeTeamId')
       }
     }
   }

@@ -57,11 +57,21 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   }, [pathname])
 
   const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('refreshToken')
-    localStorage.removeItem('user')
-    localStorage.removeItem('activeTeamId')
-    router.push('/login')
+    try {
+      localStorage.removeItem('token')
+      localStorage.removeItem('refreshToken')
+      localStorage.removeItem('user')
+      localStorage.removeItem('activeTeamId')
+    } catch (e) {
+      console.error('Error limpiando localStorage:', e)
+    }
+    // Forzamos recarga completa para que los Providers se reinicien
+    // y no queden cachés residuales del usuario anterior.
+    if (typeof window !== 'undefined') {
+      window.location.href = '/login'
+    } else {
+      router.push('/login')
+    }
   }
 
   const linkClass = (href: string, base = 'transition') => {
@@ -122,7 +132,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                   className="flex items-center gap-2 min-w-0 rounded-lg hover:bg-surface-elevated transition p-1 -m-1"
                   title={`Ir al equipo ${activeTeam.name}`}
                 >
-                                    {(activeTeam.logo ?? activeTeam.club?.logo) ? (
+                  {(activeTeam.logo ?? activeTeam.club?.logo) ? (
                     <img
                       src={activeTeam.logo ?? activeTeam.club?.logo ?? ''}
                       alt={activeTeam.name}
@@ -239,10 +249,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
       {/* CONTENIDO */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">{children}</main>
-            {/* Registro del Service Worker (PWA) */}
-      <RegisterServiceWorker />
 
-      {/* Popup de instalación en móvil */}
+      <RegisterServiceWorker />
       <InstallPrompt />
 
       {/* SIDEBAR */}

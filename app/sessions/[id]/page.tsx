@@ -29,10 +29,10 @@ interface SessionDetail {
     }
     memberships: {
       id: string
-      role: string
       status: string
       jerseyNumber: number | null
       position: string | null
+      roles: { roleRef: { name: string } | null }[]
       user: {
         id: string
         name: string
@@ -73,12 +73,12 @@ interface SessionDetail {
       isGhost: boolean
     }
   }[]
-  createdBy: {
+  createdBy?: {
     id: string
     name: string
     lastName: string
     email: string
-  }
+  } | null
 }
 
 interface PlayerAttendance {
@@ -151,7 +151,6 @@ export default function SessionDetail() {
   const [editingShowTacticalBoard, setEditingShowTacticalBoard] = useState(false)
   const editingFileInputRef = useRef<HTMLInputElement>(null)
 
-  // ✅ NUEVO: array de imágenes existentes en el ejercicio que se edita
   const [editingExistingImages, setEditingExistingImages] = useState<ExerciseMedia[]>([])
 
   const [showLibraryPicker, setShowLibraryPicker] = useState(false)
@@ -172,10 +171,12 @@ export default function SessionDetail() {
       const response = await api.get(`/sessions/${sessionId}`)
       setSession(response.data)
 
+      // El backend devuelve `roles: [{ roleRef: { name } }]`.
+      // Filtramos los miembros cuyo rol incluya 'PLAYER'.
       const memberships = (response.data.team.memberships || []).filter(
         (m: any) =>
           m.status === 'ACTIVE' &&
-          (m.roles ?? []).some((r: any) => r === 'PLAYER' || r.role === 'PLAYER'),
+          (m.roles ?? []).some((r: any) => r?.roleRef?.name === 'PLAYER'),
       )
 
       const playersList = memberships.map((m: any) => {
@@ -457,13 +458,11 @@ export default function SessionDetail() {
       }))
     setEditingLinks(existingLinks)
 
-    // ✅ NUEVO: guardar todas las imágenes existentes
     const existingImages = (exercise.media || []).filter(
       (m: any) => m.type === 'IMAGE',
     )
     setEditingExistingImages(existingImages)
 
-    // La imagen que se muestra por defecto es la primera IMAGE existente
     const firstImage = existingImages[0]
     setEditingBoardImage(firstImage?.url || null)
 
@@ -536,14 +535,12 @@ export default function SessionDetail() {
     if (editingFileInputRef.current) editingFileInputRef.current.value = ''
   }
 
-  // ✅ NUEVO: borrar una imagen concreta existente
   const removeExistingImage = async (image: ExerciseMedia) => {
     if (!confirm('¿Estás seguro de que quieres eliminar esta imagen?')) return
 
     try {
       await api.delete(`/sessions/media/${image.id}`)
       setEditingExistingImages((prev) => prev.filter((m) => m.id !== image.id))
-      // Si era la que se mostraba como "board image", limpiarla
       if (editingBoardImage === image.url) {
         setEditingBoardImage(null)
       }
@@ -560,7 +557,6 @@ export default function SessionDetail() {
     setUpdatingExercise(true)
 
     try {
-      // 1. Actualizar campos básicos
       await api.put(`/sessions/exercises/${editingExercise.id}`, {
         name: editingExercise.name,
         description: editingExercise.description || undefined,
@@ -569,7 +565,6 @@ export default function SessionDetail() {
         difficulty: editingExercise.difficulty || undefined,
       })
 
-      // 2. Subir pizarra nueva (si es data URL, es nueva)
       const isNewBoardImage =
         editingBoardImage && editingBoardImage.startsWith('data:')
       if (isNewBoardImage) {
@@ -583,7 +578,6 @@ export default function SessionDetail() {
         }
       }
 
-      // 3. Subir imagen nueva desde dispositivo
       if (editingUploadedImage) {
         try {
           await api.post(`/sessions/exercises/${editingExercise.id}/upload-image`, {
@@ -595,7 +589,6 @@ export default function SessionDetail() {
         }
       }
 
-      // 4. Subir links nuevos
       const newLinks = editingLinks.filter((l) => l.isNew)
       for (const link of newLinks) {
         try {
@@ -608,7 +601,6 @@ export default function SessionDetail() {
         }
       }
 
-      // 5. Si hay imagen nueva, borrar TODAS las imágenes antiguas que queden
       const hasNewImage = !!(isNewBoardImage || editingUploadedImage)
       if (hasNewImage && editingExistingImages.length > 0) {
         for (const img of editingExistingImages) {
@@ -620,7 +612,6 @@ export default function SessionDetail() {
         }
       }
 
-      // Resetear estados
       setShowEditExerciseModal(false)
       setEditingExercise(null)
       setEditingLinks([])
@@ -790,13 +781,16 @@ export default function SessionDetail() {
   const sortedExercises = [...(session.exercises || [])].sort((a, b) => (a.order || 0) - (b.order || 0))
   const sportConfig = getSportConfig(session.team?.sport)
 
+  const createdByLabel = session.createdBy
+    ? `${session.createdBy.name ?? ''} ${session.createdBy.lastName ?? ''}`.trim()
+    : ''
+
   return (
     <div>
       <Link href="/sessions" className="text-brand-primary hover:underline inline-block mb-6">
         ← Volver a entrenamientos
       </Link>
 
-      {/* INFORMACIÓN DEL ENTRENAMIENTO */}
       <Card className="mb-6">
         <CardBody>
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -816,7 +810,9 @@ export default function SessionDetail() {
             <div className="flex flex-col items-end gap-2">
               <div className="text-right">
                 <p className="text-sm text-text-muted">Creado por</p>
-                <p className="font-medium text-text-primary">{session.createdBy.name} {session.createdBy.lastName}</p>
+                <p className="font-medium text-text-primary">
+                  {createdByLabel || '—'}
+                </p>
               </div>
               <div className="flex gap-2">
                 <Button size="sm" onClick={openEditModal}>
@@ -858,7 +854,6 @@ export default function SessionDetail() {
         </CardBody>
       </Card>
 
-      {/* EJERCICIOS */}
       <Card className="mb-6">
         <CardBody>
           <div className="flex justify-between items-center mb-4">
@@ -1002,7 +997,6 @@ export default function SessionDetail() {
         </CardBody>
       </Card>
 
-      {/* CONTROL DE ASISTENCIA */}
       <Card>
         <CardBody>
           <h2 className="text-xl font-semibold text-text-primary mb-2">
@@ -1116,7 +1110,6 @@ export default function SessionDetail() {
         </CardBody>
       </Card>
 
-      {/* MODAL DE EDITAR ENTRENAMIENTO */}
       <Modal
         isOpen={showEditModal}
         onClose={() => setShowEditModal(false)}
@@ -1195,7 +1188,6 @@ export default function SessionDetail() {
         </form>
       </Modal>
 
-      {/* MODAL DE EDITAR EJERCICIO */}
       <Modal
         isOpen={showEditExerciseModal && !!editingExercise}
         onClose={() => {
@@ -1279,7 +1271,6 @@ export default function SessionDetail() {
               <option value="DIFÍCIL">Difícil</option>
             </Select>
 
-            {/* Links */}
             <div className="border-t border-border-subtle pt-4">
               <label className="block text-sm font-medium text-text-secondary mb-2">
                 🔗 Links del ejercicio
@@ -1333,7 +1324,6 @@ export default function SessionDetail() {
               </div>
             </div>
 
-            {/* Imágenes actuales (solo si NO hay imagen nueva pendiente) */}
             {editingExistingImages.length > 0 &&
               !editingBoardImage?.startsWith('data:') &&
               !editingUploadedImage && (
@@ -1367,7 +1357,6 @@ export default function SessionDetail() {
                 </div>
               )}
 
-            {/* Pizarra nueva */}
             {editingBoardImage && editingBoardImage.startsWith('data:') && (
               <div className="border-t border-border-subtle pt-4">
                 <label className="block text-sm font-medium text-text-secondary mb-2">
@@ -1391,7 +1380,6 @@ export default function SessionDetail() {
               </div>
             )}
 
-            {/* Pizarra + Imagen */}
             <div className="border-t border-border-subtle pt-4 space-y-3">
               <Button
                 type="button"
@@ -1467,7 +1455,6 @@ export default function SessionDetail() {
         )}
       </Modal>
 
-      {/* MODAL DE AÑADIR EJERCICIO */}
       <Modal
         isOpen={showExerciseModal}
         onClose={() => setShowExerciseModal(false)}
@@ -1690,7 +1677,6 @@ export default function SessionDetail() {
         </form>
       </Modal>
 
-      {/* MODAL DE LA PIZARRA TÁCTICA */}
       {showTacticalBoard && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[60]">
           <div className="bg-surface border border-border-subtle rounded-xl max-w-5xl w-full p-6 max-h-[95vh] overflow-auto">
@@ -1724,7 +1710,6 @@ export default function SessionDetail() {
         </div>
       )}
 
-      {/* MODAL DE LA PIZARRA TÁCTICA (EDICIÓN) */}
       {editingShowTacticalBoard && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[70]">
           <div className="bg-surface border border-border-subtle rounded-xl max-w-5xl w-full p-6 max-h-[95vh] overflow-auto">
@@ -1758,14 +1743,12 @@ export default function SessionDetail() {
         </div>
       )}
 
-      {/* MODAL DE SELECCIÓN DE BIBLIOTECA */}
       <LibraryPicker
         isOpen={showLibraryPicker}
         onClose={() => setShowLibraryPicker(false)}
         onSelect={handleLibraryPick}
       />
 
-      {/* MODAL ELIMINAR ENTRENAMIENTO */}
       <Modal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}

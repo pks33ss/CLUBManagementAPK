@@ -19,13 +19,25 @@ const EMPTY_STATS = {
   freeThrowsMade: 0, freeThrowsAttempted: 0,
 }
 
+// Filtro de rol que acepta todos los formatos del backend.
+const isPlayerRole = (r: any): boolean => {
+  if (typeof r === 'string') return r === 'PLAYER'
+  if (r?.roleRef?.name === 'PLAYER') return true
+  if (r?.name === 'PLAYER') return true
+  if (r?.role === 'PLAYER') return true
+  return false
+}
+
+const hasPlayerRole = (m: any): boolean => {
+  if (m?.role === 'PLAYER') return true
+  return (m?.roles ?? []).some(isPlayerRole)
+}
+
 export default function StatsTab({ match, onUpdate }: Props) {
-  // ✅ Ahora iteramos memberships con rol PLAYER
   const teamPlayers = (match.team.memberships ?? []).filter(
-    (m) => m.role === 'PLAYER' && m.status === 'ACTIVE',
+    (m) => m.status === 'ACTIVE' && hasPlayerRole(m),
   )
 
-  // Si hay convocatorias, solo mostramos los convocados; sino, todo el equipo
   const eligiblePlayers =
     match.callups.length > 0
       ? teamPlayers.filter((m) =>
@@ -39,7 +51,6 @@ export default function StatsTab({ match, onUpdate }: Props) {
   const [form, setForm] = useState<any>(EMPTY_STATS)
   const [saving, setSaving] = useState(false)
 
-  // ✅ Ahora el mapa de stats usa userId
   const statsMap = new Map(match.playerStats.map((s: any) => [s.userId, s]))
 
   const startEdit = (userId: string) => {
@@ -51,7 +62,6 @@ export default function StatsTab({ match, onUpdate }: Props) {
   const handleSave = async (userId: string) => {
     setSaving(true)
     try {
-      // Quitamos los campos que vienen del backend pero que no queremos enviar
       const {
         id,
         matchId,
@@ -61,7 +71,6 @@ export default function StatsTab({ match, onUpdate }: Props) {
         updatedAt,
         ...stats
       } = form
-      // ✅ URL usa userId
       await api.post(`/matches/${match.id}/stats/${userId}`, stats)
       setEditing(null)
       onUpdate()

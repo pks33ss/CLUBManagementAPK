@@ -1,5 +1,6 @@
 // frontend-web/lib/permissions/can.tsx
 // Lote 8.6 — Componente para ocultar children según permisos.
+// Lote 8.8 — Sin cambios funcionales, solo formato.
 
 'use client'
 
@@ -31,7 +32,6 @@ export function Can({
   children,
 }: CanProps) {
   const allowed = usePermission(resource, action, { clubId, teamId })
-  
- 
+
   return allowed ? <>{children}</> : <>{fallback}</>
 }
