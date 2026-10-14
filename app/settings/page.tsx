@@ -3,12 +3,11 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
-import { usePermissions } from '@/lib/usePermissions'
 import ProfileAccountTab from './_components/ProfileAccountTab'
 import ProfileNotificationsTab from './_components/ProfileNotificationsTab'
 import ProfileCustomizationTab from './_components/ProfileCustomizationTab'
 import ProfileMyNetworkTab from './_components/ProfileMyNetworkTab'
-import ProfilePermissionsTab from './_components/ProfilePermissionsTab'
+import PermissionsHubPage from './permissions/page'
 
 type Tab =
   | 'account'
@@ -21,12 +20,9 @@ export default function SettingsPage() {
   const router = useRouter()
   const {
     userMe,
-    activeTeam,
     loading,
     refreshUserData,
   } = useActiveTeam()
-
-  const perms = usePermissions(activeTeam?.id ?? null)
 
   const [activeTab, setActiveTab] = useState<Tab>('account')
 
@@ -59,6 +55,10 @@ export default function SettingsPage() {
     )
   }
 
+  // ¿Tiene el usuario algún club? (membresía con club embebido)
+  const hasAnyClub =
+    userMe.memberships?.some((m) => !!m.team?.club) ?? false
+
   // Construcción dinámica de tabs
   const tabs: { id: Tab; label: string; icon: string }[] = [
     { id: 'account',       label: 'Mi cuenta',       icon: '👤' },
@@ -67,8 +67,10 @@ export default function SettingsPage() {
     { id: 'network',       label: 'Mi red',          icon: '🧑‍🤝‍🧑' },
   ]
 
-  // Pestaña condicional: solo si hay equipo activo y permisos
-  if (activeTeam && perms.canEdit) {
+  // Pestaña condicional: solo si el usuario pertenece a algún club.
+  // La comprobación real de "es ADMIN_CLUB" se hace dentro de la
+  // pantalla de permisos (con useMyPermissions).
+  if (hasAnyClub) {
     tabs.push({
       id: 'permissions',
       label: 'Permisos',
@@ -123,7 +125,7 @@ export default function SettingsPage() {
         {activeTab === 'notifications' && <ProfileNotificationsTab />}
         {activeTab === 'customization' && <ProfileCustomizationTab />}
         {activeTab === 'network' && <ProfileMyNetworkTab />}
-        {activeTab === 'permissions' && <ProfilePermissionsTab />}
+        {activeTab === 'permissions' && <PermissionsHubPage />}
       </div>
     </div>
   )
