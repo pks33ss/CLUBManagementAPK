@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import type { Metadata, Viewport } from 'next'
 import { ClientLayout } from './client-layout'
 import { ActiveTeamProvider } from '@/lib/ActiveTeamContext'
+import { PermissionsProvider } from '@/lib/permissions/permissions-provider'
 import { Providers } from './providers'
 
 const inter = Inter({
@@ -43,7 +44,9 @@ export default function RootLayout({
       <body>
         <Providers>
           <ActiveTeamProvider>
-            <ClientLayout>{children}</ClientLayout>
+            <PermissionsProvider>
+              <ClientLayout>{children}</ClientLayout>
+            </PermissionsProvider>
           </ActiveTeamProvider>
         </Providers>
       </body>
