@@ -12,6 +12,7 @@ import InviteMemberModal from './_components/InviteMemberModal'
 import type { MembershipWithUser } from '@/types/membership'
 import { useRouter, useParams, useSearchParams } from 'next/navigation'
 import { usePermissions } from '@/lib/usePermissions'
+import { Can } from '@/lib/permissions/can'
 
 export default function TeamMembersPage() {
   const router = useRouter()
@@ -27,6 +28,11 @@ export default function TeamMembersPage() {
   const searchParams = useSearchParams()
   const action = searchParams.get('action')
 
+  // NOTA: usamos el hook viejo (por equipo) porque `MembersList` todavía
+  // necesita `addableRoles` / `removableRoles` / `canRemoveMemberWithRoles`.
+  // Los checks binarios (invitar, gestionar solicitudes) se migran a <Can>
+  // en este archivo. En un Lote 9, cuando el endpoint del club devuelva
+  // los roles por equipo, migraremos también `MembersList`.
   const perms = usePermissions(teamId)
 
   const fetchMembers = useCallback(async () => {
@@ -95,22 +101,29 @@ export default function TeamMembersPage() {
             {pendingRequests.length > 0 && ` · ${pendingRequests.length} pendientes`}
           </p>
         </div>
-        {perms.canManage && (
+
+        {/* NUEVO: gating con <Can>. Oculta el botón si el usuario no tiene
+            `member:create` para este equipo. */}
+        <Can resource="member" action="create" teamId={teamId}>
           <Button
             onClick={() => setShowInviteModal(true)}
             icon={<span className="text-xl">+</span>}
           >
             Invitar miembro
           </Button>
-        )}
+        </Can>
       </div>
 
-      {perms.canManage && pendingRequests.length > 0 && (
-        <PendingRequestsSection
-          requests={pendingRequests}
-          onUpdate={fetchMembers}
-        />
-      )}
+      {/* NUEVO: gating con <Can>. Aceptar/rechazar solicitudes es
+          `member:edit` para este equipo. */}
+      <Can resource="member" action="edit" teamId={teamId}>
+        {pendingRequests.length > 0 ? (
+          <PendingRequestsSection
+            requests={pendingRequests}
+            onUpdate={fetchMembers}
+          />
+        ) : null}
+      </Can>
 
       <MembersList
         members={activeMembers}
