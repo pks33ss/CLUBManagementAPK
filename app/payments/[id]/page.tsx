@@ -4,6 +4,7 @@ import { use, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { Button, Card, CardBody } from '@/components/ui'
+import { useActiveTeam } from '@/lib/ActiveTeamContext'
 import {
   getPaymentConcept,
   deletePaymentConcept,
@@ -21,13 +22,7 @@ import { UpdateAssignmentModal } from './_components/UpdateAssignmentModal'
 
 type FilterStatus = 'all' | 'pending' | 'overdue' | 'paid'
 
-type SortKey =
-  | 'name'
-  | 'owed'
-  | 'paid'
-  | 'remaining'
-  | 'status'
-
+type SortKey = 'name' | 'owed' | 'paid' | 'remaining' | 'status'
 type SortDir = 'asc' | 'desc'
 
 const STATUS_ORDER: Record<string, number> = {
@@ -44,6 +39,7 @@ export default function PaymentConceptDetailPage({
 }) {
   const { id } = use(params)
   const router = useRouter()
+  const { activeTeam } = useActiveTeam()
 
   const [concept, setConcept] = useState<PaymentConceptDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -59,13 +55,12 @@ export default function PaymentConceptDetailPage({
   const [editingAmountPlayer, setEditingAmountPlayer] =
     useState<PaymentConceptPlayer | null>(null)
 
-  // Ordenación
   const [sortKey, setSortKey] = useState<SortKey>('name')
   const [sortDir, setSortDir] = useState<SortDir>('asc')
 
-  // ============================================
-  // CARGA
-  // ============================================
+  // El clubId puede venir del concepto (que ya lo tiene) o del activeTeam.
+  // Usamos el del concepto si está cargado, si no el del activeTeam.
+  const clubId = concept?.clubId ?? activeTeam?.club?.id ?? null
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -103,10 +98,6 @@ export default function PaymentConceptDetailPage({
       cancelled = true
     }
   }, [id])
-
-  // ============================================
-  // ACCIONES
-  // ============================================
 
   const handleDeleteConcept = async () => {
     if (!concept) return
@@ -150,14 +141,9 @@ export default function PaymentConceptDetailPage({
     }
   }
 
-  // ============================================
-  // FILTRADO + ORDENACIÓN
-  // ============================================
-
   const filteredAndSorted = useMemo(() => {
     if (!concept) return []
 
-    // 1) Filtrar
     const filtered = concept.players.filter((p) => {
       if (filter === 'paid' && p.status !== 'PAID') return false
       if (
@@ -175,11 +161,10 @@ export default function PaymentConceptDetailPage({
       return true
     })
 
-    // 2) Ordenar
     const sorted = [...filtered].sort((a, b) => {
       let cmp = 0
       switch (sortKey) {
-                case 'name': {
+        case 'name': {
           const na = a.user.name.toLowerCase()
           const nb = b.user.name.toLowerCase()
           cmp = na.localeCompare(nb, 'es')
@@ -213,10 +198,6 @@ export default function PaymentConceptDetailPage({
     }
   }
 
-  // ============================================
-  // RENDER
-  // ============================================
-
   if (loading) {
     return (
       <div className="text-center py-12 text-text-muted">
@@ -236,9 +217,23 @@ export default function PaymentConceptDetailPage({
     )
   }
 
+  // Si no tenemos clubId (ni del concepto ni del activeTeam), no podemos
+  // gatear. En ese caso renderizamos sin gating para no romper la UI.
+  if (!clubId) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-danger mb-4">
+          No se pudo determinar el club del concepto.
+        </p>
+        <Link href="/payments" className="text-brand-primary hover:underline">
+          ← Volver a pagos
+        </Link>
+      </div>
+    )
+  }
+
   return (
     <div>
-      {/* BREADCRUMB */}
       <Link
         href="/payments"
         className="text-brand-primary hover:underline inline-block mb-4 text-sm"
@@ -246,15 +241,14 @@ export default function PaymentConceptDetailPage({
         ← Volver a pagos
       </Link>
 
-      {/* CABECERA */}
       <ConceptHeader
         concept={concept}
+        clubId={clubId}
         onDelete={handleDeleteConcept}
         onAssign={() => setAssignModalOpen(true)}
         onEdit={() => setEditModalOpen(true)}
       />
 
-      {/* FILTROS */}
       <Card className="mb-4">
         <CardBody>
           <div className="flex flex-wrap items-center gap-3">
@@ -296,7 +290,6 @@ export default function PaymentConceptDetailPage({
         </CardBody>
       </Card>
 
-      {/* TABLA DE JUGADORES */}
       {filteredAndSorted.length === 0 ? (
         <div className="text-center py-12 bg-surface rounded-xl shadow border border-border-subtle">
           <p className="text-text-secondary">
@@ -359,6 +352,7 @@ export default function PaymentConceptDetailPage({
                   <PlayerPaymentRow
                     key={player.userId}
                     player={player}
+                    clubId={clubId}
                     onRegister={() => setSelectedPlayer(player)}
                     onDeletePayment={handleDeletePayment}
                     onUnassign={() => handleUnassign(player.userId)}
@@ -371,7 +365,6 @@ export default function PaymentConceptDetailPage({
         </div>
       )}
 
-      {/* MODAL REGISTRAR PAGO */}
       {selectedPlayer && (
         <RegisterPaymentModal
           isOpen={!!selectedPlayer}
@@ -385,7 +378,6 @@ export default function PaymentConceptDetailPage({
         />
       )}
 
-      {/* MODAL ASIGNAR JUGADORES */}
       {assignModalOpen && (
         <AssignPlayersModal
           isOpen={assignModalOpen}
@@ -400,7 +392,6 @@ export default function PaymentConceptDetailPage({
         />
       )}
 
-      {/* MODAL EDITAR CONCEPTO */}
       {editModalOpen && (
         <EditConceptModal
           isOpen={editModalOpen}
@@ -410,7 +401,6 @@ export default function PaymentConceptDetailPage({
         />
       )}
 
-      {/* MODAL EDITAR IMPORTE POR JUGADOR */}
       {editingAmountPlayer && (
         <UpdateAssignmentModal
           isOpen={!!editingAmountPlayer}
@@ -427,10 +417,6 @@ export default function PaymentConceptDetailPage({
     </div>
   )
 }
-
-// ============================================
-// SUBCOMPONENTES
-// ============================================
 
 function FilterButton({
   active,

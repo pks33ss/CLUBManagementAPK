@@ -17,9 +17,12 @@ import {
   slugify,
   todayForFilename,
 } from '@/lib/csvExport'
+import { Can } from '@/lib/permissions/can'
 
 interface Props {
   concept: PaymentConceptDetail
+  /** Club al que pertenece el concepto. Necesario para el gating. */
+  clubId: string
   onDelete: () => void
   onEdit?: () => void
   onAssign?: () => void
@@ -27,6 +30,7 @@ interface Props {
 
 export function ConceptHeader({
   concept,
+  clubId,
   onDelete,
   onEdit,
   onAssign,
@@ -151,14 +155,18 @@ export function ConceptHeader({
 
           <div className="flex gap-2 flex-wrap">
             {onAssign && (
-              <Button variant="secondary" onClick={onAssign}>
-                👥 Asignar
-              </Button>
+              <Can clubId={clubId} resource="payment" action="edit">
+                <Button variant="secondary" onClick={onAssign}>
+                  👥 Asignar
+                </Button>
+              </Can>
             )}
             {onEdit && (
-              <Button variant="secondary" onClick={onEdit}>
-                ✏️ Editar
-              </Button>
+              <Can clubId={clubId} resource="payment" action="edit">
+                <Button variant="secondary" onClick={onEdit}>
+                  ✏️ Editar
+                </Button>
+              </Can>
             )}
             <Button variant="secondary" onClick={handleExportSummary}>
               📥 Exportar resumen
@@ -166,9 +174,11 @@ export function ConceptHeader({
             <Button variant="secondary" onClick={handleExportPayments}>
               📥 Exportar pagos
             </Button>
-            <Button variant="secondary" onClick={onDelete}>
-              🗑️ Eliminar
-            </Button>
+            <Can clubId={clubId} resource="payment" action="delete">
+              <Button variant="secondary" onClick={onDelete}>
+                🗑️ Eliminar
+              </Button>
+            </Can>
           </div>
         </div>
 

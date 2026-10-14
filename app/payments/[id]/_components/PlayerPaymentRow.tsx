@@ -11,9 +11,12 @@ import {
 } from '@/lib/payments'
 
 import { downloadPaymentReceipt } from '@/lib/payments'
+import { Can } from '@/lib/permissions/can'
 
 interface Props {
   player: PaymentConceptPlayer
+  /** Club al que pertenece el concepto. Necesario para el gating. */
+  clubId: string
   onRegister: () => void
   onDeletePayment: (paymentId: string) => Promise<void>
   onUnassign: () => void
@@ -22,6 +25,7 @@ interface Props {
 
 export function PlayerPaymentRow({
   player,
+  clubId,
   onRegister,
   onDeletePayment,
   onUnassign,
@@ -35,16 +39,16 @@ export function PlayerPaymentRow({
   const [downloadingId, setDownloadingId] = useState<string | null>(null)
 
   const handleDownloadReceipt = async (paymentId: string) => {
-  setDownloadingId(paymentId)
-  try {
-    await downloadPaymentReceipt(paymentId)
-  } catch (e: any) {
-    console.error('Error descargando recibo:', e)
-    alert(e?.message || 'Error al descargar el recibo')
-  } finally {
-    setDownloadingId(null)
+    setDownloadingId(paymentId)
+    try {
+      await downloadPaymentReceipt(paymentId)
+    } catch (e: any) {
+      console.error('Error descargando recibo:', e)
+      alert(e?.message || 'Error al descargar el recibo')
+    } finally {
+      setDownloadingId(null)
+    }
   }
-}
 
   const handleDelete = async (paymentId: string) => {
     if (!confirm('¿Eliminar este pago?')) return
@@ -91,7 +95,7 @@ export function PlayerPaymentRow({
                 {initials}
               </div>
             )}
-                        <div className="min-w-0">
+            <div className="min-w-0">
               <p className="font-medium text-text-primary truncate flex items-center gap-1">
                 <span className="truncate">
                   {player.user.name} {player.user.lastName}
@@ -119,19 +123,21 @@ export function PlayerPaymentRow({
           </div>
         </td>
 
-                {/* DEBE */}
+        {/* DEBE */}
         <td className="py-3 px-3 text-right text-text-primary">
           <div className="flex items-center justify-end gap-1">
             <span>{formatCurrency(player.amountOwed)}</span>
             {player.payments.length === 0 && player.amountOwed > 0 && (
-              <button
-                type="button"
-                onClick={onEditAmount}
-                className="text-xs text-text-muted hover:text-brand-primary p-0.5"
-                title="Ajustar importe"
-              >
-                ✏️
-              </button>
+              <Can clubId={clubId} resource="payment" action="edit">
+                <button
+                  type="button"
+                  onClick={onEditAmount}
+                  className="text-xs text-text-muted hover:text-brand-primary p-0.5"
+                  title="Ajustar importe"
+                >
+                  ✏️
+                </button>
+              </Can>
             )}
           </div>
         </td>
@@ -166,26 +172,30 @@ export function PlayerPaymentRow({
                 {expanded ? '▲' : '▼'}
               </button>
             )}
-            <Button size="sm" onClick={onRegister}>
-              {player.status === 'PAID' ? '+ Añadir' : '💰 Pagar'}
-            </Button>
-            <button
-              type="button"
-              onClick={handleUnassign}
-              disabled={hasPayments || unassigning}
-              className={`p-1.5 rounded-lg transition ${
-                hasPayments
-                  ? 'text-text-muted/40 cursor-not-allowed'
-                  : 'text-danger/70 hover:text-danger hover:bg-danger/10'
-              }`}
-              title={
-                hasPayments
-                  ? 'No se puede desasignar: tiene pagos registrados'
-                  : 'Desasignar del concepto'
-              }
-            >
-              🚫
-            </button>
+            <Can clubId={clubId} resource="payment" action="create">
+              <Button size="sm" onClick={onRegister}>
+                {player.status === 'PAID' ? '+ Añadir' : '💰 Pagar'}
+              </Button>
+            </Can>
+            <Can clubId={clubId} resource="payment" action="edit">
+              <button
+                type="button"
+                onClick={handleUnassign}
+                disabled={hasPayments || unassigning}
+                className={`p-1.5 rounded-lg transition ${
+                  hasPayments
+                    ? 'text-text-muted/40 cursor-not-allowed'
+                    : 'text-danger/70 hover:text-danger hover:bg-danger/10'
+                }`}
+                title={
+                  hasPayments
+                    ? 'No se puede desasignar: tiene pagos registrados'
+                    : 'Desasignar del concepto'
+                }
+              >
+                🚫
+              </button>
+            </Can>
           </div>
         </td>
       </tr>
@@ -229,7 +239,7 @@ export function PlayerPaymentRow({
                       </a>
                     )}
                   </div>
-                                    <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex items-center gap-1 shrink-0">
                     <button
                       type="button"
                       onClick={() => handleDownloadReceipt(p.id)}
@@ -237,17 +247,19 @@ export function PlayerPaymentRow({
                       className="p-1 rounded text-brand-primary/70 hover:text-brand-primary hover:bg-brand-primary/10 transition disabled:opacity-50"
                       title="Descargar recibo PDF"
                     >
-                      {downloadingId === p.id ? '⏳' : '📄'}
+                      {downloadingId === p.id ? '⋯' : '📄'}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(p.id)}
-                      disabled={deletingId === p.id}
-                      className="p-1 rounded text-danger/70 hover:text-danger hover:bg-danger/10 transition disabled:opacity-50"
-                      title="Eliminar pago"
-                    >
-                      🗑️
-                    </button>
+                    <Can clubId={clubId} resource="payment" action="delete">
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(p.id)}
+                        disabled={deletingId === p.id}
+                        className="p-1 rounded text-danger/70 hover:text-danger hover:bg-danger/10 transition disabled:opacity-50"
+                        title="Eliminar pago"
+                      >
+                        🗑️
+                      </button>
+                    </Can>
                   </div>
                 </div>
               ))}
