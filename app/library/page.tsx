@@ -9,15 +9,13 @@ import {
   type LibraryExercise,
 } from '@/lib/library'
 import { Button, Card, CardBody, Badge, Input, Select } from '@/components/ui'
+import { LibraryExerciseDetailModal } from './_components/LibraryExerciseDetailModal'
 
 // ============================================
 // CONSTANTES
 // ============================================
 
 const MAX_LIBRARY = 500
-
-const CATEGORY_OPTIONS = ['CALENTAMIENTO', 'TÉCNICA', 'TÁCTICA', 'FÍSICO']
-const DIFFICULTY_OPTIONS = ['FÁCIL', 'MEDIO', 'DIFÍCIL']
 
 const CATEGORY_LABELS: Record<string, string> = {
   CALENTAMIENTO: 'Calentamiento',
@@ -105,9 +103,10 @@ export default function LibraryPage() {
   const [groupBy, setGroupBy] = useState<GroupBy>('none')
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
-  // ============================================
-  // CARGA INICIAL
-  // ============================================
+  // ✅ Nuevo: ejercicio a mostrar en el modal de detalle
+  const [detailExercise, setDetailExercise] = useState<LibraryExercise | null>(
+    null,
+  )
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -131,10 +130,6 @@ export default function LibraryPage() {
       setLoading(false)
     }
   }
-
-  // ============================================
-  // BORRADO
-  // ============================================
 
   const handleDelete = async (exercise: LibraryExercise) => {
     if (
@@ -242,7 +237,6 @@ export default function LibraryPage() {
     })
 
     entries.sort((a, b) => {
-      // Los "sin X" siempre al final
       const aIsSpecial = a.key.startsWith('__')
       const bIsSpecial = b.key.startsWith('__')
       if (aIsSpecial && !bIsSpecial) return 1
@@ -421,6 +415,7 @@ export default function LibraryPage() {
                   <ExerciseCard
                     key={exercise.id}
                     exercise={exercise}
+                    onView={() => setDetailExercise(exercise)}
                     onDelete={() => handleDelete(exercise)}
                     deleting={deletingId === exercise.id}
                   />
@@ -430,6 +425,12 @@ export default function LibraryPage() {
           ))}
         </div>
       )}
+
+      {/* MODAL DE DETALLE */}
+      <LibraryExerciseDetailModal
+        exercise={detailExercise}
+        onClose={() => setDetailExercise(null)}
+      />
     </div>
   )
 }
@@ -440,10 +441,12 @@ export default function LibraryPage() {
 
 function ExerciseCard({
   exercise,
+  onView,
   onDelete,
   deleting,
 }: {
   exercise: LibraryExercise
+  onView: () => void
   onDelete: () => void
   deleting: boolean
 }) {
@@ -452,7 +455,6 @@ function ExerciseCard({
 
   return (
     <div className="bg-surface-elevated rounded-lg border border-border-subtle hover:border-brand-primary/50 transition flex flex-col overflow-hidden">
-      {/* PREVIEW */}
       <div className="h-32 bg-surface flex items-center justify-center overflow-hidden border-b border-border-subtle">
         {imageMedia ? (
           <img
@@ -465,7 +467,6 @@ function ExerciseCard({
         )}
       </div>
 
-      {/* CONTENIDO */}
       <div className="p-4 flex-1 flex flex-col">
         <h3 className="font-semibold text-text-primary mb-2 line-clamp-2">
           {exercise.name}
@@ -511,6 +512,14 @@ function ExerciseCard({
             📎 {totalMedia} {totalMedia === 1 ? 'recurso' : 'recursos'}
           </span>
           <div className="flex gap-1">
+            <button
+              type="button"
+              onClick={onView}
+              className="p-2 rounded-lg text-text-secondary hover:text-brand-primary hover:bg-brand-primary/10 transition"
+              title="Ver detalle"
+            >
+              👁️
+            </button>
             <Link
               href={`/library/${exercise.id}/edit`}
               className="p-2 rounded-lg text-brand-primary hover:bg-brand-primary/10 transition"

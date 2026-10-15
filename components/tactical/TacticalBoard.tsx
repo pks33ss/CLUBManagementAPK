@@ -47,17 +47,14 @@ export default function TacticalBoard({
   // FONDO — LÓGICA DE PRIORIDAD
   // ============================================
 
-  // Modo actual (persistido en el perfil del user o el default)
   const [mode, setMode] = useState<TacticalBackgroundMode>(
     userBackground?.mode ?? 'HALF',
   )
 
-  // Override temporal (solo para esta pizarra, no persiste)
   const [localBackgroundUrl, setLocalBackgroundUrl] = useState<string | null>(
     null,
   )
 
-  // Sincronizar modo si el user cambia su preferencia desde fuera
   useEffect(() => {
     if (userBackground?.mode && userBackground.mode !== mode) {
       setMode(userBackground.mode)
@@ -65,16 +62,13 @@ export default function TacticalBoard({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userBackground?.mode])
 
-  // Resetear override local cuando cambia el modo
   useEffect(() => {
     setLocalBackgroundUrl(null)
   }, [mode])
 
-  // URL personalizada del modo actual
   const userUrlForMode =
     mode === 'FULL' ? userBackground?.urlFull : userBackground?.urlHalf
 
-  // URL final: override local > personalizado del modo > deporte por defecto
   const finalBackgroundUrl = useMemo(() => {
     if (localBackgroundUrl) return localBackgroundUrl
     if (userUrlForMode) return userUrlForMode
@@ -87,10 +81,8 @@ export default function TacticalBoard({
     'anonymous',
   )
 
-  // Aspect ratio del canvas
   const canvasHeight = mode === 'FULL' ? CANVAS_FULL_HEIGHT : CANVAS_SIZE
 
-  // Modal de fondo
   const [bgPickerOpen, setBgPickerOpen] = useState(false)
 
   // ============================================
@@ -107,7 +99,6 @@ export default function TacticalBoard({
   const [currentItem, setCurrentItem] = useState<DrawableItem | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  // ── Modal de texto (crear / editar) ──
   const [textModal, setTextModal] = useState<{
     mode: 'create' | 'edit'
     itemId?: string
@@ -127,26 +118,67 @@ export default function TacticalBoard({
   // ============================================
   // RESPONSIVE
   // ============================================
+  // - Mide el contenedor con getBoundingClientRect para evitar 0 en el
+  //   primer render y usar el ancho real (incluyendo padding del padre).
+  // - Usa ResizeObserver para responder a cambios de layout (rotación,
+  //   apertura/cierre de barras del navegador móvil, sidebar, etc.).
+  // - Reserva altura en función del viewport real (visualViewport si está).
+  // - Nunca supera el ancho del contenedor.
 
   useEffect(() => {
-    const update = () => {
-      if (!containerRef.current) return
-      const w = containerRef.current.clientWidth
-      const availableHeight = window.innerHeight - 260
+    const el = containerRef.current
+    if (!el) return
+
+    const compute = () => {
+      const rect = el.getBoundingClientRect()
+      const w = Math.max(0, rect.width - 24) // 24px de padding (p-3)
+
+      const vh =
+        typeof window !== 'undefined' && window.visualViewport
+          ? window.visualViewport.height
+          : window.innerHeight
+
+      // Reserva para header de app + toolbar de la pizarra + márgenes.
+      // En móvil el header + toolbar ocupan ~320px; en desktop ~260px.
+      const reserved = w < 640 ? 320 : 260
+      const availableHeight = Math.max(200, vh - reserved)
 
       const ratio = canvasHeight / CANVAS_SIZE
       const maxByWidth = w
       const maxByHeight = availableHeight / ratio
-      const size = Math.min(maxByWidth, Math.max(300, maxByHeight), 900)
+
+      const size = Math.min(
+        Math.max(180, maxByWidth), // nunca menos de 180
+        Math.max(180, maxByHeight),
+        900,
+      )
 
       setBoardSize({
-        width: size,
-        height: size * ratio,
+        width: Math.round(size),
+        height: Math.round(size * ratio),
       })
     }
-    update()
-    window.addEventListener('resize', update)
-    return () => window.removeEventListener('resize', update)
+
+    // Primer cálculo tras el primer paint.
+    const raf = requestAnimationFrame(compute)
+
+    // Recalcula en cualquier cambio de tamaño del contenedor.
+    const ro = new ResizeObserver(() => {
+      // Pequeño debounce para no recalcular 60 veces por segundo.
+      requestAnimationFrame(compute)
+    })
+    ro.observe(el)
+
+    // Fallback: también escuchamos resize de la ventana.
+    window.addEventListener('resize', compute)
+    window.addEventListener('orientationchange', compute)
+
+    return () => {
+      cancelAnimationFrame(raf)
+      ro.disconnect()
+      window.removeEventListener('resize', compute)
+      window.removeEventListener('orientationchange', compute)
+    }
   }, [canvasHeight])
 
   // ============================================
@@ -567,10 +599,8 @@ export default function TacticalBoard({
     persist: boolean,
   ) => {
     if (persist) {
-      // Persiste en el perfil del user (el padre actualizará userBackground)
       onBackgroundChange?.(url, targetMode)
     } else {
-      // Solo para esta pizarra (y solo si estamos editando el modo actual)
       if (targetMode === mode) {
         setLocalBackgroundUrl(url)
       }
@@ -745,7 +775,7 @@ export default function TacticalBoard({
   // ============================================
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-3 min-w-0 max-w-full">
       <Toolbar
         tool={tool}
         onToolChange={setTool}
@@ -771,10 +801,10 @@ export default function TacticalBoard({
 
       <div
         ref={containerRef}
-        className="bg-surface border border-border-subtle rounded-xl p-3 flex justify-center"
+        className="bg-surface border border-border-subtle rounded-xl p-3 flex justify-center max-w-full min-w-0 overflow-hidden"
       >
         <div
-          className="rounded-lg overflow-hidden border border-border-subtle"
+          className="rounded-lg overflow-hidden border border-border-subtle max-w-full"
           style={{ width: boardSize.width, height: boardSize.height }}
         >
           <Stage

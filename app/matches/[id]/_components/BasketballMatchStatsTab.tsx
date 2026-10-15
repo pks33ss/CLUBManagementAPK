@@ -47,16 +47,11 @@ interface Candidate {
   team: { id: string; name: string; category: string | null; sport: string }
 }
 
-// Fila interna que puede o no tener stats guardadas.
 interface RosterRow extends BasketballPlayerStats {
   hasStats: boolean
   fromTeam: boolean
   jerseyNumber: number | null
 }
-
-// ─────────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────────
 
 function emptyStats(
   userId: string,
@@ -92,7 +87,6 @@ function emptyStats(
   }
 }
 
-// Filtro de rol defensivo: acepta `["PLAYER"]`, `[{ roleRef: { name } }]`, etc.
 function isPlayerRole(r: any): boolean {
   if (typeof r === 'string') return r === 'PLAYER'
   if (r?.roleRef?.name === 'PLAYER') return true
@@ -138,10 +132,6 @@ function fmtPlusMinus(v: number | null | undefined): string {
   return `${v}`
 }
 
-// ─────────────────────────────────────────────
-// Componente
-// ─────────────────────────────────────────────
-
 export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
   const [stats, setStats] = useState<BasketballMatchStats | null>(null)
   const [loading, setLoading] = useState(true)
@@ -155,6 +145,9 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
   const [addTab, setAddTab] = useState<'team' | 'club'>('team')
   const [clubCandidates, setClubCandidates] = useState<Candidate[]>([])
   const [loadingCandidates, setLoadingCandidates] = useState(false)
+
+  // ✅ Modal de excluidos
+  const [showExcludedModal, setShowExcludedModal] = useState(false)
 
   const load = () => {
     setLoading(true)
@@ -224,20 +217,33 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
     }
   }
 
-  const handleRemove = async (row: RosterRow) => {
+  // ✅ Excluir del partido (nuevo)
+  const handleExclude = async (row: RosterRow) => {
     const name = `${row.name} ${row.lastName}`
-    const msg = row.hasStats
-      ? `¿Quitar a ${name} del partido? Se borrarán sus estadísticas y su convocatoria.`
-      : `¿Quitar a ${name} de la lista?`
-    if (!confirm(msg)) return
+    if (
+      !confirm(
+        `¿Excluir a ${name} de este partido?\n\nSe borrarán sus estadísticas y no contará como partido jugado.`,
+      )
+    )
+      return
     try {
-      if (row.hasStats) {
-        await matchesApi.removePlayerStats(match.id, row.userId)
-        load()
-        onUpdate()
-      }
+      await matchesApi.setPlayerExclusion(match.id, row.userId, true)
+      load()
+      onUpdate()
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al quitar jugador')
+      alert(err.response?.data?.message || 'Error al excluir al jugador')
+    }
+  }
+
+  // ✅ Reincluir (nuevo)
+  const handleInclude = async (userId: string, name: string) => {
+    if (!confirm(`¿Reincluir a ${name} en este partido?`)) return
+    try {
+      await matchesApi.setPlayerExclusion(match.id, userId, false)
+      load()
+      onUpdate()
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Error al reincluir al jugador')
     }
   }
 
@@ -253,16 +259,18 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
   }
 
   // ─────────────────────────────────────────
-  // Fusión: equipo + stats existentes
+  // Fusión: equipo + stats existentes − excluidos
   // ─────────────────────────────────────────
   const roster: RosterRow[] = useMemo(() => {
     if (!stats) return []
 
+    const excluded = new Set(stats.excludedPlayerIds ?? [])
     const statsByUser = new Map(stats.players.map((p) => [p.userId, p]))
 
-    // 1) Jugadores del equipo (PLAYER ACTIVE).
+    // 1) Jugadores del equipo (PLAYER ACTIVE) que NO estén excluidos.
     const teamRows: RosterRow[] = (match.team.memberships ?? [])
       .filter((m) => m.status === 'ACTIVE' && hasPlayerRole(m))
+      .filter((m) => !excluded.has(m.user.id))
       .map((m) => {
         const existing = statsByUser.get(m.user.id)
         if (existing) {
@@ -281,10 +289,10 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
         }
       })
 
-    // 2) Jugadores con stats que no están en el equipo (invitados).
+    // 2) Jugadores con stats que no están en el equipo (invitados) y no están excluidos.
     const teamIds = new Set(teamRows.map((r) => r.userId))
     const extraRows: RosterRow[] = stats.players
-      .filter((p) => !teamIds.has(p.userId))
+      .filter((p) => !teamIds.has(p.userId) && !excluded.has(p.userId))
       .map((p) => ({
         ...p,
         hasStats: true,
@@ -292,7 +300,6 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
         jerseyNumber: null,
       }))
 
-    // 3) Orden: equipo por dorsal; extras por apellido.
     teamRows.sort((a, b) => {
       const na = a.jerseyNumber ?? 999
       const nb = b.jerseyNumber ?? 999
@@ -304,8 +311,22 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
     return [...teamRows, ...extraRows]
   }, [stats, match.team.memberships])
 
-  // Candidatos del club deduplicados por userId (un jugador puede estar
-  // en varios equipos del mismo club y el backend devuelve una fila por equipo).
+  // ✅ Lista de excluidos con sus datos (para el modal)
+  const excludedRows = useMemo(() => {
+    if (!stats) return []
+    const excluded = new Set(stats.excludedPlayerIds ?? [])
+    return (match.team.memberships ?? [])
+      .filter((m) => m.status === 'ACTIVE' && hasPlayerRole(m))
+      .filter((m) => excluded.has(m.user.id))
+      .map((m) => ({
+        userId: m.user.id,
+        name: m.user.name,
+        lastName: m.user.lastName,
+        jerseyNumber: m.jerseyNumber ?? null,
+      }))
+      .sort((a, b) => a.lastName.localeCompare(b.lastName))
+  }, [stats, match.team.memberships])
+
   const uniqueClubCandidates = useMemo(
     () =>
       Array.from(
@@ -475,9 +496,20 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
             <h3 className="text-lg font-semibold text-text-primary">
               👥 Jugadores ({roster.length})
             </h3>
-            <Button size="sm" onClick={() => setShowAddModal(true)}>
-              ➕ Añadir jugador
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              {excludedRows.length > 0 && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setShowExcludedModal(true)}
+                >
+                  🚫 Excluidos ({excludedRows.length})
+                </Button>
+              )}
+              <Button size="sm" onClick={() => setShowAddModal(true)}>
+                ➕ Añadir jugador
+              </Button>
+            </div>
           </div>
 
           {roster.length === 0 ? (
@@ -841,19 +873,17 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                                 <button
                                   onClick={() => startEdit(p)}
                                   className="text-xs bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary px-2 py-1 rounded"
-                                  title={p.hasStats ? 'Editar' : 'Añadir stats'}
+                                  title={p.hasStats ? 'Editar stats' : 'Añadir stats'}
                                 >
                                   {p.hasStats ? '✏️' : '➕'}
                                 </button>
-                                {p.hasStats && (
-                                  <button
-                                    onClick={() => handleRemove(p)}
-                                    className="text-xs bg-danger/10 hover:bg-danger/20 text-danger px-2 py-1 rounded"
-                                    title="Quitar del partido"
-                                  >
-                                    🗑️
-                                  </button>
-                                )}
+                                <button
+                                  onClick={() => handleExclude(p)}
+                                  className="text-xs bg-danger/10 hover:bg-danger/20 text-danger px-2 py-1 rounded"
+                                  title="Excluir del partido"
+                                >
+                                  🚫
+                                </button>
                               </div>
                             </td>
                           </>
@@ -960,13 +990,51 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
           )}
         </div>
       </Modal>
+
+      {/* ─── Modal excluidos ─── */}
+      <Modal
+        isOpen={showExcludedModal}
+        onClose={() => setShowExcludedModal(false)}
+        title="🚫 Jugadores excluidos del partido"
+        size="md"
+      >
+        <p className="text-xs text-text-muted mb-4">
+          Estos jugadores no cuentan como participantes de este partido. Puedes
+          volver a incluirlos cuando quieras.
+        </p>
+        {excludedRows.length === 0 ? (
+          <p className="text-sm text-text-muted text-center py-4">
+            No hay jugadores excluidos.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {excludedRows.map((r) => (
+              <div
+                key={r.userId}
+                className="flex items-center justify-between bg-surface-elevated rounded-lg p-3 border border-border-subtle"
+              >
+                <div className="min-w-0">
+                  <p className="font-medium text-text-primary">
+                    {r.jerseyNumber != null && (
+                      <span className="text-text-muted mr-1">#{r.jerseyNumber}</span>
+                    )}
+                    {r.name} {r.lastName}
+                  </p>
+                </div>
+                <button
+                  onClick={() => handleInclude(r.userId, `${r.name} ${r.lastName}`)}
+                  className="text-xs bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary px-3 py-1.5 rounded transition"
+                >
+                  ↩️ Reincluir
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
     </div>
   )
 }
-
-// ─────────────────────────────────────────────
-// StatBox
-// ─────────────────────────────────────────────
 
 function StatBox({
   label,

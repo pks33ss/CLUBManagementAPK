@@ -34,7 +34,6 @@ type ViewMode = 'month' | 'list'
 
 // ============================================
 // CONFIGURACIÓN DE COLORES POR TIPO
-// ✅ Ahora usa las variables de la nueva paleta
 // ============================================
 
 const EVENT_STYLES = {
@@ -128,6 +127,9 @@ export default function CalendarPage() {
   })
   const [saving, setSaving] = useState(false)
 
+  // ✅ Nuevo: evento a mostrar en el modal de detalle
+  const [detailEvent, setDetailEvent] = useState<CalendarEventItem | null>(null)
+
   const clubTeams = activeTeam
     ? allTeams.filter((t) => t.club?.id === activeTeam.club?.id)
     : []
@@ -158,6 +160,7 @@ export default function CalendarPage() {
       return
     }
     fetchEvents()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTeams, currentMonth])
 
   useEffect(() => {
@@ -278,9 +281,19 @@ export default function CalendarPage() {
     if (!confirm(`¿Eliminar "${title}"?`)) return
     try {
       await api.delete(`/calendar/events/${eventId}`)
+      setDetailEvent(null)
       fetchEvents()
     } catch (err: any) {
       alert(err.response?.data?.message || 'Error al eliminar')
+    }
+  }
+
+  // ✅ Handler unificado: navega si hay link, abre modal si no
+  const handleEventClick = (ev: CalendarEventItem) => {
+    if (ev.link) {
+      router.push(ev.link)
+    } else {
+      setDetailEvent(ev)
     }
   }
 
@@ -433,7 +446,6 @@ export default function CalendarPage() {
       {/* Barra de vista + filtros por tipo */}
       <Card className="mb-4">
         <div className="p-4 flex flex-wrap items-center gap-4">
-          {/* Toggle vista */}
           <div className="flex gap-1">
             <Button
               variant={viewMode === 'month' ? 'primary' : 'secondary'}
@@ -451,7 +463,6 @@ export default function CalendarPage() {
             </Button>
           </div>
 
-          {/* Filtros por tipo */}
           <div className="flex flex-wrap gap-2">
             <button
               onClick={() => setShowSessions(!showSessions)}
@@ -503,9 +514,7 @@ export default function CalendarPage() {
           onNextMonth={goToNextMonth}
           onToday={goToToday}
           onDayClick={openCreateModal}
-          onEventClick={(ev) => {
-            if (ev.link) router.push(ev.link)
-          }}
+          onEventClick={handleEventClick}
         />
       ) : (
         <ListView
@@ -513,6 +522,7 @@ export default function CalendarPage() {
           loading={loadingEvents}
           showTeamBadge={showTeamBadge}
           onDelete={deleteEvent}
+          onEventClick={handleEventClick}
         />
       )}
 
@@ -612,6 +622,100 @@ export default function CalendarPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* ✅ Modal de detalle del evento */}
+      <Modal
+        isOpen={!!detailEvent}
+        onClose={() => setDetailEvent(null)}
+        title={`📌 ${detailEvent?.title ?? ''}`}
+        size="md"
+      >
+        {detailEvent && (
+          <div className="space-y-4">
+            {/* Tipo */}
+            <div className="flex flex-wrap gap-2">
+              {(() => {
+                const style = EVENT_STYLES[detailEvent.type]
+                return (
+                  <span
+                    className={`text-xs font-medium px-2 py-0.5 rounded-full ${style.bg} ${style.text}`}
+                  >
+                    {style.icon} {style.label}
+                  </span>
+                )
+              })()}
+              {detailEvent.teamName && (
+                <Badge variant="neutral">{detailEvent.teamName}</Badge>
+              )}
+            </div>
+
+            {/* Descripción */}
+            {detailEvent.description ? (
+              <div>
+                <h3 className="text-sm font-semibold text-text-primary mb-1">
+                  Descripción
+                </h3>
+                <p className="text-sm text-text-secondary whitespace-pre-line">
+                  {detailEvent.description}
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-text-muted italic">Sin descripción</p>
+            )}
+
+            {/* Fechas */}
+            <div>
+              <h3 className="text-sm font-semibold text-text-primary mb-1">
+                Fecha y hora
+              </h3>
+              <div className="text-sm text-text-secondary space-y-1">
+                <p>
+                  <span className="text-text-muted">Inicio:</span>{' '}
+                  {formatDateLong(detailEvent.startDate)},{' '}
+                  {formatTime(detailEvent.startDate)}
+                </p>
+                {detailEvent.endDate && (
+                  <p>
+                    <span className="text-text-muted">Fin:</span>{' '}
+                    {formatDateLong(detailEvent.endDate)},{' '}
+                    {formatTime(detailEvent.endDate)}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Ubicación */}
+            {detailEvent.location && (
+              <div>
+                <h3 className="text-sm font-semibold text-text-primary mb-1">
+                  Ubicación
+                </h3>
+                <p className="text-sm text-text-secondary">📍 {detailEvent.location}</p>
+              </div>
+            )}
+
+            {/* Acciones */}
+            <div className="flex gap-3 pt-4 border-t border-border-subtle">
+              <Button
+                variant="secondary"
+                onClick={() => setDetailEvent(null)}
+                className="flex-1"
+              >
+                Cerrar
+              </Button>
+              {detailEvent.type === 'EVENT' && (
+                <Button
+                  variant="danger"
+                  onClick={() => deleteEvent(detailEvent.id, detailEvent.title)}
+                  className="flex-1"
+                >
+                  🗑️ Eliminar
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   )
@@ -764,11 +868,13 @@ function ListView({
   loading,
   showTeamBadge,
   onDelete,
+  onEventClick,
 }: {
   events: CalendarEventItem[]
   loading: boolean
   showTeamBadge: boolean
   onDelete: (id: string, title: string) => void
+  onEventClick: (ev: CalendarEventItem) => void
 }) {
   const grouped: Record<string, CalendarEventItem[]> = {}
   for (const ev of events) {
@@ -826,7 +932,8 @@ function ListView({
                 return (
                   <div
                     key={ev.id}
-                    className="px-4 py-3 flex items-center gap-3 hover:bg-surface-elevated transition"
+                    onClick={() => onEventClick(ev)}
+                    className="px-4 py-3 flex items-center gap-3 hover:bg-surface-elevated transition cursor-pointer"
                   >
                     <div className={`w-1 self-stretch rounded-full ${style.dot}`} />
                     <div className="flex-1 min-w-0">
@@ -848,7 +955,7 @@ function ListView({
                         <p className="text-xs text-text-muted mt-0.5">📍 {ev.location}</p>
                       )}
                     </div>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                       {ev.link && (
                         <Link
                           href={ev.link}

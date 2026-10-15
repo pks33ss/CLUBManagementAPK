@@ -8,6 +8,12 @@ import { SPORTS, getSportConfig, isSportInDevelopment } from '@/lib/sport'
 import type { Sport } from '@/lib/sport'
 import { Button, Card, CardBody, Badge, Input, Select, Modal } from '@/components/ui'
 
+// Compone "2026-27" a partir de dos años.
+function composeSeason(start: number, end: number): string {
+  const endShort = String(end).slice(-2).padStart(2, '0')
+  return `${start}-${endShort}`
+}
+
 function TeamsContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -22,7 +28,8 @@ function TeamsContent() {
     name: '',
     sport: 'BASKETBALL' as Sport,
     category: '',
-    season: '',
+    seasonStart: '',
+    seasonEnd: '',
     clubId: '',
   })
 
@@ -65,22 +72,56 @@ function TeamsContent() {
     }
   }
 
+  const resetForm = (clubId: string) => {
+    setNewTeam({
+      name: '',
+      sport: 'BASKETBALL',
+      category: '',
+      seasonStart: '',
+      seasonEnd: '',
+      clubId,
+    })
+  }
+
   const createTeam = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!newTeam.clubId) {
       alert('Por favor, selecciona un club primero')
       return
     }
+
+    // Validar temporada
+    const startNum = Number(newTeam.seasonStart)
+    const endNum = Number(newTeam.seasonEnd)
+    if (
+      !newTeam.seasonStart ||
+      !newTeam.seasonEnd ||
+      Number.isNaN(startNum) ||
+      Number.isNaN(endNum)
+    ) {
+      alert('Debes indicar el año de inicio y el año de fin de la temporada')
+      return
+    }
+    if (startNum < 1900 || startNum > 2200 || endNum < 1900 || endNum > 2200) {
+      alert('Los años deben estar entre 1900 y 2200')
+      return
+    }
+    if (endNum <= startNum) {
+      alert('El año de fin debe ser mayor que el año de inicio')
+      return
+    }
+
     try {
-      await api.post('/teams', newTeam)
+      const payload = {
+        name: newTeam.name,
+        sport: newTeam.sport,
+        category: newTeam.category || undefined,
+        season: composeSeason(startNum, endNum),
+        clubId: newTeam.clubId,
+      }
+      await api.post('/teams', payload)
       setShowModal(false)
-      setNewTeam({
-        name: '',
-        sport: 'BASKETBALL',
-        category: '',
-        season: '',
-        clubId: selectedClub,
-      })
+      resetForm(selectedClub)
       fetchTeams(selectedClub)
     } catch (error: any) {
       console.error('Error:', error)
@@ -203,7 +244,6 @@ function TeamsContent() {
                     className="bg-surface rounded-xl border border-border-subtle hover:border-brand-primary/50 hover:bg-brand-primary/5 transition overflow-hidden group"
                   >
                     <div className="p-5">
-                      {/* Icono + nombre */}
                       <div className="flex items-start gap-3 mb-3">
                         <div className="w-12 h-12 rounded-lg bg-brand-primary/10 text-brand-primary flex items-center justify-center text-2xl shrink-0">
                           {sport.icon}
@@ -218,7 +258,6 @@ function TeamsContent() {
                         </div>
                       </div>
 
-                      {/* Temporada + contadores */}
                       <div className="flex items-center gap-2 flex-wrap mt-3">
                         {team.season && (
                           <Badge variant="neutral">📅 {team.season}</Badge>
@@ -229,7 +268,6 @@ function TeamsContent() {
                       </div>
                     </div>
 
-                    {/* Footer con acción */}
                     <div className="px-5 py-3 bg-surface-elevated border-t border-border-subtle flex items-center justify-between text-xs">
                       <span className="text-text-muted">Ver equipo</span>
                       <span className="text-brand-primary group-hover:translate-x-1 transition">
@@ -304,13 +342,42 @@ function TeamsContent() {
             <option value="Alevín">Alevín</option>
           </Select>
 
-          <Input
-            label="Temporada"
-            type="text"
-            value={newTeam.season}
-            onChange={(e) => setNewTeam({ ...newTeam, season: e.target.value })}
-            placeholder="Ej: 2025-2026"
-          />
+          {/* Temporada: dos años */}
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-2">
+              Temporada *
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Año inicio *"
+                type="number"
+                value={newTeam.seasonStart}
+                onChange={(e) =>
+                  setNewTeam({ ...newTeam, seasonStart: e.target.value })
+                }
+                placeholder="2026"
+                min="2000"
+                max="2100"
+                required
+              />
+              <Input
+                label="Año fin *"
+                type="number"
+                value={newTeam.seasonEnd}
+                onChange={(e) =>
+                  setNewTeam({ ...newTeam, seasonEnd: e.target.value })
+                }
+                placeholder="2027"
+                min="2000"
+                max="2100"
+                required
+              />
+            </div>
+            <p className="text-xs text-text-muted mt-1">
+              Se guardará como "{newTeam.seasonStart || '2026'}-
+              {String(newTeam.seasonEnd || '2027').slice(-2)}"
+            </p>
+          </div>
 
           <div className="flex gap-3 pt-2">
             <Button

@@ -14,9 +14,6 @@ import {
 } from '@/lib/library'
 import { parseTags, formatTags } from '@/lib/libraryTags'
 import { useTacticalBackground } from '@/lib/useTacticalBackground'
-// ============================================
-// TIPOS
-// ============================================
 
 interface ExistingLink {
   id: string
@@ -54,10 +51,6 @@ const DIFFICULTY_OPTIONS = [
   { value: 'DIFÍCIL', label: 'Difícil' },
 ]
 
-// ============================================
-// COMPONENTE
-// ============================================
-
 export function LibraryExerciseForm({
   mode,
   exerciseId,
@@ -65,7 +58,6 @@ export function LibraryExerciseForm({
   onDone,
   onCancelHref = '/library',
 }: Props) {
-  // ─── Campos ───
   const [name, setName] = useState(initial?.name ?? '')
   const [description, setDescription] = useState(initial?.description ?? '')
   const [category, setCategory] = useState(initial?.category ?? '')
@@ -75,20 +67,15 @@ export function LibraryExerciseForm({
   )
   const [difficulty, setDifficulty] = useState(initial?.difficulty ?? '')
 
-  // ─── Imágenes existentes (solo edit) ───
-  // Estado local: array de LibraryMedia IMAGE que ya están en BD.
-  // Se pueden quitar individualmente con la ✕.
   const [existingImages, setExistingImages] = useState<LibraryMedia[]>(
     (initial?.media ?? []).filter((m) => m.type === 'IMAGE'),
   )
 
-  // ─── Imagen nueva (pizarra o subida) ───
   const [boardImage, setBoardImage] = useState<string | null>(null)
   const [uploadedImage, setUploadedImage] = useState<string | null>(null)
   const [showBoard, setShowBoard] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // ─── Links ───
   const initialLinks: LinkItem[] = (initial?.media ?? [])
     .filter((m) => m.type === 'LINK')
     .map((m) => ({
@@ -100,14 +87,12 @@ export function LibraryExerciseForm({
   const [links, setLinks] = useState<LinkItem[]>(initialLinks)
   const [newLink, setNewLink] = useState({ url: '', title: '' })
 
-  // ─── Estado ───
   const [saving, setSaving] = useState(false)
 
-  // ¿Hay alguna imagen nueva pendiente de subir?
   const hasNewImage =
     (boardImage && boardImage.startsWith('data:')) || !!uploadedImage
 
-const { userBackground, updateBackground } = useTacticalBackground()
+  const { userBackground, updateBackground } = useTacticalBackground()
 
   // ============================================
   // HANDLERS DE MEDIA
@@ -199,7 +184,6 @@ const { userBackground, updateBackground } = useTacticalBackground()
 
     setSaving(true)
     try {
-      // 1. Crear o actualizar campos básicos
       const payload = {
         name: name.trim(),
         description: description.trim() || undefined,
@@ -219,7 +203,6 @@ const { userBackground, updateBackground } = useTacticalBackground()
         id = exerciseId
       }
 
-      // 2. Subir la pizarra nueva (si la hay)
       const boardIsNew = boardImage && boardImage.startsWith('data:')
       if (boardIsNew) {
         try {
@@ -229,7 +212,6 @@ const { userBackground, updateBackground } = useTacticalBackground()
         }
       }
 
-      // 3. Subir la imagen subida (si la hay)
       if (uploadedImage) {
         try {
           await uploadLibraryImage(id, uploadedImage, 'Imagen del ejercicio')
@@ -238,7 +220,6 @@ const { userBackground, updateBackground } = useTacticalBackground()
         }
       }
 
-      // 4. Subir links nuevos
       for (const link of links) {
         if (link.isNew) {
           try {
@@ -249,8 +230,6 @@ const { userBackground, updateBackground } = useTacticalBackground()
         }
       }
 
-      // 5. Si hay imagen nueva, borrar TODAS las imágenes antiguas que
-      //    aún queden en BD (no las que el usuario ya haya borrado en UI).
       if (mode === 'edit' && hasNewImage && existingImages.length > 0) {
         for (const img of existingImages) {
           try {
@@ -276,7 +255,6 @@ const { userBackground, updateBackground } = useTacticalBackground()
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* CAMPOS BÁSICOS */}
       <Input
         label="Nombre *"
         type="text"
@@ -339,7 +317,6 @@ const { userBackground, updateBackground } = useTacticalBackground()
         helperText="Separa los tags con comas. Se guardan en minúsculas y sin duplicados."
       />
 
-      {/* IMÁGENES ACTUALES (solo edit, y solo si no hay nuevas pendientes) */}
       {mode === 'edit' && existingImages.length > 0 && !hasNewImage && (
         <div className="border-t border-border-subtle pt-4">
           <label className="block text-sm font-medium text-text-secondary mb-2">
@@ -372,7 +349,6 @@ const { userBackground, updateBackground } = useTacticalBackground()
         </div>
       )}
 
-      {/* NUEVA PIZARRA / IMAGEN */}
       <div className="border-t border-border-subtle pt-4 space-y-3">
         <Button
           type="button"
@@ -383,7 +359,6 @@ const { userBackground, updateBackground } = useTacticalBackground()
           🎨 {boardImage ? 'Editar dibujo en pizarra' : 'Dibujar en pizarra táctica'}
         </Button>
 
-        {/* Vista previa de la pizarra nueva */}
         {boardImage && boardImage.startsWith('data:') && (
           <div className="mt-3">
             <p className="text-xs text-text-muted mb-2">Pizarra nueva:</p>
@@ -456,22 +431,30 @@ const { userBackground, updateBackground } = useTacticalBackground()
             {links.map((link, index) => (
               <div
                 key={index}
-                className="flex items-center gap-2 bg-warning/10 rounded-lg p-2"
+                className="flex items-start gap-2 bg-warning/10 rounded-lg p-2"
               >
-                <span className="text-warning">🔗</span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-text-primary truncate">
+                <span className="text-warning mt-0.5">🔗</span>
+                <a
+                  href={link.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 min-w-0 block group"
+                  title={link.url}
+                >
+                  <p className="text-sm font-medium text-text-primary truncate group-hover:text-brand-primary">
                     {link.title}
                     {link.isNew && (
                       <span className="text-xs text-success ml-2">(nuevo)</span>
                     )}
                   </p>
-                  <p className="text-xs text-text-muted truncate">{link.url}</p>
-                </div>
+                  <p className="text-xs text-text-muted break-all group-hover:underline">
+                    {link.url}
+                  </p>
+                </a>
                 <button
                   type="button"
                   onClick={() => handleRemoveLink(index)}
-                  className="text-danger hover:text-danger/80 p-1"
+                  className="text-danger hover:text-danger/80 p-1 shrink-0"
                   title="Eliminar link"
                 >
                   ✕
@@ -505,7 +488,6 @@ const { userBackground, updateBackground } = useTacticalBackground()
         </div>
       </div>
 
-      {/* ACCIONES */}
       <div className="flex gap-3 pt-4 border-t border-border-subtle">
         <Button
           type="button"
@@ -530,7 +512,6 @@ const { userBackground, updateBackground } = useTacticalBackground()
         </Button>
       </div>
 
-      {/* PIZARRA TÁCTICA */}
       {showBoard && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-[60]">
           <div className="bg-surface border border-border-subtle rounded-xl max-w-5xl w-full p-6 max-h-[95vh] overflow-auto">
@@ -547,21 +528,21 @@ const { userBackground, updateBackground } = useTacticalBackground()
               </button>
             </div>
             <TacticalBoard
-  width={800}
-  height={800}
-  onSave={(dataUrl) => {
-    setBoardImage(dataUrl)
-    setShowBoard(false)
-  }}
-  userBackground={userBackground}
-  onBackgroundChange={(url, mode) => {
-    if (mode === 'HALF') {
-      void updateBackground({ urlHalf: url })
-    } else {
-      void updateBackground({ urlFull: url })
-    }
-  }}
-/>
+              width={800}
+              height={800}
+              onSave={(dataUrl) => {
+                setBoardImage(dataUrl)
+                setShowBoard(false)
+              }}
+              userBackground={userBackground}
+              onBackgroundChange={(url, mode) => {
+                if (mode === 'HALF') {
+                  void updateBackground({ urlHalf: url })
+                } else {
+                  void updateBackground({ urlFull: url })
+                }
+              }}
+            />
           </div>
         </div>
       )}

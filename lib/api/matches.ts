@@ -196,6 +196,7 @@ export interface BasketballMatchStats {
     freeThrowPct: number
   }
   players: BasketballPlayerStats[]
+  excludedPlayerIds: string[]
 }
 
 export interface PlayerStatsInput {
@@ -305,6 +306,18 @@ export const matchesApi = {
   },
     async getTeamSeasons(teamId: string): Promise<string[]> {
     const { data } = await api.get(`/matches/team/${teamId}/seasons`)
+    return data
+  },
+
+   async setPlayerExclusion(
+    matchId: string,
+    userId: string,
+    excluded: boolean,
+  ): Promise<{ excluded: boolean }> {
+    const { data } = await api.put(
+      `/matches/${matchId}/players/${userId}/exclusion`,
+      { excluded },
+    )
     return data
   },
 }

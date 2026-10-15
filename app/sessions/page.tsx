@@ -40,7 +40,6 @@ export default function SessionsPage() {
   const [sessions, setSessions] = useState<Session[]>([])
   const [loading, setLoading] = useState(true)
 
-  // ✅ Cargar sesiones cuando cambia el equipo activo
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token) {
@@ -93,15 +92,10 @@ export default function SessionsPage() {
 
   const sport = getSportConfig(activeTeam?.sport)
 
-  // ============================================
-  // RENDER
-  // ============================================
-
   if (loadingTeams || loading) {
     return <div className="text-center py-12 text-text-muted">Cargando sesiones...</div>
   }
 
-  // Sin equipo activo
   if (!activeTeam) {
     return (
       <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
@@ -154,7 +148,11 @@ export default function SessionsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {sessions.map((session) => {
             const attendanceSummary = summarizeAttendance(session.attendances)
-            const sessionSport = getSportConfig(session.team?.sport)
+            // Si el backend no incluye `team` en el listado, caemos al
+            // deporte del equipo activo para mostrar el icono correcto.
+            const sessionSport = getSportConfig(
+              session.team?.sport ?? activeTeam?.sport,
+            )
             return (
               <Link
                 key={session.id}

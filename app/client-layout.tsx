@@ -377,15 +377,26 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
               </Link>
 
               {currentUser?.role === 'SUPER_ADMIN' && (
-                <Link
-                  href="/admin/users"
-                  onClick={() => setSidebarOpen(false)}
-                  className="flex items-center gap-3 p-2 rounded-lg hover:bg-brand-primary/10 transition text-brand-primary"
-                >
-                  <span className="text-lg">👑</span>
-                  <span className="text-sm font-medium">Admin · Usuarios</span>
-                </Link>
-              )}
+  <>
+    <Link
+      href="/clubs"
+      onClick={() => setSidebarOpen(false)}
+      className="flex items-center gap-3 p-2 rounded-lg hover:bg-brand-primary/10 transition text-brand-primary"
+    >
+      <span className="text-lg">🏛️</span>
+      <span className="text-sm font-medium">Mis Clubs</span>
+    </Link>
+
+    <Link
+      href="/admin/users"
+      onClick={() => setSidebarOpen(false)}
+      className="flex items-center gap-3 p-2 rounded-lg hover:bg-brand-primary/10 transition text-brand-primary"
+    >
+      <span className="text-lg">👑</span>
+      <span className="text-sm font-medium">Admin · Usuarios</span>
+    </Link>
+  </>
+)}
 
               <button
                 onClick={() => {

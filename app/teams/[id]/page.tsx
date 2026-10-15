@@ -54,6 +54,36 @@ interface TeamDetail {
 
 const ALL_ROLES: MembershipRole[] = ['PLAYER', 'COACH', 'ASSISTANT', 'ADMIN_TEAM']
 
+// ─────────────────────────────────────────────
+// Helpers de temporada
+// ─────────────────────────────────────────────
+
+function composeSeason(start: number, end: number): string {
+  const endShort = String(end).slice(-2).padStart(2, '0')
+  return `${start}-${endShort}`
+}
+
+function parseSeason(season: string | null | undefined): {
+  seasonStart: string
+  seasonEnd: string
+} {
+  if (!season) return { seasonStart: '', seasonEnd: '' }
+
+  // Formatos aceptados:
+  //   "2026-27"  → start=2026, end=2027
+  //   "2025-2026" → start=2025, end=2026
+  const m = String(season).trim().match(/^(\d{4})\s*-\s*(\d{2,4})$/)
+  if (!m) return { seasonStart: '', seasonEnd: '' }
+
+  const start = m[1]
+  let end = m[2]
+  if (end.length === 2) {
+    // Asume siglo actual (20xx)
+    end = `20${end}`
+  }
+  return { seasonStart: start, seasonEnd: end }
+}
+
 export default function TeamDetail() {
   const router = useRouter()
   const params = useParams()
@@ -67,17 +97,20 @@ export default function TeamDetail() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   const [showEditModal, setShowEditModal] = useState(false)
-  const [editForm, setEditForm] = useState({ name: '', category: '', season: '' })
+  const [editForm, setEditForm] = useState({
+    name: '',
+    category: '',
+    seasonStart: '',
+    seasonEnd: '',
+  })
   const [updating, setUpdating] = useState(false)
 
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  // Modales de "solicitar unirme" y "cambiar mi rol"
   const [showJoinModal, setShowJoinModal] = useState(false)
   const [showAddRoleModal, setShowAddRoleModal] = useState(false)
 
-  // ✅ Permisos del user actual sobre este team
   const perms = usePermissions(teamId)
 
   useEffect(() => {
@@ -101,10 +134,12 @@ export default function TeamDetail() {
     try {
       const response = await api.get(`/teams/${teamId}`)
       setTeam(response.data)
+      const parsed = parseSeason(response.data.season)
       setEditForm({
         name: response.data.name,
         category: response.data.category || '',
-        season: response.data.season || '',
+        seasonStart: parsed.seasonStart,
+        seasonEnd: parsed.seasonEnd,
       })
 
       if (response.data.id !== activeTeam?.id) {
@@ -137,10 +172,12 @@ export default function TeamDetail() {
 
   const openEdit = () => {
     if (team) {
+      const parsed = parseSeason(team.season)
       setEditForm({
         name: team.name,
         category: team.category || '',
-        season: team.season || '',
+        seasonStart: parsed.seasonStart,
+        seasonEnd: parsed.seasonEnd,
       })
       setShowEditModal(true)
     }
@@ -150,7 +187,44 @@ export default function TeamDetail() {
     e.preventDefault()
     setUpdating(true)
     try {
-      await api.put(`/teams/${teamId}`, editForm)
+      const payload: any = {
+        name: editForm.name,
+        category: editForm.category || undefined,
+      }
+
+      // Temporada: si AMBOS están rellenos → enviar compuesto.
+      // Si AMBOS vacíos → no enviar (opcional al editar).
+      // Si solo uno → error.
+      const hasStart = !!editForm.seasonStart
+      const hasEnd = !!editForm.seasonEnd
+      if (hasStart && hasEnd) {
+        const startNum = Number(editForm.seasonStart)
+        const endNum = Number(editForm.seasonEnd)
+        if (
+          Number.isNaN(startNum) ||
+          Number.isNaN(endNum) ||
+          startNum < 1900 ||
+          startNum > 2200 ||
+          endNum < 1900 ||
+          endNum > 2200
+        ) {
+          alert('Los años deben estar entre 1900 y 2200')
+          setUpdating(false)
+          return
+        }
+        if (endNum <= startNum) {
+          alert('El año de fin debe ser mayor que el año de inicio')
+          setUpdating(false)
+          return
+        }
+        payload.season = composeSeason(startNum, endNum)
+      } else if (hasStart || hasEnd) {
+        alert('Debes rellenar el año de inicio y el año de fin, o dejar ambos vacíos')
+        setUpdating(false)
+        return
+      }
+
+      await api.put(`/teams/${teamId}`, payload)
       setShowEditModal(false)
       fetchTeam()
       alert('✅ Equipo actualizado correctamente')
@@ -207,20 +281,12 @@ export default function TeamDetail() {
     ),
   )
 
-  // ============================================
-  // ESTADO DEL USER ACTUAL EN EL EQUIPO
-  // ============================================
-
   const myMembership = team.myMembership ?? null
   const myRoles = myMembership?.roles ?? []
   const isActiveMember = myMembership?.status === 'ACTIVE'
   const isPending = myMembership?.status === 'PENDING'
   const hasAllRoles =
     isActiveMember && ALL_ROLES.every((r) => myRoles.includes(r))
-
-  // ============================================
-  // RENDER
-  // ============================================
 
   return (
     <div>
@@ -250,7 +316,6 @@ export default function TeamDetail() {
             </div>
 
             <div className="flex flex-wrap gap-2">
-              {/* ✅ Botón de "solicitar unirme" si no tiene membership */}
               {!myMembership && currentUserId && (
                 <Button
                   size="sm"
@@ -261,19 +326,16 @@ export default function TeamDetail() {
                 </Button>
               )}
 
-              {/* ✅ Aviso si tiene solicitud pendiente */}
               {isPending && (
                 <Badge variant="warning">⏳ Solicitud pendiente</Badge>
               )}
 
-              {/* ✅ Editar: solo si canEdit */}
               {perms.canEdit && (
                 <Button size="sm" onClick={openEdit}>
                   ✏️ Editar
                 </Button>
               )}
 
-              {/* ✅ Eliminar: solo si canDelete */}
               {perms.canDelete && (
                 <Button
                   size="sm"
@@ -296,7 +358,6 @@ export default function TeamDetail() {
             <h2 className="text-xl font-semibold text-text-primary">
               👥 {sport.playerNamePlural} ({players.length})
             </h2>
-            {/* ✅ Añadir jugador: solo si canManage */}
             {perms.canManage && (
               <Button
                 size="sm"
@@ -362,7 +423,6 @@ export default function TeamDetail() {
             </h2>
 
             <div className="flex flex-wrap gap-2">
-              {/* ✅ Botón "cambiar mi rol" si ya es miembro pero le faltan roles */}
               {isActiveMember && !hasAllRoles && (
                 <Button
                   size="sm"
@@ -373,7 +433,6 @@ export default function TeamDetail() {
                 </Button>
               )}
 
-              {/* ✅ Miembros del equipo */}
               <Button
                 size="sm"
                 variant="secondary"
@@ -440,13 +499,41 @@ export default function TeamDetail() {
             <option value="Cadete">Cadete</option>
             <option value="Alevín">Alevín</option>
           </Select>
-          <Input
-            label="Temporada"
-            type="text"
-            value={editForm.season}
-            onChange={(e) => setEditForm({ ...editForm, season: e.target.value })}
-            placeholder="Ej: 2025-2026"
-          />
+
+          {/* Temporada: dos años */}
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-2">
+              Temporada
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <Input
+                label="Año inicio"
+                type="number"
+                value={editForm.seasonStart}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, seasonStart: e.target.value })
+                }
+                placeholder="2026"
+                min="2000"
+                max="2100"
+              />
+              <Input
+                label="Año fin"
+                type="number"
+                value={editForm.seasonEnd}
+                onChange={(e) =>
+                  setEditForm({ ...editForm, seasonEnd: e.target.value })
+                }
+                placeholder="2027"
+                min="2000"
+                max="2100"
+              />
+            </div>
+            <p className="text-xs text-text-muted mt-1">
+              Opcional. Si lo dejas vacío, el equipo no tendrá temporada asignada.
+            </p>
+          </div>
+
           <div className="flex gap-3 pt-2">
             <Button
               type="button"
