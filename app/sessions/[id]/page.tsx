@@ -11,6 +11,33 @@ import { LibraryPicker } from '@/app/library/_components/LibraryPicker'
 import type { LibraryExercise } from '@/lib/library'
 import { useTacticalBackground } from '@/lib/useTacticalBackground'
 
+/**
+ * Comprueba si una membership tiene un rol dado.
+ *
+ * Acepta los dos formatos posibles del backend:
+ *   - Viejo: `roles: [{ roleRef: { name: 'PLAYER' } }]`
+ *   - Nuevo: `roles: ['PLAYER']` (formato unificado tras Lote 1)
+ *
+ * También acepta `role` como string para membresías antiguas.
+ */
+function hasRole(m: any, roleName: string): boolean {
+  const raw = m?.roles
+  if (Array.isArray(raw)) {
+    if (raw.includes(roleName)) return true
+    if (
+      raw.some(
+        (r: any) =>
+          r?.roleRef?.name === roleName ||
+          r?.name === roleName ||
+          r?.role === roleName,
+      )
+    ) {
+      return true
+    }
+  }
+  if (typeof m?.role === 'string' && m.role === roleName) return true
+  return false
+}
 
 interface SessionDetail {
   id: string
@@ -32,7 +59,8 @@ interface SessionDetail {
       status: string
       jerseyNumber: number | null
       position: string | null
-      roles: { roleRef: { name: string } | null }[]
+      role?: string | null
+      roles?: string[]
       user: {
         id: string
         name: string
@@ -171,12 +199,11 @@ export default function SessionDetail() {
       const response = await api.get(`/sessions/${sessionId}`)
       setSession(response.data)
 
-      // El backend devuelve `roles: [{ roleRef: { name } }]`.
-      // Filtramos los miembros cuyo rol incluya 'PLAYER'.
+      // El backend puede devolver `roles` en formato unificado (string[])
+      // o en formato legacy ([{ roleRef: { name } }]). Usamos `hasRole`
+      // para aceptar ambos.
       const memberships = (response.data.team.memberships || []).filter(
-        (m: any) =>
-          m.status === 'ACTIVE' &&
-          (m.roles ?? []).some((r: any) => r?.roleRef?.name === 'PLAYER'),
+        (m: any) => m.status === 'ACTIVE' && hasRole(m, 'PLAYER'),
       )
 
       const playersList = memberships.map((m: any) => {
