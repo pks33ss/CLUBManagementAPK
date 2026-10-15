@@ -14,29 +14,11 @@ import { useTacticalBackground } from '@/lib/useTacticalBackground'
 /**
  * Comprueba si una membership tiene un rol dado.
  *
- * Acepta los dos formatos posibles del backend:
- *   - Viejo: `roles: [{ roleRef: { name: 'PLAYER' } }]`
- *   - Nuevo: `roles: ['PLAYER']` (formato unificado tras Lote 1)
- *
- * También acepta `role` como string para membresías antiguas.
+ * Tras el Lote 1+2 el backend devuelve `roles: string[]` unificado.
+ * Simplificado a un simple `includes`.
  */
 function hasRole(m: any, roleName: string): boolean {
-  const raw = m?.roles
-  if (Array.isArray(raw)) {
-    if (raw.includes(roleName)) return true
-    if (
-      raw.some(
-        (r: any) =>
-          r?.roleRef?.name === roleName ||
-          r?.name === roleName ||
-          r?.role === roleName,
-      )
-    ) {
-      return true
-    }
-  }
-  if (typeof m?.role === 'string' && m.role === roleName) return true
-  return false
+  return (m?.roles ?? []).includes(roleName)
 }
 
 interface SessionDetail {
@@ -60,7 +42,7 @@ interface SessionDetail {
       jerseyNumber: number | null
       position: string | null
       role?: string | null
-      roles?: string[]
+      roles: string[]
       user: {
         id: string
         name: string
@@ -199,9 +181,6 @@ export default function SessionDetail() {
       const response = await api.get(`/sessions/${sessionId}`)
       setSession(response.data)
 
-      // El backend puede devolver `roles` en formato unificado (string[])
-      // o en formato legacy ([{ roleRef: { name } }]). Usamos `hasRole`
-      // para aceptar ambos.
       const memberships = (response.data.team.memberships || []).filter(
         (m: any) => m.status === 'ACTIVE' && hasRole(m, 'PLAYER'),
       )

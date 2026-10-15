@@ -19,18 +19,12 @@ const EMPTY_STATS = {
   freeThrowsMade: 0, freeThrowsAttempted: 0,
 }
 
-// Filtro de rol que acepta todos los formatos del backend.
-const isPlayerRole = (r: any): boolean => {
-  if (typeof r === 'string') return r === 'PLAYER'
-  if (r?.roleRef?.name === 'PLAYER') return true
-  if (r?.name === 'PLAYER') return true
-  if (r?.role === 'PLAYER') return true
-  return false
-}
-
+/**
+ * Comprueba si una membership tiene el rol PLAYER.
+ * Tras el Lote 1+2 el backend devuelve `roles: string[]` unificado.
+ */
 const hasPlayerRole = (m: any): boolean => {
-  if (m?.role === 'PLAYER') return true
-  return (m?.roles ?? []).some(isPlayerRole)
+  return (m?.roles ?? []).includes('PLAYER')
 }
 
 export default function StatsTab({ match, onUpdate }: Props) {

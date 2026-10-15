@@ -65,22 +65,12 @@ const BULK_COLUMNS: {
   { key: 'confirmedStatus', label: 'Confirmado', description: 'Confirmado' },
 ]
 
-// Filtro de rol que acepta todos los formatos del backend:
-//   - roles: ["PLAYER"]
-//   - roles: [{ roleRef: { name: "PLAYER" } }]
-//   - roles: [{ name: "PLAYER" }]
-//   - role:  "PLAYER"
-const isPlayerRole = (r: any): boolean => {
-  if (typeof r === 'string') return r === 'PLAYER'
-  if (r?.roleRef?.name === 'PLAYER') return true
-  if (r?.name === 'PLAYER') return true
-  if (r?.role === 'PLAYER') return true
-  return false
-}
-
+/**
+ * Comprueba si una membership tiene el rol PLAYER.
+ * Tras el Lote 1+2 el backend devuelve `roles: string[]` unificado.
+ */
 const hasPlayerRole = (m: any): boolean => {
-  if (m?.role === 'PLAYER') return true
-  return (m?.roles ?? []).some(isPlayerRole)
+  return (m?.roles ?? []).includes('PLAYER')
 }
 
 export default function CallupsTab({ match, onUpdate }: Props) {

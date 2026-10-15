@@ -13,6 +13,7 @@ interface Member {
   roleRef: { id: string; name: string } | null
   isActive: boolean
   joinedAt: string
+  role?: string | null
   user: {
     id: string
     email: string
@@ -73,7 +74,7 @@ export default function ClubMembers() {
       if (userStr) {
         const user = JSON.parse(userStr)
         const myMember = response.data.find((m: Member) => m.userId === user.id)
-        setUserRole(myMember?.roleRef?.name || '')
+        setUserRole(myMember?.role ?? myMember?.roleRef?.name ?? '')
       }
     } catch (error: any) {
       console.error('Error:', error)
@@ -116,7 +117,7 @@ export default function ClubMembers() {
 
   const openRoleModal = (member: Member) => {
     setSelectedMember(member)
-    setSelectedRole(member.roleRef?.name ?? '')
+    setSelectedRole(member.role ?? member.roleRef?.name ?? '')
     setShowRoleModal(true)
   }
 
@@ -290,7 +291,7 @@ export default function ClubMembers() {
             </thead>
             <tbody className="divide-y divide-border-subtle">
               {members.map((member) => {
-                const roleName = member.roleRef?.name ?? ''
+                const roleName = member.role ?? member.roleRef?.name ?? ''
                 return (
                   <tr key={member.id} className="hover:bg-surface-elevated transition">
                     <td className="px-6 py-4">
@@ -357,7 +358,7 @@ export default function ClubMembers() {
         {/* Vista móvil: cards */}
         <div className="md:hidden divide-y divide-border-subtle">
           {members.map((member) => {
-            const roleName = member.roleRef?.name ?? ''
+            const roleName = member.role ?? member.roleRef?.name ?? ''
             return (
               <div key={member.id} className="p-4 space-y-3">
                 <div className="flex items-start justify-between gap-3">

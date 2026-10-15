@@ -87,17 +87,8 @@ function emptyStats(
   }
 }
 
-function isPlayerRole(r: any): boolean {
-  if (typeof r === 'string') return r === 'PLAYER'
-  if (r?.roleRef?.name === 'PLAYER') return true
-  if (r?.name === 'PLAYER') return true
-  if (r?.role === 'PLAYER') return true
-  return false
-}
-
-function hasPlayerRole(m: any): boolean {
-  if (m?.role === 'PLAYER') return true
-  return (m?.roles ?? []).some(isPlayerRole)
+const hasPlayerRole = (m: any): boolean => {
+  return (m?.roles ?? []).includes('PLAYER')
 }
 
 function ResultBadge({ result }: { result: MatchResult }) {
