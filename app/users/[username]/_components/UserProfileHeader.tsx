@@ -8,6 +8,8 @@ import type { UserPublic } from '@/types/user'
 interface Props {
   user: UserPublic
   canEditProfile?: boolean
+  /** Si el viewer puede ver email/phone del user (lo decide el backend). */
+  canViewEmail?: boolean
 }
 
 const ROLE_LABEL: Record<string, string> = {
@@ -18,6 +20,7 @@ const ROLE_LABEL: Record<string, string> = {
 export default function UserProfileHeader({
   user,
   canEditProfile = false,
+  canViewEmail = false,
 }: Props) {
   const { activeTeam } = useActiveTeam()
 
@@ -33,6 +36,8 @@ export default function UserProfileHeader({
   })()
 
   const profileUsername = user.username?.replace('@', '')
+
+  const showPrivate = canViewEmail && (user.email || user.phone)
 
   return (
     <Card>
@@ -70,6 +75,23 @@ export default function UserProfileHeader({
             <h1 className="text-2xl font-bold text-text-primary mb-2">
               {user.name} {user.lastName}
             </h1>
+
+            {showPrivate && (
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-text-secondary mb-2">
+                {user.email && (
+                  <span>
+                    ✉️{' '}
+                    <a
+                      href={`mailto:${user.email}`}
+                      className="text-brand-primary hover:underline"
+                    >
+                      {user.email}
+                    </a>
+                  </span>
+                )}
+                {user.phone && <span>📞 {user.phone}</span>}
+              </div>
+            )}
 
             {user.bio && (
               <p className="text-text-secondary whitespace-pre-wrap">

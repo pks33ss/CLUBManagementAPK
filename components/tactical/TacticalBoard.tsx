@@ -250,7 +250,7 @@ export default function TacticalBoard({
       return
     }
 
-    if (tool === 'select') {
+        if (tool === 'select') {
       const stage = stageRef.current
       if (stage) {
         const pointer = stage.getPointerPosition()

@@ -59,7 +59,47 @@ export function attendanceBadgeClass(rate: number): string {
   return 'bg-red-100 text-red-700'
 }
 
+/**
+ * Etiqueta del badge de asistencia.
+ *
+ * Reglas:
+ *  - Sin marcar todavía (marked === 0) → "0/total · N sin responder".
+ *  - Con respuestas y pendientes → "atendidos/marked (rate%) · N sin responder".
+ *  - Todo respondido → "atendidos/marked (rate%)".
+ */
 export function attendanceBadgeLabel(summary: AttendanceSummary): string {
-  if (summary.marked === 0) return `👥 0/${summary.total} (sin marcar)`
-  return `👥 ${summary.attended}/${summary.marked} (${summary.rate}%)`
+  const { attended, marked, total, pending, rate } = summary
+
+  if (marked === 0) {
+    if (total === 0) return '👥 sin convocados'
+    return pending > 0
+      ? `👥 0/${total} · ${pending} sin responder`
+      : `👥 0/${total} (sin marcar)`
+  }
+
+  const base = `👥 ${attended}/${marked} (${rate}%)`
+  return pending > 0 ? `${base} · ${pending} sin responder` : base
+}
+
+/**
+ * Texto para el `title` del badge. Desglose completo del estado de la
+ * sesión. Útil para el listado de /sessions.
+ */
+export function attendanceBadgeTooltip(summary: AttendanceSummary): string {
+  const { present, late, absent, excused, pending, total, marked, attended, rate } = summary
+
+  const parts: string[] = []
+  parts.push(`Convocados: ${total}`)
+  if (marked > 0) {
+    parts.push(`Respondidos: ${marked}`)
+    parts.push(`Asistidos: ${attended}`)
+    parts.push(`Presentes: ${present}`)
+    if (late > 0) parts.push(`Tarde: ${late}`)
+    if (absent > 0) parts.push(`Ausentes: ${absent}`)
+    if (excused > 0) parts.push(`Justificados: ${excused}`)
+    parts.push(`Tasa: ${rate}%`)
+  }
+  if (pending > 0) parts.push(`Sin responder: ${pending}`)
+
+  return parts.join(' · ')
 }

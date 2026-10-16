@@ -835,7 +835,10 @@ export default function SessionDetail() {
             </div>
           </div>
 
-          <div className="grid grid-cols-5 gap-2 mt-4 pt-4 border-t border-border-subtle">
+          {/* ✅ MODIFICADO — Añadido contador "Pendientes".
+              Pasamos de 5 a 6 columnas. En móvil se ven 3 por fila
+              (2 filas de 3) para que no se apriete. */}
+          <div className="grid grid-cols-3 md:grid-cols-6 gap-2 mt-4 pt-4 border-t border-border-subtle">
             <div className="text-center">
               <p className="text-2xl font-bold text-text-primary">{stats.total}</p>
               <p className="text-xs text-text-muted">Total</p>
@@ -855,6 +858,10 @@ export default function SessionDetail() {
             <div className="text-center">
               <p className="text-2xl font-bold text-info">{stats.excused}</p>
               <p className="text-xs text-text-muted">Justificados</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-text-muted">{stats.pending}</p>
+              <p className="text-xs text-text-muted">Pendientes</p>
             </div>
           </div>
         </CardBody>

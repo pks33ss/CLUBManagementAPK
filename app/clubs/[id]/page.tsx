@@ -27,7 +27,7 @@ interface ClubDetail {
   members: {
     id: string
     userId: string
-    role: string
+    roleRef: { name: string } | null
     isActive: boolean
     user: {
       id: string
@@ -101,7 +101,7 @@ export default function ClubDetail() {
         const myMember = response.data.members?.find(
           (m: any) => m.userId === user.id,
         )
-        setUserRole(myMember?.role || '')
+        setUserRole(myMember?.roleRef?.name || '')
       }
     } catch (error: any) {
       console.error('Error:', error)
@@ -130,7 +130,17 @@ export default function ClubDetail() {
     setUpdating(true)
 
     try {
-      await api.put(`/clubs/${clubId}`, editForm)
+      // ✅ Convertimos campos vacíos a null antes de enviar. Así la BD no
+      // almacena '' (que se ve mal en el render y mezcla con null).
+      const payload = {
+        name: editForm.name.trim(),
+        description: editForm.description.trim() || null,
+        address: editForm.address.trim() || null,
+        phone: editForm.phone.trim() || null,
+        email: editForm.email.trim() || null,
+      }
+
+      await api.put(`/clubs/${clubId}`, payload)
       setShowEditModal(false)
       fetchClub()
       alert('✅ Club actualizado correctamente')
@@ -234,14 +244,13 @@ export default function ClubDetail() {
         return '🎓 Entrenador'
       case 'ASSISTANT':
         return '🤝 Asistente'
+      case 'MEMBER':
+        return '👤 Miembro'
       default:
         return role
     }
   }
 
-  // NOTA: `isAdmin` se mantiene para el botón "Eliminar club" porque
-  // la matriz no tiene un recurso específico para "borrar club".
-  // Todos los demás checks binarios se migran a <Can>.
   const isAdmin =
     userRole === 'ADMIN_CLUB' || currentUser?.role === 'SUPER_ADMIN'
 
@@ -274,7 +283,6 @@ export default function ClubDetail() {
         ← Volver a Mis Clubs
       </Link>
 
-      {/* INFORMACIÓN DEL CLUB */}
       <Card className="mb-6">
         <CardBody>
           <div className="flex justify-between items-start gap-4 flex-wrap">
@@ -306,15 +314,12 @@ export default function ClubDetail() {
             </div>
 
             <div className="flex gap-2 flex-shrink-0">
-              {/* NUEVO: gating con <Can>. Editar club = club_settings:edit. */}
               <Can clubId={clubId} resource="club_settings" action="edit">
                 <Button size="sm" onClick={openEditModal}>
                   ✏️ Editar
                 </Button>
               </Can>
 
-              {/* NOTA: "Eliminar" sigue con isAdmin porque la matriz
-                  no cubre "borrar club". */}
               {isAdmin && (
                 <Button
                   size="sm"
@@ -327,7 +332,6 @@ export default function ClubDetail() {
             </div>
           </div>
 
-          {/* Estadísticas */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-border-subtle">
             <div className="text-center">
               <p className="text-2xl font-bold text-text-primary">
@@ -352,8 +356,8 @@ export default function ClubDetail() {
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-brand-primary">
-                {club.members?.filter((m) => m.role === 'ADMIN_CLUB').length ||
-                  0}
+                {club.members?.filter((m) => m.roleRef?.name === 'ADMIN_CLUB')
+                  .length || 0}
               </p>
               <p className="text-xs text-text-muted">Admins</p>
             </div>
@@ -361,22 +365,16 @@ export default function ClubDetail() {
         </CardBody>
       </Card>
 
-      {/* RECORDATORIOS DE PAGO */}
-      {/* NUEVO: el editor solo se muestra si el usuario tiene
-          club_settings:edit. La comprobación interna de `canManage` en
-          ClubRemindersSection ya no la hacemos aquí: la hace <Can>. */}
       <Can clubId={clubId} resource="club_settings" action="edit">
         <ClubRemindersSection clubId={clubId} canManage={true} />
       </Can>
 
-      {/* EQUIPOS */}
       <Card className="mb-6">
         <CardBody>
           <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
             <h2 className="text-xl font-semibold text-text-primary">
               🏆 Equipos ({club.teams?.length || 0})
             </h2>
-            {/* NUEVO: gating con <Can>. */}
             <Can clubId={clubId} resource="team" action="view">
               <Button size="sm" href={`/teams?club=${clubId}`}>
                 Gestionar Equipos
@@ -415,14 +413,12 @@ export default function ClubDetail() {
         </CardBody>
       </Card>
 
-      {/* MIEMBROS */}
       <Card>
         <CardBody>
           <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
             <h2 className="text-xl font-semibold text-text-primary">
               👥 Miembros ({club.members?.length || 0})
             </h2>
-            {/* NUEVO: gating con <Can>. */}
             <Can clubId={clubId} resource="member" action="edit">
               <Button size="sm" href={`/clubs/${clubId}/members`}>
                 Gestionar Miembros
@@ -436,37 +432,38 @@ export default function ClubDetail() {
             </p>
           ) : (
             <div className="space-y-2">
-              {club.members.map((member) => (
-                <div
-                  key={member.id}
-                  className="flex items-center justify-between bg-surface-elevated rounded-lg p-3 border border-border-subtle flex-wrap gap-2"
-                >
-                  <div className="min-w-0">
-                    <p className="font-medium text-text-primary">
-                      {member.user.name} {member.user.lastName}
-                    </p>
-                    <p className="text-sm text-text-muted">
-                      {member.user.email}
-                    </p>
+              {club.members.map((member) => {
+                const roleName = member.roleRef?.name ?? ''
+                return (
+                  <div
+                    key={member.id}
+                    className="flex items-center justify-between bg-surface-elevated rounded-lg p-3 border border-border-subtle flex-wrap gap-2"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-medium text-text-primary">
+                        {member.user.name} {member.user.lastName}
+                      </p>
+                      <p className="text-sm text-text-muted">
+                        {member.user.email}
+                      </p>
+                    </div>
+                    <Badge variant={getRoleVariant(roleName)}>
+                      {getRoleText(roleName)}
+                    </Badge>
                   </div>
-                  <Badge variant={getRoleVariant(member.role)}>
-                    {getRoleText(member.role)}
-                  </Badge>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </CardBody>
       </Card>
 
-      {/* MODAL DE EDITAR CLUB */}
       <Modal
         isOpen={showEditModal}
         onClose={() => setShowEditModal(false)}
         title="✏️ Editar Club"
         size="md"
       >
-        {/* Logo */}
         <div className="mb-4">
           <label className="block text-sm font-medium text-text-secondary mb-2">
             Logo del club
@@ -621,7 +618,6 @@ export default function ClubDetail() {
         </form>
       </Modal>
 
-      {/* MODAL DE ELIMINAR CLUB */}
       <Modal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}

@@ -20,6 +20,10 @@ export interface UserPublic {
   role: string
   isGhost?: boolean
   memberships: UserPublicMembership[]
+  // ✅ NUEVO — datos privados. Solo llegan si el backend decide que el
+  // viewer puede verlos. Si no, vienen como `undefined` (o ausentes).
+  email?: string | null
+  phone?: string | null
 }
 
 export interface UserPublicMembership {
@@ -129,4 +133,17 @@ export interface Injury {
 export interface UserPermissions {
   canViewProfile: boolean
   canEditProfile: boolean
+  /** El viewer puede ver email/phone de este user. */
+  canViewEmail: boolean
+  /**
+   * El viewer puede gestionar memberships de al menos un equipo en el que
+   * esté el target. Se usa para mostrar el botón "Editar dorsal y posición".
+   */
+  canManageMemberships: boolean
+  /**
+   * Lista concreta de teamIds donde el viewer puede gestionar memberships
+   * del target. El botón "Editar dorsal y posición" se muestra SOLO para
+   * las memberships cuyo `team.id` esté en esta lista.
+   */
+  manageableTeamIds: string[]
 }

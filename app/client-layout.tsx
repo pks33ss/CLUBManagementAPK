@@ -8,6 +8,7 @@ import { usePaymentsNav } from '@/lib/usePaymentsNav'
 import { getSportIcon } from '@/lib/sport'
 import { Logo } from '@/components/ui/Logo'
 import { invitationsApi } from '@/lib/api/invitations'
+import { clubsApi, type ClubListItem } from '@/lib/api/clubs'
 import { getVisibleTabs } from '@/lib/menuTabs'
 import RegisterServiceWorker from '@/components/RegisterServiceWorker'
 import InstallPrompt from '@/components/InstallPrompt'
@@ -33,6 +34,9 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [pendingInvitations, setPendingInvitations] = useState(0)
+  // ✅ NUEVO — ¿El user es ADMIN_CLUB en algún club?
+  // Sirve para mostrar "Mis Clubs" también a ADMIN_CLUB (antes solo SUPER_ADMIN).
+  const [isAnyClubAdmin, setIsAnyClubAdmin] = useState(false)
 
   const authRoutes = ['/login', '/register']
 
@@ -53,6 +57,35 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         .getMine()
         .then((list) => setPendingInvitations(list.length))
         .catch(() => setPendingInvitations(0))
+
+      // ✅ NUEVO — Comprobamos si el user es ADMIN_CLUB en algún club.
+      // El endpoint /clubs devuelve solo los clubs del user, con sus
+      // members activos. Comprobamos si el user aparece como ADMIN_CLUB.
+      clubsApi
+        .getMine()
+        .then((clubs: ClubListItem[]) => {
+          const userId = (() => {
+            try {
+              return JSON.parse(localStorage.getItem('user') || '{}')?.id
+            } catch {
+              return null
+            }
+          })()
+          if (!userId) {
+            setIsAnyClubAdmin(false)
+            return
+          }
+          const isAdmin = clubs.some((club) =>
+            club.members?.some(
+              (m) =>
+                m.userId === userId &&
+                m.isActive !== false &&
+                m.role === 'ADMIN_CLUB',
+            ),
+          )
+          setIsAnyClubAdmin(isAdmin)
+        })
+        .catch(() => setIsAnyClubAdmin(false))
     }
   }, [pathname])
 
@@ -376,27 +409,32 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                 <span className="text-sm font-medium">Configuración</span>
               </Link>
 
-              {currentUser?.role === 'SUPER_ADMIN' && (
-  <>
-    <Link
-      href="/clubs"
-      onClick={() => setSidebarOpen(false)}
-      className="flex items-center gap-3 p-2 rounded-lg hover:bg-brand-primary/10 transition text-brand-primary"
-    >
-      <span className="text-lg">🏛️</span>
-      <span className="text-sm font-medium">Mis Clubs</span>
-    </Link>
+              {/* ✅ AMPLIADO — "Mis Clubs" ahora también para ADMIN_CLUB,
+                  no solo SUPER_ADMIN. La condición se resuelve con
+                  isAnyClubAdmin, calculado en el useEffect de arriba. */}
+              {(currentUser?.role === 'SUPER_ADMIN' || isAnyClubAdmin) && (
+                <>
+                  <Link
+                    href="/clubs"
+                    onClick={() => setSidebarOpen(false)}
+                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-brand-primary/10 transition text-brand-primary"
+                  >
+                    <span className="text-lg">🏛️</span>
+                    <span className="text-sm font-medium">Mis Clubs</span>
+                  </Link>
 
-    <Link
-      href="/admin/users"
-      onClick={() => setSidebarOpen(false)}
-      className="flex items-center gap-3 p-2 rounded-lg hover:bg-brand-primary/10 transition text-brand-primary"
-    >
-      <span className="text-lg">👑</span>
-      <span className="text-sm font-medium">Admin · Usuarios</span>
-    </Link>
-  </>
-)}
+                  {currentUser?.role === 'SUPER_ADMIN' && (
+                    <Link
+                      href="/admin/users"
+                      onClick={() => setSidebarOpen(false)}
+                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-brand-primary/10 transition text-brand-primary"
+                    >
+                      <span className="text-lg">👑</span>
+                      <span className="text-sm font-medium">Admin · Usuarios</span>
+                    </Link>
+                  )}
+                </>
+              )}
 
               <button
                 onClick={() => {

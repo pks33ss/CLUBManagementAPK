@@ -333,13 +333,8 @@ export default function CallupsTab({ match, onUpdate }: Props) {
                     </div>
                   )}
                   <div className="min-w-0">
-                    <p className="font-medium text-text-primary truncate flex items-center gap-2">
+                    <p className="font-medium text-text-primary truncate">
                       {row.name} {row.lastName}
-                      {row.isGhost && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning font-bold uppercase">
-                          sin cuenta
-                        </span>
-                      )}
                     </p>
                     <p className="text-xs text-text-muted truncate">
                       {row.fromOtherTeam ? (
@@ -449,13 +444,8 @@ export default function CallupsTab({ match, onUpdate }: Props) {
                     </span>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-text-primary truncate flex items-center gap-2">
+                    <p className="text-sm font-medium text-text-primary truncate">
                       {player.name} {player.lastName}
-                      {player.isGhost && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning font-bold uppercase">
-                          sin cuenta
-                        </span>
-                      )}
                     </p>
                     <p className="text-xs text-text-muted truncate">
                       {getSportIcon(player.team?.sport)} {player.team?.name} ·{' '}

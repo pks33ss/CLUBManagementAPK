@@ -53,12 +53,19 @@ export default function UserProfilePage() {
       const data = await usersApi.getByUsername(username)
       setUser(data)
 
-      // Pedimos permisos en paralelo. Si falla, asumimos todo false.
-      try {
+      
+            // Pedimos permisos en paralelo. Si falla, asumimos todo false.
+            try {
         const perms = await usersApi.getPermissions(data.id)
         setPermissions(perms)
       } catch {
-        setPermissions({ canViewProfile: false, canEditProfile: false })
+        setPermissions({
+          canViewProfile: false,
+          canEditProfile: false,
+          canViewEmail: false,
+          canManageMemberships: false,
+          manageableTeamIds: [],
+        })
       }
     } catch (err: any) {
       console.error('Error:', err)
@@ -152,6 +159,7 @@ export default function UserProfilePage() {
       <UserProfileHeader
         user={user}
         canEditProfile={permissions?.canEditProfile ?? false}
+        canViewEmail={permissions?.canViewEmail ?? false}
       />
 
       {/* Tabs */}
@@ -179,10 +187,11 @@ export default function UserProfilePage() {
 
       {/* Contenido */}
       <div className="mt-6">
-        {tab === 'equipos' && (
+                {tab === 'equipos' && (
           <EquiposTab
             user={user}
-            canEdit={permissions?.canEditProfile ?? false}
+            manageableTeamIds={permissions?.manageableTeamIds ?? []}
+            onSaved={fetchUser}
           />
         )}
         {tab === 'personal' && <PersonalTab profile={profile} />}

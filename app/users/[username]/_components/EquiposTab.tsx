@@ -8,11 +8,21 @@ import type { UserPublic } from '@/types/user'
 
 interface Props {
   user: UserPublic
-  canEdit?: boolean
+  /** Lista de teamIds donde el viewer puede editar la membership. */
+  manageableTeamIds?: string[]
+  /** Callback que el padre da para recargar la ficha tras guardar. */
+  onSaved?: () => void | Promise<void>
 }
 
-export default function EquiposTab({ user, canEdit = false }: Props) {
+export default function EquiposTab({
+  user,
+  manageableTeamIds = [],
+  onSaved,
+}: Props) {
   const [editingMembership, setEditingMembership] = useState<any | null>(null)
+
+  const canManageTeam = (teamId: string) =>
+    manageableTeamIds.includes(teamId)
 
   return (
     <>
@@ -62,15 +72,15 @@ export default function EquiposTab({ user, canEdit = false }: Props) {
                     <Badge variant="brand">{m.role}</Badge>
                   </Link>
 
-                  {canEdit && (
+                  {canManageTeam(m.team.id) && (
                     <button
-  type="button"
-  onClick={() => setEditingMembership(m)}
-  className="shrink-0 text-xs font-medium px-2.5 py-1.5 rounded-md bg-surface-elevated hover:bg-border-subtle text-text-secondary transition whitespace-nowrap"
-  title="Editar dorsal, posición y datos básicos"
->
-  ✏️ Editar dorsal y posición
-</button>
+                      type="button"
+                      onClick={() => setEditingMembership(m)}
+                      className="shrink-0 text-xs font-medium px-2.5 py-1.5 rounded-md bg-surface-elevated hover:bg-border-subtle text-text-secondary transition whitespace-nowrap"
+                      title="Editar dorsal, posición y datos básicos"
+                    >
+                      ✏️ Editar dorsal y posición
+                    </button>
                   )}
                 </div>
               ))}
@@ -83,9 +93,10 @@ export default function EquiposTab({ user, canEdit = false }: Props) {
         <EditMembershipModal
           membership={editingMembership as any}
           onClose={() => setEditingMembership(null)}
-          onSuccess={() => {
-            // No recargamos: el padre (page.tsx) puede hacer un router.refresh
-            // si lo necesita. Aquí solo cerramos.
+          onSuccess={async () => {
+            // ✅ Refrescamos la ficha del padre antes de cerrar el modal.
+            // Así el usuario ve el dorsal/posición actualizados sin recargar.
+            await onSaved?.()
             setEditingMembership(null)
           }}
         />

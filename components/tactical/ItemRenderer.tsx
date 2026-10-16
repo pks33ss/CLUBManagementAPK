@@ -672,16 +672,39 @@ function ControlHandle({
   y: number
   onDrag: (x: number, y: number) => void
 }) {
+  // ✅ Área táctil ampliada sin engordar el círculo visual.
+  // hitStrokeWidth hace que el "hit test" del dedo sea mucho más
+  // permisivo. perfectDrawEnabled desactiva el redibujado perfecto
+  // (más rápido en táctil y suficiente para un handle).
+  const HIT_STROKE_WIDTH = 28
+
   return (
     <Circle
-      x={x} y={y}
+      x={x}
+      y={y}
       radius={10}
       fill="#ffffff"
       stroke="#00E676"
       strokeWidth={2}
       draggable={true}
-      onMouseDown={(e) => { e.cancelBubble = true }}
-      onDragStart={(e) => { e.cancelBubble = true }}
+      hitStrokeWidth={HIT_STROKE_WIDTH}
+      perfectDrawEnabled={false}
+      // Ratón (desktop) — mantenemos los handlers existentes
+      onMouseDown={(e) => {
+        e.cancelBubble = true
+      }}
+      // ✅ Táctil — estos son los que faltaban. El Stage tiene
+      // onTouchStart={handlePointerDown} y sin cancelBubble el Stage
+      // también recibía el toque, hacía getIntersection, no encontraba
+      // el handle (porque sin hitStrokeWidth no lo alcanzaba) y
+      // des-seleccionaba la flecha. Al deseleccionar, el handle
+      // desaparecía a mitad del gesto.
+      onTouchStart={(e) => {
+        e.cancelBubble = true
+      }}
+      onDragStart={(e) => {
+        e.cancelBubble = true
+      }}
       onDragMove={(e) => {
         e.cancelBubble = true
         onDrag(e.target.x(), e.target.y())
@@ -689,6 +712,12 @@ function ControlHandle({
       onDragEnd={(e) => {
         e.cancelBubble = true
         onDrag(e.target.x(), e.target.y())
+      }}
+      onTouchMove={(e) => {
+        e.cancelBubble = true
+      }}
+      onTouchEnd={(e) => {
+        e.cancelBubble = true
       }}
       onMouseEnter={(e) => {
         const container = e.target.getStage()?.container()

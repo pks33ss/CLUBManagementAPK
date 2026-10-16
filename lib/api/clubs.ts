@@ -46,6 +46,42 @@ export interface ClubDetail {
   }>
 }
 
+/**
+ * Item de `GET /clubs` (listado de mis clubs).
+ * El backend devuelve cada club con sus members (incluyendo `role`) y
+ * sus teams resumidos. El email del user puede venir o no según el
+ * scope del viewer (ver backend/src/common/access.ts).
+ */
+export interface ClubListItem {
+  id: string
+  name: string
+  description: string | null
+  address: string | null
+  phone: string | null
+  email: string | null
+  logo: string | null
+  primaryColor: string | null
+  secondaryColor: string | null
+  members: Array<{
+    id: string
+    userId: string
+    role: string | null
+    isActive: boolean
+    user: {
+      id: string
+      name: string
+      lastName: string
+      email?: string | null
+    }
+  }>
+  teams: Array<{
+    id: string
+    name: string
+    category: string | null
+    season: string | null
+  }>
+}
+
 export const clubsApi = {
   /**
    * Jugadores del club (vista global).
@@ -95,6 +131,16 @@ export const clubsApi = {
    */
   async removeLogo(clubId: string): Promise<{ logo: null }> {
     const { data } = await api.delete(`/clubs/${clubId}/logo`)
+    return data
+  },
+
+  /**
+   * ✅ NUEVO — Listar mis clubs.
+   * Devuelve solo los clubs donde el user es miembro activo o tiene
+   * alguna membership de equipo. SUPER_ADMIN los ve todos.
+   */
+  async getMine(): Promise<ClubListItem[]> {
+    const { data } = await api.get('/clubs')
     return data
   },
 }
