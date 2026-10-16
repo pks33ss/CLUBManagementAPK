@@ -5,6 +5,7 @@ import { Button, Textarea } from '@/components/ui'
 import TacticalBoard from '@/components/tactical/TacticalBoard'
 import type { PlayStep } from '@/lib/playbook'
 import { useTacticalBackground } from '@/lib/useTacticalBackground'
+import { useActiveTeam } from '@/lib/ActiveTeamContext'
 
 interface Props {
   step: PlayStep
@@ -19,7 +20,8 @@ export function PlayStepEditor({ step, onSave, onCancel, saving }: Props) {
   const [showBoard, setShowBoard] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-const { userBackground, updateBackground } = useTacticalBackground()
+  const { userBackground, updateBackground } = useTacticalBackground()
+  const { activeTeam } = useActiveTeam()
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -148,21 +150,25 @@ const { userBackground, updateBackground } = useTacticalBackground()
               </button>
             </div>
             <TacticalBoard
-  width={800}
-  height={800}
-  onSave={(dataUrl) => {
-    setImageUrl(dataUrl)
-    setShowBoard(false)
-  }}
-  userBackground={userBackground}
-  onBackgroundChange={(url, mode) => {
-    if (mode === 'HALF') {
-      void updateBackground({ urlHalf: url })
-    } else {
-      void updateBackground({ urlFull: url })
-    }
-  }}
-/>
+              width={800}
+              height={800}
+              // ✅ Pasa el deporte del equipo activo. El playbook se crea
+              // siempre desde un equipo, así que activeTeam.sport es el
+              // contexto correcto. Fallback a 'BASKETBALL'.
+              sport={activeTeam?.sport ?? 'BASKETBALL'}
+              onSave={(dataUrl) => {
+                setImageUrl(dataUrl)
+                setShowBoard(false)
+              }}
+              userBackground={userBackground}
+              onBackgroundChange={(url, mode) => {
+                if (mode === 'HALF') {
+                  void updateBackground({ urlHalf: url })
+                } else {
+                  void updateBackground({ urlFull: url })
+                }
+              }}
+            />
           </div>
         </div>
       )}

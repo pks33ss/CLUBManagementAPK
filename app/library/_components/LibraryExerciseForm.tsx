@@ -14,6 +14,7 @@ import {
 } from '@/lib/library'
 import { parseTags, formatTags } from '@/lib/libraryTags'
 import { useTacticalBackground } from '@/lib/useTacticalBackground'
+import { useActiveTeam } from '@/lib/ActiveTeamContext'
 
 interface ExistingLink {
   id: string
@@ -93,6 +94,7 @@ export function LibraryExerciseForm({
     (boardImage && boardImage.startsWith('data:')) || !!uploadedImage
 
   const { userBackground, updateBackground } = useTacticalBackground()
+  const { activeTeam } = useActiveTeam()
 
   // ============================================
   // HANDLERS DE MEDIA
@@ -527,9 +529,10 @@ export function LibraryExerciseForm({
                 ✕
               </button>
             </div>
-            <TacticalBoard
+                        <TacticalBoard
               width={800}
               height={800}
+              sport={activeTeam?.sport ?? 'BASKETBALL'}
               onSave={(dataUrl) => {
                 setBoardImage(dataUrl)
                 setShowBoard(false)
