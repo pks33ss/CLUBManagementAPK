@@ -52,14 +52,19 @@ export function useRoles(clubId: string | null | undefined): UseRolesResult {
 
 // ─────────────────────────────────────────
 // useMyPermissions — permisos efectivos del usuario actual en un club
-// Sirve para saber si el usuario es ADMIN_CLUB (role_admin:view === true)
 // ─────────────────────────────────────────
 
 interface UseMyPermissionsResult {
   permissions: EffectivePermissions | null
   loading: boolean
   error: string | null
+  /**
+   * ✅ CAMBIO: ahora viene del backend, no se infiere de `matrix.role_admin`.
+   * `true` solo si el user es ADMIN_CLUB del club o SUPER_ADMIN.
+   */
   isClubAdmin: boolean
+  /** Rol real del user en el club (o null si no es miembro). */
+  clubRoleName: string | null
   reload: () => Promise<void>
 }
 
@@ -70,12 +75,16 @@ export function useMyPermissions(
     useState<EffectivePermissions | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [isClubAdmin, setIsClubAdmin] = useState(false)
+  const [clubRoleName, setClubRoleName] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     if (!clubId) {
       setPermissions(null)
       setLoading(false)
       setError(null)
+      setIsClubAdmin(false)
+      setClubRoleName(null)
       return
     }
     setLoading(true)
@@ -83,9 +92,14 @@ export function useMyPermissions(
     try {
       const data = await permissionsApi.myPermissions(clubId)
       setPermissions(data)
+      // ✅ El backend ahora nos dice directamente si es admin del club.
+      setIsClubAdmin(!!(data as any).isClubAdmin)
+      setClubRoleName((data as any).clubRoleName ?? null)
     } catch (err: any) {
       setError(err?.response?.data?.message ?? 'Error cargando permisos')
       setPermissions(null)
+      setIsClubAdmin(false)
+      setClubRoleName(null)
     } finally {
       setLoading(false)
     }
@@ -95,9 +109,12 @@ export function useMyPermissions(
     void load()
   }, [load])
 
-  const isClubAdmin = !!(
-    permissions?.matrix?.role_admin?.view === true
-  )
-
-  return { permissions, loading, error, isClubAdmin, reload: load }
+  return {
+    permissions,
+    loading,
+    error,
+    isClubAdmin,
+    clubRoleName,
+    reload: load,
+  }
 }

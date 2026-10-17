@@ -65,13 +65,16 @@ export default function RolesPageContent() {
   const myPerms = useMyPermissions(selectedClubId)
   const isClubAdmin = myPerms.isClubAdmin
 
-  // ── Roles del club ─────────────────────────
+  // ── Roles del club (solo se cargan si el user es admin del club) ──
+  //    Pasamos `null` como clubId si no es admin para no hacer la petición.
+  const rolesClubId = !myPerms.loading && isClubAdmin ? selectedClubId : null
+
   const {
     roles,
     loading: rolesLoading,
     error: rolesError,
     reload: reloadRoles,
-  } = useRoles(selectedClubId)
+  } = useRoles(rolesClubId)
 
   // ── Rol seleccionado ───────────────────────
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null)
@@ -176,6 +179,7 @@ export default function RolesPageContent() {
   const [createOpen, setCreateOpen] = useState(false)
 
   // ── Render ─────────────────────────────────
+
   if (ctxLoading) {
     return (
       <div className="text-center py-12 text-text-muted">
@@ -209,7 +213,21 @@ export default function RolesPageContent() {
     )
   }
 
-  if (!myPerms.loading && !isClubAdmin) {
+  // ✅ NUEVO: esperamos a que `useMyPermissions` termine antes de
+  // decidir si mostrar la matriz o la pantalla de "sin permisos".
+  // Así evitamos el flash de la UI vacía con error rojo mientras carga.
+  if (myPerms.loading) {
+    return (
+      <div className="max-w-5xl mx-auto">
+        <Header />
+        <div className="text-center py-16 text-text-muted">
+          Comprobando permisos...
+        </div>
+      </div>
+    )
+  }
+
+  if (!isClubAdmin) {
     return (
       <div className="max-w-5xl mx-auto">
         <Header />
@@ -221,6 +239,12 @@ export default function RolesPageContent() {
           <p className="text-text-secondary">
             Solo los administradores del club pueden gestionar los roles.
           </p>
+          <Link
+            href="/settings/permissions"
+            className="inline-block mt-6 text-sm text-brand-primary hover:underline"
+          >
+            ← Volver a Permisos
+          </Link>
         </div>
       </div>
     )

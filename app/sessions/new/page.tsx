@@ -5,9 +5,12 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
 import { Button, Card, CardBody, Input, Textarea, Select } from '@/components/ui'
+import { useActiveTeam } from '@/lib/ActiveTeamContext'
 
 export default function NewSession() {
   const router = useRouter()
+  const { activeTeam, setActiveTeam } = useActiveTeam()
+
   const [teams, setTeams] = useState<any[]>([])
   const [clubs, setClubs] = useState<any[]>([])
   const [selectedClub, setSelectedClub] = useState('')
@@ -30,16 +33,44 @@ export default function NewSession() {
       return
     }
     fetchClubs()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const fetchClubs = async () => {
     try {
       const response = await api.get('/clubs')
-      setClubs(response.data)
-      if (response.data.length > 0) {
-        setSelectedClub(response.data[0].id)
-        fetchTeams(response.data[0].id)
+      const clubsList = response.data as any[]
+      setClubs(clubsList)
+
+      if (clubsList.length === 0) {
+        setLoading(false)
+        return
       }
+
+      // ─────────────────────────────────────────────
+      // ✅ Prioridad 1: si hay equipo activo, preseleccionar SU club
+      //    y SU equipo, independientemente del orden del array.
+      // ─────────────────────────────────────────────
+      if (activeTeam) {
+        const activeClub = activeTeam.club
+        const matchingClub =
+          activeClub && clubsList.find((c: any) => c.id === activeClub.id)
+
+        if (matchingClub) {
+          setSelectedClub(matchingClub.id)
+          // Cargamos los equipos de ese club para poblar el select.
+          // Forzamos el `teamId` del activo aunque no esté en la lista por
+          // algún motivo raro (no debería pasar, pero por si acaso).
+          await fetchTeams(matchingClub.id, activeTeam.id)
+          return
+        }
+      }
+
+      // ─────────────────────────────────────────────
+      // Fallback: comportamiento actual (primer club, primer equipo)
+      // ─────────────────────────────────────────────
+      setSelectedClub(clubsList[0].id)
+      await fetchTeams(clubsList[0].id)
     } catch (error) {
       console.error('Error:', error)
     } finally {
@@ -47,16 +78,35 @@ export default function NewSession() {
     }
   }
 
-  const fetchTeams = async (clubId: string) => {
+  const fetchTeams = async (clubId: string, preferredTeamId?: string) => {
     try {
       const response = await api.get(`/teams/club/${clubId}`)
-      setTeams(response.data)
-      if (response.data.length > 0) {
-        setFormData(prev => ({ ...prev, teamId: response.data[0].id }))
+      const teamsList = response.data as any[]
+      setTeams(teamsList)
+
+      if (teamsList.length === 0) {
+        setFormData((prev) => ({ ...prev, teamId: '' }))
+        return
       }
+
+      // Si el padre pidió un equipo concreto (equipo activo), lo respetamos
+      // siempre que esté en la lista. Si no, preseleccionamos el primero.
+      const preferred =
+        preferredTeamId && teamsList.find((t: any) => t.id === preferredTeamId)
+      const teamToSelect = preferred
+        ? preferredTeamId!
+        : teamsList[0].id
+
+      setFormData((prev) => ({ ...prev, teamId: teamToSelect }))
     } catch (error) {
       console.error('Error fetching teams:', error)
     }
+  }
+
+  // Cambio manual de club: comportamiento actual (primer equipo del club).
+  const handleClubChange = (clubId: string) => {
+    setSelectedClub(clubId)
+    fetchTeams(clubId)
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -82,6 +132,19 @@ export default function NewSession() {
       }
 
       await api.post('/sessions', sessionData)
+
+      // ✅ Si el equipo elegido no es el activo, cambiamos el equipo activo
+      // antes de navegar. Así, al llegar a /sessions, el badge y el listado
+      // corresponden al equipo de la sesión recién creada.
+      if (formData.teamId && formData.teamId !== activeTeam?.id) {
+        const teamToActivate = teams.find((t: any) => t.id === formData.teamId)
+        if (teamToActivate) {
+          // El backend de /teams/club/:clubId devuelve los equipos con su
+          // club embebido, así que podemos pasarlos tal cual al contexto.
+          setActiveTeam(teamToActivate)
+        }
+      }
+
       router.push('/sessions')
     } catch (error: any) {
       console.error('❌ Error:', error)
@@ -160,10 +223,7 @@ export default function NewSession() {
             <Select
               label="Club *"
               value={selectedClub}
-              onChange={(e) => {
-                setSelectedClub(e.target.value)
-                fetchTeams(e.target.value)
-              }}
+              onChange={(e) => handleClubChange(e.target.value)}
               required
             >
               {clubs.map((club) => (
