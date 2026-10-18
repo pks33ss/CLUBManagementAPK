@@ -1,7 +1,5 @@
 'use client'
 
-'use client'
-
 import { useEffect, useRef, useState, type ReactElement } from 'react'
 import type { Tool, TacticalBackgroundMode } from './types'
 import { COLOR_PALETTE, STROKE_WIDTHS } from './constants'
@@ -18,6 +16,7 @@ import {
   IconCircle,
   IconRect,
   IconPlayer,
+  IconDefender,
   IconCone,
   IconBall,
   IconText,
@@ -33,12 +32,13 @@ import {
 } from './icons'
 import { CourtModeToggle } from './CourtModeToggle'
 
-
 interface ToolbarProps {
   tool: Tool
   onToolChange: (t: Tool) => void
   color: string
   onColorChange: (c: string) => void
+  playerColor: string
+  onPlayerColorChange: (c: string) => void
   strokeWidth: number
   onStrokeWidthChange: (w: number) => void
   canUndo: boolean
@@ -52,7 +52,6 @@ interface ToolbarProps {
   onSendToBack: () => void
   onClearAll: () => void
   onSave?: () => void
-  // ✅ NUEVO
   mode: TacticalBackgroundMode
   onModeChange: (m: TacticalBackgroundMode) => void
   onOpenBackgroundPicker: () => void
@@ -67,7 +66,7 @@ type CurvedVariant =
 const STRAIGHT_OPTIONS: Array<{
   value: StraightVariant
   label: string
-    Icon: (p: { size?: number }) => ReactElement
+  Icon: (p: { size?: number }) => ReactElement
 }> = [
   { value: 'arrow', label: 'Recta sólida', Icon: IconArrow },
   { value: 'arrow-dashed', label: 'Pase (discontinua)', Icon: IconArrowDashed },
@@ -77,7 +76,7 @@ const STRAIGHT_OPTIONS: Array<{
 const CURVED_OPTIONS: Array<{
   value: CurvedVariant
   label: string
-    Icon: (p: { size?: number }) => ReactElement
+  Icon: (p: { size?: number }) => ReactElement
 }> = [
   { value: 'curved-arrow', label: 'Curva sólida', Icon: IconCurvedArrow },
   {
@@ -97,6 +96,8 @@ export function Toolbar({
   onToolChange,
   color,
   onColorChange,
+  playerColor,
+  onPlayerColorChange,
   strokeWidth,
   onStrokeWidthChange,
   canUndo,
@@ -228,6 +229,13 @@ export function Toolbar({
           <IconPlayer />
         </ToolButton>
         <ToolButton
+          active={tool === 'defender'}
+          onClick={() => onToolChange('defender')}
+          title="Defensor"
+        >
+          <IconDefender />
+        </ToolButton>
+        <ToolButton
           active={tool === 'cone'}
           onClick={() => onToolChange('cone')}
           title="Cono"
@@ -257,6 +265,7 @@ export function Toolbar({
         </ToolButton>
       </div>
 
+      {/* Paleta de color general (borde, líneas, etc.) */}
       <div className="flex gap-1 border-r border-border-subtle pr-3 flex-wrap">
         {COLOR_PALETTE.map((c) => (
           <button
@@ -269,6 +278,27 @@ export function Toolbar({
             }`}
             style={{ backgroundColor: c }}
             title={c}
+            type="button"
+          />
+        ))}
+      </div>
+
+      {/* ✅ NUEVO — Color de jugador/defensor */}
+      <div className="flex gap-1 border-r border-border-subtle pr-3 flex-wrap items-center">
+        <span className="text-[10px] uppercase tracking-wide text-text-muted mr-1">
+          Jugador
+        </span>
+        {COLOR_PALETTE.map((c) => (
+          <button
+            key={c}
+            onClick={() => onPlayerColorChange(c)}
+            className={`w-6 h-6 rounded-full border-2 transition ${
+              playerColor === c
+                ? 'border-brand-primary scale-110'
+                : 'border-border-subtle'
+            }`}
+            style={{ backgroundColor: c }}
+            title={`Color de jugador: ${c}`}
             type="button"
           />
         ))}
@@ -300,7 +330,6 @@ export function Toolbar({
         ))}
       </div>
 
-      {/* ✅ NUEVO — Fondo y modo */}
       <div className="flex gap-1 border-r border-border-subtle pr-3 flex-wrap items-center">
         <ToolButton
           active={false}
@@ -310,10 +339,7 @@ export function Toolbar({
           <IconBackground />
         </ToolButton>
 
-        <CourtModeToggle
-          mode={mode}
-          onChange={onModeChange}
-        />
+        <CourtModeToggle mode={mode} onChange={onModeChange} />
       </div>
 
       <div className="flex gap-1 flex-wrap items-center">
@@ -508,8 +534,8 @@ function ActionButton({
         disabled
           ? 'opacity-40 cursor-not-allowed text-text-muted'
           : danger
-            ? 'text-danger hover:bg-danger/10'
-            : 'text-text-secondary hover:text-text-primary hover:bg-surface-elevated'
+          ? 'text-danger hover:bg-danger/10'
+          : 'text-text-secondary hover:text-text-primary hover:bg-surface-elevated'
       }`}
     >
       {children}

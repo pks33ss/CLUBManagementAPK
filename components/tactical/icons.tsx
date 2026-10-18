@@ -52,32 +52,20 @@ export function IconCurvedArrow({ size = 20 }: IconProps) {
   )
 }
 
-/**
- * Flecha de bote recta: línea con onda y punta al final.
- * Dibujamos la onda explícitamente para que se vea clara a 20x20.
- */
 export function IconBounceArrow({ size = 20 }: IconProps) {
   return (
     <svg {...baseProps(size)}>
-      {/* Onda horizontal con 2 senos completos. */}
       <path d="M3 12 Q 5 6, 7 12 T 11 12 T 15 12 T 19 12" />
-      {/* Punta de flecha apuntando a la derecha. */}
       <polyline points="16 8 20 12 16 16" />
     </svg>
   )
 }
 
-/**
- * Flecha de bote curva: curva bezier con onda superpuesta y punta al final.
- */
 export function IconBounceCurvedArrow({ size = 20 }: IconProps) {
   return (
     <svg {...baseProps(size)}>
-      {/* Arco base (curva) en trazo discontinuo para indicar la trayectoria */}
       <path d="M3 20 Q 8 10 20 5" strokeDasharray="2 2" opacity="0.4" />
-      {/* Onda a lo largo del arco */}
       <path d="M4 19 Q 5 16, 6.5 18 T 9 16 T 11.5 14 T 14 11 T 17 8" />
-      {/* Punta de flecha apuntando arriba-derecha */}
       <polyline points="15 5 20 4 19 9" />
     </svg>
   )
@@ -116,6 +104,17 @@ export function IconPlayer({ size = 20 }: IconProps) {
   )
 }
 
+// ✅ NUEVO — icono del defensor: círculo con X
+export function IconDefender({ size = 20 }: IconProps) {
+  return (
+    <svg {...baseProps(size)}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M8 8 L16 16" />
+      <path d="M16 8 L8 16" />
+    </svg>
+  )
+}
+
 export function IconCone({ size = 20 }: IconProps) {
   return (
     <svg {...baseProps(size)}>
@@ -125,19 +124,12 @@ export function IconCone({ size = 20 }: IconProps) {
   )
 }
 
-/**
- * Balón de baloncesto: círculo + línea horizontal + dos arcos laterales
- * que simulan las costuras.
- */
 export function IconBall({ size = 20 }: IconProps) {
   return (
     <svg {...baseProps(size)}>
       <circle cx="12" cy="12" r="9" />
-      {/* Línea horizontal */}
       <line x1="3" y1="12" x2="21" y2="12" />
-      {/* Costura izquierda (arco hacia dentro) */}
       <path d="M 12 3 C 8 8, 8 16, 12 21" />
-      {/* Costura derecha (arco hacia dentro) */}
       <path d="M 12 3 C 16 8, 16 16, 12 21" />
     </svg>
   )
@@ -218,10 +210,6 @@ export function IconTrash({ size = 20 }: IconProps) {
   )
 }
 
-/**
- * Flecha recta discontinua: línea con trazo discontinuo y punta.
- * Simula un "pase" recto.
- */
 export function IconArrowDashed({ size = 20 }: IconProps) {
   return (
     <svg {...baseProps(size)}>
@@ -232,10 +220,6 @@ export function IconArrowDashed({ size = 20 }: IconProps) {
   )
 }
 
-/**
- * Flecha curva discontinua: curva con trazo discontinuo y punta.
- * Simula un "pase" curvo.
- */
 export function IconCurvedArrowDashed({ size = 20 }: IconProps) {
   return (
     <svg {...baseProps(size)}>
@@ -245,9 +229,6 @@ export function IconCurvedArrowDashed({ size = 20 }: IconProps) {
   )
 }
 
-/**
- * Chevron hacia abajo para indicar que un botón tiene dropdown.
- */
 export function IconChevronDown({ size = 10 }: IconProps) {
   return (
     <svg {...baseProps(size)}>
@@ -256,9 +237,6 @@ export function IconChevronDown({ size = 10 }: IconProps) {
   )
 }
 
-/**
- * Icono "media pista": cancha cuadrada con línea de medio campo.
- */
 export function IconHalfCourt({ size = 20 }: IconProps) {
   return (
     <svg {...baseProps(size)}>
@@ -269,9 +247,6 @@ export function IconHalfCourt({ size = 20 }: IconProps) {
   )
 }
 
-/**
- * Icono "pista completa": cancha rectangular con dos aros.
- */
 export function IconFullCourt({ size = 20 }: IconProps) {
   return (
     <svg {...baseProps(size)}>
@@ -286,9 +261,6 @@ export function IconFullCourt({ size = 20 }: IconProps) {
   )
 }
 
-/**
- * Icono "fondo": imagen con paisaje.
- */
 export function IconBackground({ size = 20 }: IconProps) {
   return (
     <svg {...baseProps(size)}>
@@ -298,4 +270,3 @@ export function IconBackground({ size = 20 }: IconProps) {
     </svg>
   )
 }
-

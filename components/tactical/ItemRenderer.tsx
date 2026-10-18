@@ -423,6 +423,63 @@ export function ItemRenderer({
     )
   }
 
+  // ─── Defensor ───
+  if (item.type === 'defender') {
+    const r = item.radius
+    const crossSize = r * 0.55
+    return (
+      <>
+        <Group
+          {...commonProps}
+          x={item.x}
+          y={item.y}
+          draggable={draggable}
+          onDragEnd={(e) => {
+            const node = e.target
+            const dx = node.x() - item.x
+            const dy = node.y() - item.y
+            onDragEndDelta?.(dx, dy)
+            node.x(item.x)
+            node.y(item.y)
+          }}
+        >
+          <Circle
+            radius={r}
+            fill={item.fill}
+            stroke="#ffffff"
+            strokeWidth={2}
+          />
+          <Line
+            points={[-crossSize, -crossSize, crossSize, crossSize]}
+            stroke="#ffffff"
+            strokeWidth={3}
+            lineCap="round"
+            listening={false}
+          />
+          <Line
+            points={[-crossSize, crossSize, crossSize, -crossSize]}
+            stroke="#ffffff"
+            strokeWidth={3}
+            lineCap="round"
+            listening={false}
+          />
+        </Group>
+        {isSelected && (
+          <Circle
+            x={item.x}
+            y={item.y}
+            radius={r + 5}
+            stroke={selectionColor}
+            strokeWidth={2}
+            dash={[4, 3]}
+            listening={false}
+          />
+        )}
+      </>
+    )
+  }
+
+  
   // ─── Cono ───
   if (item.type === 'cone') {
     return (
@@ -525,6 +582,9 @@ export function ItemRenderer({
       </>
     )
   }
+
+  
+
 
   // ─── Círculo ───
   if (item.type === 'circle') {
@@ -659,7 +719,15 @@ export function ItemHandles({ item, onControlPointDrag }: ItemHandlesProps) {
       />
     )
   }
-
+  if (item.type === 'defender') {
+    return (
+      <ControlHandle
+        x={item.x}
+        y={item.y}
+        onDrag={(x, y) => onControlPointDrag(0, x, y)}
+      />
+    )
+  }
   return null
 }
 

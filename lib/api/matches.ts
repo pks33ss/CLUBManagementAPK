@@ -132,6 +132,7 @@ export interface BasketballPlayerStats {
   name: string
   lastName: string
   minutes: number | null
+  seconds: number | null
   points: number
   rebounds: number
   assists: number
@@ -201,6 +202,7 @@ export interface BasketballMatchStats {
 
 export interface PlayerStatsInput {
   minutes?: number | null
+  seconds?: number | null  
   points?: number
   rebounds?: number
   assists?: number

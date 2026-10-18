@@ -18,6 +18,7 @@ import type {
   CircleItem,
   RectItem,
   PlayerItem,
+  DefenderItem, 
   ConeItem,
   BallItem,
   TextItem,
@@ -95,6 +96,7 @@ export default function TacticalBoard({
   const [tool, setTool] = useState<Tool>('arrow')
   const [color, setColor] = useState('#ffffff')
   const [strokeWidth, setStrokeWidth] = useState(4)
+  const [playerColor, setPlayerColor] = useState('#3b82f6')
 
   const [currentItem, setCurrentItem] = useState<DrawableItem | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -269,23 +271,42 @@ export default function TacticalBoard({
       return
     }
 
-    if (tool === 'player' || tool === 'cone' || tool === 'ball') {
+        if (
+      tool === 'player' ||
+      tool === 'defender' ||
+      tool === 'cone' ||
+      tool === 'ball'
+    ) {
       const base = {
         id: uid(),
         color,
         strokeWidth,
         x: pos.x,
         y: pos.y,
-        radius: tool === 'player' ? 22 : tool === 'cone' ? 16 : 14,
-        fill: tool === 'player' ? '#3b82f6' : tool === 'cone' ? '#f59e0b' : '#f97316',
+        radius:
+          tool === 'player' || tool === 'defender'
+            ? 22
+            : tool === 'cone'
+              ? 16
+              : 14,
+        fill:
+          tool === 'player' || tool === 'defender'
+            ? playerColor
+            : tool === 'cone'
+              ? '#f59e0b'
+              : '#f97316',
       }
-      if (tool === 'player') pushItem({ ...base, type: 'player' } as PlayerItem)
-      else if (tool === 'cone') pushItem({ ...base, type: 'cone' } as ConeItem)
+      if (tool === 'player')
+        pushItem({ ...base, type: 'player' } as PlayerItem)
+      else if (tool === 'defender')
+        pushItem({ ...base, type: 'defender' } as DefenderItem)
+      else if (tool === 'cone')
+        pushItem({ ...base, type: 'cone' } as ConeItem)
       else pushItem({ ...base, type: 'ball' } as BallItem)
       return
     }
 
-    if (
+      if (
       tool === 'arrow' ||
       tool === 'arrow-dashed' ||
       tool === 'line' ||
@@ -797,6 +818,8 @@ export default function TacticalBoard({
         mode={mode}
         onModeChange={setMode}
         onOpenBackgroundPicker={() => setBgPickerOpen(true)}
+        playerColor={playerColor}              // ✅ NUEVO
+        onPlayerColorChange={setPlayerColor}
       />
 
       <div

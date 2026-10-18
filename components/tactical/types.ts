@@ -13,6 +13,7 @@ export type Tool =
   | 'bounce-curved-arrow'
   | 'line'
   | 'player'
+  | 'defender'
   | 'cone'
   | 'ball'
   | 'text'
@@ -59,6 +60,14 @@ export interface PlayerItem extends BaseItem {
   radius: number
   fill: string
   number?: string
+}
+
+export interface DefenderItem extends BaseItem {
+  type: 'defender'
+  x: number
+  y: number
+  radius: number
+  fill: string
 }
 
 export interface ConeItem extends BaseItem {
@@ -109,6 +118,7 @@ export type DrawableItem =
   | BounceArrowItem
   | BounceCurvedArrowItem
   | PlayerItem
+  | DefenderItem
   | ConeItem
   | BallItem
   | TextItem
@@ -125,14 +135,14 @@ export interface TacticalBoardProps {
   sport?: string
   backgroundImage?: string
 
-  /** ✅ NUEVO — Fondos personalizados del usuario (uno por modo) */
+  /** Fondos personalizados del usuario (uno por modo) */
   userBackground?: {
     urlHalf: string | null
     urlFull: string | null
     mode: TacticalBackgroundMode
   } | null
 
-  /** ✅ NUEVO — Callback cuando el usuario guarda/actualiza su fondo */
+  /** Callback cuando el usuario guarda/actualiza su fondo */
   onBackgroundChange?: (
     url: string | null,
     mode: TacticalBackgroundMode,
@@ -141,9 +151,16 @@ export interface TacticalBoardProps {
 
 export function isPointItem(
   item: DrawableItem,
-): item is PlayerItem | ConeItem | BallItem | TextItem | CircleItem {
+): item is
+  | PlayerItem
+  | DefenderItem
+  | ConeItem
+  | BallItem
+  | TextItem
+  | CircleItem {
   return (
     item.type === 'player' ||
+    item.type === 'defender' ||
     item.type === 'cone' ||
     item.type === 'ball' ||
     item.type === 'text' ||
@@ -157,9 +174,7 @@ export function isRectItem(item: DrawableItem): item is RectItem {
 
 export function isLineItem(item: DrawableItem): item is ArrowItem {
   return (
-    item.type === 'arrow' ||
-    item.type === 'line' ||
-    item.type === 'arrow-dashed'
+    item.type === 'arrow' || item.type === 'line' || item.type === 'arrow-dashed'
   )
 }
 
@@ -168,9 +183,7 @@ export function isPencilItem(item: DrawableItem): item is PencilItem {
 }
 
 export function isCurvedArrowItem(item: DrawableItem): item is CurvedArrowItem {
-  return (
-    item.type === 'curved-arrow' || item.type === 'curved-arrow-dashed'
-  )
+  return item.type === 'curved-arrow' || item.type === 'curved-arrow-dashed'
 }
 
 export function isPointsItem(

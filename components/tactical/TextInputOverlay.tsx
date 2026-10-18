@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { COLOR_PALETTE } from './constants'
 
 interface TextInputOverlayProps {
   mode?: 'create' | 'edit'
@@ -38,9 +39,8 @@ export function TextInputOverlay({
     }
     // Convertir el tamaño a número, con fallback a 22 si está vacío o inválido
     const parsed = parseInt(fontSizeStr, 10)
-    const finalFontSize = Number.isFinite(parsed) && parsed >= 8 && parsed <= 200
-      ? parsed
-      : 22
+    const finalFontSize =
+      Number.isFinite(parsed) && parsed >= 8 && parsed <= 200 ? parsed : 22
     onSubmit(trimmed, finalFontSize, color)
   }
 
@@ -80,32 +80,71 @@ export function TextInputOverlay({
           className="w-full bg-surface-elevated border border-border-subtle rounded-lg px-3 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"
         />
 
-        <div className="grid grid-cols-2 gap-3 mt-3">
-          <div>
-            <label className="block text-sm font-medium text-text-secondary mb-1">
-              Tamaño (px)
-            </label>
-            <input
-              type="number"
-              value={fontSizeStr}
-              onChange={(e) => setFontSizeStr(e.target.value)}
-              min={8}
-              max={200}
-              className="w-full bg-surface-elevated border border-border-subtle rounded-lg px-3 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"
-            />
-          </div>
+        <div className="mt-3">
+          <label className="block text-sm font-medium text-text-secondary mb-1">
+            Tamaño (px)
+          </label>
+          <input
+            type="number"
+            value={fontSizeStr}
+            onChange={(e) => setFontSizeStr(e.target.value)}
+            min={8}
+            max={200}
+            className="w-full bg-surface-elevated border border-border-subtle rounded-lg px-3 py-2 text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"
+          />
+        </div>
 
-          <div>
-            <label className="block text-sm font-medium text-text-secondary mb-1">
-              Color
-            </label>
-            <input
-              type="color"
-              value={color}
-              onChange={(e) => setColor(e.target.value)}
-              className="w-full h-[42px] bg-surface-elevated border border-border-subtle rounded-lg cursor-pointer"
-            />
+        {/* ✅ NUEVO — paleta de colores (igual que en el toolbar de jugadores) */}
+        <div className="mt-3">
+          <label className="block text-sm font-medium text-text-secondary mb-1">
+            Color
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {COLOR_PALETTE.map((c) => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => setColor(c)}
+                className={`w-7 h-7 rounded-full border-2 transition ${
+                  color === c
+                    ? 'border-brand-primary scale-110'
+                    : 'border-border-subtle'
+                }`}
+                style={{
+                  backgroundColor: c,
+                  // Para colores muy claros (blanco/amarillo) añadimos una
+                  // sombra interna que los hace visibles sobre el fondo blanco
+                  // del modal.
+                  boxShadow:
+                    color === c
+                      ? '0 0 0 2px rgba(0,230,118,0.4)'
+                      : undefined,
+                }}
+                title={c}
+                aria-label={`Color ${c}`}
+              />
+            ))}
           </div>
+        </div>
+
+        {/* Preview en vivo del color/tamaño elegido */}
+        <div className="mt-3 bg-surface-elevated border border-border-subtle rounded-lg p-3 min-h-[48px] flex items-center justify-center">
+          <span
+            style={{
+              color,
+              fontSize: Math.min(
+                40,
+                Math.max(
+                  12,
+                  parseInt(fontSizeStr, 10) || 22,
+                ),
+              ),
+              fontWeight: 'bold',
+              lineHeight: 1.2,
+            }}
+          >
+            {value || 'Vista previa'}
+          </span>
         </div>
 
         <div className="flex gap-2 mt-4">

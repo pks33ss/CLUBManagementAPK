@@ -20,6 +20,7 @@ interface Props {
 
 const EMPTY_INPUT: PlayerStatsInput = {
   minutes: 0,
+  seconds: 0,
   points: 0,
   rebounds: 0,
   assists: 0,
@@ -53,6 +54,55 @@ interface RosterRow extends BasketballPlayerStats {
   jerseyNumber: number | null
 }
 
+// ───────────────────────────────────────────────────────────────
+// Helpers mm:ss
+// ───────────────────────────────────────────────────────────────
+
+/**
+ * Formatea minutos + segundos como "mm:ss".
+ *  - Si ambos son null/undefined → "—"
+ *  - Si minutes es null pero seconds no → "0:ss"
+ *  - Si seconds es null/0 y minutes es null → "—"
+ */
+function fmtMinutes(
+  minutes: number | null | undefined,
+  seconds: number | null | undefined,
+): string {
+  if (minutes == null && seconds == null) return '—'
+  const m = minutes ?? 0
+  const s = seconds ?? 0
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+/**
+ * Parsea "mm:ss", "mm", "mm:", "m:s" a { minutes, seconds }.
+ *  - "24:37" → { minutes: 24, seconds: 37 }
+ *  - "24"    → { minutes: 24, seconds: 0 }
+ *  - "24:"   → { minutes: 24, seconds: 0 }
+ *  - "0:37"  → { minutes: 0, seconds: 37 }
+ *  - ""      → { minutes: 0, seconds: 0 }
+ * Texto inválido se ignora (devuelve 0:00) para no romper el input.
+ */
+function parseMmSs(input: string): { minutes: number; seconds: number } {
+  const s = (input ?? '').trim()
+  if (!s) return { minutes: 0, seconds: 0 }
+
+  if (!s.includes(':')) {
+    const m = Number(s)
+    if (Number.isNaN(m)) return { minutes: 0, seconds: 0 }
+    return { minutes: Math.max(0, Math.floor(m)), seconds: 0 }
+  }
+
+  const [mStr, secStr] = s.split(':')
+  const m = Number(mStr || 0)
+  const sec = Number((secStr || '0').slice(0, 2))
+  if (Number.isNaN(m) || Number.isNaN(sec)) return { minutes: 0, seconds: 0 }
+  return {
+    minutes: Math.max(0, Math.floor(m)),
+    seconds: Math.min(59, Math.max(0, Math.floor(sec))),
+  }
+}
+
 function emptyStats(
   userId: string,
   name: string,
@@ -64,6 +114,7 @@ function emptyStats(
     name,
     lastName,
     minutes: null,
+    seconds: null,
     points: 0,
     rebounds: 0,
     assists: 0,
@@ -141,16 +192,18 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
   const [showExcludedModal, setShowExcludedModal] = useState(false)
 
   const load = () => {
-    setLoading(true)
-    setError(null)
-    matchesApi
-      .getBasketballStats(match.id)
-      .then((d) => setStats(d))
-      .catch((err) => {
-        setError(err.response?.data?.message || 'Error al cargar estadísticas')
-      })
-      .finally(() => setLoading(false))
-  }
+  // ✅ Solo mostrar el spinner en la primera carga.
+  // Al revalidar (edición de stats) no queremos que la tabla parpadee.
+  if (!stats) setLoading(true)
+  setError(null)
+  matchesApi
+    .getBasketballStats(match.id)
+    .then((d) => setStats(d))
+    .catch((err) => {
+      setError(err.response?.data?.message || 'Error al cargar estadísticas')
+    })
+    .finally(() => setLoading(false))
+}
 
   useEffect(() => {
     load()
@@ -171,6 +224,7 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
     if (row.hasStats) {
       setForm({
         minutes: row.minutes ?? 0,
+        seconds: row.seconds ?? 0,
         points: row.points,
         rebounds: row.rebounds,
         assists: row.assists,
@@ -195,20 +249,53 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
   }
 
   const handleSave = async (userId: string) => {
-    setSaving(true)
-    try {
-      await matchesApi.upsertPlayerStats(match.id, userId, form)
-      setEditing(null)
-      load()
-      onUpdate()
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al guardar')
-    } finally {
-      setSaving(false)
-    }
-  }
+  if (!stats) return
+  setSaving(true)
+  try {
+    await matchesApi.upsertPlayerStats(match.id, userId, form)
 
-  // ✅ Excluir del partido (nuevo)
+    // ✅ Actualización optimista: modificamos el player en local
+    // en lugar de recargar la tabla entera.
+    setStats((prev) => {
+      if (!prev) return prev
+      const players = prev.players.map((p) =>
+        p.userId === userId
+          ? {
+              ...p,
+              minutes: form.minutes ?? 0,
+              seconds: form.seconds ?? 0,
+              points: form.points ?? 0,
+              rebounds: form.rebounds ?? 0,
+              assists: form.assists ?? 0,
+              steals: form.steals ?? 0,
+              blocks: form.blocks ?? 0,
+              turnovers: form.turnovers ?? 0,
+              fouls: form.fouls ?? 0,
+              blocksAgainst: form.blocksAgainst ?? 0,
+              foulsDrawn: form.foulsDrawn ?? 0,
+              plusMinus: form.plusMinus ?? 0,
+              fieldGoalsMade: form.fieldGoalsMade ?? 0,
+              fieldGoalsAttempted: form.fieldGoalsAttempted ?? 0,
+              threePointersMade: form.threePointersMade ?? 0,
+              threePointersAttempted: form.threePointersAttempted ?? 0,
+              freeThrowsMade: form.freeThrowsMade ?? 0,
+              freeThrowsAttempted: form.freeThrowsAttempted ?? 0,
+            }
+          : p,
+      )
+      return { ...prev, players }
+    })
+
+    setEditing(null)
+    // ❌ NO llamar a load() ni a onUpdate() del padre.
+  } catch (err: any) {
+    alert(err.response?.data?.message || 'Error al guardar')
+  } finally {
+    setSaving(false)
+  }
+}
+
+  // ✅ Excluir del partido
   const handleExclude = async (row: RosterRow) => {
     const name = `${row.name} ${row.lastName}`
     if (
@@ -226,7 +313,7 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
     }
   }
 
-  // ✅ Reincluir (nuevo)
+  // ✅ Reincluir
   const handleInclude = async (userId: string, name: string) => {
     if (!confirm(`¿Reincluir a ${name} en este partido?`)) return
     try {
@@ -609,9 +696,37 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                         </td>
                         {isEditing ? (
                           <>
+                            {/* ✅ NUEVO — input mm:ss para minutos */}
+                            <td className="px-1 py-1">
+  <input
+    type="text"
+    inputMode="numeric"
+    placeholder="mm:ss"
+    // ✅ Mostramos el valor formateado solo cuando el input NO tiene foco.
+    // Mientras el usuario escribe, el input conserva el texto tal cual.
+    defaultValue={fmtMinutes(form.minutes, form.seconds)}
+    onChange={(e) => {
+      // Mientras el usuario escribe, no reformateamos ni actualizamos
+      // form todavía. Lo haremos en onBlur/Enter.
+      e.currentTarget.dataset.dirty = 'true'
+    }}
+    onBlur={(e) => {
+      const { minutes, seconds } = parseMmSs(e.target.value)
+      setForm((prev) => ({ ...prev, minutes, seconds }))
+      e.currentTarget.value = fmtMinutes(minutes, seconds)
+      delete e.currentTarget.dataset.dirty
+    }}
+    onKeyDown={(e) => {
+      if (e.key === 'Enter') {
+        ;(e.currentTarget as HTMLInputElement).blur()
+      }
+    }}
+    className="w-16 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1 focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"
+  />
+</td>
+                            {/* El resto de campos numéricos, igual que antes */}
                             {(
                               [
-                                'minutes',
                                 'points',
                                 'rebounds',
                                 'assists',
@@ -748,7 +863,9 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                           <>
                             {show('MINUTES') && (
                               <td className="px-2 py-2 text-center text-text-secondary">
-                                {v(p.minutes)}
+                                {p.hasStats
+                                  ? fmtMinutes(p.minutes, p.seconds)
+                                  : '—'}
                               </td>
                             )}
                             {show('POINTS') && (
