@@ -304,7 +304,7 @@ export default function BasketballTeamStatsTab({
               No hay jugadores con partidos en los filtros seleccionados.
             </p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto scrollbar-menu">
               <table className="w-full text-xs">
                 <thead className="bg-surface-elevated">
                   <tr>
@@ -389,6 +389,157 @@ export default function BasketballTeamStatsTab({
                     />
                   ))}
                 </tbody>
+                {/* ✅ NUEVO — Fila de totales del equipo */}
+                <tfoot className="bg-brand-primary/5 border-t-2 border-brand-primary/30">
+                  <tr className="font-semibold">
+                    <td className="px-2 py-2 text-left text-text-primary">
+                      <span className="text-[10px] uppercase tracking-wide text-brand-primary">
+                        TOTALES
+                      </span>
+                    </td>
+                    {show('MATCHES') && (
+                      <td className="px-2 py-2 text-center text-brand-primary font-bold">
+                        {summary.matches}
+                      </td>
+                    )}
+                    {showWLD && (
+                      <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
+                        {showWins ? summary.wins : '-'}-
+                        {showLosses ? summary.losses : '-'}
+                        {showDraws && summary.draws > 0
+                          ? `-${summary.draws}`
+                          : ''}
+                      </td>
+                    )}
+                    {show('AVAILABILITY') && (
+                      <td className="px-2 py-2 text-center text-text-muted">
+                        —
+                      </td>
+                    )}
+                    {show('WIN_RATE') && (
+                      <td
+                        className={`px-2 py-2 text-center font-bold ${
+                          summary.winRate >= 50
+                            ? 'text-success'
+                            : 'text-danger'
+                        }`}
+                      >
+                        {summary.winRate}%
+                      </td>
+                    )}
+                    {show('MINUTES') && (
+                      <td className="px-2 py-2 text-center text-text-primary">
+                        {summary.totalMinutes}
+                      </td>
+                    )}
+                    {show('MINUTES_PER_MATCH_PLAYER') && (
+                      <td className="px-2 py-2 text-center text-text-primary">
+                        {summary.minutesPerMatch}
+                      </td>
+                    )}
+                    {show('POINTS_PLAYER') && (
+                      <td className="px-2 py-2 text-center text-brand-primary font-bold">
+                        {summary.points}
+                      </td>
+                    )}
+                    {show('POINTS_PER_MATCH_PLAYER') && (
+                      <td className="px-2 py-2 text-center text-text-primary">
+                        {summary.pointsPerMatch}
+                      </td>
+                    )}
+                    {show('REBOUNDS') && (
+                      <td className="px-2 py-2 text-center text-text-primary">
+                        {summary.rebounds}
+                      </td>
+                    )}
+                    {show('ASSISTS') && (
+                      <td className="px-2 py-2 text-center text-text-primary">
+                        {summary.assists}
+                      </td>
+                    )}
+                    {show('STEALS') && (
+                      <td className="px-2 py-2 text-center text-text-primary">
+                        {summary.steals}
+                      </td>
+                    )}
+                    {show('BLOCKS') && (
+                      <td className="px-2 py-2 text-center text-text-primary">
+                        {summary.blocks}
+                      </td>
+                    )}
+                    {show('BLOCKS_AGAINST') && (
+                      <td className="px-2 py-2 text-center text-text-primary">
+                        {summary.blocksAgainst}
+                      </td>
+                    )}
+                    {show('TURNOVERS') && (
+                      <td className="px-2 py-2 text-center text-text-primary">
+                        {summary.turnovers}
+                      </td>
+                    )}
+                    {show('FOULS') && (
+                      <td className="px-2 py-2 text-center text-text-primary">
+                        {summary.fouls}
+                      </td>
+                    )}
+                    {show('FOULS_DRAWN') && (
+                      <td className="px-2 py-2 text-center text-text-primary">
+                        {summary.foulsDrawn}
+                      </td>
+                    )}
+                    {show('VALUATION') && (
+                      <td
+                        className={`px-2 py-2 text-center font-bold ${
+                          summary.valuation > 0
+                            ? 'text-success'
+                            : summary.valuation < 0
+                            ? 'text-danger'
+                            : 'text-text-muted'
+                        }`}
+                      >
+                        {summary.valuation}
+                      </td>
+                    )}
+                    {show('PLUS_MINUS') && (
+                      <td
+                        className={`px-2 py-2 text-center font-bold ${
+                          summary.plusMinus > 0
+                            ? 'text-success'
+                            : summary.plusMinus < 0
+                            ? 'text-danger'
+                            : 'text-text-muted'
+                        }`}
+                      >
+                        {fmtPlusMinus(summary.plusMinus)}
+                      </td>
+                    )}
+                    {show('FG_PCT') && (
+                      <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
+                        {show('FG_MADE') && show('FG_ATTEMPTED')
+                          ? `${summary.fieldGoalsMade}/${summary.fieldGoalsAttempted} `
+                          : ''}
+                        ({summary.fieldGoalPct}%)
+                      </td>
+                    )}
+                    {show('TP_PCT') && (
+                      <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
+                        {show('TP_MADE') && show('TP_ATTEMPTED')
+                          ? `${summary.threePointersMade}/${summary.threePointersAttempted} `
+                          : ''}
+                        ({summary.threePointPct}%)
+                      </td>
+                    )}
+                    {show('FT_PCT') && (
+                      <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
+                        {show('FT_MADE') && show('FT_ATTEMPTED')
+                          ? `${summary.freeThrowsMade}/${summary.freeThrowsAttempted} `
+                          : ''}
+                        ({summary.freeThrowPct}%)
+                      </td>
+                    )}
+                    <td className="px-2 py-2"></td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           )}

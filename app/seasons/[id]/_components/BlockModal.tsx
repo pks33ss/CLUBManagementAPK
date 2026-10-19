@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import api from '@/lib/api'
 import type { SeasonBlock } from '../page'
+import { Button, Input, Textarea, Modal } from '@/components/ui'
 
 interface Props {
   seasonId: string
@@ -12,7 +13,13 @@ interface Props {
   onSuccess: () => void
 }
 
-export default function BlockModal({ seasonId, block, parentId, onClose, onSuccess }: Props) {
+export default function BlockModal({
+  seasonId,
+  block,
+  parentId,
+  onClose,
+  onSuccess,
+}: Props) {
   const isEditing = !!block
 
   const [form, setForm] = useState({
@@ -53,98 +60,93 @@ export default function BlockModal({ seasonId, block, parentId, onClose, onSucce
   }
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-xl max-w-md w-full p-6">
-        <h3 className="text-xl font-bold text-gray-800 mb-4">
-          {isEditing ? '✏️ Editar Bloque' : parentId ? '➕ Nuevo Sub-bloque' : '➕ Nuevo Bloque'}
-        </h3>
+    <Modal
+      isOpen={true}
+      onClose={onClose}
+      title={
+        isEditing
+          ? '✏️ Editar Bloque'
+          : parentId
+            ? '➕ Nuevo Sub-bloque'
+            : '➕ Nuevo Bloque'
+      }
+      size="md"
+    >
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Input
+          label="Nombre *"
+          type="text"
+          value={form.name}
+          onChange={(e) => setForm({ ...form, name: e.target.value })}
+          placeholder="Ej: Trimestre 1, Septiembre..."
+          required
+          autoFocus
+        />
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Nombre *
-            </label>
+        <Textarea
+          label="Contenido"
+          value={form.description}
+          onChange={(e) =>
+            setForm({ ...form, description: e.target.value })
+          }
+          rows={4}
+          placeholder="Objetivo del bloque, contenido general..."
+        />
+
+        <div className="grid grid-cols-2 gap-4">
+          <Input
+            label="Fecha inicio"
+            type="date"
+            value={form.startDate}
+            onChange={(e) =>
+              setForm({ ...form, startDate: e.target.value })
+            }
+          />
+          <Input
+            label="Fecha fin"
+            type="date"
+            value={form.endDate}
+            onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-text-secondary mb-1">
+            Color
+          </label>
+          <div className="flex gap-2 items-center">
             <input
-              type="text"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-              placeholder="Ej: Trimestre 1, Septiembre..."
-              required
-              autoFocus
+              type="color"
+              value={form.color}
+              onChange={(e) => setForm({ ...form, color: e.target.value })}
+              className="w-12 h-10 rounded border border-border-subtle cursor-pointer bg-surface-elevated"
             />
+            <span className="text-xs text-text-muted">
+              Opcional, sobreescribe el color por defecto
+            </span>
           </div>
+        </div>
 
-<div>
-  <label className="block text-sm font-medium text-gray-700 mb-1">
-    Contenido
-  </label>
-  <textarea
-    value={form.description}
-    onChange={(e) => setForm({ ...form, description: e.target.value })}
-    className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
-    rows={4}
-    placeholder="Objetivo del bloque, contenido general..."
-  />
-</div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Fecha inicio
-              </label>
-              <input
-                type="date"
-                value={form.startDate}
-                onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-                className="w-full px-4 py-2 border rounded-lg"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Fecha fin
-              </label>
-              <input
-                type="date"
-                value={form.endDate}
-                onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-                className="w-full px-4 py-2 border rounded-lg"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
-            <div className="flex gap-2 items-center">
-              <input
-                type="color"
-                value={form.color}
-                onChange={(e) => setForm({ ...form, color: e.target.value })}
-                className="w-12 h-10 rounded border cursor-pointer"
-              />
-              <span className="text-xs text-gray-500">Opcional, sobreescribe el color por defecto</span>
-            </div>
-          </div>
-
-          <div className="flex gap-3 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 bg-gray-200 hover:bg-gray-300 py-2 rounded-lg"
-              disabled={saving}
-            >
-              Cancelar
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg disabled:opacity-50"
-            >
-              {saving ? 'Guardando...' : isEditing ? 'Guardar' : 'Crear'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="flex gap-3 pt-2">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={onClose}
+            disabled={saving}
+            className="flex-1"
+          >
+            Cancelar
+          </Button>
+          <Button
+            type="submit"
+            disabled={saving}
+            loading={saving}
+            className="flex-1"
+          >
+            {saving ? 'Guardando...' : isEditing ? 'Guardar' : 'Crear'}
+          </Button>
+        </div>
+      </form>
+    </Modal>
   )
 }

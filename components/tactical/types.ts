@@ -131,9 +131,12 @@ export type TacticalBackgroundMode = 'HALF' | 'FULL'
 export interface TacticalBoardProps {
   width?: number
   height?: number
-  onSave?: (dataUrl: string) => void
+  onSave?: (dataUrl: string, items: DrawableItem[]) => void
   sport?: string
   backgroundImage?: string
+
+  /** ✅ NUEVO — items iniciales para re-editar una pizarra guardada. */
+  initialItems?: DrawableItem[]
 
   /** Fondos personalizados del usuario (uno por modo) */
   userBackground?: {

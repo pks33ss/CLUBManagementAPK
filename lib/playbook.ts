@@ -10,6 +10,7 @@ export interface PlayStep {
   order: number
   description: string | null
   imageUrl: string | null
+  tacticalData?: any 
   createdAt: string
   updatedAt: string
 }
@@ -74,6 +75,7 @@ export interface UpdateStepInput {
   description?: string
   imageUrl?: string
   order?: number
+  tacticalData?: any  
 }
 
 // ============================================

@@ -127,16 +127,21 @@ export default function PlayDetailPage() {
     }
   }
 
-  const handleSaveStep = async (
+    const handleSaveStep = async (
     stepId: string,
-    data: { description: string; imageUrl: string | null },
+    data: {
+      description: string
+      imageUrl: string | null
+      tacticalData?: any
+    },
   ) => {
     if (!play) return
     setSavingStepId(stepId)
     try {
-      const updatedStep = await updateStep(play.id, stepId, {
+            const updatedStep = await updateStep(play.id, stepId, {
         description: data.description || undefined,
         imageUrl: data.imageUrl ?? undefined,
+        tacticalData: data.tacticalData ?? undefined,
       })
       setPlay({
         ...play,

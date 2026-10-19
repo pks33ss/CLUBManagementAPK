@@ -11,6 +11,7 @@ import { LibraryPicker } from '@/app/library/_components/LibraryPicker'
 import type { LibraryExercise } from '@/lib/library'
 import { useTacticalBackground } from '@/lib/useTacticalBackground'
 
+
 /**
  * Comprueba si una membership tiene un rol dado.
  *
@@ -119,6 +120,11 @@ export default function SessionDetail() {
   const [updating, setUpdating] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleting, setDeleting] = useState(false)
+
+  // ✅ NUEVOS — pizarra estructurada al crear/editar
+const [pendingBoardItems, setPendingBoardItems] = useState<any[] | null>(null)
+const [editingBoardItems, setEditingBoardItems] = useState<any[] | null>(null)
+const [editingPendingBoardItems, setEditingPendingBoardItems] = useState<any[] | null>(null)
 
   const [showEditModal, setShowEditModal] = useState(false)
   const [editForm, setEditForm] = useState({
@@ -343,6 +349,7 @@ export default function SessionDetail() {
           await api.post(`/sessions/exercises/${exerciseId}/upload-image`, {
             image: boardImage,
             title: 'Pizarra táctica',
+            tacticalData: pendingBoardItems ?? undefined,
           })
         } catch (uploadError) {
           console.error('Error subiendo imagen de pizarra:', uploadError)
@@ -444,6 +451,13 @@ export default function SessionDetail() {
   }
 
   const openEditExerciseModal = (exercise: any) => {
+    
+    const boardMedia = (exercise.media || []).find(
+      (m: any) => m.title === 'Pizarra táctica' && m.tacticalData,
+    )
+    setEditingBoardItems(boardMedia?.tacticalData ?? null)
+    setEditingPendingBoardItems(null)
+    
     setEditingExercise({
       id: exercise.id,
       name: exercise.name,
@@ -578,6 +592,7 @@ export default function SessionDetail() {
           await api.post(`/sessions/exercises/${editingExercise.id}/upload-image`, {
             image: editingBoardImage,
             title: 'Pizarra táctica',
+            tacticalData: editingPendingBoardItems ?? undefined, 
           })
         } catch (uploadError) {
           console.error('Error subiendo pizarra:', uploadError)

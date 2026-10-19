@@ -72,7 +72,16 @@ export function LibraryExerciseForm({
     (initial?.media ?? []).filter((m) => m.type === 'IMAGE'),
   )
 
+  // ✅ NUEVO — si el ejercicio ya tiene una pizarra guardada con JSON, la precargamos
+  const initialBoard = (initial?.media ?? []).find(
+    (m: any) =>
+      m.type === 'IMAGE' && m.tacticalData && m.title === 'Pizarra táctica',
+  )
+
   const [boardImage, setBoardImage] = useState<string | null>(null)
+  const [pendingBoardItems, setPendingBoardItems] = useState<any[] | null>(
+    initialBoard?.tacticalData ?? null,
+  )
   const [uploadedImage, setUploadedImage] = useState<string | null>(null)
   const [showBoard, setShowBoard] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -208,7 +217,12 @@ export function LibraryExerciseForm({
       const boardIsNew = boardImage && boardImage.startsWith('data:')
       if (boardIsNew) {
         try {
-          await uploadLibraryImage(id, boardImage!, 'Pizarra táctica')
+          await uploadLibraryImage(
+            id,
+            boardImage!,
+            'Pizarra táctica',
+            pendingBoardItems ?? undefined,
+          )
         } catch (err) {
           console.error('Error subiendo pizarra:', err)
         }
@@ -529,12 +543,14 @@ export function LibraryExerciseForm({
                 ✕
               </button>
             </div>
-                        <TacticalBoard
+            <TacticalBoard
               width={800}
               height={800}
               sport={activeTeam?.sport ?? 'BASKETBALL'}
-              onSave={(dataUrl) => {
+              initialItems={pendingBoardItems ?? undefined}
+              onSave={(dataUrl, items) => {
                 setBoardImage(dataUrl)
+                setPendingBoardItems(items)
                 setShowBoard(false)
               }}
               userBackground={userBackground}

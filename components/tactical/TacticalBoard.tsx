@@ -41,6 +41,7 @@ export default function TacticalBoard({
   onSave,
   sport = 'BASKETBALL',
   backgroundImage,
+  initialItems,
   userBackground,
   onBackgroundChange,
 }: TacticalBoardProps) {
@@ -67,6 +68,10 @@ export default function TacticalBoard({
     setLocalBackgroundUrl(null)
   }, [mode])
 
+  useEffect(() => {
+  setItems(initialItems ?? [])
+}, [initialItems])
+
   const userUrlForMode =
     mode === 'FULL' ? userBackground?.urlFull : userBackground?.urlHalf
 
@@ -90,7 +95,11 @@ export default function TacticalBoard({
   // ESTADO DE LA PIZARRA
   // ============================================
 
-  const [items, setItems] = useState<DrawableItem[]>([])
+  const [items, setItems] = useState<DrawableItem[]>(initialItems ?? [])
+useEffect(() => {
+  setItems(initialItems ?? [])
+}, [initialItems])
+
   const [redoStack, setRedoStack] = useState<DrawableItem[][]>([])
 
   const [tool, setTool] = useState<Tool>('arrow')
@@ -632,7 +641,7 @@ export default function TacticalBoard({
   // GUARDAR
   // ============================================
 
-  const handleSave = () => {
+    const handleSave = () => {
     const stage = stageRef.current
     if (!stage) return
     const prevSelected = selectedId
@@ -640,7 +649,8 @@ export default function TacticalBoard({
     setTimeout(() => {
       const pixelRatio = 1 / scale
       const dataUrl = stage.toDataURL({ pixelRatio, mimeType: 'image/png' })
-      if (onSave) onSave(dataUrl)
+      // ✅ NUEVO: también pasamos el JSON serializado de los items.
+      if (onSave) onSave(dataUrl, items)
       setSelectedId(prevSelected)
     }, 50)
   }

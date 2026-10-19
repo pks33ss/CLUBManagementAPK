@@ -58,12 +58,6 @@ interface RosterRow extends BasketballPlayerStats {
 // Helpers mm:ss
 // ───────────────────────────────────────────────────────────────
 
-/**
- * Formatea minutos + segundos como "mm:ss".
- *  - Si ambos son null/undefined → "—"
- *  - Si minutes es null pero seconds no → "0:ss"
- *  - Si seconds es null/0 y minutes es null → "—"
- */
 function fmtMinutes(
   minutes: number | null | undefined,
   seconds: number | null | undefined,
@@ -74,15 +68,6 @@ function fmtMinutes(
   return `${m}:${String(s).padStart(2, '0')}`
 }
 
-/**
- * Parsea "mm:ss", "mm", "mm:", "m:s" a { minutes, seconds }.
- *  - "24:37" → { minutes: 24, seconds: 37 }
- *  - "24"    → { minutes: 24, seconds: 0 }
- *  - "24:"   → { minutes: 24, seconds: 0 }
- *  - "0:37"  → { minutes: 0, seconds: 37 }
- *  - ""      → { minutes: 0, seconds: 0 }
- * Texto inválido se ignora (devuelve 0:00) para no romper el input.
- */
 function parseMmSs(input: string): { minutes: number; seconds: number } {
   const s = (input ?? '').trim()
   if (!s) return { minutes: 0, seconds: 0 }
@@ -188,22 +173,19 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
   const [clubCandidates, setClubCandidates] = useState<Candidate[]>([])
   const [loadingCandidates, setLoadingCandidates] = useState(false)
 
-  // ✅ Modal de excluidos
   const [showExcludedModal, setShowExcludedModal] = useState(false)
 
   const load = () => {
-  // ✅ Solo mostrar el spinner en la primera carga.
-  // Al revalidar (edición de stats) no queremos que la tabla parpadee.
-  if (!stats) setLoading(true)
-  setError(null)
-  matchesApi
-    .getBasketballStats(match.id)
-    .then((d) => setStats(d))
-    .catch((err) => {
-      setError(err.response?.data?.message || 'Error al cargar estadísticas')
-    })
-    .finally(() => setLoading(false))
-}
+    if (!stats) setLoading(true)
+    setError(null)
+    matchesApi
+      .getBasketballStats(match.id)
+      .then((d) => setStats(d))
+      .catch((err) => {
+        setError(err.response?.data?.message || 'Error al cargar estadísticas')
+      })
+      .finally(() => setLoading(false))
+  }
 
   useEffect(() => {
     load()
@@ -249,53 +231,49 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
   }
 
   const handleSave = async (userId: string) => {
-  if (!stats) return
-  setSaving(true)
-  try {
-    await matchesApi.upsertPlayerStats(match.id, userId, form)
+    if (!stats) return
+    setSaving(true)
+    try {
+      await matchesApi.upsertPlayerStats(match.id, userId, form)
 
-    // ✅ Actualización optimista: modificamos el player en local
-    // en lugar de recargar la tabla entera.
-    setStats((prev) => {
-      if (!prev) return prev
-      const players = prev.players.map((p) =>
-        p.userId === userId
-          ? {
-              ...p,
-              minutes: form.minutes ?? 0,
-              seconds: form.seconds ?? 0,
-              points: form.points ?? 0,
-              rebounds: form.rebounds ?? 0,
-              assists: form.assists ?? 0,
-              steals: form.steals ?? 0,
-              blocks: form.blocks ?? 0,
-              turnovers: form.turnovers ?? 0,
-              fouls: form.fouls ?? 0,
-              blocksAgainst: form.blocksAgainst ?? 0,
-              foulsDrawn: form.foulsDrawn ?? 0,
-              plusMinus: form.plusMinus ?? 0,
-              fieldGoalsMade: form.fieldGoalsMade ?? 0,
-              fieldGoalsAttempted: form.fieldGoalsAttempted ?? 0,
-              threePointersMade: form.threePointersMade ?? 0,
-              threePointersAttempted: form.threePointersAttempted ?? 0,
-              freeThrowsMade: form.freeThrowsMade ?? 0,
-              freeThrowsAttempted: form.freeThrowsAttempted ?? 0,
-            }
-          : p,
-      )
-      return { ...prev, players }
-    })
+      setStats((prev) => {
+        if (!prev) return prev
+        const players = prev.players.map((p) =>
+          p.userId === userId
+            ? {
+                ...p,
+                minutes: form.minutes ?? 0,
+                seconds: form.seconds ?? 0,
+                points: form.points ?? 0,
+                rebounds: form.rebounds ?? 0,
+                assists: form.assists ?? 0,
+                steals: form.steals ?? 0,
+                blocks: form.blocks ?? 0,
+                turnovers: form.turnovers ?? 0,
+                fouls: form.fouls ?? 0,
+                blocksAgainst: form.blocksAgainst ?? 0,
+                foulsDrawn: form.foulsDrawn ?? 0,
+                plusMinus: form.plusMinus ?? 0,
+                fieldGoalsMade: form.fieldGoalsMade ?? 0,
+                fieldGoalsAttempted: form.fieldGoalsAttempted ?? 0,
+                threePointersMade: form.threePointersMade ?? 0,
+                threePointersAttempted: form.threePointersAttempted ?? 0,
+                freeThrowsMade: form.freeThrowsMade ?? 0,
+                freeThrowsAttempted: form.freeThrowsAttempted ?? 0,
+              }
+            : p,
+        )
+        return { ...prev, players }
+      })
 
-    setEditing(null)
-    // ❌ NO llamar a load() ni a onUpdate() del padre.
-  } catch (err: any) {
-    alert(err.response?.data?.message || 'Error al guardar')
-  } finally {
-    setSaving(false)
+      setEditing(null)
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Error al guardar')
+    } finally {
+      setSaving(false)
+    }
   }
-}
 
-  // ✅ Excluir del partido
   const handleExclude = async (row: RosterRow) => {
     const name = `${row.name} ${row.lastName}`
     if (
@@ -313,7 +291,6 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
     }
   }
 
-  // ✅ Reincluir
   const handleInclude = async (userId: string, name: string) => {
     if (!confirm(`¿Reincluir a ${name} en este partido?`)) return
     try {
@@ -345,7 +322,6 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
     const excluded = new Set(stats.excludedPlayerIds ?? [])
     const statsByUser = new Map(stats.players.map((p) => [p.userId, p]))
 
-    // 1) Jugadores del equipo (PLAYER ACTIVE) que NO estén excluidos.
     const teamRows: RosterRow[] = (match.team.memberships ?? [])
       .filter((m) => m.status === 'ACTIVE' && hasPlayerRole(m))
       .filter((m) => !excluded.has(m.user.id))
@@ -367,7 +343,6 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
         }
       })
 
-    // 2) Jugadores con stats que no están en el equipo (invitados) y no están excluidos.
     const teamIds = new Set(teamRows.map((r) => r.userId))
     const extraRows: RosterRow[] = stats.players
       .filter((p) => !teamIds.has(p.userId) && !excluded.has(p.userId))
@@ -389,7 +364,6 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
     return [...teamRows, ...extraRows]
   }, [stats, match.team.memberships])
 
-  // ✅ Lista de excluidos con sus datos (para el modal)
   const excludedRows = useMemo(() => {
     if (!stats) return []
     const excluded = new Set(stats.excludedPlayerIds ?? [])
@@ -412,6 +386,67 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
       ),
     [clubCandidates],
   )
+
+  // ✅ NUEVO — Totales del equipo (solo jugadores con stats)
+  const totals = useMemo(() => {
+    const acc = {
+      minutes: 0,
+      seconds: 0,
+      points: 0,
+      rebounds: 0,
+      assists: 0,
+      steals: 0,
+      blocks: 0,
+      blocksAgainst: 0,
+      turnovers: 0,
+      fouls: 0,
+      foulsDrawn: 0,
+      plusMinus: 0,
+      fieldGoalsMade: 0,
+      fieldGoalsAttempted: 0,
+      threePointersMade: 0,
+      threePointersAttempted: 0,
+      freeThrowsMade: 0,
+      freeThrowsAttempted: 0,
+      valuation: 0,
+    }
+    for (const p of roster) {
+      if (!p.hasStats) continue
+      // Minutos: sumamos segundos y acarreo
+      acc.minutes += p.minutes ?? 0
+      acc.seconds += p.seconds ?? 0
+      acc.points += p.points
+      acc.rebounds += p.rebounds
+      acc.assists += p.assists
+      acc.steals += p.steals
+      acc.blocks += p.blocks
+      acc.blocksAgainst += p.blocksAgainst
+      acc.turnovers += p.turnovers
+      acc.fouls += p.fouls
+      acc.foulsDrawn += p.foulsDrawn
+      acc.plusMinus += p.plusMinus ?? 0
+      acc.fieldGoalsMade += p.fieldGoalsMade
+      acc.fieldGoalsAttempted += p.fieldGoalsAttempted
+      acc.threePointersMade += p.threePointersMade
+      acc.threePointersAttempted += p.threePointersAttempted
+      acc.freeThrowsMade += p.freeThrowsMade
+      acc.freeThrowsAttempted += p.freeThrowsAttempted
+      acc.valuation += p.valuation
+    }
+    // Acarreo de segundos a minutos
+    acc.minutes += Math.floor(acc.seconds / 60)
+    acc.seconds = acc.seconds % 60
+
+    const pct = (made: number, att: number) =>
+      att > 0 ? Math.round((made / att) * 1000) / 10 : 0
+
+    return {
+      ...acc,
+      fieldGoalPct: pct(acc.fieldGoalsMade, acc.fieldGoalsAttempted),
+      threePointPct: pct(acc.threePointersMade, acc.threePointersAttempted),
+      freeThrowPct: pct(acc.freeThrowsMade, acc.freeThrowsAttempted),
+    }
+  }, [roster])
 
   if (loading) {
     return (
@@ -696,35 +731,29 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                         </td>
                         {isEditing ? (
                           <>
-                            {/* ✅ NUEVO — input mm:ss para minutos */}
                             <td className="px-1 py-1">
-  <input
-    type="text"
-    inputMode="numeric"
-    placeholder="mm:ss"
-    // ✅ Mostramos el valor formateado solo cuando el input NO tiene foco.
-    // Mientras el usuario escribe, el input conserva el texto tal cual.
-    defaultValue={fmtMinutes(form.minutes, form.seconds)}
-    onChange={(e) => {
-      // Mientras el usuario escribe, no reformateamos ni actualizamos
-      // form todavía. Lo haremos en onBlur/Enter.
-      e.currentTarget.dataset.dirty = 'true'
-    }}
-    onBlur={(e) => {
-      const { minutes, seconds } = parseMmSs(e.target.value)
-      setForm((prev) => ({ ...prev, minutes, seconds }))
-      e.currentTarget.value = fmtMinutes(minutes, seconds)
-      delete e.currentTarget.dataset.dirty
-    }}
-    onKeyDown={(e) => {
-      if (e.key === 'Enter') {
-        ;(e.currentTarget as HTMLInputElement).blur()
-      }
-    }}
-    className="w-16 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1 focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"
-  />
-</td>
-                            {/* El resto de campos numéricos, igual que antes */}
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                placeholder="mm:ss"
+                                defaultValue={fmtMinutes(form.minutes, form.seconds)}
+                                onChange={(e) => {
+                                  e.currentTarget.dataset.dirty = 'true'
+                                }}
+                                onBlur={(e) => {
+                                  const { minutes, seconds } = parseMmSs(e.target.value)
+                                  setForm((prev) => ({ ...prev, minutes, seconds }))
+                                  e.currentTarget.value = fmtMinutes(minutes, seconds)
+                                  delete e.currentTarget.dataset.dirty
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    ;(e.currentTarget as HTMLInputElement).blur()
+                                  }
+                                }}
+                                className="w-16 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1 focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"
+                              />
+                            </td>
                             {(
                               [
                                 'points',
@@ -1000,6 +1029,143 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                     )
                   })}
                 </tbody>
+                {/* ✅ NUEVO — Fila de totales del equipo */}
+                <tfoot className="bg-brand-primary/5 border-t-2 border-brand-primary/30">
+                  <tr className="font-semibold">
+                    <td className="px-2 py-2 text-left text-text-primary">
+                      <span className="text-[10px] uppercase tracking-wide text-brand-primary">
+                        TOTALES
+                      </span>
+                    </td>
+                    {editing ? (
+                      <>
+                        <td className="px-2 py-2 text-center text-text-primary">
+                          {fmtMinutes(totals.minutes, totals.seconds)}
+                        </td>
+                        <td className="px-2 py-2 text-center text-brand-primary font-bold">
+                          {totals.points}
+                        </td>
+                        <td className="px-2 py-2 text-center text-text-primary">{totals.rebounds}</td>
+                        <td className="px-2 py-2 text-center text-text-primary">{totals.assists}</td>
+                        <td className="px-2 py-2 text-center text-text-primary">{totals.steals}</td>
+                        <td className="px-2 py-2 text-center text-text-primary">{totals.blocks}</td>
+                        <td className="px-2 py-2 text-center text-text-primary">{totals.blocksAgainst}</td>
+                        <td className="px-2 py-2 text-center text-text-primary">{totals.turnovers}</td>
+                        <td className="px-2 py-2 text-center text-text-primary">{totals.fouls}</td>
+                        <td className="px-2 py-2 text-center text-text-primary">{totals.foulsDrawn}</td>
+                        <td
+                          className={`px-2 py-2 text-center ${
+                            totals.plusMinus > 0
+                              ? 'text-success'
+                              : totals.plusMinus < 0
+                              ? 'text-danger'
+                              : 'text-text-muted'
+                          }`}
+                        >
+                          {fmtPlusMinus(totals.plusMinus)}
+                        </td>
+                        <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
+                          {totals.fieldGoalsMade}/{totals.fieldGoalsAttempted} ({totals.fieldGoalPct}%)
+                        </td>
+                        <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
+                          {totals.threePointersMade}/{totals.threePointersAttempted} ({totals.threePointPct}%)
+                        </td>
+                        <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
+                          {totals.freeThrowsMade}/{totals.freeThrowsAttempted} ({totals.freeThrowPct}%)
+                        </td>
+                        <td className="px-2 py-2"></td>
+                      </>
+                    ) : (
+                      <>
+                        {show('MINUTES') && (
+                          <td className="px-2 py-2 text-center text-text-primary">
+                            {fmtMinutes(totals.minutes, totals.seconds)}
+                          </td>
+                        )}
+                        {show('POINTS') && (
+                          <td className="px-2 py-2 text-center text-brand-primary font-bold">
+                            {totals.points}
+                          </td>
+                        )}
+                        {show('REBOUNDS') && (
+                          <td className="px-2 py-2 text-center text-text-primary">{totals.rebounds}</td>
+                        )}
+                        {show('ASSISTS') && (
+                          <td className="px-2 py-2 text-center text-text-primary">{totals.assists}</td>
+                        )}
+                        {show('STEALS') && (
+                          <td className="px-2 py-2 text-center text-text-primary">{totals.steals}</td>
+                        )}
+                        {show('BLOCKS') && (
+                          <td className="px-2 py-2 text-center text-text-primary">{totals.blocks}</td>
+                        )}
+                        {show('BLOCKS_AGAINST') && (
+                          <td className="px-2 py-2 text-center text-text-primary">{totals.blocksAgainst}</td>
+                        )}
+                        {show('TURNOVERS') && (
+                          <td className="px-2 py-2 text-center text-text-primary">{totals.turnovers}</td>
+                        )}
+                        {show('FOULS') && (
+                          <td className="px-2 py-2 text-center text-text-primary">{totals.fouls}</td>
+                        )}
+                        {show('FOULS_DRAWN') && (
+                          <td className="px-2 py-2 text-center text-text-primary">{totals.foulsDrawn}</td>
+                        )}
+                        {show('PLUS_MINUS') && (
+                          <td
+                            className={`px-2 py-2 text-center ${
+                              totals.plusMinus > 0
+                                ? 'text-success'
+                                : totals.plusMinus < 0
+                                ? 'text-danger'
+                                : 'text-text-muted'
+                            }`}
+                          >
+                            {fmtPlusMinus(totals.plusMinus)}
+                          </td>
+                        )}
+                        {show('FG_PCT') && (
+                          <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
+                            {show('FG_MADE') && show('FG_ATTEMPTED')
+                              ? `${totals.fieldGoalsMade}/${totals.fieldGoalsAttempted} `
+                              : ''}
+                            ({totals.fieldGoalPct}%)
+                          </td>
+                        )}
+                        {show('TP_PCT') && (
+                          <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
+                            {show('TP_MADE') && show('TP_ATTEMPTED')
+                              ? `${totals.threePointersMade}/${totals.threePointersAttempted} `
+                              : ''}
+                            ({totals.threePointPct}%)
+                          </td>
+                        )}
+                        {show('FT_PCT') && (
+                          <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
+                            {show('FT_MADE') && show('FT_ATTEMPTED')
+                              ? `${totals.freeThrowsMade}/${totals.freeThrowsAttempted} `
+                              : ''}
+                            ({totals.freeThrowPct}%)
+                          </td>
+                        )}
+                        {show('VALUATION') && (
+                          <td
+                            className={`px-2 py-2 text-center font-bold ${
+                              totals.valuation > 0
+                                ? 'text-success'
+                                : totals.valuation < 0
+                                ? 'text-danger'
+                                : 'text-text-muted'
+                            }`}
+                          >
+                            {totals.valuation}
+                          </td>
+                        )}
+                        <td className="px-2 py-2"></td>
+                      </>
+                    )}
+                  </tr>
+                </tfoot>
               </table>
             </div>
           )}

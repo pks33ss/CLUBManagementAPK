@@ -9,7 +9,11 @@ import { useActiveTeam } from '@/lib/ActiveTeamContext'
 
 interface Props {
   step: PlayStep
-  onSave: (data: { description: string; imageUrl: string | null }) => Promise<void>
+  onSave: (data: {
+    description: string
+    imageUrl: string | null
+    tacticalData?: any                                     // ✅ NUEVO
+  }) => Promise<void>
   onCancel: () => void
   saving?: boolean
 }
@@ -22,6 +26,10 @@ export function PlayStepEditor({ step, onSave, onCancel, saving }: Props) {
 
   const { userBackground, updateBackground } = useTacticalBackground()
   const { activeTeam } = useActiveTeam()
+
+  const [pendingBoardItems, setPendingBoardItems] = useState<any[] | null>(
+  (step as any).tacticalData ?? null,
+)
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -44,11 +52,12 @@ export function PlayStepEditor({ step, onSave, onCancel, saving }: Props) {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  const handleSave = async () => {
+    const handleSave = async () => {
     await onSave({
       description: description.trim(),
       imageUrl,
-    })
+      tacticalData: pendingBoardItems ?? undefined,          // ✅ NUEVO
+    } as any)
   }
 
   return (
@@ -156,7 +165,8 @@ export function PlayStepEditor({ step, onSave, onCancel, saving }: Props) {
               // siempre desde un equipo, así que activeTeam.sport es el
               // contexto correcto. Fallback a 'BASKETBALL'.
               sport={activeTeam?.sport ?? 'BASKETBALL'}
-              onSave={(dataUrl) => {
+              initialItems={pendingBoardItems ?? undefined}              // ✅ NUEVO
+  onSave={(dataUrl, items) => {     
                 setImageUrl(dataUrl)
                 setShowBoard(false)
               }}

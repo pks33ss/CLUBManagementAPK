@@ -14,6 +14,7 @@ export interface LibraryMedia {
   description: string | null
   libraryExerciseId: string
   createdAt: string
+  tacticalData?: any 
 }
 
 export interface LibraryExercise {
@@ -95,10 +96,11 @@ export async function uploadLibraryImage(
   exerciseId: string,
   image: string,
   title?: string,
+  tacticalData?: any,
 ): Promise<LibraryMedia> {
   const { data } = await api.post<LibraryMedia>(
     `/library-exercises/${exerciseId}/upload-image`,
-    { image, title },
+    { image, title, tacticalData, },
   )
   return data
 }
