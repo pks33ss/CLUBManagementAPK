@@ -7,8 +7,7 @@ import { getSportIcon, getSportConfig } from '@/lib/sport'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
 import { Button, Card, CardBody, Badge } from '@/components/ui'
 
-import NextTrainingCard from './_components/NextTrainingCard'
-import NextMatchCard from './_components/NextMatchCard'
+import WeeklyPlanCard from './_components/WeeklyPlanCard'
 import AttendanceCard from './_components/AttendanceCard'
 import TopPlayersCard from './_components/TopPlayersCard'
 import PendingCallupsCard from './_components/PendingCallupsCard'
@@ -23,8 +22,6 @@ interface DashboardData {
     season?: string
     club: { id: string; name: string }
   }
-  nextTraining: any
-  nextMatch: any
   attendance: any
   topPlayers: any[]
   topPlayersMetrics: { key: string; label: string }[]
@@ -128,6 +125,9 @@ export default function HomePage() {
           </p>
         </div>
 
+        {/* Plan semanal multi-equipo */}
+        <WeeklyPlanCard />
+
         <Card>
           <CardBody>
             <h2 className="text-lg font-semibold text-text-primary mb-4">
@@ -148,7 +148,9 @@ export default function HomePage() {
                         className="w-10 h-10 rounded-lg object-cover"
                       />
                     ) : (
-                      <span className="text-2xl">{getSportIcon(team.sport)}</span>
+                      <span className="text-2xl">
+                        {getSportIcon(team.sport)}
+                      </span>
                     )}
                     <div className="min-w-0">
                       <p className="font-medium text-text-primary truncate">
@@ -180,7 +182,9 @@ export default function HomePage() {
         </h1>
         <p className="text-text-secondary text-sm mt-1">
           {sportConfig.icon} Resumen de{' '}
-          <span className="font-medium text-text-primary">{activeTeam.name}</span>
+          <span className="font-medium text-text-primary">
+            {activeTeam.name}
+          </span>
           {' · '}
           {activeTeam.club?.name}
         </p>
@@ -193,7 +197,10 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* DASHBOARD */}
+      {/* PLAN SEMANAL (primera tarjeta, multi-equipo) */}
+      <WeeklyPlanCard />
+
+      {/* RESTO DEL DASHBOARD */}
       {loadingDashboard && !data ? (
         <div className="flex justify-center items-center h-40 text-text-muted">
           Cargando dashboard...
@@ -201,8 +208,6 @@ export default function HomePage() {
       ) : (
         data && (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <NextTrainingCard training={data.nextTraining} />
-            <NextMatchCard match={data.nextMatch} />
             <AttendanceCard attendance={data.attendance} />
             <TopPlayersCard
               players={data.topPlayers}

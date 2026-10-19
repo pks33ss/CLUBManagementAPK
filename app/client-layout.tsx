@@ -189,22 +189,22 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             </div>
 
             {/* CENTRO (solo desktop) */}
-            {activeTeam && (
-              <div className="hidden lg:flex items-center gap-1 flex-1 justify-center overflow-x-auto scrollbar-menu">
-                {visibleTabs.map((tab) => {
-                  const href = tab.href(teamId)
-                  return (
-                    <Link
-                      key={tab.id}
-                      href={href}
-                      className={linkClass(href, 'px-3 py-2 rounded-lg text-sm whitespace-nowrap')}
-                    >
-                      {tab.label}
-                    </Link>
-                  )
-                })}
-              </div>
-            )}
+{activeTeam && (
+  <div className="hidden lg:flex items-center gap-1 flex-1 justify-start overflow-x-auto scrollbar-menu">
+    {visibleTabs.map((tab) => {
+      const href = tab.href(teamId)
+      return (
+        <Link
+          key={tab.id}
+          href={href}
+          className={linkClass(href, 'px-3 py-2 rounded-lg text-sm whitespace-nowrap shrink-0')}
+        >
+          {tab.label}
+        </Link>
+      )
+    })}
+  </div>
+)}
 
             {/* DERECHA */}
             <div className="flex items-center gap-3 shrink-0">
