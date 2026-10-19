@@ -89,6 +89,13 @@ function startOfWeek(d: Date): Date {
   return date
 }
 
+function toDateOnlyString(d: Date): string {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 function addDays(d: Date, n: number): Date {
   const date = new Date(d)
   date.setDate(date.getDate() + n)
@@ -141,9 +148,9 @@ export default function WeeklyPlanCard() {
     setError(null)
 
     api
-      .get('/dashboard/weekly', {
-        params: { weekStart: weekStart.toISOString() },
-      })
+  .get('/dashboard/weekly', {
+    params: { weekStart: toDateOnlyString(weekStart) },  // ✅ "2026-10-19"
+  })
       .then((res) => {
         if (!cancelled) setData(res.data)
       })
