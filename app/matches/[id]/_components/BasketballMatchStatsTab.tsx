@@ -1,3 +1,5 @@
+// frontend-web/app/matches/[id]/_components/BasketballMatchStatsTab.tsx
+
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
@@ -54,9 +56,94 @@ interface RosterRow extends BasketballPlayerStats {
   jerseyNumber: number | null
 }
 
-// ───────────────────────────────────────────────────────────────
-// Helpers mm:ss
-// ───────────────────────────────────────────────────────────────
+interface ImportCandidateSession {
+  id: string
+  type: string
+  label: string
+  statDate: string
+  opponent: string | null
+  teamScore: number | null
+  opponentScore: number | null
+  playerCount: number
+  opponentPlayerCount: number
+  closedAt: string | null
+}
+
+interface OpponentPlayerRow {
+  id: string
+  userId: string | null
+  number: number
+  name: string | null
+  position: string | null
+  stats: {
+    minutes: number | null
+    seconds: number | null
+    points: number
+    rebounds: number
+    reboundsOff: number
+    reboundsDef: number
+    assists: number
+    steals: number
+    blocks: number
+    turnovers: number
+    fouls: number
+    blocksAgainst: number
+    foulsDrawn: number
+    plusMinus: number | null
+    fieldGoalsMade: number
+    fieldGoalsAttempted: number
+    threePointersMade: number
+    threePointersAttempted: number
+    freeThrowsMade: number
+    freeThrowsAttempted: number
+  } | null
+}
+
+interface OpponentStatsForm {
+  minutes: number
+  seconds: number
+  points: number
+  rebounds: number
+  reboundsOff: number
+  reboundsDef: number
+  assists: number
+  steals: number
+  blocks: number
+  turnovers: number
+  fouls: number
+  blocksAgainst: number
+  foulsDrawn: number
+  plusMinus: number
+  fieldGoalsMade: number
+  fieldGoalsAttempted: number
+  threePointersMade: number
+  threePointersAttempted: number
+  freeThrowsMade: number
+  freeThrowsAttempted: number
+}
+
+const EMPTY_OPPONENT_FORM: OpponentStatsForm = {
+  minutes: 0,
+  seconds: 0,
+  points: 0,
+  rebounds: 0,
+  reboundsOff: 0,
+  reboundsDef: 0,
+  assists: 0,
+  steals: 0,
+  blocks: 0,
+  turnovers: 0,
+  fouls: 0,
+  blocksAgainst: 0,
+  foulsDrawn: 0,
+  plusMinus: 0,
+  fieldGoalsMade: 0,
+  fieldGoalsAttempted: 0,
+  threePointersMade: 0,
+  threePointersAttempted: 0,
+  freeThrowsMade: 0,
+  freeThrowsAttempted: 0,
+}
 
 function fmtMinutes(
   minutes: number | null | undefined,
@@ -71,13 +158,11 @@ function fmtMinutes(
 function parseMmSs(input: string): { minutes: number; seconds: number } {
   const s = (input ?? '').trim()
   if (!s) return { minutes: 0, seconds: 0 }
-
   if (!s.includes(':')) {
     const m = Number(s)
     if (Number.isNaN(m)) return { minutes: 0, seconds: 0 }
     return { minutes: Math.max(0, Math.floor(m)), seconds: 0 }
   }
-
   const [mStr, secStr] = s.split(':')
   const m = Number(mStr || 0)
   const sec = Number((secStr || '0').slice(0, 2))
@@ -160,6 +245,8 @@ function fmtPlusMinus(v: number | null | undefined): string {
 }
 
 export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
+  const isClosed = match.status === 'FINISHED'
+
   const [stats, setStats] = useState<BasketballMatchStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -175,6 +262,20 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
 
   const [showExcludedModal, setShowExcludedModal] = useState(false)
 
+  const [opponents, setOpponents] = useState<OpponentPlayerRow[]>([])
+  const [editingOpp, setEditingOpp] = useState<string | null>(null)
+  const [oppForm, setOppForm] =
+    useState<OpponentStatsForm>(EMPTY_OPPONENT_FORM)
+  const [savingOpp, setSavingOpp] = useState(false)
+
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [importSessions, setImportSessions] = useState<ImportCandidateSession[]>([])
+  const [importMatchHasStats, setImportMatchHasStats] = useState(false)
+  const [loadingImport, setLoadingImport] = useState(false)
+  const [selectedImportId, setSelectedImportId] = useState<string | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [confirmOverwrite, setConfirmOverwrite] = useState(false)
+
   const load = () => {
     if (!stats) setLoading(true)
     setError(null)
@@ -187,10 +288,18 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
       .finally(() => setLoading(false))
   }
 
+  const loadOpponents = () => {
+    api
+      .get(`/matches/${match.id}/opponents`)
+      .then((res) => setOpponents(res.data ?? []))
+      .catch(() => setOpponents([]))
+  }
+
   useEffect(() => {
     load()
+    loadOpponents()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [match.id])
+  }, [match.id, match.status])
 
   useEffect(() => {
     if (!showAddModal || addTab !== 'club') return
@@ -202,7 +311,40 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
       .finally(() => setLoadingCandidates(false))
   }, [showAddModal, addTab, match.id])
 
+  useEffect(() => {
+    if (!showImportModal) return
+    setLoadingImport(true)
+    setSelectedImportId(null)
+    setConfirmOverwrite(false)
+    api
+      .get(`/matches/${match.id}/import-candidates`)
+      .then((res) => {
+        setImportMatchHasStats(res.data.matchHasStats)
+        setImportSessions(res.data.sessions ?? [])
+      })
+      .catch(() => {
+        setImportSessions([])
+        setImportMatchHasStats(false)
+      })
+      .finally(() => setLoadingImport(false))
+  }, [showImportModal, match.id])
+
+  const handleToggleStatus = async () => {
+    const nextStatus = isClosed ? 'SCHEDULED' : 'FINISHED'
+    const message = isClosed
+      ? '¿Reabrir el partido para editar? Saldrá de las estadísticas globales hasta que lo vuelvas a cerrar.'
+      : '¿Cerrar el partido? Se bloqueará la edición y las estadísticas pasarán a las globales del equipo.'
+    if (!confirm(message)) return
+    try {
+      await api.patch(`/matches/${match.id}/status`, { status: nextStatus })
+      onUpdate()
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Error al cambiar el estado')
+    }
+  }
+
   const startEdit = (row: RosterRow) => {
+    if (isClosed) return
     if (row.hasStats) {
       setForm({
         minutes: row.minutes ?? 0,
@@ -231,7 +373,7 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
   }
 
   const handleSave = async (userId: string) => {
-    if (!stats) return
+    if (!stats || isClosed) return
     setSaving(true)
     try {
       await matchesApi.upsertPlayerStats(match.id, userId, form)
@@ -274,7 +416,49 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
     }
   }
 
+  const startEditOpponent = (op: OpponentPlayerRow) => {
+    if (isClosed) return
+    setOppForm({
+      minutes: op.stats?.minutes ?? 0,
+      seconds: op.stats?.seconds ?? 0,
+      points: op.stats?.points ?? 0,
+      rebounds: op.stats?.rebounds ?? 0,
+      reboundsOff: op.stats?.reboundsOff ?? 0,
+      reboundsDef: op.stats?.reboundsDef ?? 0,
+      assists: op.stats?.assists ?? 0,
+      steals: op.stats?.steals ?? 0,
+      blocks: op.stats?.blocks ?? 0,
+      turnovers: op.stats?.turnovers ?? 0,
+      fouls: op.stats?.fouls ?? 0,
+      blocksAgainst: op.stats?.blocksAgainst ?? 0,
+      foulsDrawn: op.stats?.foulsDrawn ?? 0,
+      plusMinus: op.stats?.plusMinus ?? 0,
+      fieldGoalsMade: op.stats?.fieldGoalsMade ?? 0,
+      fieldGoalsAttempted: op.stats?.fieldGoalsAttempted ?? 0,
+      threePointersMade: op.stats?.threePointersMade ?? 0,
+      threePointersAttempted: op.stats?.threePointersAttempted ?? 0,
+      freeThrowsMade: op.stats?.freeThrowsMade ?? 0,
+      freeThrowsAttempted: op.stats?.freeThrowsAttempted ?? 0,
+    })
+    setEditingOpp(op.id)
+  }
+
+  const handleSaveOpponent = async (oppId: string) => {
+    if (isClosed) return
+    setSavingOpp(true)
+    try {
+      await api.patch(`/matches/${match.id}/opponents/${oppId}`, oppForm)
+      setEditingOpp(null)
+      loadOpponents()
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Error al guardar rival')
+    } finally {
+      setSavingOpp(false)
+    }
+  }
+
   const handleExclude = async (row: RosterRow) => {
+    if (isClosed) return
     const name = `${row.name} ${row.lastName}`
     if (
       !confirm(
@@ -292,6 +476,7 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
   }
 
   const handleInclude = async (userId: string, name: string) => {
+    if (isClosed) return
     if (!confirm(`¿Reincluir a ${name} en este partido?`)) return
     try {
       await matchesApi.setPlayerExclusion(match.id, userId, false)
@@ -303,6 +488,7 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
   }
 
   const handleAddPlayer = async (userId: string) => {
+    if (isClosed) return
     try {
       await matchesApi.upsertPlayerStats(match.id, userId, EMPTY_INPUT)
       setShowAddModal(false)
@@ -313,9 +499,27 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
     }
   }
 
-  // ─────────────────────────────────────────
-  // Fusión: equipo + stats existentes − excluidos
-  // ─────────────────────────────────────────
+  const handleImport = async () => {
+    if (isClosed) return
+    if (!selectedImportId) return
+    if (importMatchHasStats && !confirmOverwrite) return
+    setImporting(true)
+    try {
+      await api.post(`/matches/${match.id}/import-from-session`, {
+        statSessionId: selectedImportId,
+        overwrite: importMatchHasStats ? confirmOverwrite : true,
+      })
+      setShowImportModal(false)
+      load()
+      loadOpponents()
+      onUpdate()
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Error al importar')
+    } finally {
+      setImporting(false)
+    }
+  }
+
   const roster: RosterRow[] = useMemo(() => {
     if (!stats) return []
 
@@ -387,7 +591,6 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
     [clubCandidates],
   )
 
-  // ✅ NUEVO — Totales del equipo (solo jugadores con stats)
   const totals = useMemo(() => {
     const acc = {
       minutes: 0,
@@ -412,7 +615,6 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
     }
     for (const p of roster) {
       if (!p.hasStats) continue
-      // Minutos: sumamos segundos y acarreo
       acc.minutes += p.minutes ?? 0
       acc.seconds += p.seconds ?? 0
       acc.points += p.points
@@ -433,7 +635,6 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
       acc.freeThrowsAttempted += p.freeThrowsAttempted
       acc.valuation += p.valuation
     }
-    // Acarreo de segundos a minutos
     acc.minutes += Math.floor(acc.seconds / 60)
     acc.seconds = acc.seconds % 60
 
@@ -447,6 +648,58 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
       freeThrowPct: pct(acc.freeThrowsMade, acc.freeThrowsAttempted),
     }
   }, [roster])
+
+  const opponentTotals = useMemo(() => {
+    const acc = {
+      minutes: 0,
+      seconds: 0,
+      points: 0,
+      rebounds: 0,
+      reboundsOff: 0,
+      reboundsDef: 0,
+      assists: 0,
+      steals: 0,
+      blocks: 0,
+      turnovers: 0,
+      fouls: 0,
+      fieldGoalsMade: 0,
+      fieldGoalsAttempted: 0,
+      threePointersMade: 0,
+      threePointersAttempted: 0,
+      freeThrowsMade: 0,
+      freeThrowsAttempted: 0,
+    }
+    for (const op of opponents) {
+      if (!op.stats) continue
+      acc.minutes += op.stats.minutes ?? 0
+      acc.seconds += op.stats.seconds ?? 0
+      acc.points += op.stats.points
+      acc.rebounds += op.stats.rebounds
+      acc.reboundsOff += op.stats.reboundsOff
+      acc.reboundsDef += op.stats.reboundsDef
+      acc.assists += op.stats.assists
+      acc.steals += op.stats.steals
+      acc.blocks += op.stats.blocks
+      acc.turnovers += op.stats.turnovers
+      acc.fouls += op.stats.fouls
+      acc.fieldGoalsMade += op.stats.fieldGoalsMade
+      acc.fieldGoalsAttempted += op.stats.fieldGoalsAttempted
+      acc.threePointersMade += op.stats.threePointersMade
+      acc.threePointersAttempted += op.stats.threePointersAttempted
+      acc.freeThrowsMade += op.stats.freeThrowsMade
+      acc.freeThrowsAttempted += op.stats.freeThrowsAttempted
+    }
+    acc.minutes += Math.floor(acc.seconds / 60)
+    acc.seconds = acc.seconds % 60
+    const pct = (made: number, att: number) =>
+      att > 0 ? Math.round((made / att) * 1000) / 10 : 0
+    return {
+      ...acc,
+      fieldGoalPct: pct(acc.fieldGoalsMade, acc.fieldGoalsAttempted),
+      threePointPct: pct(acc.threePointersMade, acc.threePointersAttempted),
+      freeThrowPct: pct(acc.freeThrowsMade, acc.freeThrowsAttempted),
+    }
+  }, [opponents])
 
   if (loading) {
     return (
@@ -503,10 +756,36 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                 vs {stats.match.opponent}
               </p>
             </div>
-            <ResultBadge result={stats.match.result} />
+            <div className="flex gap-2 items-center flex-wrap">
+              <ResultBadge result={stats.match.result} />
+              {!isClosed && (
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setShowImportModal(true)}
+                >
+                  📥 Importar desde sesión
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant={isClosed ? 'secondary' : 'primary'}
+                onClick={handleToggleStatus}
+                className={isClosed ? '!text-brand-primary' : ''}
+              >
+                {isClosed ? '✏️ Editar partido' : '✅ Cerrar partido'}
+              </Button>
+            </div>
           </div>
 
-          {!stats.match.hasGlobalScore && (
+          {isClosed && (
+            <div className="bg-brand-primary/10 border border-brand-primary/30 rounded-lg p-3 mb-4 text-xs text-brand-primary">
+              🔒 Partido cerrado. Las estadísticas están en globales. Pulsa
+              "✏️ Editar partido" para volver a editar.
+            </div>
+          )}
+
+          {!isClosed && !stats.match.hasGlobalScore && (
             <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 mb-4 text-xs text-warning">
               ⚠️ Este partido no tiene resultado global rellenado.
             </div>
@@ -530,32 +809,6 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
             {show('ASSISTS') && (
               <StatBox label="Asistencias" value={`${teamSummary.assists}`} />
             )}
-            {show('VALUATION') && (
-              <StatBox
-                label="Valoración"
-                value={`${teamSummary.valuation}`}
-                hintColor={
-                  teamSummary.valuation > 0
-                    ? 'text-success'
-                    : teamSummary.valuation < 0
-                    ? 'text-danger'
-                    : 'text-text-muted'
-                }
-              />
-            )}
-            {show('PLUS_MINUS') && (
-              <StatBox
-                label="+/-"
-                value={fmtPlusMinus(teamSummary.plusMinus)}
-                hintColor={
-                  teamSummary.plusMinus > 0
-                    ? 'text-success'
-                    : teamSummary.plusMinus < 0
-                    ? 'text-danger'
-                    : 'text-text-muted'
-                }
-              />
-            )}
             {show('FG_PCT') && (
               <StatBox
                 label="% TC"
@@ -567,62 +820,33 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                 }
               />
             )}
-            {show('TP_PCT') && (
-              <StatBox
-                label="% 3P"
-                value={`${teamSummary.threePointPct}%`}
-                hint={
-                  show('TP_MADE') && show('TP_ATTEMPTED')
-                    ? `${teamSummary.threePointersMade}/${teamSummary.threePointersAttempted}`
-                    : undefined
-                }
-              />
-            )}
-            {show('FT_PCT') && (
-              <StatBox
-                label="% TL"
-                value={`${teamSummary.freeThrowPct}%`}
-                hint={
-                  show('FT_MADE') && show('FT_ATTEMPTED')
-                    ? `${teamSummary.freeThrowsMade}/${teamSummary.freeThrowsAttempted}`
-                    : undefined
-                }
-              />
-            )}
-            {show('BLOCKS_AGAINST') && (
-              <StatBox
-                label="Tapones c."
-                value={`${teamSummary.blocksAgainst}`}
-              />
-            )}
-            {show('FOULS_DRAWN') && (
-              <StatBox label="Faltas r." value={`${teamSummary.foulsDrawn}`} />
-            )}
           </div>
         </CardBody>
       </Card>
 
-      {/* ─── Tabla por jugador ─── */}
+      {/* ─── Tabla por jugador (nuestro equipo) ─── */}
       <Card>
         <CardBody>
           <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
             <h3 className="text-lg font-semibold text-text-primary">
               👥 Jugadores ({roster.length})
             </h3>
-            <div className="flex flex-wrap gap-2">
-              {excludedRows.length > 0 && (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => setShowExcludedModal(true)}
-                >
-                  🚫 Excluidos ({excludedRows.length})
+            {!isClosed && (
+              <div className="flex flex-wrap gap-2">
+                {excludedRows.length > 0 && (
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setShowExcludedModal(true)}
+                  >
+                    🚫 Excluidos ({excludedRows.length})
+                  </Button>
+                )}
+                <Button size="sm" onClick={() => setShowAddModal(true)}>
+                  ➕ Añadir jugador
                 </Button>
-              )}
-              <Button size="sm" onClick={() => setShowAddModal(true)}>
-                ➕ Añadir jugador
-              </Button>
-            </div>
+              </div>
+            )}
           </div>
 
           {roster.length === 0 ? (
@@ -630,14 +854,12 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
               No hay jugadores en el equipo.
             </p>
           ) : (
-            <div className="overflow-x-auto">
+            <div className="overflow-x-auto scrollbar-menu">
               <table className="w-full text-xs">
                 <thead className="bg-surface-elevated">
                   <tr>
-                    <th className="px-2 py-2 text-left text-[10px] font-medium text-text-muted uppercase">
-                      Jugador
-                    </th>
-                    {editing ? (
+                    <th className="px-2 py-2 text-left text-[10px] font-medium text-text-muted uppercase">Jugador</th>
+                    {editing && !isClosed ? (
                       <>
                         <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Min</th>
                         <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Pts</th>
@@ -657,77 +879,37 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                       </>
                     ) : (
                       <>
-                        {show('MINUTES') && (
-                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Min</th>
-                        )}
-                        {show('POINTS') && (
-                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Pts</th>
-                        )}
-                        {show('REBOUNDS') && (
-                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Reb</th>
-                        )}
-                        {show('ASSISTS') && (
-                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Ast</th>
-                        )}
-                        {show('STEALS') && (
-                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Rob</th>
-                        )}
-                        {show('BLOCKS') && (
-                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Tap</th>
-                        )}
-                        {show('BLOCKS_AGAINST') && (
-                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TpC</th>
-                        )}
-                        {show('TURNOVERS') && (
-                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Per</th>
-                        )}
-                        {show('FOULS') && (
-                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Fal</th>
-                        )}
-                        {show('FOULS_DRAWN') && (
-                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">FR</th>
-                        )}
-                        {show('PLUS_MINUS') && (
-                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">+/-</th>
-                        )}
-                        {show('FG_PCT') && (
-                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TC</th>
-                        )}
-                        {show('TP_PCT') && (
-                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">3P</th>
-                        )}
-                        {show('FT_PCT') && (
-                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TL</th>
-                        )}
-                        {show('VALUATION') && (
-                          <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Val</th>
-                        )}
-                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Acción</th>
+                        {show('MINUTES') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Min</th>)}
+                        {show('POINTS') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Pts</th>)}
+                        {show('REBOUNDS') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Reb</th>)}
+                        {show('ASSISTS') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Ast</th>)}
+                        {show('STEALS') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Rob</th>)}
+                        {show('BLOCKS') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Tap</th>)}
+                        {show('BLOCKS_AGAINST') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TpC</th>)}
+                        {show('TURNOVERS') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Per</th>)}
+                        {show('FOULS') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Fal</th>)}
+                        {show('FOULS_DRAWN') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">FR</th>)}
+                        {show('PLUS_MINUS') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">+/-</th>)}
+                        {show('FG_PCT') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TC</th>)}
+                        {show('TP_PCT') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">3P</th>)}
+                        {show('FT_PCT') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TL</th>)}
+                        {show('VALUATION') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Val</th>)}
+                        {!isClosed && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Acción</th>}
                       </>
                     )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-subtle">
                   {roster.map((p) => {
-                    const isEditing = editing === p.userId
+                    const isEditing = editing === p.userId && !isClosed
                     const dash = !p.hasStats
-                    const v = (n: number | null | undefined) =>
-                      dash ? '—' : n ?? '—'
+                    const v = (n: number | null | undefined) => dash ? '—' : n ?? '—'
                     return (
-                      <tr
-                        key={p.userId}
-                        className="hover:bg-surface-elevated transition"
-                      >
+                      <tr key={p.userId} className="hover:bg-surface-elevated transition">
                         <td className="px-2 py-2 font-medium text-text-primary whitespace-nowrap">
-                          {p.jerseyNumber != null && (
-                            <span className="text-text-muted mr-1">#{p.jerseyNumber}</span>
-                          )}
+                          {p.jerseyNumber != null && <span className="text-text-muted mr-1">#{p.jerseyNumber}</span>}
                           {p.name} {p.lastName}
-                          {!p.fromTeam && (
-                            <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-info/10 text-info">
-                              invitado
-                            </span>
-                          )}
+                          {!p.fromTeam && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-info/10 text-info">invitado</span>}
                         </td>
                         {isEditing ? (
                           <>
@@ -737,433 +919,102 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                                 inputMode="numeric"
                                 placeholder="mm:ss"
                                 defaultValue={fmtMinutes(form.minutes, form.seconds)}
-                                onChange={(e) => {
-                                  e.currentTarget.dataset.dirty = 'true'
-                                }}
                                 onBlur={(e) => {
                                   const { minutes, seconds } = parseMmSs(e.target.value)
                                   setForm((prev) => ({ ...prev, minutes, seconds }))
                                   e.currentTarget.value = fmtMinutes(minutes, seconds)
-                                  delete e.currentTarget.dataset.dirty
                                 }}
-                                onKeyDown={(e) => {
-                                  if (e.key === 'Enter') {
-                                    ;(e.currentTarget as HTMLInputElement).blur()
-                                  }
-                                }}
-                                className="w-16 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1 focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"
+                                onKeyDown={(e) => { if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur() }}
+                                className="w-16 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1"
                               />
                             </td>
-                            {(
-                              [
-                                'points',
-                                'rebounds',
-                                'assists',
-                                'steals',
-                                'blocks',
-                                'blocksAgainst',
-                                'turnovers',
-                                'fouls',
-                                'foulsDrawn',
-                                'plusMinus',
-                              ] as const
-                            ).map((f) => (
+                            {(['points','rebounds','assists','steals','blocks','blocksAgainst','turnovers','fouls','foulsDrawn','plusMinus'] as const).map((f) => (
                               <td key={f} className="px-1 py-1">
-                                <input
-                                  type="number"
-                                  value={form[f] ?? 0}
-                                  onChange={(e) =>
-                                    setForm({
-                                      ...form,
-                                      [f]: Number(e.target.value),
-                                    })
-                                  }
-                                  className="w-12 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1 focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"
-                                />
+                                <input type="number" value={form[f] ?? 0} onChange={(e) => setForm({ ...form, [f]: Number(e.target.value) })} className="w-12 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
                               </td>
                             ))}
                             <td className="px-1 py-1">
                               <div className="flex items-center gap-0.5 justify-center">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={form.fieldGoalsMade ?? 0}
-                                  onChange={(e) =>
-                                    setForm({
-                                      ...form,
-                                      fieldGoalsMade: Number(e.target.value),
-                                    })
-                                  }
-                                  className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1"
-                                />
+                                <input type="number" min="0" value={form.fieldGoalsMade ?? 0} onChange={(e) => setForm({ ...form, fieldGoalsMade: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
                                 <span className="text-text-muted text-[10px]">/</span>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={form.fieldGoalsAttempted ?? 0}
-                                  onChange={(e) =>
-                                    setForm({
-                                      ...form,
-                                      fieldGoalsAttempted: Number(e.target.value),
-                                    })
-                                  }
-                                  className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1"
-                                />
+                                <input type="number" min="0" value={form.fieldGoalsAttempted ?? 0} onChange={(e) => setForm({ ...form, fieldGoalsAttempted: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
                               </div>
                             </td>
                             <td className="px-1 py-1">
                               <div className="flex items-center gap-0.5 justify-center">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={form.threePointersMade ?? 0}
-                                  onChange={(e) =>
-                                    setForm({
-                                      ...form,
-                                      threePointersMade: Number(e.target.value),
-                                    })
-                                  }
-                                  className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1"
-                                />
+                                <input type="number" min="0" value={form.threePointersMade ?? 0} onChange={(e) => setForm({ ...form, threePointersMade: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
                                 <span className="text-text-muted text-[10px]">/</span>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={form.threePointersAttempted ?? 0}
-                                  onChange={(e) =>
-                                    setForm({
-                                      ...form,
-                                      threePointersAttempted: Number(e.target.value),
-                                    })
-                                  }
-                                  className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1"
-                                />
+                                <input type="number" min="0" value={form.threePointersAttempted ?? 0} onChange={(e) => setForm({ ...form, threePointersAttempted: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
                               </div>
                             </td>
                             <td className="px-1 py-1">
                               <div className="flex items-center gap-0.5 justify-center">
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={form.freeThrowsMade ?? 0}
-                                  onChange={(e) =>
-                                    setForm({
-                                      ...form,
-                                      freeThrowsMade: Number(e.target.value),
-                                    })
-                                  }
-                                  className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1"
-                                />
+                                <input type="number" min="0" value={form.freeThrowsMade ?? 0} onChange={(e) => setForm({ ...form, freeThrowsMade: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
                                 <span className="text-text-muted text-[10px]">/</span>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={form.freeThrowsAttempted ?? 0}
-                                  onChange={(e) =>
-                                    setForm({
-                                      ...form,
-                                      freeThrowsAttempted: Number(e.target.value),
-                                    })
-                                  }
-                                  className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1"
-                                />
+                                <input type="number" min="0" value={form.freeThrowsAttempted ?? 0} onChange={(e) => setForm({ ...form, freeThrowsAttempted: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
                               </div>
                             </td>
                             <td className="px-2 py-2 text-center">
                               <div className="flex gap-1 justify-center">
-                                <button
-                                  onClick={() => handleSave(p.userId)}
-                                  disabled={saving}
-                                  className="text-xs bg-brand-primary hover:bg-brand-primary/90 text-bg-base px-2 py-1 rounded disabled:opacity-50"
-                                >
-                                  {saving ? '...' : '💾'}
-                                </button>
-                                <button
-                                  onClick={() => setEditing(null)}
-                                  disabled={saving}
-                                  className="text-xs bg-surface-elevated hover:bg-border-subtle text-text-secondary px-2 py-1 rounded"
-                                >
-                                  ✕
-                                </button>
+                                <button onClick={() => handleSave(p.userId)} disabled={saving} className="text-xs bg-brand-primary hover:bg-brand-primary/90 text-bg-base px-2 py-1 rounded disabled:opacity-50">{saving ? '...' : '💾'}</button>
+                                <button onClick={() => setEditing(null)} disabled={saving} className="text-xs bg-surface-elevated hover:bg-border-subtle text-text-secondary px-2 py-1 rounded">✕</button>
                               </div>
                             </td>
                           </>
                         ) : (
                           <>
-                            {show('MINUTES') && (
-                              <td className="px-2 py-2 text-center text-text-secondary">
-                                {p.hasStats
-                                  ? fmtMinutes(p.minutes, p.seconds)
-                                  : '—'}
+                            {show('MINUTES') && (<td className="px-2 py-2 text-center text-text-secondary">{p.hasStats ? fmtMinutes(p.minutes, p.seconds) : '—'}</td>)}
+                            {show('POINTS') && (<td className="px-2 py-2 text-center font-semibold text-text-primary">{v(p.points)}</td>)}
+                            {show('REBOUNDS') && (<td className="px-2 py-2 text-center text-text-secondary">{v(p.rebounds)}</td>)}
+                            {show('ASSISTS') && (<td className="px-2 py-2 text-center text-text-secondary">{v(p.assists)}</td>)}
+                            {show('STEALS') && (<td className="px-2 py-2 text-center text-text-secondary">{v(p.steals)}</td>)}
+                            {show('BLOCKS') && (<td className="px-2 py-2 text-center text-text-secondary">{v(p.blocks)}</td>)}
+                            {show('BLOCKS_AGAINST') && (<td className="px-2 py-2 text-center text-text-secondary">{v(p.blocksAgainst)}</td>)}
+                            {show('TURNOVERS') && (<td className="px-2 py-2 text-center text-text-secondary">{v(p.turnovers)}</td>)}
+                            {show('FOULS') && (<td className="px-2 py-2 text-center text-text-secondary">{v(p.fouls)}</td>)}
+                            {show('FOULS_DRAWN') && (<td className="px-2 py-2 text-center text-text-secondary">{v(p.foulsDrawn)}</td>)}
+                            {show('PLUS_MINUS') && (<td className={`px-2 py-2 text-center font-medium ${!p.hasStats ? 'text-text-muted' : (p.plusMinus ?? 0) > 0 ? 'text-success' : (p.plusMinus ?? 0) < 0 ? 'text-danger' : 'text-text-muted'}`}>{p.hasStats ? fmtPlusMinus(p.plusMinus) : '—'}</td>)}
+                            {show('FG_PCT') && (<td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">{p.hasStats ? `${show('FG_MADE') && show('FG_ATTEMPTED') ? `${p.fieldGoalsMade}/${p.fieldGoalsAttempted} ` : ''}(${p.fieldGoalPct}%)` : '—'}</td>)}
+                            {show('TP_PCT') && (<td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">{p.hasStats ? `${show('TP_MADE') && show('TP_ATTEMPTED') ? `${p.threePointersMade}/${p.threePointersAttempted} ` : ''}(${p.threePointPct}%)` : '—'}</td>)}
+                            {show('FT_PCT') && (<td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">{p.hasStats ? `${show('FT_MADE') && show('FT_ATTEMPTED') ? `${p.freeThrowsMade}/${p.freeThrowsAttempted} ` : ''}(${p.freeThrowPct}%)` : '—'}</td>)}
+                            {show('VALUATION') && (<td className={`px-2 py-2 text-center font-semibold ${!p.hasStats ? 'text-text-muted' : p.valuation > 0 ? 'text-success' : p.valuation < 0 ? 'text-danger' : 'text-text-muted'}`}>{p.hasStats ? p.valuation : '—'}</td>)}
+                            {!isClosed && (
+                              <td className="px-2 py-2 text-center">
+                                <div className="flex gap-1 justify-center">
+                                  <button onClick={() => startEdit(p)} className="text-xs bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary px-2 py-1 rounded" title={p.hasStats ? 'Editar stats' : 'Añadir stats'}>
+                                    {p.hasStats ? '✏️' : '➕'}
+                                  </button>
+                                  <button onClick={() => handleExclude(p)} className="text-xs bg-danger/10 hover:bg-danger/20 text-danger px-2 py-1 rounded" title="Excluir del partido">🚫</button>
+                                </div>
                               </td>
                             )}
-                            {show('POINTS') && (
-                              <td className="px-2 py-2 text-center font-semibold text-text-primary">
-                                {v(p.points)}
-                              </td>
-                            )}
-                            {show('REBOUNDS') && (
-                              <td className="px-2 py-2 text-center text-text-secondary">
-                                {v(p.rebounds)}
-                              </td>
-                            )}
-                            {show('ASSISTS') && (
-                              <td className="px-2 py-2 text-center text-text-secondary">
-                                {v(p.assists)}
-                              </td>
-                            )}
-                            {show('STEALS') && (
-                              <td className="px-2 py-2 text-center text-text-secondary">
-                                {v(p.steals)}
-                              </td>
-                            )}
-                            {show('BLOCKS') && (
-                              <td className="px-2 py-2 text-center text-text-secondary">
-                                {v(p.blocks)}
-                              </td>
-                            )}
-                            {show('BLOCKS_AGAINST') && (
-                              <td className="px-2 py-2 text-center text-text-secondary">
-                                {v(p.blocksAgainst)}
-                              </td>
-                            )}
-                            {show('TURNOVERS') && (
-                              <td className="px-2 py-2 text-center text-text-secondary">
-                                {v(p.turnovers)}
-                              </td>
-                            )}
-                            {show('FOULS') && (
-                              <td className="px-2 py-2 text-center text-text-secondary">
-                                {v(p.fouls)}
-                              </td>
-                            )}
-                            {show('FOULS_DRAWN') && (
-                              <td className="px-2 py-2 text-center text-text-secondary">
-                                {v(p.foulsDrawn)}
-                              </td>
-                            )}
-                            {show('PLUS_MINUS') && (
-                              <td
-                                className={`px-2 py-2 text-center font-medium ${
-                                  !p.hasStats
-                                    ? 'text-text-muted'
-                                    : (p.plusMinus ?? 0) > 0
-                                    ? 'text-success'
-                                    : (p.plusMinus ?? 0) < 0
-                                    ? 'text-danger'
-                                    : 'text-text-muted'
-                                }`}
-                              >
-                                {p.hasStats ? fmtPlusMinus(p.plusMinus) : '—'}
-                              </td>
-                            )}
-                            {show('FG_PCT') && (
-                              <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
-                                {p.hasStats
-                                  ? `${
-                                      show('FG_MADE') && show('FG_ATTEMPTED')
-                                        ? `${p.fieldGoalsMade}/${p.fieldGoalsAttempted} `
-                                        : ''
-                                    }(${p.fieldGoalPct}%)`
-                                  : '—'}
-                              </td>
-                            )}
-                            {show('TP_PCT') && (
-                              <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
-                                {p.hasStats
-                                  ? `${
-                                      show('TP_MADE') && show('TP_ATTEMPTED')
-                                        ? `${p.threePointersMade}/${p.threePointersAttempted} `
-                                        : ''
-                                    }(${p.threePointPct}%)`
-                                  : '—'}
-                              </td>
-                            )}
-                            {show('FT_PCT') && (
-                              <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
-                                {p.hasStats
-                                  ? `${
-                                      show('FT_MADE') && show('FT_ATTEMPTED')
-                                        ? `${p.freeThrowsMade}/${p.freeThrowsAttempted} `
-                                        : ''
-                                    }(${p.freeThrowPct}%)`
-                                  : '—'}
-                              </td>
-                            )}
-                            {show('VALUATION') && (
-                              <td
-                                className={`px-2 py-2 text-center font-semibold ${
-                                  !p.hasStats
-                                    ? 'text-text-muted'
-                                    : p.valuation > 0
-                                    ? 'text-success'
-                                    : p.valuation < 0
-                                    ? 'text-danger'
-                                    : 'text-text-muted'
-                                }`}
-                              >
-                                {p.hasStats ? p.valuation : '—'}
-                              </td>
-                            )}
-                            <td className="px-2 py-2 text-center">
-                              <div className="flex gap-1 justify-center">
-                                <button
-                                  onClick={() => startEdit(p)}
-                                  className="text-xs bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary px-2 py-1 rounded"
-                                  title={p.hasStats ? 'Editar stats' : 'Añadir stats'}
-                                >
-                                  {p.hasStats ? '✏️' : '➕'}
-                                </button>
-                                <button
-                                  onClick={() => handleExclude(p)}
-                                  className="text-xs bg-danger/10 hover:bg-danger/20 text-danger px-2 py-1 rounded"
-                                  title="Excluir del partido"
-                                >
-                                  🚫
-                                </button>
-                              </div>
-                            </td>
                           </>
                         )}
                       </tr>
                     )
                   })}
                 </tbody>
-                {/* ✅ NUEVO — Fila de totales del equipo */}
                 <tfoot className="bg-brand-primary/5 border-t-2 border-brand-primary/30">
                   <tr className="font-semibold">
                     <td className="px-2 py-2 text-left text-text-primary">
-                      <span className="text-[10px] uppercase tracking-wide text-brand-primary">
-                        TOTALES
-                      </span>
+                      <span className="text-[10px] uppercase tracking-wide text-brand-primary">TOTALES</span>
                     </td>
-                    {editing ? (
-                      <>
-                        <td className="px-2 py-2 text-center text-text-primary">
-                          {fmtMinutes(totals.minutes, totals.seconds)}
-                        </td>
-                        <td className="px-2 py-2 text-center text-brand-primary font-bold">
-                          {totals.points}
-                        </td>
-                        <td className="px-2 py-2 text-center text-text-primary">{totals.rebounds}</td>
-                        <td className="px-2 py-2 text-center text-text-primary">{totals.assists}</td>
-                        <td className="px-2 py-2 text-center text-text-primary">{totals.steals}</td>
-                        <td className="px-2 py-2 text-center text-text-primary">{totals.blocks}</td>
-                        <td className="px-2 py-2 text-center text-text-primary">{totals.blocksAgainst}</td>
-                        <td className="px-2 py-2 text-center text-text-primary">{totals.turnovers}</td>
-                        <td className="px-2 py-2 text-center text-text-primary">{totals.fouls}</td>
-                        <td className="px-2 py-2 text-center text-text-primary">{totals.foulsDrawn}</td>
-                        <td
-                          className={`px-2 py-2 text-center ${
-                            totals.plusMinus > 0
-                              ? 'text-success'
-                              : totals.plusMinus < 0
-                              ? 'text-danger'
-                              : 'text-text-muted'
-                          }`}
-                        >
-                          {fmtPlusMinus(totals.plusMinus)}
-                        </td>
-                        <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
-                          {totals.fieldGoalsMade}/{totals.fieldGoalsAttempted} ({totals.fieldGoalPct}%)
-                        </td>
-                        <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
-                          {totals.threePointersMade}/{totals.threePointersAttempted} ({totals.threePointPct}%)
-                        </td>
-                        <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
-                          {totals.freeThrowsMade}/{totals.freeThrowsAttempted} ({totals.freeThrowPct}%)
-                        </td>
-                        <td className="px-2 py-2"></td>
-                      </>
-                    ) : (
-                      <>
-                        {show('MINUTES') && (
-                          <td className="px-2 py-2 text-center text-text-primary">
-                            {fmtMinutes(totals.minutes, totals.seconds)}
-                          </td>
-                        )}
-                        {show('POINTS') && (
-                          <td className="px-2 py-2 text-center text-brand-primary font-bold">
-                            {totals.points}
-                          </td>
-                        )}
-                        {show('REBOUNDS') && (
-                          <td className="px-2 py-2 text-center text-text-primary">{totals.rebounds}</td>
-                        )}
-                        {show('ASSISTS') && (
-                          <td className="px-2 py-2 text-center text-text-primary">{totals.assists}</td>
-                        )}
-                        {show('STEALS') && (
-                          <td className="px-2 py-2 text-center text-text-primary">{totals.steals}</td>
-                        )}
-                        {show('BLOCKS') && (
-                          <td className="px-2 py-2 text-center text-text-primary">{totals.blocks}</td>
-                        )}
-                        {show('BLOCKS_AGAINST') && (
-                          <td className="px-2 py-2 text-center text-text-primary">{totals.blocksAgainst}</td>
-                        )}
-                        {show('TURNOVERS') && (
-                          <td className="px-2 py-2 text-center text-text-primary">{totals.turnovers}</td>
-                        )}
-                        {show('FOULS') && (
-                          <td className="px-2 py-2 text-center text-text-primary">{totals.fouls}</td>
-                        )}
-                        {show('FOULS_DRAWN') && (
-                          <td className="px-2 py-2 text-center text-text-primary">{totals.foulsDrawn}</td>
-                        )}
-                        {show('PLUS_MINUS') && (
-                          <td
-                            className={`px-2 py-2 text-center ${
-                              totals.plusMinus > 0
-                                ? 'text-success'
-                                : totals.plusMinus < 0
-                                ? 'text-danger'
-                                : 'text-text-muted'
-                            }`}
-                          >
-                            {fmtPlusMinus(totals.plusMinus)}
-                          </td>
-                        )}
-                        {show('FG_PCT') && (
-                          <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
-                            {show('FG_MADE') && show('FG_ATTEMPTED')
-                              ? `${totals.fieldGoalsMade}/${totals.fieldGoalsAttempted} `
-                              : ''}
-                            ({totals.fieldGoalPct}%)
-                          </td>
-                        )}
-                        {show('TP_PCT') && (
-                          <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
-                            {show('TP_MADE') && show('TP_ATTEMPTED')
-                              ? `${totals.threePointersMade}/${totals.threePointersAttempted} `
-                              : ''}
-                            ({totals.threePointPct}%)
-                          </td>
-                        )}
-                        {show('FT_PCT') && (
-                          <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
-                            {show('FT_MADE') && show('FT_ATTEMPTED')
-                              ? `${totals.freeThrowsMade}/${totals.freeThrowsAttempted} `
-                              : ''}
-                            ({totals.freeThrowPct}%)
-                          </td>
-                        )}
-                        {show('VALUATION') && (
-                          <td
-                            className={`px-2 py-2 text-center font-bold ${
-                              totals.valuation > 0
-                                ? 'text-success'
-                                : totals.valuation < 0
-                                ? 'text-danger'
-                                : 'text-text-muted'
-                            }`}
-                          >
-                            {totals.valuation}
-                          </td>
-                        )}
-                        <td className="px-2 py-2"></td>
-                      </>
-                    )}
+                    {show('MINUTES') && (<td className="px-2 py-2 text-center text-text-primary">{fmtMinutes(totals.minutes, totals.seconds)}</td>)}
+                    {show('POINTS') && (<td className="px-2 py-2 text-center text-brand-primary font-bold">{totals.points}</td>)}
+                    {show('REBOUNDS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.rebounds}</td>)}
+                    {show('ASSISTS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.assists}</td>)}
+                    {show('STEALS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.steals}</td>)}
+                    {show('BLOCKS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.blocks}</td>)}
+                    {show('BLOCKS_AGAINST') && (<td className="px-2 py-2 text-center text-text-primary">{totals.blocksAgainst}</td>)}
+                    {show('TURNOVERS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.turnovers}</td>)}
+                    {show('FOULS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.fouls}</td>)}
+                    {show('FOULS_DRAWN') && (<td className="px-2 py-2 text-center text-text-primary">{totals.foulsDrawn}</td>)}
+                    {show('PLUS_MINUS') && (<td className={`px-2 py-2 text-center ${totals.plusMinus > 0 ? 'text-success' : totals.plusMinus < 0 ? 'text-danger' : 'text-text-muted'}`}>{fmtPlusMinus(totals.plusMinus)}</td>)}
+                    {show('FG_PCT') && (<td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{show('FG_MADE') && show('FG_ATTEMPTED') ? `${totals.fieldGoalsMade}/${totals.fieldGoalsAttempted} ` : ''}({totals.fieldGoalPct}%)</td>)}
+                    {show('TP_PCT') && (<td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{show('TP_MADE') && show('TP_ATTEMPTED') ? `${totals.threePointersMade}/${totals.threePointersAttempted} ` : ''}({totals.threePointPct}%)</td>)}
+                    {show('FT_PCT') && (<td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{show('FT_MADE') && show('FT_ATTEMPTED') ? `${totals.freeThrowsMade}/${totals.freeThrowsAttempted} ` : ''}({totals.freeThrowPct}%)</td>)}
+                    {show('VALUATION') && (<td className={`px-2 py-2 text-center font-bold ${totals.valuation > 0 ? 'text-success' : totals.valuation < 0 ? 'text-danger' : 'text-text-muted'}`}>{totals.valuation}</td>)}
+                    {!isClosed && <td className="px-2 py-2"></td>}
                   </tr>
                 </tfoot>
               </table>
@@ -1172,166 +1023,226 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
         </CardBody>
       </Card>
 
-      {/* ─── Modal añadir jugador ─── */}
-      <Modal
-        isOpen={showAddModal}
-        onClose={() => setShowAddModal(false)}
-        title="Añadir jugador al partido"
-        size="md"
-      >
-        <div className="space-y-4">
-          <div className="flex gap-1 border-b border-border-subtle">
-            <button
-              onClick={() => setAddTab('team')}
-              className={`px-3 py-2 text-sm border-b-2 -mb-px transition ${
-                addTab === 'team'
-                  ? 'border-brand-primary text-brand-primary'
-                  : 'border-transparent text-text-muted hover:text-text-primary'
-              }`}
-            >
-              Del equipo ({teamCandidates.length})
-            </button>
-            <button
-              onClick={() => setAddTab('club')}
-              className={`px-3 py-2 text-sm border-b-2 -mb-px transition ${
-                addTab === 'club'
-                  ? 'border-brand-primary text-brand-primary'
-                  : 'border-transparent text-text-muted hover:text-text-primary'
-              }`}
-            >
-              De otros equipos del club
-            </button>
+      {/* ─── Tabla rival (siempre visible) ─── */}
+      <Card>
+        <CardBody>
+          <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
+            <h3 className="text-lg font-semibold text-text-primary">
+              🔴 Rival ({opponents.length})
+            </h3>
+            {!isClosed && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => setShowImportModal(true)}
+              >
+                📥 Importar rival
+              </Button>
+            )}
           </div>
 
-          {addTab === 'team' ? (
-            teamCandidates.length === 0 ? (
-              <p className="text-sm text-text-muted text-center py-4">
-                Todos los jugadores del equipo ya están en la tabla.
-              </p>
-            ) : (
-              <div className="space-y-1 max-h-80 overflow-y-auto">
-                {teamCandidates.map((c) => (
-                  <button
-                    key={c.userId}
-                    onClick={() => handleAddPlayer(c.userId)}
-                    className="w-full text-left px-3 py-2 rounded-lg hover:bg-surface-elevated border border-border-subtle transition flex items-center gap-2"
-                  >
-                    {c.number != null && (
-                      <span className="text-xs text-text-muted shrink-0">
-                        #{c.number}
-                      </span>
-                    )}
-                    <span className="text-sm text-text-primary">
-                      {c.name} {c.lastName}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )
-          ) : loadingCandidates ? (
-            <p className="text-sm text-text-muted text-center py-4">
-              Cargando candidatos...
-            </p>
-          ) : uniqueClubCandidates.length === 0 ? (
-            <p className="text-sm text-text-muted text-center py-4">
-              No hay jugadores de otros equipos del club disponibles.
+          {opponents.length === 0 ? (
+            <p className="text-center py-6 text-text-muted">
+              {isClosed
+                ? 'No hay jugadores rivales en este partido.'
+                : 'No hay jugadores rivales. Importa una sesión de estadística para crearlos, o edítalos a mano cuando estén creados.'}
             </p>
           ) : (
+            <div className="overflow-x-auto scrollbar-menu">
+              <table className="w-full text-xs">
+                <thead className="bg-surface-elevated">
+                  <tr>
+                    <th className="px-2 py-2 text-left text-[10px] font-medium text-text-muted uppercase">Jugador</th>
+                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Min</th>
+                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Pts</th>
+                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Reb</th>
+                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">O</th>
+                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">D</th>
+                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Ast</th>
+                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Rob</th>
+                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Tap</th>
+                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Per</th>
+                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Fal</th>
+                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TC</th>
+                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">3P</th>
+                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TL</th>
+                    {!isClosed && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Acción</th>}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border-subtle">
+                  {opponents.map((op) => {
+                    const isEditing = editingOpp === op.id && !isClosed
+                    const s = op.stats
+                    return (
+                      <tr key={op.id} className="hover:bg-surface-elevated transition">
+                        <td className="px-2 py-2 font-medium text-text-primary whitespace-nowrap">#{op.number} {op.name ?? ''}</td>
+                        {isEditing ? (
+                          <>
+                            <td className="px-1 py-1">
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                placeholder="mm:ss"
+                                defaultValue={fmtMinutes(oppForm.minutes, oppForm.seconds)}
+                                onBlur={(e) => {
+                                  const { minutes, seconds } = parseMmSs(e.target.value)
+                                  setOppForm((prev) => ({ ...prev, minutes, seconds }))
+                                  e.currentTarget.value = fmtMinutes(minutes, seconds)
+                                }}
+                                onKeyDown={(e) => { if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur() }}
+                                className="w-16 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1"
+                              />
+                            </td>
+                            {(['points','rebounds','reboundsOff','reboundsDef','assists','steals','blocks','turnovers','fouls'] as const).map((f) => (
+                              <td key={f} className="px-1 py-1">
+                                <input type="number" value={oppForm[f] ?? 0} onChange={(e) => setOppForm({ ...oppForm, [f]: Number(e.target.value) })} className="w-12 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
+                              </td>
+                            ))}
+                            <td className="px-1 py-1">
+                              <div className="flex items-center gap-0.5 justify-center">
+                                <input type="number" min="0" value={oppForm.fieldGoalsMade ?? 0} onChange={(e) => setOppForm({ ...oppForm, fieldGoalsMade: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
+                                <span className="text-text-muted text-[10px]">/</span>
+                                <input type="number" min="0" value={oppForm.fieldGoalsAttempted ?? 0} onChange={(e) => setOppForm({ ...oppForm, fieldGoalsAttempted: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
+                              </div>
+                            </td>
+                            <td className="px-1 py-1">
+                              <div className="flex items-center gap-0.5 justify-center">
+                                <input type="number" min="0" value={oppForm.threePointersMade ?? 0} onChange={(e) => setOppForm({ ...oppForm, threePointersMade: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
+                                <span className="text-text-muted text-[10px]">/</span>
+                                <input type="number" min="0" value={oppForm.threePointersAttempted ?? 0} onChange={(e) => setOppForm({ ...oppForm, threePointersAttempted: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
+                              </div>
+                            </td>
+                            <td className="px-1 py-1">
+                              <div className="flex items-center gap-0.5 justify-center">
+                                <input type="number" min="0" value={oppForm.freeThrowsMade ?? 0} onChange={(e) => setOppForm({ ...oppForm, freeThrowsMade: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
+                                <span className="text-text-muted text-[10px]">/</span>
+                                <input type="number" min="0" value={oppForm.freeThrowsAttempted ?? 0} onChange={(e) => setOppForm({ ...oppForm, freeThrowsAttempted: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
+                              </div>
+                            </td>
+                            <td className="px-2 py-2 text-center">
+                              <div className="flex gap-1 justify-center">
+                                <button onClick={() => handleSaveOpponent(op.id)} disabled={savingOpp} className="text-xs bg-warning hover:bg-warning/90 text-bg-base px-2 py-1 rounded disabled:opacity-50">{savingOpp ? '...' : '💾'}</button>
+                                <button onClick={() => setEditingOpp(null)} disabled={savingOpp} className="text-xs bg-surface-elevated hover:bg-border-subtle text-text-secondary px-2 py-1 rounded">✕</button>
+                              </div>
+                            </td>
+                          </>
+                        ) : (
+                          <>
+                            <td className="px-2 py-2 text-center text-text-secondary">{fmtMinutes(s?.minutes, s?.seconds)}</td>
+                            <td className="px-2 py-2 text-center font-semibold text-text-primary">{s?.points ?? 0}</td>
+                            <td className="px-2 py-2 text-center text-text-secondary">{s?.rebounds ?? 0}</td>
+                            <td className="px-2 py-2 text-center text-text-secondary">{s?.reboundsOff ?? 0}</td>
+                            <td className="px-2 py-2 text-center text-text-secondary">{s?.reboundsDef ?? 0}</td>
+                            <td className="px-2 py-2 text-center text-text-secondary">{s?.assists ?? 0}</td>
+                            <td className="px-2 py-2 text-center text-text-secondary">{s?.steals ?? 0}</td>
+                            <td className="px-2 py-2 text-center text-text-secondary">{s?.blocks ?? 0}</td>
+                            <td className="px-2 py-2 text-center text-text-secondary">{s?.turnovers ?? 0}</td>
+                            <td className="px-2 py-2 text-center text-text-secondary">{s?.fouls ?? 0}</td>
+                            <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
+                              {s ? `${s.fieldGoalsMade}/${s.fieldGoalsAttempted} (${s.fieldGoalsAttempted > 0 ? Math.round((s.fieldGoalsMade / s.fieldGoalsAttempted) * 1000) / 10 : 0}%)` : '—'}
+                            </td>
+                            <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
+                              {s ? `${s.threePointersMade}/${s.threePointersAttempted} (${s.threePointersAttempted > 0 ? Math.round((s.threePointersMade / s.threePointersAttempted) * 1000) / 10 : 0}%)` : '—'}
+                            </td>
+                            <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
+                              {s ? `${s.freeThrowsMade}/${s.freeThrowsAttempted} (${s.freeThrowsAttempted > 0 ? Math.round((s.freeThrowsMade / s.freeThrowsAttempted) * 1000) / 10 : 0}%)` : '—'}
+                            </td>
+                            {!isClosed && (
+                              <td className="px-2 py-2 text-center">
+                                <button onClick={() => startEditOpponent(op)} className="text-xs bg-warning/10 hover:bg-warning/20 text-warning px-2 py-1 rounded" title="Editar stats del rival">
+                                  {s ? '✏️' : '➕'}
+                                </button>
+                              </td>
+                            )}
+                          </>
+                        )}
+                      </tr>
+                    )
+                  })}
+                </tbody>
+                <tfoot className="bg-warning/5 border-t-2 border-warning/30">
+                  <tr className="font-semibold">
+                    <td className="px-2 py-2 text-left text-text-primary">
+                      <span className="text-[10px] uppercase tracking-wide text-warning">TOTALES</span>
+                    </td>
+                    <td className="px-2 py-2 text-center text-text-primary">{fmtMinutes(opponentTotals.minutes, opponentTotals.seconds)}</td>
+                    <td className="px-2 py-2 text-center text-warning font-bold">{opponentTotals.points}</td>
+                    <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.rebounds}</td>
+                    <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.reboundsOff}</td>
+                    <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.reboundsDef}</td>
+                    <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.assists}</td>
+                    <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.steals}</td>
+                    <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.blocks}</td>
+                    <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.turnovers}</td>
+                    <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.fouls}</td>
+                    <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{opponentTotals.fieldGoalsMade}/{opponentTotals.fieldGoalsAttempted} ({opponentTotals.fieldGoalPct}%)</td>
+                    <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{opponentTotals.threePointersMade}/{opponentTotals.threePointersAttempted} ({opponentTotals.threePointPct}%)</td>
+                    <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{opponentTotals.freeThrowsMade}/{opponentTotals.freeThrowsAttempted} ({opponentTotals.freeThrowPct}%)</td>
+                    {!isClosed && <td className="px-2 py-2"></td>}
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </CardBody>
+      </Card>
+
+      {/* Modales (solo se abren si !isClosed, ya que los botones no aparecen) */}
+      <Modal isOpen={showAddModal && !isClosed} onClose={() => setShowAddModal(false)} title="Añadir jugador al partido" size="md">
+        <div className="space-y-4">
+          <div className="flex gap-1 border-b border-border-subtle">
+            <button onClick={() => setAddTab('team')} className={`px-3 py-2 text-sm border-b-2 -mb-px transition ${addTab === 'team' ? 'border-brand-primary text-brand-primary' : 'border-transparent text-text-muted hover:text-text-primary'}`}>Del equipo ({teamCandidates.length})</button>
+            <button onClick={() => setAddTab('club')} className={`px-3 py-2 text-sm border-b-2 -mb-px transition ${addTab === 'club' ? 'border-brand-primary text-brand-primary' : 'border-transparent text-text-muted hover:text-text-primary'}`}>De otros equipos del club</button>
+          </div>
+          {addTab === 'team' ? (
+            teamCandidates.length === 0 ? (<p className="text-sm text-text-muted text-center py-4">Todos los jugadores del equipo ya están en la tabla.</p>) : (
+              <div className="space-y-1 max-h-80 overflow-y-auto">
+                {teamCandidates.map((c) => (<button key={c.userId} onClick={() => handleAddPlayer(c.userId)} className="w-full text-left px-3 py-2 rounded-lg hover:bg-surface-elevated border border-border-subtle transition flex items-center gap-2">{c.number != null && <span className="text-xs text-text-muted shrink-0">#{c.number}</span>}<span className="text-sm text-text-primary">{c.name} {c.lastName}</span></button>))}
+              </div>
+            )
+          ) : loadingCandidates ? (<p className="text-sm text-text-muted text-center py-4">Cargando candidatos...</p>) : uniqueClubCandidates.length === 0 ? (<p className="text-sm text-text-muted text-center py-4">No hay jugadores de otros equipos del club disponibles.</p>) : (
             <div className="space-y-1 max-h-80 overflow-y-auto">
-              {uniqueClubCandidates.map((c) => (
-                <button
-                  key={`${c.userId}-${c.team.id}`}
-                  onClick={() => handleAddPlayer(c.userId)}
-                  className="w-full text-left px-3 py-2 rounded-lg hover:bg-surface-elevated border border-border-subtle transition"
-                >
-                  <div className="flex items-center gap-2">
-                    {c.number != null && (
-                      <span className="text-xs text-text-muted shrink-0">
-                        #{c.number}
-                      </span>
-                    )}
-                    <span className="text-sm text-text-primary">
-                      {c.name} {c.lastName}
-                    </span>
-                  </div>
-                  <span className="text-xs text-text-muted block ml-0">
-                    {c.team.name}
-                    {c.team.category ? ` · ${c.team.category}` : ''}
-                  </span>
-                </button>
-              ))}
+              {uniqueClubCandidates.map((c) => (<button key={`${c.userId}-${c.team.id}`} onClick={() => handleAddPlayer(c.userId)} className="w-full text-left px-3 py-2 rounded-lg hover:bg-surface-elevated border border-border-subtle transition"><div className="flex items-center gap-2">{c.number != null && <span className="text-xs text-text-muted shrink-0">#{c.number}</span>}<span className="text-sm text-text-primary">{c.name} {c.lastName}</span></div><span className="text-xs text-text-muted block">{c.team.name}{c.team.category ? ` · ${c.team.category}` : ''}</span></button>))}
             </div>
           )}
         </div>
       </Modal>
 
-      {/* ─── Modal excluidos ─── */}
-      <Modal
-        isOpen={showExcludedModal}
-        onClose={() => setShowExcludedModal(false)}
-        title="🚫 Jugadores excluidos del partido"
-        size="md"
-      >
-        <p className="text-xs text-text-muted mb-4">
-          Estos jugadores no cuentan como participantes de este partido. Puedes
-          volver a incluirlos cuando quieras.
-        </p>
-        {excludedRows.length === 0 ? (
-          <p className="text-sm text-text-muted text-center py-4">
-            No hay jugadores excluidos.
-          </p>
-        ) : (
+      <Modal isOpen={showExcludedModal && !isClosed} onClose={() => setShowExcludedModal(false)} title="🚫 Jugadores excluidos del partido" size="md">
+        <p className="text-xs text-text-muted mb-4">Estos jugadores no cuentan como participantes de este partido. Puedes volver a incluirlos cuando quieras.</p>
+        {excludedRows.length === 0 ? (<p className="text-sm text-text-muted text-center py-4">No hay jugadores excluidos.</p>) : (
           <div className="space-y-2">
-            {excludedRows.map((r) => (
-              <div
-                key={r.userId}
-                className="flex items-center justify-between bg-surface-elevated rounded-lg p-3 border border-border-subtle"
-              >
-                <div className="min-w-0">
-                  <p className="font-medium text-text-primary">
-                    {r.jerseyNumber != null && (
-                      <span className="text-text-muted mr-1">#{r.jerseyNumber}</span>
-                    )}
-                    {r.name} {r.lastName}
-                  </p>
-                </div>
-                <button
-                  onClick={() => handleInclude(r.userId, `${r.name} ${r.lastName}`)}
-                  className="text-xs bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary px-3 py-1.5 rounded transition"
-                >
-                  ↩️ Reincluir
-                </button>
-              </div>
-            ))}
+            {excludedRows.map((r) => (<div key={r.userId} className="flex items-center justify-between bg-surface-elevated rounded-lg p-3 border border-border-subtle"><div className="min-w-0"><p className="font-medium text-text-primary">{r.jerseyNumber != null && <span className="text-text-muted mr-1">#{r.jerseyNumber}</span>}{r.name} {r.lastName}</p></div><button onClick={() => handleInclude(r.userId, `${r.name} ${r.lastName}`)} className="text-xs bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary px-3 py-1.5 rounded transition">↩️ Reincluir</button></div>))}
           </div>
         )}
+      </Modal>
+
+      <Modal isOpen={showImportModal && !isClosed} onClose={() => setShowImportModal(false)} title="📥 Importar desde sesión de estadística" size="md">
+        <div className="space-y-4">
+          <p className="text-xs text-text-muted">Selecciona una sesión de estadística cerrada del equipo. Se copiarán sus valores al partido (nuestro equipo + rival). Después podrás editar a mano si lo necesitas.</p>
+          {importMatchHasStats && (<div className="bg-warning/10 border border-warning/30 rounded-lg p-3 text-xs text-warning">⚠️ Este partido ya tiene estadísticas. Si continúas, se borrarán y se sustituirán por las de la sesión.</div>)}
+          {loadingImport ? (<p className="text-sm text-text-muted text-center py-4">Cargando sesiones...</p>) : importSessions.length === 0 ? (<p className="text-sm text-text-muted text-center py-4">No hay sesiones cerradas para este equipo.</p>) : (
+            <div className="space-y-1 max-h-80 overflow-y-auto">
+              {importSessions.map((s) => (<label key={s.id} className={`flex items-start gap-3 p-3 rounded-lg cursor-pointer border transition ${selectedImportId === s.id ? 'border-brand-primary bg-brand-primary/5' : 'border-border-subtle hover:border-brand-primary/50'}`}><input type="radio" name="importSession" checked={selectedImportId === s.id} onChange={() => { setSelectedImportId(s.id); setConfirmOverwrite(false) }} className="w-4 h-4 accent-brand-primary mt-1" /><div className="flex-1 min-w-0"><p className="text-sm font-medium text-text-primary truncate">{s.label}</p><p className="text-xs text-text-muted">{new Date(s.statDate).toLocaleDateString()} · {s.playerCount} jugadores · {s.opponentPlayerCount} rivales{s.teamScore != null && s.opponentScore != null ? ` · ${s.teamScore}-${s.opponentScore}` : ''}</p></div></label>))}
+            </div>
+          )}
+          {importMatchHasStats && selectedImportId && (<label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={confirmOverwrite} onChange={(e) => setConfirmOverwrite(e.target.checked)} className="w-4 h-4 accent-danger" /><span className="text-sm text-danger">Entendido, sobreescribir las estadísticas actuales</span></label>)}
+          <div className="flex gap-3 pt-2">
+            <Button variant="secondary" onClick={() => setShowImportModal(false)} disabled={importing} className="flex-1">Cancelar</Button>
+            <Button onClick={handleImport} disabled={!selectedImportId || (importMatchHasStats && !confirmOverwrite) || importing} loading={importing} className="flex-1">{importing ? 'Importando...' : 'Importar'}</Button>
+          </div>
+        </div>
       </Modal>
     </div>
   )
 }
 
-function StatBox({
-  label,
-  value,
-  hint,
-  hintColor,
-}: {
-  label: string
-  value: string
-  hint?: string
-  hintColor?: string
-}) {
+function StatBox({ label, value, hint, hintColor }: { label: string; value: string; hint?: string; hintColor?: string }) {
   return (
     <div className="bg-surface-elevated border border-border-subtle rounded-lg p-3">
-      <p className="text-[10px] uppercase text-text-muted font-semibold">
-        {label}
-      </p>
+      <p className="text-[10px] uppercase text-text-muted font-semibold">{label}</p>
       <p className="text-xl font-bold text-text-primary mt-1">{value}</p>
-      {hint && (
-        <p className={`text-xs mt-0.5 ${hintColor ?? 'text-text-muted'}`}>
-          {hint}
-        </p>
-      )}
+      {hint && <p className={`text-xs mt-0.5 ${hintColor ?? 'text-text-muted'}`}>{hint}</p>}
     </div>
   )
 }

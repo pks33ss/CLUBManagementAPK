@@ -1,3 +1,5 @@
+// frontend-web/app/teams/[id]/stats/_components/TeamStatsView.tsx
+
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
@@ -26,6 +28,7 @@ interface Props {
   matches: MatchOption[]
   teams: TeamOption[]
   onSeasonChange?: (seasonId: string) => void
+  onFiltersChange?: (filters: StatsFiltersValue) => void
 }
 
 function isPadelStats(
@@ -56,6 +59,7 @@ export default function TeamStatsView({
   matches,
   teams,
   onSeasonChange,
+  onFiltersChange,
 }: Props) {
   const [filters, setFilters] = useState<StatsFiltersValue>(() => ({
     ...EMPTY_FILTERS,
@@ -85,6 +89,19 @@ export default function TeamStatsView({
     onSeasonChange?.(filters.seasonId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.seasonId])
+
+  // Avisar al padre de TODOS los filtros (para TeamOpponentPlayersCard)
+  useEffect(() => {
+    onFiltersChange?.(filters)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    filters.seasonId,
+    filters.from,
+    filters.to,
+    filters.playerId,
+    filters.matchIds,
+    filters.teamIds,
+  ])
 
   useEffect(() => {
     let cancelled = false
