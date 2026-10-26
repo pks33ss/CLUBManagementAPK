@@ -76,7 +76,6 @@ export default function TeamStatsPage() {
   const [loadingSessions, setLoadingSessions] = useState(false)
   const [sessionsError, setSessionsError] = useState<string | null>(null)
 
-  // Filtros actuales de la vista agregada (para el rival)
   const [statsFilters, setStatsFilters] = useState<StatsFiltersValue>(() => ({
     ...EMPTY_FILTERS,
     teamIds: [teamId],

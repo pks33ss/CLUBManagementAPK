@@ -1,3 +1,5 @@
+// frontend-web/lib/api/teams.ts
+
 import api from '@/lib/api'
 import type { SetResult, MatchResult } from './matches'
 
@@ -10,6 +12,7 @@ export interface TeamStatsFilters {
   from?: string
   to?: string
   playerId?: string
+  playerIds?: string[]
   matchIds?: string[]
   teamIds?: string[]
   trendMetric?: string
@@ -187,6 +190,9 @@ export interface BasketballTeamStatsSummary {
   opponentPoints: number
   pointsPerMatch: number
   opponentPointsPerMatch: number
+  // NUEVO — Suma de puntos de los jugadores (desglose)
+  playerPoints: number
+  playerPointsPerMatch: number
   totalMinutes: number
   minutesPerMatch: number
   rebounds: number
@@ -240,6 +246,33 @@ export interface BasketballTeamStatsTrendLast10Match {
 
 export interface BasketballTeamStatsTrend {
   byMonth: BasketballTeamStatsTrendMonth[]
+   byMatch: Array<{
+    matchId: string
+    date: string
+    opponent: string
+    result: MatchResult
+    teamScore: number | null
+    opponentScore: number | null
+    matchesPlayed: number
+    wins: number
+    losses: number
+    points: number
+    pointsPerMatch: number
+    opponentPoints: number
+    opponentPointsPerMatch: number
+    playerPoints: number
+    playerPointsPerMatch: number
+    rebounds: number
+    assists: number
+    steals: number
+    blocks: number
+    turnovers: number
+    valuation: number
+    winRate: number
+    fieldGoalPct: number
+    threePointPct: number
+    freeThrowPct: number
+  }>
   last10ByMatch: BasketballTeamStatsTrendLast10Match[]
   series: TrendSeriesPoint[] | null
   requestedMetric: string | null
@@ -404,6 +437,9 @@ export const teamsApi = {
     if (filters.from) params.set('from', filters.from)
     if (filters.to) params.set('to', filters.to)
     if (filters.playerId) params.set('playerId', filters.playerId)
+      if (filters.playerIds && filters.playerIds.length > 0) {
+      params.set('playerIds', filters.playerIds.join(','))
+    }
     if (filters.matchIds && filters.matchIds.length > 0) {
       params.set('matchIds', filters.matchIds.join(','))
     }
@@ -459,7 +495,7 @@ export const teamsApi = {
     return data
   },
 
-    // ============================================
+  // ============================================
   // IDENTIDAD VISUAL (colores + logo)
   // ============================================
 

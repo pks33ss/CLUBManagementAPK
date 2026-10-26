@@ -1,3 +1,5 @@
+// frontend-web/components/StatsFilters.tsx
+
 'use client'
 
 import { Card, CardBody, Select, Input, Button } from '@/components/ui'
@@ -35,7 +37,8 @@ export interface StatsFiltersValue {
   seasonId: string
   from: string
   to: string
-  playerId: string
+  /** Selección múltiple de jugadores. Array vacío = todos. */
+  playerIds: string[]
   matchIds: string[]
   teamIds: string[]
 }
@@ -58,7 +61,7 @@ export const EMPTY_FILTERS: StatsFiltersValue = {
   seasonId: '',
   from: '',
   to: '',
-  playerId: '',
+  playerIds: [],
   matchIds: [],
   teamIds: [],
 }
@@ -78,12 +81,17 @@ export default function StatsFilters({
     value.seasonId !== '' ||
     value.from !== '' ||
     value.to !== '' ||
-    value.playerId !== '' ||
+    value.playerIds.length > 0 ||
     value.matchIds.length > 0 ||
     value.teamIds.length > 0
 
   const showMatches = matches && matches.length > 0
   const showTeams = teams && teams.length > 0
+
+  const playerOptions: MultiSelectOption[] = players.map((p) => ({
+    value: p.userId,
+    label: `${p.name} ${p.lastName}`,
+  }))
 
   const matchOptions: MultiSelectOption[] = showMatches
     ? matches!.map((m) => ({
@@ -158,21 +166,15 @@ export default function StatsFilters({
           />
 
           {!hidePlayerFilter && (
-            <Select
-              label="Jugador"
-              value={value.playerId}
-              onChange={(e) =>
-                onChange({ ...value, playerId: e.target.value })
-              }
+            <MultiSelect
+              label="Jugadores"
+              options={playerOptions}
+              value={value.playerIds}
+              onChange={(next) => onChange({ ...value, playerIds: next })}
+              placeholder="Todos"
               disabled={loading}
-            >
-              <option value="">Todos</option>
-              {players.map((p) => (
-                <option key={p.userId} value={p.userId}>
-                  {p.name} {p.lastName}
-                </option>
-              ))}
-            </Select>
+              emptyText="No hay jugadores disponibles"
+            />
           )}
 
           {showTeams && (
@@ -182,8 +184,6 @@ export default function StatsFilters({
                 options={teamOptions}
                 value={value.teamIds}
                 onChange={(next) => {
-                  // Al menos uno seleccionado: si el usuario deselecciona el
-                  // último, mantenemos el anterior.
                   if (next.length === 0) return
                   onChange({ ...value, teamIds: next })
                 }}
@@ -195,7 +195,11 @@ export default function StatsFilters({
           )}
 
           {showMatches && (
-            <div className={showTeams ? 'md:col-span-2' : 'md:col-span-2 lg:col-span-4'}>
+            <div
+              className={
+                showTeams ? 'md:col-span-2' : 'md:col-span-2 lg:col-span-4'
+              }
+            >
               <MultiSelect
                 label="Partidos"
                 options={matchOptions}

@@ -11,6 +11,7 @@ import type {
   AvailableTrendMetric,
 } from '@/lib/api/teams'
 import type { MatchResult } from '@/lib/api/matches'
+import { useState } from 'react'
 
 interface Props {
   teamId: string
@@ -55,6 +56,8 @@ export default function BasketballTeamStatsTab({
   const showLosses = show('LOSSES')
   const showDraws = show('DRAWS')
   const showWLD = showWins || showLosses || showDraws
+
+    const [groupBy, setGroupBy] = useState<'month' | 'match'>('match')
 
   const trendOptions = availableTrendMetrics.map((m) => ({
     value: m.key,
@@ -224,22 +227,39 @@ export default function BasketballTeamStatsTab({
         </CardBody>
       </Card>
 
-      {/* ─── Trend configurable ─── */}
-      {trend.byMonth.length > 0 && (
+            {/* ─── Trend configurable ─── */}
+      {(trend.byMonth.length > 0 || (trend.byMatch?.length ?? 0) > 0) && (
         <Card>
           <CardBody>
             <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
               <h3 className="text-lg font-semibold text-text-primary">
-                📈 Evolución por mes
+                📈 Evolución
               </h3>
-              {trendOptions.length > 0 && (
-                <MetricSelect
-                  label="Métrica"
-                  options={trendOptions}
-                  value={trendMetric}
-                  onChange={onTrendMetricChange}
-                />
-              )}
+              <div className="flex items-center gap-3">
+                {trendOptions.length > 0 && (
+                  <MetricSelect
+                    label="Métrica"
+                    options={trendOptions}
+                    value={trendMetric}
+                    onChange={onTrendMetricChange}
+                  />
+                )}
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-text-muted font-medium">
+                    Agrupar
+                  </label>
+                  <select
+                    value={groupBy}
+                    onChange={(e) =>
+                      setGroupBy(e.target.value as 'month' | 'match')
+                    }
+                    className="px-2 py-1 text-xs bg-surface-elevated border border-border-subtle text-text-primary rounded"
+                  >
+                    <option value="match">Por partido</option>
+                    <option value="month">Por mes</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
             {isTrendUnavailable ? (
@@ -248,18 +268,64 @@ export default function BasketballTeamStatsTab({
                 muestra % victorias por defecto.
               </p>
             ) : (
-              <TrendChart
-                series={
-                  trend.series ??
-                  trend.byMonth.map((m) => ({
-                    month: m.month,
-                    value: m.winRate,
-                  }))
+              (() => {
+                // Determinar de dónde sacar los valores
+                const metricKey = trendMetric || 'winRate'
+                const applyFromMatch = (m: any): number => {
+                  // Mismo mapeo que el servidor, para byMatch
+                  switch (metricKey) {
+                    case 'winRate': return m.winRate ?? 0
+                    case 'points': return m.points ?? 0
+                    case 'pointsPerMatch': return m.pointsPerMatch ?? 0
+                    case 'opponentPoints': return m.opponentPoints ?? 0
+                    case 'opponentPointsPerMatch': return m.opponentPointsPerMatch ?? 0
+                    case 'playerPoints': return m.playerPoints ?? 0
+                    case 'playerPointsPerMatch': return m.playerPointsPerMatch ?? 0
+                    case 'rebounds': return m.rebounds ?? 0
+                    case 'assists': return m.assists ?? 0
+                    case 'steals': return m.steals ?? 0
+                    case 'blocks': return m.blocks ?? 0
+                    case 'turnovers': return m.turnovers ?? 0
+                    case 'valuation': return m.valuation ?? 0
+                    case 'fgPct': return m.fieldGoalPct ?? 0
+                    case 'tpPct': return m.threePointPct ?? 0
+                    case 'ftPct': return m.freeThrowPct ?? 0
+                    default: return m.winRate ?? 0
+                  }
                 }
-                label={appliedTrend?.label ?? '% Victorias'}
-                unit={appliedTrend?.unit ?? '%'}
-                isPercentage={appliedTrend?.unit === '%'}
-              />
+
+                const applyFromMonth = (m: any): number => {
+                  switch (metricKey) {
+                    case 'winRate': return m.winRate ?? 0
+                    case 'points': return m.points ?? 0
+                    case 'pointsPerMatch': return m.pointsPerMatch ?? 0
+                    case 'opponentPoints': return m.opponentPoints ?? 0
+                    case 'opponentPointsPerMatch': return m.opponentPointsPerMatch ?? 0
+                    default: return m.winRate ?? 0
+                  }
+                }
+
+                const seriesData =
+                  groupBy === 'match'
+                    ? (trend.byMatch ?? []).map((m) => ({
+                        month: new Date(m.date).toISOString().slice(0, 10),
+                        value: applyFromMatch(m),
+                      }))
+                    : (trend.series ??
+                        trend.byMonth.map((m) => ({
+                          month: m.month,
+                          value: applyFromMonth(m),
+                        })))
+
+                return (
+                  <TrendChart
+                    series={seriesData}
+                    label={appliedTrend?.label ?? '% Victorias'}
+                    unit={appliedTrend?.unit ?? '%'}
+                    isPercentage={appliedTrend?.unit === '%'}
+                  />
+                )
+              })()
             )}
           </CardBody>
         </Card>
@@ -439,12 +505,12 @@ export default function BasketballTeamStatsTab({
                     )}
                     {show('POINTS_PLAYER') && (
                       <td className="px-2 py-2 text-center text-brand-primary font-bold">
-                        {summary.points}
+                        {summary.playerPoints ?? summary.points}
                       </td>
                     )}
-                    {show('POINTS_PER_MATCH_PLAYER') && (
+                                        {show('POINTS_PER_MATCH_PLAYER') && (
                       <td className="px-2 py-2 text-center text-text-primary">
-                        {summary.pointsPerMatch}
+                        {summary.playerPointsPerMatch ?? summary.pointsPerMatch}
                       </td>
                     )}
                     {show('REBOUNDS') && (

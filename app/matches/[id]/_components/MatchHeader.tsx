@@ -1,3 +1,5 @@
+// frontend-web/app/matches/[id]/_components/MatchHeader.tsx
+
 'use client'
 
 import { useState } from 'react'
@@ -143,8 +145,8 @@ export default function MatchHeader({ match, onUpdate }: Props) {
     }
   }
 
-  // Marcador en formato local-visitante
   const score = formatMatchScore(match)
+  const isFinished = match.status === 'FINISHED'
   const weWon = match.teamScore !== null && match.opponentScore !== null && match.teamScore > match.opponentScore
   const weLost = match.teamScore !== null && match.opponentScore !== null && match.teamScore < match.opponentScore
 
@@ -184,7 +186,7 @@ export default function MatchHeader({ match, onUpdate }: Props) {
                 size="sm"
                 onClick={() => setShowResultModal(true)}
               >
-                {match.status === 'FINISHED' ? '🔄 Actualizar resultado' : '🏆 Añadir resultado'}
+                {isFinished ? '🔄 Actualizar resultado' : '🏆 Añadir resultado'}
               </Button>
               <Button
                 variant="danger"
@@ -197,21 +199,38 @@ export default function MatchHeader({ match, onUpdate }: Props) {
           </div>
 
           {/* Marcador */}
-          <div className="flex flex-col items-center justify-center bg-surface-elevated rounded-xl p-6 min-w-[200px] border border-border-subtle">
-            {match.status === 'FINISHED' && score.hasScore ? (
+          <div
+            className={`flex flex-col items-center justify-center rounded-xl p-6 min-w-[200px] border ${
+              isFinished
+                ? 'bg-surface-elevated border-border-subtle'
+                : 'bg-surface-elevated/50 border-dashed border-border-subtle'
+            }`}
+          >
+            {score.hasScore ? (
               <>
+                {!isFinished && (
+                  <p className="text-[10px] uppercase tracking-wide text-text-muted font-semibold mb-1">
+                    Marcador guardado
+                  </p>
+                )}
                 <p className="text-5xl font-bold text-text-primary">
-                  <span className={weWon ? 'text-success' : weLost ? 'text-danger' : ''}>
+                  <span className={isFinished && weWon ? 'text-success' : isFinished && weLost ? 'text-danger' : ''}>
                     {score.local}
                   </span>
                   <span className="text-text-muted mx-2">-</span>
-                  <span className={weLost ? 'text-success' : weWon ? 'text-danger' : ''}>
+                  <span className={isFinished && weLost ? 'text-success' : isFinished && weWon ? 'text-danger' : ''}>
                     {score.visitante}
                   </span>
                 </p>
-                <p className="text-sm font-medium text-text-secondary mt-2">
-                  {weWon ? '🏆 Victoria' : weLost ? '❌ Derrota' : '🤝 Empate'}
-                </p>
+                {isFinished ? (
+                  <p className="text-sm font-medium text-text-secondary mt-2">
+                    {weWon ? '🏆 Victoria' : weLost ? '❌ Derrota' : '🤝 Empate'}
+                  </p>
+                ) : (
+                  <p className="text-xs text-text-muted text-center mt-2">
+                    ⏳ No cuenta hasta cerrar partido
+                  </p>
+                )}
               </>
             ) : (
               <p className="text-sm text-text-muted text-center">Sin resultado</p>

@@ -91,14 +91,14 @@ export default function TeamStatsView({
   }, [filters.seasonId])
 
   // Avisar al padre de TODOS los filtros (para TeamOpponentPlayersCard)
-  useEffect(() => {
+    useEffect(() => {
     onFiltersChange?.(filters)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     filters.seasonId,
     filters.from,
     filters.to,
-    filters.playerId,
+    filters.playerIds,
     filters.matchIds,
     filters.teamIds,
   ])
@@ -108,12 +108,13 @@ export default function TeamStatsView({
     setLoading(true)
     setError(null)
 
-    teamsApi
+        teamsApi
       .getStats(teamId, {
         season: filters.seasonId || undefined,
         from: filters.from || undefined,
         to: filters.to || undefined,
-        playerId: filters.playerId || undefined,
+        playerIds:
+          filters.playerIds.length > 0 ? filters.playerIds : undefined,
         matchIds: filters.matchIds.length > 0 ? filters.matchIds : undefined,
         teamIds: filters.teamIds.length > 0 ? filters.teamIds : undefined,
         trendMetric: trendMetric || undefined,
@@ -172,14 +173,13 @@ export default function TeamStatsView({
     return []
   }, [data])
 
-  useEffect(() => {
-    if (!filters.playerId) return
+    useEffect(() => {
+    if (filters.playerIds.length === 0) return
     if (loading) return
-    const stillExists = playerOptions.some(
-      (p) => p.userId === filters.playerId,
-    )
-    if (!stillExists) {
-      setFilters((f) => ({ ...f, playerId: '' }))
+    const validIds = new Set(playerOptions.map((p) => p.userId))
+    const filtered = filters.playerIds.filter((id) => validIds.has(id))
+    if (filtered.length !== filters.playerIds.length) {
+      setFilters((f) => ({ ...f, playerIds: filtered }))
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playerOptions, loading])

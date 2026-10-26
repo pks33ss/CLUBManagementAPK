@@ -13,7 +13,7 @@ import {
 } from '@/lib/api/matches'
 import { formatMatchScore } from '@/lib/formatMatchScore'
 import type { MatchDetail } from '../page'
-import { Button, Card, CardBody, Modal } from '@/components/ui'
+import { Button, Card, CardBody, Modal, Input } from '@/components/ui'
 
 interface Props {
   match: MatchDetail
@@ -145,6 +145,12 @@ const EMPTY_OPPONENT_FORM: OpponentStatsForm = {
   freeThrowsAttempted: 0,
 }
 
+interface NewOpponentRow {
+  number: number
+  name: string
+  position: string
+}
+
 function fmtMinutes(
   minutes: number | null | undefined,
   seconds: number | null | undefined,
@@ -268,6 +274,12 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
     useState<OpponentStatsForm>(EMPTY_OPPONENT_FORM)
   const [savingOpp, setSavingOpp] = useState(false)
 
+  // Modal añadir rivales a mano
+  const [showAddOpponentModal, setShowAddOpponentModal] = useState(false)
+  const [newOpponents, setNewOpponents] = useState<NewOpponentRow[]>([])
+  const [newOpponentsCount, setNewOpponentsCount] = useState(12)
+  const [savingNewOpponents, setSavingNewOpponents] = useState(false)
+
   const [showImportModal, setShowImportModal] = useState(false)
   const [importSessions, setImportSessions] = useState<ImportCandidateSession[]>([])
   const [importMatchHasStats, setImportMatchHasStats] = useState(false)
@@ -275,6 +287,9 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
   const [selectedImportId, setSelectedImportId] = useState<string | null>(null)
   const [importing, setImporting] = useState(false)
   const [confirmOverwrite, setConfirmOverwrite] = useState(false)
+
+    const MAX_OPPONENTS = 15
+  const remainingSlots = MAX_OPPONENTS - opponents.length
 
   const load = () => {
     if (!stats) setLoading(true)
@@ -328,6 +343,41 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
       })
       .finally(() => setLoadingImport(false))
   }, [showImportModal, match.id])
+
+  // Inicializar nuevo rival cuando se abre el modal
+    useEffect(() => {
+    if (!showAddOpponentModal) return
+
+    // Si ya hay 15, no debería ni abrirse el modal. Por seguridad, salir.
+    if (remainingSlots <= 0) return
+
+    // Ajustar el input al máximo disponible
+    const effectiveCount = Math.min(newOpponentsCount, remainingSlots)
+    if (effectiveCount !== newOpponentsCount) {
+      setNewOpponentsCount(effectiveCount)
+      return
+    }
+
+    // Punto de partida del número
+    const start =
+      opponents.length > 0
+        ? Math.max(...opponents.map((o) => o.number)) + 1
+        : 4
+
+    setNewOpponents((prev) => {
+      const out: NewOpponentRow[] = []
+      for (let i = 0; i < effectiveCount; i++) {
+        const existing = prev[i]
+        out.push({
+          number: existing?.number ?? start + i,
+          name: existing?.name ?? '',
+          position: existing?.position ?? '',
+        })
+      }
+      return out
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showAddOpponentModal, newOpponentsCount, remainingSlots])
 
   const handleToggleStatus = async () => {
     const nextStatus = isClosed ? 'SCHEDULED' : 'FINISHED'
@@ -454,6 +504,51 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
       alert(err.response?.data?.message || 'Error al guardar rival')
     } finally {
       setSavingOpp(false)
+    }
+  }
+
+    const handleRemoveOpponent = async (op: OpponentPlayerRow) => {
+    if (isClosed) return
+    const name = op.name ?? `#${op.number}`
+    if (
+      !confirm(
+        `¿Borrar a ${name} del partido?\n\nSe eliminarán también sus estadísticas.`,
+      )
+    )
+      return
+    try {
+      await api.delete(`/matches/${match.id}/opponents/${op.id}`)
+      loadOpponents()
+      onUpdate()
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Error al borrar rival')
+    }
+  }
+
+  const handleSaveNewOpponents = async () => {
+    if (isClosed) return
+    const valid = newOpponents.filter((o) => o.number > 0)
+    if (valid.length === 0) {
+      alert('Necesitas al menos un rival con número válido')
+      return
+    }
+    setSavingNewOpponents(true)
+    try {
+      await api.post(`/matches/${match.id}/opponents`, {
+        players: valid.map((o) => ({
+          number: o.number,
+          name: o.name || undefined,
+          position: o.position || undefined,
+        })),
+      })
+      setShowAddOpponentModal(false)
+      setNewOpponents([])
+      loadOpponents()
+      onUpdate()
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Error al añadir rivales')
+    } finally {
+      setSavingNewOpponents(false)
     }
   }
 
@@ -744,7 +839,7 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
 
   return (
     <div className="space-y-6">
-      {/* ─── Resumen del equipo ─── */}
+      {/* Resumen */}
       <Card>
         <CardBody>
           <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
@@ -809,22 +904,11 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
             {show('ASSISTS') && (
               <StatBox label="Asistencias" value={`${teamSummary.assists}`} />
             )}
-            {show('FG_PCT') && (
-              <StatBox
-                label="% TC"
-                value={`${teamSummary.fieldGoalPct}%`}
-                hint={
-                  show('FG_MADE') && show('FG_ATTEMPTED')
-                    ? `${teamSummary.fieldGoalsMade}/${teamSummary.fieldGoalsAttempted}`
-                    : undefined
-                }
-              />
-            )}
           </div>
         </CardBody>
       </Card>
 
-      {/* ─── Tabla por jugador (nuestro equipo) ─── */}
+      {/* Tabla nuestro equipo */}
       <Card>
         <CardBody>
           <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
@@ -1023,7 +1107,7 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
         </CardBody>
       </Card>
 
-      {/* ─── Tabla rival (siempre visible) ─── */}
+      {/* Tabla rival */}
       <Card>
         <CardBody>
           <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
@@ -1031,21 +1115,35 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
               🔴 Rival ({opponents.length})
             </h3>
             {!isClosed && (
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => setShowImportModal(true)}
-              >
-                📥 Importar rival
-              </Button>
+              <div className="flex flex-wrap gap-2">
+                               <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setShowAddOpponentModal(true)}
+                  disabled={remainingSlots <= 0}
+                  title={
+                    remainingSlots <= 0
+                      ? 'Ya tienes el máximo de 15 rivales'
+                      : undefined
+                  }
+                >
+                  ➕ Añadir rivales
+                </Button>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  onClick={() => setShowImportModal(true)}
+                >
+                  📥 Importar rival
+                </Button>
+              </div>
             )}
           </div>
 
           {opponents.length === 0 ? (
             <p className="text-center py-6 text-text-muted">
-              {isClosed
-                ? 'No hay jugadores rivales en este partido.'
-                : 'No hay jugadores rivales. Importa una sesión de estadística para crearlos, o edítalos a mano cuando estén creados.'}
+              No hay jugadores rivales. Añádelos con "➕ Añadir rivales" o
+              importa una sesión de estadística.
             </p>
           ) : (
             <div className="overflow-x-auto scrollbar-menu">
@@ -1147,11 +1245,16 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                             <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
                               {s ? `${s.freeThrowsMade}/${s.freeThrowsAttempted} (${s.freeThrowsAttempted > 0 ? Math.round((s.freeThrowsMade / s.freeThrowsAttempted) * 1000) / 10 : 0}%)` : '—'}
                             </td>
-                            {!isClosed && (
+                             {!isClosed && (
                               <td className="px-2 py-2 text-center">
-                                <button onClick={() => startEditOpponent(op)} className="text-xs bg-warning/10 hover:bg-warning/20 text-warning px-2 py-1 rounded" title="Editar stats del rival">
-                                  {s ? '✏️' : '➕'}
-                                </button>
+                                <div className="flex gap-1 justify-center">
+                                  <button onClick={() => startEditOpponent(op)} className="text-xs bg-warning/10 hover:bg-warning/20 text-warning px-2 py-1 rounded" title="Editar stats del rival">
+                                    {s ? '✏️' : '➕'}
+                                  </button>
+                                  <button onClick={() => handleRemoveOpponent(op)} className="text-xs bg-danger/10 hover:bg-danger/20 text-danger px-2 py-1 rounded" title="Borrar rival">
+                                    🗑️
+                                  </button>
+                                </div>
                               </td>
                             )}
                           </>
@@ -1187,7 +1290,7 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
         </CardBody>
       </Card>
 
-      {/* Modales (solo se abren si !isClosed, ya que los botones no aparecen) */}
+      {/* Modales */}
       <Modal isOpen={showAddModal && !isClosed} onClose={() => setShowAddModal(false)} title="Añadir jugador al partido" size="md">
         <div className="space-y-4">
           <div className="flex gap-1 border-b border-border-subtle">
@@ -1230,6 +1333,123 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
           <div className="flex gap-3 pt-2">
             <Button variant="secondary" onClick={() => setShowImportModal(false)} disabled={importing} className="flex-1">Cancelar</Button>
             <Button onClick={handleImport} disabled={!selectedImportId || (importMatchHasStats && !confirmOverwrite) || importing} loading={importing} className="flex-1">{importing ? 'Importando...' : 'Importar'}</Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Modal añadir rivales a mano */}
+            <Modal
+        isOpen={showAddOpponentModal && !isClosed}
+        onClose={() => {
+          setShowAddOpponentModal(false)
+          setNewOpponents([])
+        }}
+        title="Añadir rivales a mano"
+        size="md"
+      >
+        <div className="space-y-3">
+          <p className="text-xs text-text-muted">
+            Añade rivales con su número, nombre y posición. Se guardarán en el
+            partido directamente. Máximo {MAX_OPPONENTS} rivales por partido.
+          </p>
+
+          <div className="flex items-center gap-3">
+            <label className="text-sm text-text-primary">
+              ¿Cuántos rivales?
+            </label>
+            <input
+              type="number"
+              min={1}
+              max={remainingSlots}
+              value={newOpponentsCount}
+              onChange={(e) => {
+                const raw = Number(e.target.value)
+                if (Number.isNaN(raw)) return
+                const clamped = Math.max(
+                  1,
+                  Math.min(remainingSlots, raw),
+                )
+                setNewOpponentsCount(clamped)
+              }}
+              className="w-20 px-2 py-1 text-sm bg-surface border border-border-subtle text-text-primary rounded text-center"
+            />
+            <span className="text-xs text-text-muted">
+              (te quedan {remainingSlots} huecos)
+            </span>
+          </div>
+
+          <div className="max-h-96 overflow-y-auto scrollbar-menu space-y-1">
+            {newOpponents.map((o, idx) => (
+              <div key={idx} className="flex gap-2 items-center">
+                <input
+                  type="number"
+                  min="0"
+                  max="999"
+                  value={o.number}
+                  onChange={(e) =>
+                    setNewOpponents((prev) =>
+                      prev.map((p, i) =>
+                        i === idx
+                          ? { ...p, number: Number(e.target.value) }
+                          : p,
+                      ),
+                    )
+                  }
+                  className="w-16 px-2 py-1 text-sm bg-surface border border-border-subtle rounded text-center"
+                />
+                <input
+                  type="text"
+                  value={o.name}
+                  onChange={(e) =>
+                    setNewOpponents((prev) =>
+                      prev.map((p, i) =>
+                        i === idx ? { ...p, name: e.target.value } : p,
+                      ),
+                    )
+                  }
+                  placeholder="Nombre (opcional)"
+                  className="flex-1 px-2 py-1 text-sm bg-surface border border-border-subtle rounded"
+                />
+                <input
+                  type="text"
+                  value={o.position}
+                  onChange={(e) =>
+                    setNewOpponents((prev) =>
+                      prev.map((p, i) =>
+                        i === idx ? { ...p, position: e.target.value } : p,
+                      ),
+                    )
+                  }
+                  placeholder="Pos."
+                  className="w-20 px-2 py-1 text-sm bg-surface border border-border-subtle rounded"
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setShowAddOpponentModal(false)
+                setNewOpponents([])
+                setNewOpponentsCount(12)
+              }}
+              disabled={savingNewOpponents}
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleSaveNewOpponents}
+              disabled={savingNewOpponents || newOpponents.length === 0}
+              loading={savingNewOpponents}
+              className="flex-1"
+            >
+              {savingNewOpponents
+                ? 'Añadiendo...'
+                : `Guardar ${newOpponents.length} rivales`}
+            </Button>
           </div>
         </div>
       </Modal>
