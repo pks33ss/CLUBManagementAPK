@@ -20,10 +20,11 @@ interface Props {
   onUpdate: () => void
 }
 
+// NOTA: `points`, `fieldGoalsMade` y `fieldGoalsAttempted` NO están aquí
+// porque son derivados y los calcula el backend. La UI los pinta readonly.
 const EMPTY_INPUT: PlayerStatsInput = {
   minutes: 0,
   seconds: 0,
-  points: 0,
   rebounds: 0,
   assists: 0,
   steals: 0,
@@ -33,8 +34,8 @@ const EMPTY_INPUT: PlayerStatsInput = {
   blocksAgainst: 0,
   foulsDrawn: 0,
   plusMinus: 0,
-  fieldGoalsMade: 0,
-  fieldGoalsAttempted: 0,
+  twoPointersMade: 0,
+  twoPointersAttempted: 0,
   threePointersMade: 0,
   threePointersAttempted: 0,
   freeThrowsMade: 0,
@@ -90,6 +91,8 @@ interface OpponentPlayerRow {
     blocksAgainst: number
     foulsDrawn: number
     plusMinus: number | null
+    twoPointersMade: number
+    twoPointersAttempted: number
     fieldGoalsMade: number
     fieldGoalsAttempted: number
     threePointersMade: number
@@ -102,7 +105,6 @@ interface OpponentPlayerRow {
 interface OpponentStatsForm {
   minutes: number
   seconds: number
-  points: number
   rebounds: number
   reboundsOff: number
   reboundsDef: number
@@ -114,8 +116,8 @@ interface OpponentStatsForm {
   blocksAgainst: number
   foulsDrawn: number
   plusMinus: number
-  fieldGoalsMade: number
-  fieldGoalsAttempted: number
+  twoPointersMade: number
+  twoPointersAttempted: number
   threePointersMade: number
   threePointersAttempted: number
   freeThrowsMade: number
@@ -125,7 +127,6 @@ interface OpponentStatsForm {
 const EMPTY_OPPONENT_FORM: OpponentStatsForm = {
   minutes: 0,
   seconds: 0,
-  points: 0,
   rebounds: 0,
   reboundsOff: 0,
   reboundsDef: 0,
@@ -137,8 +138,8 @@ const EMPTY_OPPONENT_FORM: OpponentStatsForm = {
   blocksAgainst: 0,
   foulsDrawn: 0,
   plusMinus: 0,
-  fieldGoalsMade: 0,
-  fieldGoalsAttempted: 0,
+  twoPointersMade: 0,
+  twoPointersAttempted: 0,
   threePointersMade: 0,
   threePointersAttempted: 0,
   freeThrowsMade: 0,
@@ -202,6 +203,8 @@ function emptyStats(
     foulsDrawn: 0,
     plusMinus: 0,
     valuation: 0,
+    twoPointersMade: 0,
+    twoPointersAttempted: 0,
     fieldGoalsMade: 0,
     fieldGoalsAttempted: 0,
     fieldGoalPct: 0,
@@ -250,6 +253,26 @@ function fmtPlusMinus(v: number | null | undefined): string {
   return `${v}`
 }
 
+function deriveRowValues(form: {
+  twoPointersMade: number
+  twoPointersAttempted: number
+  threePointersMade: number
+  threePointersAttempted: number
+  freeThrowsMade: number
+  freeThrowsAttempted: number
+}) {
+  const fgm = form.twoPointersMade + form.threePointersMade
+  const fga = form.twoPointersAttempted + form.threePointersAttempted
+  const points =
+    2 * form.twoPointersMade +
+    3 * form.threePointersMade +
+    form.freeThrowsMade
+  return { fgm, fga, points }
+}
+
+const pct = (made: number, att: number) =>
+  att > 0 ? Math.round((made / att) * 1000) / 10 : 0
+
 export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
   const isClosed = match.status === 'FINISHED'
 
@@ -274,7 +297,6 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
     useState<OpponentStatsForm>(EMPTY_OPPONENT_FORM)
   const [savingOpp, setSavingOpp] = useState(false)
 
-  // Modal añadir rivales a mano
   const [showAddOpponentModal, setShowAddOpponentModal] = useState(false)
   const [newOpponents, setNewOpponents] = useState<NewOpponentRow[]>([])
   const [newOpponentsCount, setNewOpponentsCount] = useState(12)
@@ -288,7 +310,7 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
   const [importing, setImporting] = useState(false)
   const [confirmOverwrite, setConfirmOverwrite] = useState(false)
 
-    const MAX_OPPONENTS = 15
+  const MAX_OPPONENTS = 15
   const remainingSlots = MAX_OPPONENTS - opponents.length
 
   const load = () => {
@@ -344,26 +366,18 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
       .finally(() => setLoadingImport(false))
   }, [showImportModal, match.id])
 
-  // Inicializar nuevo rival cuando se abre el modal
-    useEffect(() => {
+  useEffect(() => {
     if (!showAddOpponentModal) return
-
-    // Si ya hay 15, no debería ni abrirse el modal. Por seguridad, salir.
     if (remainingSlots <= 0) return
-
-    // Ajustar el input al máximo disponible
     const effectiveCount = Math.min(newOpponentsCount, remainingSlots)
     if (effectiveCount !== newOpponentsCount) {
       setNewOpponentsCount(effectiveCount)
       return
     }
-
-    // Punto de partida del número
     const start =
       opponents.length > 0
         ? Math.max(...opponents.map((o) => o.number)) + 1
         : 4
-
     setNewOpponents((prev) => {
       const out: NewOpponentRow[] = []
       for (let i = 0; i < effectiveCount; i++) {
@@ -399,7 +413,6 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
       setForm({
         minutes: row.minutes ?? 0,
         seconds: row.seconds ?? 0,
-        points: row.points,
         rebounds: row.rebounds,
         assists: row.assists,
         steals: row.steals,
@@ -409,8 +422,8 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
         blocksAgainst: row.blocksAgainst,
         foulsDrawn: row.foulsDrawn,
         plusMinus: row.plusMinus ?? 0,
-        fieldGoalsMade: row.fieldGoalsMade,
-        fieldGoalsAttempted: row.fieldGoalsAttempted,
+        twoPointersMade: row.twoPointersMade,
+        twoPointersAttempted: row.twoPointersAttempted,
         threePointersMade: row.threePointersMade,
         threePointersAttempted: row.threePointersAttempted,
         freeThrowsMade: row.freeThrowsMade,
@@ -426,39 +439,30 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
     if (!stats || isClosed) return
     setSaving(true)
     try {
-      await matchesApi.upsertPlayerStats(match.id, userId, form)
-
-      setStats((prev) => {
-        if (!prev) return prev
-        const players = prev.players.map((p) =>
-          p.userId === userId
-            ? {
-                ...p,
-                minutes: form.minutes ?? 0,
-                seconds: form.seconds ?? 0,
-                points: form.points ?? 0,
-                rebounds: form.rebounds ?? 0,
-                assists: form.assists ?? 0,
-                steals: form.steals ?? 0,
-                blocks: form.blocks ?? 0,
-                turnovers: form.turnovers ?? 0,
-                fouls: form.fouls ?? 0,
-                blocksAgainst: form.blocksAgainst ?? 0,
-                foulsDrawn: form.foulsDrawn ?? 0,
-                plusMinus: form.plusMinus ?? 0,
-                fieldGoalsMade: form.fieldGoalsMade ?? 0,
-                fieldGoalsAttempted: form.fieldGoalsAttempted ?? 0,
-                threePointersMade: form.threePointersMade ?? 0,
-                threePointersAttempted: form.threePointersAttempted ?? 0,
-                freeThrowsMade: form.freeThrowsMade ?? 0,
-                freeThrowsAttempted: form.freeThrowsAttempted ?? 0,
-              }
-            : p,
-        )
-        return { ...prev, players }
-      })
+      const payload: PlayerStatsInput = {
+        minutes: form.minutes ?? 0,
+        seconds: form.seconds ?? 0,
+        rebounds: form.rebounds ?? 0,
+        assists: form.assists ?? 0,
+        steals: form.steals ?? 0,
+        blocks: form.blocks ?? 0,
+        turnovers: form.turnovers ?? 0,
+        fouls: form.fouls ?? 0,
+        blocksAgainst: form.blocksAgainst ?? 0,
+        foulsDrawn: form.foulsDrawn ?? 0,
+        plusMinus: form.plusMinus ?? 0,
+        twoPointersMade: form.twoPointersMade ?? 0,
+        twoPointersAttempted: form.twoPointersAttempted ?? 0,
+        threePointersMade: form.threePointersMade ?? 0,
+        threePointersAttempted: form.threePointersAttempted ?? 0,
+        freeThrowsMade: form.freeThrowsMade ?? 0,
+        freeThrowsAttempted: form.freeThrowsAttempted ?? 0,
+      }
+      await matchesApi.upsertPlayerStats(match.id, userId, payload)
 
       setEditing(null)
+      await load()
+      onUpdate()
     } catch (err: any) {
       alert(err.response?.data?.message || 'Error al guardar')
     } finally {
@@ -471,7 +475,6 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
     setOppForm({
       minutes: op.stats?.minutes ?? 0,
       seconds: op.stats?.seconds ?? 0,
-      points: op.stats?.points ?? 0,
       rebounds: op.stats?.rebounds ?? 0,
       reboundsOff: op.stats?.reboundsOff ?? 0,
       reboundsDef: op.stats?.reboundsDef ?? 0,
@@ -483,8 +486,8 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
       blocksAgainst: op.stats?.blocksAgainst ?? 0,
       foulsDrawn: op.stats?.foulsDrawn ?? 0,
       plusMinus: op.stats?.plusMinus ?? 0,
-      fieldGoalsMade: op.stats?.fieldGoalsMade ?? 0,
-      fieldGoalsAttempted: op.stats?.fieldGoalsAttempted ?? 0,
+      twoPointersMade: op.stats?.twoPointersMade ?? 0,
+      twoPointersAttempted: op.stats?.twoPointersAttempted ?? 0,
       threePointersMade: op.stats?.threePointersMade ?? 0,
       threePointersAttempted: op.stats?.threePointersAttempted ?? 0,
       freeThrowsMade: op.stats?.freeThrowsMade ?? 0,
@@ -497,7 +500,27 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
     if (isClosed) return
     setSavingOpp(true)
     try {
-      await api.patch(`/matches/${match.id}/opponents/${oppId}`, oppForm)
+      await api.patch(`/matches/${match.id}/opponents/${oppId}`, {
+        minutes: oppForm.minutes,
+        seconds: oppForm.seconds,
+        rebounds: oppForm.rebounds,
+        reboundsOff: oppForm.reboundsOff,
+        reboundsDef: oppForm.reboundsDef,
+        assists: oppForm.assists,
+        steals: oppForm.steals,
+        blocks: oppForm.blocks,
+        turnovers: oppForm.turnovers,
+        fouls: oppForm.fouls,
+        blocksAgainst: oppForm.blocksAgainst,
+        foulsDrawn: oppForm.foulsDrawn,
+        plusMinus: oppForm.plusMinus,
+        twoPointersMade: oppForm.twoPointersMade,
+        twoPointersAttempted: oppForm.twoPointersAttempted,
+        threePointersMade: oppForm.threePointersMade,
+        threePointersAttempted: oppForm.threePointersAttempted,
+        freeThrowsMade: oppForm.freeThrowsMade,
+        freeThrowsAttempted: oppForm.freeThrowsAttempted,
+      })
       setEditingOpp(null)
       loadOpponents()
     } catch (err: any) {
@@ -507,7 +530,7 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
     }
   }
 
-    const handleRemoveOpponent = async (op: OpponentPlayerRow) => {
+  const handleRemoveOpponent = async (op: OpponentPlayerRow) => {
     if (isClosed) return
     const name = op.name ?? `#${op.number}`
     if (
@@ -700,6 +723,8 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
       fouls: 0,
       foulsDrawn: 0,
       plusMinus: 0,
+      twoPointersMade: 0,
+      twoPointersAttempted: 0,
       fieldGoalsMade: 0,
       fieldGoalsAttempted: 0,
       threePointersMade: 0,
@@ -722,6 +747,8 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
       acc.fouls += p.fouls
       acc.foulsDrawn += p.foulsDrawn
       acc.plusMinus += p.plusMinus ?? 0
+      acc.twoPointersMade += p.twoPointersMade
+      acc.twoPointersAttempted += p.twoPointersAttempted
       acc.fieldGoalsMade += p.fieldGoalsMade
       acc.fieldGoalsAttempted += p.fieldGoalsAttempted
       acc.threePointersMade += p.threePointersMade
@@ -733,11 +760,9 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
     acc.minutes += Math.floor(acc.seconds / 60)
     acc.seconds = acc.seconds % 60
 
-    const pct = (made: number, att: number) =>
-      att > 0 ? Math.round((made / att) * 1000) / 10 : 0
-
     return {
       ...acc,
+      twoPointersPct: pct(acc.twoPointersMade, acc.twoPointersAttempted),
       fieldGoalPct: pct(acc.fieldGoalsMade, acc.fieldGoalsAttempted),
       threePointPct: pct(acc.threePointersMade, acc.threePointersAttempted),
       freeThrowPct: pct(acc.freeThrowsMade, acc.freeThrowsAttempted),
@@ -757,6 +782,8 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
       blocks: 0,
       turnovers: 0,
       fouls: 0,
+      twoPointersMade: 0,
+      twoPointersAttempted: 0,
       fieldGoalsMade: 0,
       fieldGoalsAttempted: 0,
       threePointersMade: 0,
@@ -777,6 +804,8 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
       acc.blocks += op.stats.blocks
       acc.turnovers += op.stats.turnovers
       acc.fouls += op.stats.fouls
+      acc.twoPointersMade += op.stats.twoPointersMade
+      acc.twoPointersAttempted += op.stats.twoPointersAttempted
       acc.fieldGoalsMade += op.stats.fieldGoalsMade
       acc.fieldGoalsAttempted += op.stats.fieldGoalsAttempted
       acc.threePointersMade += op.stats.threePointersMade
@@ -786,10 +815,9 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
     }
     acc.minutes += Math.floor(acc.seconds / 60)
     acc.seconds = acc.seconds % 60
-    const pct = (made: number, att: number) =>
-      att > 0 ? Math.round((made / att) * 1000) / 10 : 0
     return {
       ...acc,
+      twoPointersPct: pct(acc.twoPointersMade, acc.twoPointersAttempted),
       fieldGoalPct: pct(acc.fieldGoalsMade, acc.fieldGoalsAttempted),
       threePointPct: pct(acc.threePointersMade, acc.threePointersAttempted),
       freeThrowPct: pct(acc.freeThrowsMade, acc.freeThrowsAttempted),
@@ -819,6 +847,11 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
   const { teamSummary, visibleMetrics } = stats
   const show = (key: string) => visibleMetrics.includes(key)
 
+  const show2PMade = show('TWO_POINTERS_MADE')
+  const show2PAttempted = show('TWO_POINTERS_ATTEMPTED')
+  const show2PPct = show('TWO_POINTERS_PCT')
+  const show2P = show2PMade || show2PAttempted || show2PPct
+
   const globalScore = formatMatchScore({
     teamScore: stats.match.teamScore,
     opponentScore: stats.match.opponentScore,
@@ -836,6 +869,24 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
       lastName: m.user.lastName,
       number: m.jerseyNumber,
     }))
+
+  const formDerived = deriveRowValues({
+    twoPointersMade: form.twoPointersMade ?? 0,
+    twoPointersAttempted: form.twoPointersAttempted ?? 0,
+    threePointersMade: form.threePointersMade ?? 0,
+    threePointersAttempted: form.threePointersAttempted ?? 0,
+    freeThrowsMade: form.freeThrowsMade ?? 0,
+    freeThrowsAttempted: form.freeThrowsAttempted ?? 0,
+  })
+
+  const oppFormDerived = deriveRowValues({
+    twoPointersMade: oppForm.twoPointersMade,
+    twoPointersAttempted: oppForm.twoPointersAttempted,
+    threePointersMade: oppForm.threePointersMade,
+    threePointersAttempted: oppForm.threePointersAttempted,
+    freeThrowsMade: oppForm.freeThrowsMade,
+    freeThrowsAttempted: oppForm.freeThrowsAttempted,
+  })
 
   return (
     <div className="space-y-6">
@@ -946,7 +997,6 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                     {editing && !isClosed ? (
                       <>
                         <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Min</th>
-                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Pts</th>
                         <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Reb</th>
                         <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Ast</th>
                         <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Rob</th>
@@ -956,9 +1006,11 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                         <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Fal</th>
                         <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">FR</th>
                         <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">+/-</th>
-                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TC</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase text-info">2P</th>
                         <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">3P</th>
                         <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TL</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase text-brand-primary" title="Calculado: 2P + 3P">TC</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase text-brand-primary" title="Calculado: 2·2P + 3·3P + TL">Pts</th>
                         <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Acción</th>
                       </>
                     ) : (
@@ -974,9 +1026,10 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                         {show('FOULS') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Fal</th>)}
                         {show('FOULS_DRAWN') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">FR</th>)}
                         {show('PLUS_MINUS') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">+/-</th>)}
-                        {show('FG_PCT') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TC</th>)}
+                        {show2P && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">2P</th>)}
                         {show('TP_PCT') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">3P</th>)}
                         {show('FT_PCT') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TL</th>)}
+                        {show('FG_PCT') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TC</th>)}
                         {show('VALUATION') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Val</th>)}
                         {!isClosed && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Acción</th>}
                       </>
@@ -1012,16 +1065,16 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                                 className="w-16 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1"
                               />
                             </td>
-                            {(['points','rebounds','assists','steals','blocks','blocksAgainst','turnovers','fouls','foulsDrawn','plusMinus'] as const).map((f) => (
+                            {(['rebounds','assists','steals','blocks','blocksAgainst','turnovers','fouls','foulsDrawn','plusMinus'] as const).map((f) => (
                               <td key={f} className="px-1 py-1">
                                 <input type="number" value={form[f] ?? 0} onChange={(e) => setForm({ ...form, [f]: Number(e.target.value) })} className="w-12 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
                               </td>
                             ))}
                             <td className="px-1 py-1">
                               <div className="flex items-center gap-0.5 justify-center">
-                                <input type="number" min="0" value={form.fieldGoalsMade ?? 0} onChange={(e) => setForm({ ...form, fieldGoalsMade: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
+                                <input type="number" min="0" value={form.twoPointersMade ?? 0} onChange={(e) => setForm({ ...form, twoPointersMade: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-info/60 text-text-primary rounded px-1 py-1" />
                                 <span className="text-text-muted text-[10px]">/</span>
-                                <input type="number" min="0" value={form.fieldGoalsAttempted ?? 0} onChange={(e) => setForm({ ...form, fieldGoalsAttempted: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
+                                <input type="number" min="0" value={form.twoPointersAttempted ?? 0} onChange={(e) => setForm({ ...form, twoPointersAttempted: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-info/60 text-text-primary rounded px-1 py-1" />
                               </div>
                             </td>
                             <td className="px-1 py-1">
@@ -1037,6 +1090,15 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                                 <span className="text-text-muted text-[10px]">/</span>
                                 <input type="number" min="0" value={form.freeThrowsAttempted ?? 0} onChange={(e) => setForm({ ...form, freeThrowsAttempted: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
                               </div>
+                            </td>
+                            <td className="px-2 py-2 text-center text-brand-primary font-semibold whitespace-nowrap">
+                              {formDerived.fgm}/{formDerived.fga}
+                              <span className="text-text-muted text-[10px] ml-1">
+                                ({pct(formDerived.fgm, formDerived.fga)}%)
+                              </span>
+                            </td>
+                            <td className="px-2 py-2 text-center text-brand-primary font-bold">
+                              {formDerived.points}
                             </td>
                             <td className="px-2 py-2 text-center">
                               <div className="flex gap-1 justify-center">
@@ -1058,9 +1120,25 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                             {show('FOULS') && (<td className="px-2 py-2 text-center text-text-secondary">{v(p.fouls)}</td>)}
                             {show('FOULS_DRAWN') && (<td className="px-2 py-2 text-center text-text-secondary">{v(p.foulsDrawn)}</td>)}
                             {show('PLUS_MINUS') && (<td className={`px-2 py-2 text-center font-medium ${!p.hasStats ? 'text-text-muted' : (p.plusMinus ?? 0) > 0 ? 'text-success' : (p.plusMinus ?? 0) < 0 ? 'text-danger' : 'text-text-muted'}`}>{p.hasStats ? fmtPlusMinus(p.plusMinus) : '—'}</td>)}
-                            {show('FG_PCT') && (<td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">{p.hasStats ? `${show('FG_MADE') && show('FG_ATTEMPTED') ? `${p.fieldGoalsMade}/${p.fieldGoalsAttempted} ` : ''}(${p.fieldGoalPct}%)` : '—'}</td>)}
-                            {show('TP_PCT') && (<td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">{p.hasStats ? `${show('TP_MADE') && show('TP_ATTEMPTED') ? `${p.threePointersMade}/${p.threePointersAttempted} ` : ''}(${p.threePointPct}%)` : '—'}</td>)}
-                            {show('FT_PCT') && (<td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">{p.hasStats ? `${show('FT_MADE') && show('FT_ATTEMPTED') ? `${p.freeThrowsMade}/${p.freeThrowsAttempted} ` : ''}(${p.freeThrowPct}%)` : '—'}</td>)}
+                            {show2P && (
+                              <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
+                                {p.hasStats ? (
+                                  <>
+                                    {show2PMade && show2PAttempted
+                                      ? `${p.twoPointersMade}/${p.twoPointersAttempted} `
+                                      : show2PMade
+                                        ? `${p.twoPointersMade} `
+                                        : show2PAttempted
+                                          ? `/${p.twoPointersAttempted} `
+                                          : ''}
+                                    {show2PPct && `(${pct(p.twoPointersMade, p.twoPointersAttempted)}%)`}
+                                  </>
+                                ) : '—'}
+                              </td>
+                            )}
+                            {show('TP_PCT') && (<td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">{p.hasStats ? `${p.threePointersMade}/${p.threePointersAttempted} (${p.threePointPct}%)` : '—'}</td>)}
+                            {show('FT_PCT') && (<td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">{p.hasStats ? `${p.freeThrowsMade}/${p.freeThrowsAttempted} (${p.freeThrowPct}%)` : '—'}</td>)}
+                            {show('FG_PCT') && (<td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">{p.hasStats ? `${p.fieldGoalsMade}/${p.fieldGoalsAttempted} (${p.fieldGoalPct}%)` : '—'}</td>)}
                             {show('VALUATION') && (<td className={`px-2 py-2 text-center font-semibold ${!p.hasStats ? 'text-text-muted' : p.valuation > 0 ? 'text-success' : p.valuation < 0 ? 'text-danger' : 'text-text-muted'}`}>{p.hasStats ? p.valuation : '—'}</td>)}
                             {!isClosed && (
                               <td className="px-2 py-2 text-center">
@@ -1094,9 +1172,21 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                     {show('FOULS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.fouls}</td>)}
                     {show('FOULS_DRAWN') && (<td className="px-2 py-2 text-center text-text-primary">{totals.foulsDrawn}</td>)}
                     {show('PLUS_MINUS') && (<td className={`px-2 py-2 text-center ${totals.plusMinus > 0 ? 'text-success' : totals.plusMinus < 0 ? 'text-danger' : 'text-text-muted'}`}>{fmtPlusMinus(totals.plusMinus)}</td>)}
-                    {show('FG_PCT') && (<td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{show('FG_MADE') && show('FG_ATTEMPTED') ? `${totals.fieldGoalsMade}/${totals.fieldGoalsAttempted} ` : ''}({totals.fieldGoalPct}%)</td>)}
-                    {show('TP_PCT') && (<td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{show('TP_MADE') && show('TP_ATTEMPTED') ? `${totals.threePointersMade}/${totals.threePointersAttempted} ` : ''}({totals.threePointPct}%)</td>)}
-                    {show('FT_PCT') && (<td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{show('FT_MADE') && show('FT_ATTEMPTED') ? `${totals.freeThrowsMade}/${totals.freeThrowsAttempted} ` : ''}({totals.freeThrowPct}%)</td>)}
+                    {show2P && (
+                      <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
+                        {show2PMade && show2PAttempted
+                          ? `${totals.twoPointersMade}/${totals.twoPointersAttempted} `
+                          : show2PMade
+                            ? `${totals.twoPointersMade} `
+                            : show2PAttempted
+                              ? `/${totals.twoPointersAttempted} `
+                              : ''}
+                        {show2PPct && `(${totals.twoPointersPct}%)`}
+                      </td>
+                    )}
+                    {show('TP_PCT') && (<td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{totals.threePointersMade}/{totals.threePointersAttempted} ({totals.threePointPct}%)</td>)}
+                    {show('FT_PCT') && (<td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{totals.freeThrowsMade}/{totals.freeThrowsAttempted} ({totals.freeThrowPct}%)</td>)}
+                    {show('FG_PCT') && (<td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{totals.fieldGoalsMade}/{totals.fieldGoalsAttempted} ({totals.fieldGoalPct}%)</td>)}
                     {show('VALUATION') && (<td className={`px-2 py-2 text-center font-bold ${totals.valuation > 0 ? 'text-success' : totals.valuation < 0 ? 'text-danger' : 'text-text-muted'}`}>{totals.valuation}</td>)}
                     {!isClosed && <td className="px-2 py-2"></td>}
                   </tr>
@@ -1116,7 +1206,7 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
             </h3>
             {!isClosed && (
               <div className="flex flex-wrap gap-2">
-                               <Button
+                <Button
                   size="sm"
                   variant="secondary"
                   onClick={() => setShowAddOpponentModal(true)}
@@ -1161,7 +1251,7 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                     <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Tap</th>
                     <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Per</th>
                     <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Fal</th>
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TC</th>
+                    {show2P && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">2P</th>)}
                     <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">3P</th>
                     <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TL</th>
                     {!isClosed && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Acción</th>}
@@ -1191,30 +1281,31 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                                 className="w-16 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1"
                               />
                             </td>
-                            {(['points','rebounds','reboundsOff','reboundsDef','assists','steals','blocks','turnovers','fouls'] as const).map((f) => (
+                            <td className="px-2 py-2 text-center text-warning font-bold">{oppFormDerived.points}</td>
+                            {(['rebounds','reboundsOff','reboundsDef','assists','steals','blocks','turnovers','fouls'] as const).map((f) => (
                               <td key={f} className="px-1 py-1">
                                 <input type="number" value={oppForm[f] ?? 0} onChange={(e) => setOppForm({ ...oppForm, [f]: Number(e.target.value) })} className="w-12 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
                               </td>
                             ))}
                             <td className="px-1 py-1">
                               <div className="flex items-center gap-0.5 justify-center">
-                                <input type="number" min="0" value={oppForm.fieldGoalsMade ?? 0} onChange={(e) => setOppForm({ ...oppForm, fieldGoalsMade: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
+                                <input type="number" min="0" value={oppForm.twoPointersMade} onChange={(e) => setOppForm({ ...oppForm, twoPointersMade: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-info/60 text-text-primary rounded px-1 py-1" />
                                 <span className="text-text-muted text-[10px]">/</span>
-                                <input type="number" min="0" value={oppForm.fieldGoalsAttempted ?? 0} onChange={(e) => setOppForm({ ...oppForm, fieldGoalsAttempted: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
+                                <input type="number" min="0" value={oppForm.twoPointersAttempted} onChange={(e) => setOppForm({ ...oppForm, twoPointersAttempted: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-info/60 text-text-primary rounded px-1 py-1" />
                               </div>
                             </td>
                             <td className="px-1 py-1">
                               <div className="flex items-center gap-0.5 justify-center">
-                                <input type="number" min="0" value={oppForm.threePointersMade ?? 0} onChange={(e) => setOppForm({ ...oppForm, threePointersMade: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
+                                <input type="number" min="0" value={oppForm.threePointersMade} onChange={(e) => setOppForm({ ...oppForm, threePointersMade: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
                                 <span className="text-text-muted text-[10px]">/</span>
-                                <input type="number" min="0" value={oppForm.threePointersAttempted ?? 0} onChange={(e) => setOppForm({ ...oppForm, threePointersAttempted: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
+                                <input type="number" min="0" value={oppForm.threePointersAttempted} onChange={(e) => setOppForm({ ...oppForm, threePointersAttempted: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
                               </div>
                             </td>
                             <td className="px-1 py-1">
                               <div className="flex items-center gap-0.5 justify-center">
-                                <input type="number" min="0" value={oppForm.freeThrowsMade ?? 0} onChange={(e) => setOppForm({ ...oppForm, freeThrowsMade: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
+                                <input type="number" min="0" value={oppForm.freeThrowsMade} onChange={(e) => setOppForm({ ...oppForm, freeThrowsMade: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
                                 <span className="text-text-muted text-[10px]">/</span>
-                                <input type="number" min="0" value={oppForm.freeThrowsAttempted ?? 0} onChange={(e) => setOppForm({ ...oppForm, freeThrowsAttempted: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
+                                <input type="number" min="0" value={oppForm.freeThrowsAttempted} onChange={(e) => setOppForm({ ...oppForm, freeThrowsAttempted: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
                               </div>
                             </td>
                             <td className="px-2 py-2 text-center">
@@ -1236,16 +1327,29 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                             <td className="px-2 py-2 text-center text-text-secondary">{s?.blocks ?? 0}</td>
                             <td className="px-2 py-2 text-center text-text-secondary">{s?.turnovers ?? 0}</td>
                             <td className="px-2 py-2 text-center text-text-secondary">{s?.fouls ?? 0}</td>
+                            {show2P && (
+                              <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
+                                {s ? (
+                                  <>
+                                    {show2PMade && show2PAttempted
+                                      ? `${s.twoPointersMade}/${s.twoPointersAttempted} `
+                                      : show2PMade
+                                        ? `${s.twoPointersMade} `
+                                        : show2PAttempted
+                                          ? `/${s.twoPointersAttempted} `
+                                          : ''}
+                                    {show2PPct && `(${pct(s.twoPointersMade, s.twoPointersAttempted)}%)`}
+                                  </>
+                                ) : '—'}
+                              </td>
+                            )}
                             <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
-                              {s ? `${s.fieldGoalsMade}/${s.fieldGoalsAttempted} (${s.fieldGoalsAttempted > 0 ? Math.round((s.fieldGoalsMade / s.fieldGoalsAttempted) * 1000) / 10 : 0}%)` : '—'}
+                              {s ? `${s.threePointersMade}/${s.threePointersAttempted} (${pct(s.threePointersMade, s.threePointersAttempted)}%)` : '—'}
                             </td>
                             <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
-                              {s ? `${s.threePointersMade}/${s.threePointersAttempted} (${s.threePointersAttempted > 0 ? Math.round((s.threePointersMade / s.threePointersAttempted) * 1000) / 10 : 0}%)` : '—'}
+                              {s ? `${s.freeThrowsMade}/${s.freeThrowsAttempted} (${pct(s.freeThrowsMade, s.freeThrowsAttempted)}%)` : '—'}
                             </td>
-                            <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
-                              {s ? `${s.freeThrowsMade}/${s.freeThrowsAttempted} (${s.freeThrowsAttempted > 0 ? Math.round((s.freeThrowsMade / s.freeThrowsAttempted) * 1000) / 10 : 0}%)` : '—'}
-                            </td>
-                             {!isClosed && (
+                            {!isClosed && (
                               <td className="px-2 py-2 text-center">
                                 <div className="flex gap-1 justify-center">
                                   <button onClick={() => startEditOpponent(op)} className="text-xs bg-warning/10 hover:bg-warning/20 text-warning px-2 py-1 rounded" title="Editar stats del rival">
@@ -1278,7 +1382,18 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                     <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.blocks}</td>
                     <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.turnovers}</td>
                     <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.fouls}</td>
-                    <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{opponentTotals.fieldGoalsMade}/{opponentTotals.fieldGoalsAttempted} ({opponentTotals.fieldGoalPct}%)</td>
+                    {show2P && (
+                      <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
+                        {show2PMade && show2PAttempted
+                          ? `${opponentTotals.twoPointersMade}/${opponentTotals.twoPointersAttempted} `
+                          : show2PMade
+                            ? `${opponentTotals.twoPointersMade} `
+                            : show2PAttempted
+                              ? `/${opponentTotals.twoPointersAttempted} `
+                              : ''}
+                        {show2PPct && `(${opponentTotals.twoPointersPct}%)`}
+                      </td>
+                    )}
                     <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{opponentTotals.threePointersMade}/{opponentTotals.threePointersAttempted} ({opponentTotals.threePointPct}%)</td>
                     <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{opponentTotals.freeThrowsMade}/{opponentTotals.freeThrowsAttempted} ({opponentTotals.freeThrowPct}%)</td>
                     {!isClosed && <td className="px-2 py-2"></td>}
@@ -1290,7 +1405,7 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
         </CardBody>
       </Card>
 
-      {/* Modales */}
+      {/* Modales (sin cambios) */}
       <Modal isOpen={showAddModal && !isClosed} onClose={() => setShowAddModal(false)} title="Añadir jugador al partido" size="md">
         <div className="space-y-4">
           <div className="flex gap-1 border-b border-border-subtle">
@@ -1337,8 +1452,7 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
         </div>
       </Modal>
 
-      {/* Modal añadir rivales a mano */}
-            <Modal
+      <Modal
         isOpen={showAddOpponentModal && !isClosed}
         onClose={() => {
           setShowAddOpponentModal(false)

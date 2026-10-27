@@ -55,10 +55,25 @@ const getEligiblePlayers = (match: MatchDetail): EligiblePlayer[] => {
       isGhost: m.user.isGhost,
     }))
 
-  const callupIds = match.callups.map((c) => c.userId)
-  if (callupIds.length === 0) return teamPlayers
+  // Si no hay nadie en la convocatoria, mostramos todo el equipo
+  if (match.callups.length === 0) return teamPlayers
 
-  return teamPlayers.filter((p) => callupIds.includes(p.userId))
+  // Filtrar solo las que están disponibles/confirmadas para jugar
+  const eligibleIds = match.callups
+    .filter((c) => {
+      // 1. Si explícitamente ha dicho que NO está disponible o NO confirmado, fuera.
+      if (c.availableStatus === 'NO') return false
+      if (c.confirmedStatus === 'NO') return false
+      
+      // 2. (Opcional) Si quieres exigir que estén marcadas como "Convocado = YES":
+      // if (c.calledUpStatus !== 'YES') return false;
+
+      return true
+    })
+    .map((c) => c.userId)
+
+  // Devolvemos solo a las que pasan el filtro
+  return teamPlayers.filter((p) => eligibleIds.includes(p.userId))
 }
 
 export default function LineupTab({ match, onUpdate }: Props) {

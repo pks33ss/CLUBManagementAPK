@@ -146,6 +146,8 @@ export interface BasketballPlayerStats {
   plusMinus: number | null
   valuation: number
   // ────────────
+  twoPointersMade: number         // ← NUEVO
+  twoPointersAttempted: number    // ← NUEVO
   fieldGoalsMade: number
   fieldGoalsAttempted: number
   fieldGoalPct: number
@@ -164,7 +166,7 @@ export interface BasketballMatchStats {
     teamId: string
     date: string
     opponent: string
-    location: 'HOME' | 'AWAY' | 'NEUTRAL'   // ← AÑADIR ESTA LÍNEA
+    location: 'HOME' | 'AWAY' | 'NEUTRAL'
     teamScore: number | null
     opponentScore: number | null
     result: MatchResult
@@ -186,6 +188,8 @@ export interface BasketballMatchStats {
     plusMinus: number
     valuation: number
     // ────────────
+    twoPointersMade: number         // ← NUEVO
+    twoPointersAttempted: number    // ← NUEVO
     fieldGoalsMade: number
     fieldGoalsAttempted: number
     threePointersMade: number
@@ -202,8 +206,7 @@ export interface BasketballMatchStats {
 
 export interface PlayerStatsInput {
   minutes?: number | null
-  seconds?: number | null  
-  points?: number
+  seconds?: number | null
   rebounds?: number
   assists?: number
   steals?: number
@@ -215,12 +218,17 @@ export interface PlayerStatsInput {
   foulsDrawn?: number
   plusMinus?: number
   // ────────────
-  fieldGoalsMade?: number
-  fieldGoalsAttempted?: number
+  // 2P / 3P / TL: fuente de verdad
+  twoPointersMade?: number          // ← NUEVO
+  twoPointersAttempted?: number     // ← NUEVO
   threePointersMade?: number
   threePointersAttempted?: number
   freeThrowsMade?: number
   freeThrowsAttempted?: number
+  // Derivados (se envían por compat, el backend los ignora)
+  points?: number
+  fieldGoalsMade?: number
+  fieldGoalsAttempted?: number
 }
 
 // ============================================
@@ -306,12 +314,13 @@ export const matchesApi = {
   async removePlayerStats(matchId: string, userId: string): Promise<void> {
     await api.delete(`/matches/${matchId}/stats/${userId}`)
   },
-    async getTeamSeasons(teamId: string): Promise<string[]> {
+
+  async getTeamSeasons(teamId: string): Promise<string[]> {
     const { data } = await api.get(`/matches/team/${teamId}/seasons`)
     return data
   },
 
-   async setPlayerExclusion(
+  async setPlayerExclusion(
     matchId: string,
     userId: string,
     excluded: boolean,

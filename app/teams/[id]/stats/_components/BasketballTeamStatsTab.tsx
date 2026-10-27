@@ -11,7 +11,7 @@ import type {
   AvailableTrendMetric,
 } from '@/lib/api/teams'
 import type { MatchResult } from '@/lib/api/matches'
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 
 interface Props {
   teamId: string
@@ -41,6 +41,9 @@ function fmtPlusMinus(v: number): string {
   return `${v}`
 }
 
+const pct = (made: number, att: number) =>
+  att > 0 ? Math.round((made / att) * 1000) / 10 : 0
+
 export default function BasketballTeamStatsTab({
   teamId,
   data,
@@ -57,7 +60,12 @@ export default function BasketballTeamStatsTab({
   const showDraws = show('DRAWS')
   const showWLD = showWins || showLosses || showDraws
 
-    const [groupBy, setGroupBy] = useState<'month' | 'match'>('match')
+  const show2PMade = show('TWO_POINTERS_MADE')
+  const show2PAttempted = show('TWO_POINTERS_ATTEMPTED')
+  const show2PPct = show('TWO_POINTERS_PCT')
+  const show2P = show2PMade || show2PAttempted || show2PPct
+
+  const [groupBy, setGroupBy] = useState<'month' | 'match'>('match')
 
   const trendOptions = availableTrendMetrics.map((m) => ({
     value: m.key,
@@ -66,6 +74,68 @@ export default function BasketballTeamStatsTab({
   const appliedTrend = availableTrendMetrics.find((m) => m.key === trendMetric)
   const isTrendUnavailable =
     trend.series === null && trend.requestedMetric !== null
+
+  // ── CÁLCULO DE TOTALES (Suma de todos los jugadores) ──
+  const totals = useMemo(() => {
+    const acc = {
+      minutes: 0,
+      seconds: 0,
+      points: 0,
+      rebounds: 0,
+      assists: 0,
+      steals: 0,
+      blocks: 0,
+      blocksAgainst: 0,
+      turnovers: 0,
+      fouls: 0,
+      foulsDrawn: 0,
+      plusMinus: 0,
+      twoPointersMade: 0,
+      twoPointersAttempted: 0,
+      fieldGoalsMade: 0,
+      fieldGoalsAttempted: 0,
+      threePointersMade: 0,
+      threePointersAttempted: 0,
+      freeThrowsMade: 0,
+      freeThrowsAttempted: 0,
+      valuation: 0,
+    }
+
+    for (const p of players) {
+      acc.minutes += p.minutes ?? 0
+    //  acc.seconds += p.seconds ?? 0
+      acc.points += p.points
+      acc.rebounds += p.rebounds
+      acc.assists += p.assists
+      acc.steals += p.steals
+      acc.blocks += p.blocks
+      acc.blocksAgainst += p.blocksAgainst
+      acc.turnovers += p.turnovers
+      acc.fouls += p.fouls
+      acc.foulsDrawn += p.foulsDrawn
+      acc.plusMinus += p.plusMinus ?? 0
+      acc.twoPointersMade += p.twoPointersMade || 0
+      acc.twoPointersAttempted += p.twoPointersAttempted || 0
+      acc.fieldGoalsMade += p.fieldGoalsMade
+      acc.fieldGoalsAttempted += p.fieldGoalsAttempted
+      acc.threePointersMade += p.threePointersMade
+      acc.threePointersAttempted += p.threePointersAttempted
+      acc.freeThrowsMade += p.freeThrowsMade
+      acc.freeThrowsAttempted += p.freeThrowsAttempted
+      acc.valuation += p.valuation
+    }
+
+    acc.minutes += Math.floor(acc.seconds / 60)
+    acc.seconds = acc.seconds % 60
+
+    return {
+      ...acc,
+      twoPointersPct: pct(acc.twoPointersMade, acc.twoPointersAttempted),
+      fieldGoalPct: pct(acc.fieldGoalsMade, acc.fieldGoalsAttempted),
+      threePointPct: pct(acc.threePointersMade, acc.threePointersAttempted),
+      freeThrowPct: pct(acc.freeThrowsMade, acc.freeThrowsAttempted),
+    }
+  }, [players])
 
   return (
     <div className="space-y-6">
@@ -189,6 +259,17 @@ export default function BasketballTeamStatsTab({
                   }
                 />
               )}
+              {show2P && (
+                <StatBox
+                  label="% 2P"
+                  value={`${summary.twoPointersPct ?? 0}%`}
+                  hint={
+                    show2PMade && show2PAttempted
+                      ? `${summary.twoPointersMade ?? 0}/${summary.twoPointersAttempted ?? 0}`
+                      : undefined
+                  }
+                />
+              )}
               {show('FG_PCT') && (
                 <StatBox
                   label="% TC"
@@ -227,7 +308,7 @@ export default function BasketballTeamStatsTab({
         </CardBody>
       </Card>
 
-            {/* ─── Trend configurable ─── */}
+      {/* ─── Trend configurable ─── */}
       {(trend.byMonth.length > 0 || (trend.byMatch?.length ?? 0) > 0) && (
         <Card>
           <CardBody>
@@ -269,10 +350,8 @@ export default function BasketballTeamStatsTab({
               </p>
             ) : (
               (() => {
-                // Determinar de dónde sacar los valores
                 const metricKey = trendMetric || 'winRate'
                 const applyFromMatch = (m: any): number => {
-                  // Mismo mapeo que el servidor, para byMatch
                   switch (metricKey) {
                     case 'winRate': return m.winRate ?? 0
                     case 'points': return m.points ?? 0
@@ -290,6 +369,7 @@ export default function BasketballTeamStatsTab({
                     case 'fgPct': return m.fieldGoalPct ?? 0
                     case 'tpPct': return m.threePointPct ?? 0
                     case 'ftPct': return m.freeThrowPct ?? 0
+                    case 'twoPointersPct': return m.twoPointersPct ?? 0
                     default: return m.winRate ?? 0
                   }
                 }
@@ -429,6 +509,9 @@ export default function BasketballTeamStatsTab({
                     {show('PLUS_MINUS') && (
                       <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">+/-</th>
                     )}
+                    {show2P && (
+                      <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">2P</th>
+                    )}
                     {show('FG_PCT') && (
                       <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TC</th>
                     )}
@@ -451,11 +534,15 @@ export default function BasketballTeamStatsTab({
                       showWins={showWins}
                       showLosses={showLosses}
                       showDraws={showDraws}
+                      show2PMade={show2PMade}
+                      show2PAttempted={show2PAttempted}
+                      show2PPct={show2PPct}
+                      show2P={show2P}
                       teamId={teamId}
                     />
                   ))}
                 </tbody>
-                {/* ✅ NUEVO — Fila de totales del equipo */}
+                {/* ✅ Fila de totales del equipo */}
                 <tfoot className="bg-brand-primary/5 border-t-2 border-brand-primary/30">
                   <tr className="font-semibold">
                     <td className="px-2 py-2 text-left text-text-primary">
@@ -495,7 +582,7 @@ export default function BasketballTeamStatsTab({
                     )}
                     {show('MINUTES') && (
                       <td className="px-2 py-2 text-center text-text-primary">
-                        {summary.totalMinutes}
+                        {totals.minutes}
                       </td>
                     )}
                     {show('MINUTES_PER_MATCH_PLAYER') && (
@@ -505,102 +592,116 @@ export default function BasketballTeamStatsTab({
                     )}
                     {show('POINTS_PLAYER') && (
                       <td className="px-2 py-2 text-center text-brand-primary font-bold">
-                        {summary.playerPoints ?? summary.points}
+                        {totals.points}
                       </td>
                     )}
-                                        {show('POINTS_PER_MATCH_PLAYER') && (
+                    {show('POINTS_PER_MATCH_PLAYER') && (
                       <td className="px-2 py-2 text-center text-text-primary">
                         {summary.playerPointsPerMatch ?? summary.pointsPerMatch}
                       </td>
                     )}
                     {show('REBOUNDS') && (
                       <td className="px-2 py-2 text-center text-text-primary">
-                        {summary.rebounds}
+                        {totals.rebounds}
                       </td>
                     )}
                     {show('ASSISTS') && (
                       <td className="px-2 py-2 text-center text-text-primary">
-                        {summary.assists}
+                        {totals.assists}
                       </td>
                     )}
                     {show('STEALS') && (
                       <td className="px-2 py-2 text-center text-text-primary">
-                        {summary.steals}
+                        {totals.steals}
                       </td>
                     )}
                     {show('BLOCKS') && (
                       <td className="px-2 py-2 text-center text-text-primary">
-                        {summary.blocks}
+                        {totals.blocks}
                       </td>
                     )}
                     {show('BLOCKS_AGAINST') && (
                       <td className="px-2 py-2 text-center text-text-primary">
-                        {summary.blocksAgainst}
+                        {totals.blocksAgainst}
                       </td>
                     )}
                     {show('TURNOVERS') && (
                       <td className="px-2 py-2 text-center text-text-primary">
-                        {summary.turnovers}
+                        {totals.turnovers}
                       </td>
                     )}
                     {show('FOULS') && (
                       <td className="px-2 py-2 text-center text-text-primary">
-                        {summary.fouls}
+                        {totals.fouls}
                       </td>
                     )}
                     {show('FOULS_DRAWN') && (
                       <td className="px-2 py-2 text-center text-text-primary">
-                        {summary.foulsDrawn}
+                        {totals.foulsDrawn}
                       </td>
                     )}
                     {show('VALUATION') && (
                       <td
                         className={`px-2 py-2 text-center font-bold ${
-                          summary.valuation > 0
+                          totals.valuation > 0
                             ? 'text-success'
-                            : summary.valuation < 0
+                            : totals.valuation < 0
                             ? 'text-danger'
                             : 'text-text-muted'
                         }`}
                       >
-                        {summary.valuation}
+                        {totals.valuation}
                       </td>
                     )}
                     {show('PLUS_MINUS') && (
                       <td
                         className={`px-2 py-2 text-center font-bold ${
-                          summary.plusMinus > 0
+                          totals.plusMinus > 0
                             ? 'text-success'
-                            : summary.plusMinus < 0
+                            : totals.plusMinus < 0
                             ? 'text-danger'
                             : 'text-text-muted'
                         }`}
                       >
-                        {fmtPlusMinus(summary.plusMinus)}
+                        {fmtPlusMinus(totals.plusMinus)}
                       </td>
                     )}
+                    
+                    {show2P && (
+                      <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
+                        {show2PMade && show2PAttempted
+                          ? `${totals.twoPointersMade}/${totals.twoPointersAttempted} `
+                          : show2PMade
+                            ? `${totals.twoPointersMade} `
+                            : show2PAttempted
+                              ? `/${totals.twoPointersAttempted} `
+                              : ''}
+                        {show2PPct && `(${totals.twoPointersPct}%)`}
+                      </td>
+                    )}
+                    
                     {show('FG_PCT') && (
                       <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
                         {show('FG_MADE') && show('FG_ATTEMPTED')
-                          ? `${summary.fieldGoalsMade}/${summary.fieldGoalsAttempted} `
+                          ? `${totals.fieldGoalsMade}/${totals.fieldGoalsAttempted} `
                           : ''}
-                        ({summary.fieldGoalPct}%)
+                        ({totals.fieldGoalPct}%)
                       </td>
                     )}
                     {show('TP_PCT') && (
                       <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
                         {show('TP_MADE') && show('TP_ATTEMPTED')
-                          ? `${summary.threePointersMade}/${summary.threePointersAttempted} `
+                          ? `${totals.threePointersMade}/${totals.threePointersAttempted} `
                           : ''}
-                        ({summary.threePointPct}%)
+                        ({totals.threePointPct}%)
                       </td>
                     )}
                     {show('FT_PCT') && (
                       <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
                         {show('FT_MADE') && show('FT_ATTEMPTED')
-                          ? `${summary.freeThrowsMade}/${summary.freeThrowsAttempted} `
+                          ? `${totals.freeThrowsMade}/${totals.freeThrowsAttempted} `
                           : ''}
-                        ({summary.freeThrowPct}%)
+                        ({totals.freeThrowPct}%)
                       </td>
                     )}
                     <td className="px-2 py-2"></td>
@@ -622,6 +723,10 @@ function PlayerRow({
   showWins,
   showLosses,
   showDraws,
+  show2PMade,
+  show2PAttempted,
+  show2PPct,
+  show2P,
   teamId,
 }: {
   p: BasketballTeamStatsPlayer
@@ -630,6 +735,10 @@ function PlayerRow({
   showWins: boolean
   showLosses: boolean
   showDraws: boolean
+  show2PMade: boolean
+  show2PAttempted: boolean
+  show2PPct: boolean
+  show2P: boolean
   teamId: string
 }) {
   const router = useRouter()
@@ -760,6 +869,24 @@ function PlayerRow({
           {fmtPlusMinus(p.plusMinus)}
         </td>
       )}
+      
+      {show2P && (
+        <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
+          {show2PMade && show2PAttempted
+            ? `${p.twoPointersMade}/${p.twoPointersAttempted} `
+            : show2PMade
+              ? `${p.twoPointersMade} `
+              : show2PAttempted
+                ? `/${p.twoPointersAttempted} `
+                : ''}
+          {show2PPct && (
+            <span className="text-text-muted text-[10px]">
+              ({p.twoPointersPct}%)
+            </span>
+          )}
+        </td>
+      )}
+
       {show('FG_PCT') && (
         <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
           {show('FG_MADE') && show('FG_ATTEMPTED')

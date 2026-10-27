@@ -48,6 +48,11 @@ export default function BasketballPlayerStatsTab({
   const { summary, byMatch, trend, player } = data
   const show = (key: string) => visibleMetrics.includes(key)
 
+  const show2PMade = show('TWO_POINTERS_MADE')
+  const show2PAttempted = show('TWO_POINTERS_ATTEMPTED')
+  const show2PPct = show('TWO_POINTERS_PCT')
+  const show2P = show2PMade || show2PAttempted || show2PPct
+
   const trendOptions = availableTrendMetrics.map((m) => ({
     value: m.key,
     label: m.label,
@@ -183,6 +188,17 @@ export default function BasketballPlayerStatsTab({
                       : summary.plusMinus < 0
                       ? 'text-danger'
                       : 'text-text-muted'
+                  }
+                />
+              )}
+              {show2P && (
+                <StatBox
+                  label="% 2P"
+                  value={`${summary.twoPointersPct}%`}
+                  hint={
+                    show2PMade && show2PAttempted
+                      ? `${summary.twoPointersMade}/${summary.twoPointersAttempted}`
+                      : undefined
                   }
                 />
               )}
@@ -326,6 +342,11 @@ export default function BasketballPlayerStatsTab({
                         +/-
                       </th>
                     )}
+                    {show2P && (
+                      <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
+                        2P
+                      </th>
+                    )}
                     {show('FG_PCT') && (
                       <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
                         TC
@@ -345,7 +366,15 @@ export default function BasketballPlayerStatsTab({
                 </thead>
                 <tbody className="divide-y divide-border-subtle">
                   {byMatch.map((bm) => (
-                    <MatchRow key={bm.matchId} bm={bm} show={show} />
+                    <MatchRow
+                      key={bm.matchId}
+                      bm={bm}
+                      show={show}
+                      show2PMade={show2PMade}
+                      show2PAttempted={show2PAttempted}
+                      show2PPct={show2PPct}
+                      show2P={show2P}
+                    />
                   ))}
                 </tbody>
               </table>
@@ -360,9 +389,17 @@ export default function BasketballPlayerStatsTab({
 function MatchRow({
   bm,
   show,
+  show2PMade,
+  show2PAttempted,
+  show2PPct,
+  show2P,
 }: {
   bm: PlayerByMatchBasketball
   show: (key: string) => boolean
+  show2PMade: boolean
+  show2PAttempted: boolean
+  show2PPct: boolean
+  show2P: boolean
 }) {
   return (
     <tr className="hover:bg-surface-elevated transition">
@@ -446,6 +483,24 @@ function MatchRow({
           {fmtPlusMinus(bm.plusMinus)}
         </td>
       )}
+      
+      {show2P && (
+        <td className="px-3 py-2 text-center text-text-secondary whitespace-nowrap">
+          {show2PMade && show2PAttempted
+            ? `${bm.twoPointersMade}/${bm.twoPointersAttempted} `
+            : show2PMade
+              ? `${bm.twoPointersMade} `
+              : show2PAttempted
+                ? `/${bm.twoPointersAttempted} `
+                : ''}
+          {show2PPct && (
+            <span className="text-text-muted text-[10px]">
+              ({bm.twoPointersPct}%)
+            </span>
+          )}
+        </td>
+      )}
+
       {show('FG_PCT') && (
         <td className="px-3 py-2 text-center text-text-secondary whitespace-nowrap">
           {bm.fieldGoalsMade}/{bm.fieldGoalsAttempted}{' '}

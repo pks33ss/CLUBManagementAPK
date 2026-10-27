@@ -93,6 +93,14 @@ const formatDateLong = (d: string | Date) => {
   })
 }
 
+// Helper para extraer fecha y hora en formato local (para los inputs)
+const splitISODate = (iso: string) => {
+  const d = new Date(iso)
+  const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const time = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  return { date, time }
+}
+
 // ============================================
 // COMPONENTE PRINCIPAL
 // ============================================
@@ -115,6 +123,10 @@ export default function CalendarPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date())
 
   const [showModal, setShowModal] = useState(false)
+  
+  // ✅ Estado para saber si estamos creando o editando
+  const [editingEventId, setEditingEventId] = useState<string | null>(null)
+  
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -127,7 +139,6 @@ export default function CalendarPage() {
   })
   const [saving, setSaving] = useState(false)
 
-  // ✅ Nuevo: evento a mostrar en el modal de detalle
   const [detailEvent, setDetailEvent] = useState<CalendarEventItem | null>(null)
 
   const clubTeams = activeTeam
@@ -237,6 +248,7 @@ export default function CalendarPage() {
 
   const openCreateModal = (dateStr?: string) => {
     const today = dateStr || toDateKey(new Date())
+    setEditingEventId(null) // ✅ Modo creación
     setForm({
       title: '',
       description: '',
@@ -250,7 +262,28 @@ export default function CalendarPage() {
     setShowModal(true)
   }
 
-  const createEvent = async (e: React.FormEvent) => {
+  // ✅ Nueva función para abrir el modal en modo edición
+  const openEditModal = (ev: CalendarEventItem) => {
+    const start = splitISODate(ev.startDate)
+    const end = ev.endDate ? splitISODate(ev.endDate) : start
+
+    setEditingEventId(ev.id)
+    setForm({
+      title: ev.title,
+      description: ev.description || '',
+      startDate: start.date,
+      startTime: start.time,
+      endDate: end.date,
+      endTime: end.time,
+      type: ev.eventType || 'OTHER', // ev.eventType viene del backend
+      location: ev.location || '',
+    })
+    
+    setDetailEvent(null) // Cerrar modal de detalle
+    setShowModal(true)   // Abrir modal de formulario
+  }
+
+  const submitEvent = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!activeTeam) return
     setSaving(true)
@@ -259,19 +292,32 @@ export default function CalendarPage() {
       const startISO = new Date(`${form.startDate}T${form.startTime}`).toISOString()
       const endISO = new Date(`${form.endDate}T${form.endTime}`).toISOString()
 
-      await api.post(`/calendar/team/${activeTeam.id}/events`, {
-        title: form.title,
-        description: form.description || undefined,
-        startDate: startISO,
-        endDate: endISO,
-        type: form.type,
-        location: form.location || undefined,
-      })
+      if (editingEventId) {
+        // ✅ MODO EDICIÓN (PUT)
+        await api.put(`/calendar/events/${editingEventId}`, {
+          title: form.title,
+          description: form.description || undefined,
+          startDate: startISO,
+          endDate: endISO,
+          type: form.type,
+          location: form.location || undefined,
+        })
+      } else {
+        // ✅ MODO CREACIÓN (POST)
+        await api.post(`/calendar/team/${activeTeam.id}/events`, {
+          title: form.title,
+          description: form.description || undefined,
+          startDate: startISO,
+          endDate: endISO,
+          type: form.type,
+          location: form.location || undefined,
+        })
+      }
 
       setShowModal(false)
       fetchEvents()
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al crear el evento')
+      alert(err.response?.data?.message || `Error al ${editingEventId ? 'editar' : 'crear'} el evento`)
     } finally {
       setSaving(false)
     }
@@ -288,7 +334,6 @@ export default function CalendarPage() {
     }
   }
 
-  // ✅ Handler unificado: navega si hay link, abre modal si no
   const handleEventClick = (ev: CalendarEventItem) => {
     if (ev.link) {
       router.push(ev.link)
@@ -526,17 +571,18 @@ export default function CalendarPage() {
         />
       )}
 
-      {/* Modal crear evento */}
+      {/* Modal crear/editar evento */}
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title="📌 Nuevo Evento"
+        title={editingEventId ? '✏️ Editar Evento' : '📌 Nuevo Evento'}
         size="md"
       >
         <p className="text-xs text-text-muted mb-4">
-          Se creará en: <strong className="text-text-primary">{activeTeam.name}</strong>
+          {editingEventId ? 'Editando evento de: ' : 'Se creará en: '}
+          <strong className="text-text-primary">{activeTeam.name}</strong>
         </p>
-        <form onSubmit={createEvent} className="space-y-4">
+        <form onSubmit={submitEvent} className="space-y-4">
           <Input
             label="Título *"
             value={form.title}
@@ -618,13 +664,13 @@ export default function CalendarPage() {
               loading={saving}
               className="flex-1"
             >
-              {saving ? 'Creando...' : 'Crear Evento'}
+              {saving ? 'Guardando...' : editingEventId ? 'Guardar Cambios' : 'Crear Evento'}
             </Button>
           </div>
         </form>
       </Modal>
 
-      {/* ✅ Modal de detalle del evento */}
+      {/* Modal de detalle del evento */}
       <Modal
         isOpen={!!detailEvent}
         onClose={() => setDetailEvent(null)}
@@ -705,13 +751,22 @@ export default function CalendarPage() {
                 Cerrar
               </Button>
               {detailEvent.type === 'EVENT' && (
-                <Button
-                  variant="danger"
-                  onClick={() => deleteEvent(detailEvent.id, detailEvent.title)}
-                  className="flex-1"
-                >
-                  🗑️ Eliminar
-                </Button>
+                <>
+                  <Button
+                    variant="primary"
+                    onClick={() => openEditModal(detailEvent)}
+                    className="flex-1"
+                  >
+                    ✏️ Editar
+                  </Button>
+                  <Button
+                    variant="danger"
+                    onClick={() => deleteEvent(detailEvent.id, detailEvent.title)}
+                    className="flex-1"
+                  >
+                    🗑️ Eliminar
+                  </Button>
+                </>
               )}
             </div>
           </div>

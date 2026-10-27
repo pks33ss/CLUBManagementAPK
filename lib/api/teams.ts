@@ -168,6 +168,9 @@ export interface BasketballTeamStatsPlayer {
   plusMinus: number
   valuation: number
   valuationPerMatch: number
+    twoPointersMade: number;
+  twoPointersAttempted: number;
+  twoPointersPct: number;
   fieldGoalsMade: number
   fieldGoalsAttempted: number
   fieldGoalPct: number
@@ -211,6 +214,9 @@ export interface BasketballTeamStatsSummary {
   plusMinus: number
   valuation: number
   valuationPerMatch: number
+      twoPointersMade: number;
+    twoPointersAttempted: number;
+    twoPointersPct: number;
   fieldGoalsMade: number
   fieldGoalsAttempted: number
   fieldGoalPct: number
@@ -344,6 +350,9 @@ export interface PlayerByMatchBasketball {
   foulsDrawn: number
   plusMinus: number | null
   valuation: number
+    twoPointersMade: number
+  twoPointersAttempted: number
+  twoPointersPct: number
   fieldGoalsMade: number
   fieldGoalsAttempted: number
   fieldGoalPct: number

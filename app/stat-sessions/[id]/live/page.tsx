@@ -121,6 +121,9 @@ export default function LiveSessionPage() {
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [loadingCandidates, setLoadingCandidates] = useState(false)
 
+  // Estado SSE
+  const [isSseConnected, setIsSseConnected] = useState(false)
+
   const containerRef = useRef<HTMLDivElement | null>(null)
 
   const refresh = useCallback(async () => {
@@ -143,10 +146,78 @@ export default function LiveSessionPage() {
 
   useEffect(() => {
     const t = setInterval(() => {
-      refresh()
+      if (!isSseConnected) {
+        refresh()
+      }
     }, 3000)
     return () => clearInterval(t)
-  }, [refresh])
+  }, [refresh, isSseConnected])
+
+    // Efecto para hacer que el reloj corra visualmente en el frontend
+  useEffect(() => {
+    if (!data?.clock.running) return
+
+    const interval = setInterval(() => {
+      setData((prev) => {
+        if (!prev || !prev.clock.running) return prev
+        return {
+          ...prev,
+          clock: {
+            ...prev.clock,
+            seconds: Math.max(0, prev.clock.seconds - 1),
+          },
+        }
+      })
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [data?.clock.running])
+
+  // Conexión SSE
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+
+    const token = localStorage.getItem('token')
+    if (!token) {
+      console.warn('No hay token en localStorage, no se puede conectar SSE')
+      return
+    }
+
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
+    
+    // ⚠️ AÑADIMOS EL TOKEN A LA URL
+    const sseUrl = `${apiUrl}/stat-sessions/${sessionId}/live-stream?token=${token}`
+
+    console.log('🔌 Intentando conectar a SSE en:', sseUrl)
+
+    const es = new EventSource(sseUrl)
+
+    es.onopen = () => {
+      console.log('✅ SSE conectado')
+      setIsSseConnected(true)
+    }
+
+    es.onmessage = (event) => {
+      try {
+        const parsed = JSON.parse(event.data)
+        setData(parsed)
+        setError(null)
+      } catch (e) {
+        console.error('Error parseando evento SSE', e)
+      }
+    }
+
+    es.onerror = () => {
+      console.warn('⚠️ SSE desconectado o error, usando fallback (polling)')
+      setIsSseConnected(false)
+    }
+
+    return () => {
+      console.log('🔌 Cerrando conexión SSE')
+      es.close()
+      setIsSseConnected(false)
+    }
+  }, [sessionId])
 
   useEffect(() => {
     setActive(null)
@@ -168,43 +239,118 @@ export default function LiveSessionPage() {
       alert('Selecciona un jugador primero')
       return
     }
-    setPosting(true)
-    try {
-      const body: any = { type }
-      if (active.kind === 'ours') body.playerId = active.userId
-      else body.opponentPlayerId = active.opponentPlayerId
 
-      const { data } = await api.post(
-        `/stat-sessions/${sessionId}/events`,
-        body,
-      )
-      setData(data)
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al anotar')
-    } finally {
-      setPosting(false)
+    // 1. OPTIMISTIC UI: Actualizamos el marcador y las stats al instante
+    if (data) {
+      const snapshot = data
+      let newTeamScore = data.score.team
+      let newOpponentScore = data.score.opponent
+      
+      const pts = type === 'POINTS_2' ? 2 : type === 'POINTS_3' ? 3 : type === 'FREE_THROW' ? 1 : 0
+      
+      if (active.kind === 'ours') {
+        newTeamScore += pts
+      } else {
+        newOpponentScore += pts
+      }
+
+      // Creamos un evento "falso" temporal para que aparezca en la lista de inmediato
+      const tempEvent = {
+        id: `temp-${Date.now()}`,
+        type,
+        createdAt: new Date().toISOString(),
+        period: data.clock.currentPeriod,
+        clockSeconds: data.clock.seconds,
+        isOpponent: active.kind === 'opponent',
+        player: active.kind === 'ours' 
+          ? data.players.find(p => p.userId === active.userId)?.user ?? null 
+          : null,
+        opponentPlayer: active.kind === 'opponent'
+          ? data.opponentPlayers.find(p => p.opponentPlayerId === active.opponentPlayerId) 
+            ? {
+                id: active.opponentPlayerId,
+                number: data.opponentPlayers.find(p => p.opponentPlayerId === active.opponentPlayerId)!.number,
+                name: data.opponentPlayers.find(p => p.opponentPlayerId === active.opponentPlayerId)!.name
+              }
+            : null
+          : null
+      }
+
+      setData({
+        ...data,
+        score: { team: newTeamScore, opponent: newOpponentScore },
+        events: [...data.events, tempEvent], // <-- Añadimos el evento falso a la lista
+        players: active.kind === 'ours' ? data.players.map(p => {
+          if (p.userId !== active.userId) return p
+          return {
+            ...p,
+            points: p.points + pts,
+            twoPointersMade: p.twoPointersMade + (type === 'POINTS_2' ? 1 : 0),
+            twoPointersAttempted: p.twoPointersAttempted + (type === 'POINTS_2' || type === 'MISS_2' ? 1 : 0),
+            threePointersMade: p.threePointersMade + (type === 'POINTS_3' ? 1 : 0),
+            threePointersAttempted: p.threePointersAttempted + (type === 'POINTS_3' || type === 'MISS_3' ? 1 : 0),
+            freeThrowsMade: p.freeThrowsMade + (type === 'FREE_THROW' ? 1 : 0),
+            freeThrowsAttempted: p.freeThrowsAttempted + (type === 'FREE_THROW' || type === 'MISS_FT' ? 1 : 0),
+            reboundsOff: p.reboundsOff + (type === 'REBOUND_OFF' ? 1 : 0),
+            reboundsDef: p.reboundsDef + (type === 'REBOUND_DEF' ? 1 : 0),
+            assists: p.assists + (type === 'ASSIST' ? 1 : 0),
+            steals: p.steals + (type === 'STEAL' ? 1 : 0),
+            blocks: p.blocks + (type === 'BLOCK' ? 1 : 0),
+            turnovers: p.turnovers + (type === 'TURNOVER' ? 1 : 0),
+            fouls: p.fouls + (type === 'FOUL' ? 1 : 0),
+          }
+        }) : data.players,
+        opponentPlayers: active.kind === 'opponent' ? data.opponentPlayers.map(p => {
+          if (p.opponentPlayerId !== active.opponentPlayerId) return p
+          return {
+            ...p,
+            points: p.points + pts,
+          }
+        }) : data.opponentPlayers,
+      })
+
+      // 2. Enviamos la petición SIN bloquear la interfaz
+      api.post(`/stat-sessions/${sessionId}/events`, {
+        type,
+        ...(active.kind === 'ours' ? { playerId: active.userId } : { opponentPlayerId: active.opponentPlayerId })
+      }).catch((err: any) => {
+        // Si falla el backend, deshacemos el cambio visual
+        setData(snapshot)
+        alert(err.response?.data?.message || 'Error al anotar')
+      })
     }
   }
-
   const undoEvent = async (eventId: string) => {
     try {
-      const { data } = await api.delete(
-        `/stat-sessions/${sessionId}/events/${eventId}`,
-      )
-      setData(data)
+      await api.delete(`/stat-sessions/${sessionId}/events/${eventId}`)
     } catch (err: any) {
       alert(err.response?.data?.message || 'Error al deshacer')
     }
   }
 
   const updateClock = async (patch: any) => {
+    if (!data) return
+    
+    const snapshot = data
+
+    // 1. Actualización Optimista (instantánea)
+    let newData = { ...data }
+    if (patch.clockRunning !== undefined) {
+      newData.clock = { ...newData.clock, running: patch.clockRunning }
+    }
+    if (patch.currentPeriod !== undefined) {
+      newData.clock = { ...newData.clock, currentPeriod: patch.currentPeriod }
+    }
+    if (patch.clockSeconds !== undefined) {
+      newData.clock = { ...newData.clock, seconds: patch.clockSeconds }
+    }
+    setData(newData)
+
+    // 2. Petición al servidor en segundo plano
     try {
-      const { data } = await api.patch(
-        `/stat-sessions/${sessionId}/live`,
-        patch,
-      )
-      setData(data)
+      await api.patch(`/stat-sessions/${sessionId}/live`, patch)
     } catch (err: any) {
+      setData(snapshot) // Revertir si falla
       alert(err.response?.data?.message || 'Error al actualizar el reloj')
     }
   }
@@ -257,15 +403,13 @@ export default function LiveSessionPage() {
         who.kind === 'ours'
           ? `/stat-sessions/${sessionId}/players/${who.userId}/on-court`
           : `/stat-sessions/${sessionId}/opponent-players/${who.opponentPlayerId}/on-court`
-      const { data: serverData } = await api.patch(url, { onCourt })
-      setData(serverData)
+      await api.patch(url, { onCourt })
     } catch (err: any) {
       setData(snapshot)
       alert(err.response?.data?.message || 'Error al cambiar on-court')
     }
   }
 
-  // Salir con el reloj corriendo: confirmar
   const handleBack = () => {
     if (data?.clock.running) {
       const ok = confirm(
@@ -284,12 +428,9 @@ export default function LiveSessionPage() {
     )
       return
     try {
-      const { data } = await api.post(
-        `/stat-sessions/${sessionId}/live/close`,
-      )
-      setData(data)
+      await api.post(`/stat-sessions/${sessionId}/live/close`)
       setShowStatsPanel(false)
-      router.push(`/teams/${data.session.teamId}/stats`)
+      router.push(`/teams/${data?.session.teamId ?? ''}/stats`)
     } catch (err: any) {
       alert(err.response?.data?.message || 'Error al cerrar la sesión')
     }
@@ -315,7 +456,6 @@ export default function LiveSessionPage() {
         {},
       )
       setShowAddPlayer(false)
-      await refresh()
     } catch (err: any) {
       alert(err.response?.data?.message || 'Error al añadir jugador')
     }
@@ -361,6 +501,17 @@ export default function LiveSessionPage() {
             ← Volver a estadísticas
           </button>
           <div className="flex gap-2 items-center flex-wrap">
+            {isSseConnected ? (
+              <span className="text-xs text-success flex items-center gap-1" title="Conexión en tiempo real establecida">
+                <span className="w-2 h-2 rounded-full bg-success animate-pulse"></span>
+                En vivo
+              </span>
+            ) : (
+              <span className="text-xs text-warning flex items-center gap-1" title="Usando polling cada 3s">
+                <span className="w-2 h-2 rounded-full bg-warning"></span>
+                Reconectando...
+              </span>
+            )}
             <button
               type="button"
               onClick={() => setShowStatsPanel((v) => !v)}
