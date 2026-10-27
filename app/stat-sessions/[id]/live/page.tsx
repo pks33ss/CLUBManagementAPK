@@ -51,6 +51,8 @@ export type LiveStatsResponse = {
     blocks: number
     turnovers: number
     fouls: number
+     twoPointersMade: number       // <-- AÑADIR
+    twoPointersAttempted: number  // <-- AÑADIR
     fieldGoalsMade: number
     fieldGoalsAttempted: number
     threePointersMade: number
