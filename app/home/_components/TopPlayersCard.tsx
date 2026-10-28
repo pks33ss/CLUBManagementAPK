@@ -122,13 +122,8 @@ export default function TopPlayersCard({
               )}
 
               <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium text-text-primary truncate flex items-center gap-2">
+                 <div className="text-sm font-medium text-text-primary truncate">
                   {player.name}
-                  {player.isGhost && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning font-bold uppercase">
-                      sin cuenta
-                    </span>
-                  )}
                 </div>
                 <div className="text-xs text-text-muted">
                   {player.metrics.matchesPlayed ?? 0} partido

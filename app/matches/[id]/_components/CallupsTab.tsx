@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import api from '@/lib/api'
 import { getSportIcon } from '@/lib/sport'
 import type { MatchDetail } from '../page'
@@ -65,10 +65,6 @@ const BULK_COLUMNS: {
   { key: 'confirmedStatus', label: 'Confirmado', description: 'Confirmado' },
 ]
 
-/**
- * Comprueba si una membership tiene el rol PLAYER.
- * Tras el Lote 1+2 el backend devuelve `roles: string[]` unificado.
- */
 const hasPlayerRole = (m: any): boolean => {
   return (m?.roles ?? []).includes('PLAYER')
 }
@@ -80,6 +76,40 @@ export default function CallupsTab({ match, onUpdate }: Props) {
   const [loadingCandidates, setLoadingCandidates] = useState(false)
   const [selectedPlayers, setSelectedPlayers] = useState<string[]>([])
 
+  // ✅ NUEVO: Estado local para los flags (Optimistic UI)
+  const [localFlags, setLocalFlags] = useState<Record<string, CallupFlags>>({})
+
+   // Sincronizar el estado local SOLO la primera vez que se carga el partido
+  // (o si cambia de partido)
+  useEffect(() => {
+    const newFlags: Record<string, CallupFlags> = {}
+    
+    const teamPlayers = (match.team.memberships ?? []).filter(
+      (m) => m.status === 'ACTIVE' && hasPlayerRole(m),
+    )
+    for (const m of teamPlayers) {
+      const callup = match.callups.find((c: any) => c.userId === m.user.id)
+      newFlags[m.user.id] = {
+        availableStatus: callup?.availableStatus ?? 'PENDING',
+        calledUpStatus: callup?.calledUpStatus ?? 'PENDING',
+        confirmedStatus: callup?.confirmedStatus ?? 'PENDING',
+      }
+    }
+
+    for (const c of match.callups) {
+      if (!newFlags[c.userId]) {
+        newFlags[c.userId] = {
+          availableStatus: c.availableStatus ?? 'PENDING',
+          calledUpStatus: c.calledUpStatus ?? 'PENDING',
+          confirmedStatus: c.confirmedStatus ?? 'PENDING',
+        }
+      }
+    }
+
+    setLocalFlags(newFlags)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [match.id]) // <-- CAMBIO CLAVE: solo depende del ID del partido
+
   const buildRows = (): PlayerRow[] => {
     const rows: PlayerRow[] = []
     const seen = new Set<string>()
@@ -90,6 +120,12 @@ export default function CallupsTab({ match, onUpdate }: Props) {
 
     for (const m of teamPlayers) {
       const callup = match.callups.find((c: any) => c.userId === m.user.id)
+      const flags = localFlags[m.user.id] || {
+        availableStatus: 'PENDING',
+        calledUpStatus: 'PENDING',
+        confirmedStatus: 'PENDING',
+      }
+      
       rows.push({
         userId: m.user.id,
         name: m.user.name,
@@ -98,17 +134,18 @@ export default function CallupsTab({ match, onUpdate }: Props) {
         position: m.position,
         fromOtherTeam: false,
         isGhost: m.user.isGhost,
-        flags: {
-          availableStatus: callup?.availableStatus ?? 'PENDING',
-          calledUpStatus: callup?.calledUpStatus ?? 'PENDING',
-          confirmedStatus: callup?.confirmedStatus ?? 'PENDING',
-        },
+        flags,
       })
       seen.add(m.user.id)
     }
 
     for (const c of match.callups) {
       if (seen.has(c.userId)) continue
+      const flags = localFlags[c.userId] || {
+        availableStatus: c.availableStatus ?? 'PENDING',
+        calledUpStatus: c.calledUpStatus ?? 'PENDING',
+        confirmedStatus: c.confirmedStatus ?? 'PENDING',
+      }
       rows.push({
         userId: c.userId,
         name: c.user.name,
@@ -118,11 +155,7 @@ export default function CallupsTab({ match, onUpdate }: Props) {
         fromOtherTeam: true,
         teamName: 'Otro equipo',
         isGhost: c.user.isGhost,
-        flags: {
-          availableStatus: c.availableStatus ?? 'PENDING',
-          calledUpStatus: c.calledUpStatus ?? 'PENDING',
-          confirmedStatus: c.confirmedStatus ?? 'PENDING',
-        },
+        flags,
       })
     }
 
@@ -136,18 +169,28 @@ export default function CallupsTab({ match, onUpdate }: Props) {
     currentFlags: CallupFlags,
     key: keyof CallupFlags,
   ) => {
-    setSaving(`${userId}-${key}`)
+    const newStatus = cycleStatus(currentFlags[key])
+    const previousStatus = currentFlags[key]
+
+    // 1. Optimistic UI: Actualizamos al instante
+    setLocalFlags((prev) => ({
+      ...prev,
+      [userId]: { ...prev[userId], [key]: newStatus },
+    }))
+
+    // 2. Petición al backend en segundo plano
     try {
-      const newStatus = cycleStatus(currentFlags[key])
       await api.put(`/matches/${match.id}/callups/${userId}`, {
         [key]: newStatus,
       })
-      onUpdate()
-    } catch (err) {
-      console.error(err)
-      alert('Error al actualizar')
-    } finally {
-      setSaving(null)
+    } catch (err: any) {
+      console.error('❌ Error al guardar en backend:', err.response?.data || err)
+      // Si falla, revertimos el cambio
+      setLocalFlags((prev) => ({
+        ...prev,
+        [userId]: { ...prev[userId], [key]: previousStatus },
+      }))
+      alert(`Error al actualizar: ${err.response?.data?.message || err.message}`)
     }
   }
 
@@ -170,7 +213,7 @@ export default function CallupsTab({ match, onUpdate }: Props) {
           }),
         ),
       )
-      onUpdate()
+      onUpdate() // Recargamos del servidor para asegurar que todos están bien
     } catch (err) {
       console.error(err)
       alert('Error al actualizar en bloque')

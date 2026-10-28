@@ -176,7 +176,7 @@ export default function HomePage() {
       {error && <div className="bg-danger/10 border border-danger/20 text-danger px-4 py-3 rounded-lg">{error}</div>}
 
       <div id="tour-weekly-plan">
-        <WeeklyPlanCard />
+        <WeeklyPlanCard externalSelectedTeamIds={selectedTeamIds} />
       </div>
 
       {loadingDashboard && !data ? (

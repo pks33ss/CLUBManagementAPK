@@ -43,6 +43,11 @@ interface WeeklyResponse {
   summary: { sessions: number; matches: number }
 }
 
+interface Props {
+  // ✅ NUEVO: Si se pasa, ignoramos el selector interno y usamos estos equipos
+  externalSelectedTeamIds?: string[]
+}
+
 // Paleta de colores por equipo (estable por índice de equipo en `data.teams`)
 const TEAM_COLORS = [
   {
@@ -127,14 +132,18 @@ function fmtEndTime(startIso: string, durationMin: number): string {
   })
 }
 
-export default function WeeklyPlanCard() {
+export default function WeeklyPlanCard({ externalSelectedTeamIds }: Props) {
   const [weekOffset, setWeekOffset] = useState(0) // 0 = semana actual
   const [data, setData] = useState<WeeklyResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   // Selección de equipos (null = "todos", [] = "ninguno")
-  const [selectedTeamIds, setSelectedTeamIds] = useState<string[] | null>(null)
+  // Solo se usa si NO hay externalSelectedTeamIds
+  const [internalSelectedTeamIds, setInternalSelectedTeamIds] = useState<string[] | null>(null)
+
+  // Los equipos efectivos a mostrar
+  const selectedTeamIds = externalSelectedTeamIds ?? internalSelectedTeamIds
 
   const currentWeekStart = useMemo(() => startOfWeek(new Date()), [])
   const weekStart = useMemo(
@@ -148,9 +157,9 @@ export default function WeeklyPlanCard() {
     setError(null)
 
     api
-  .get('/dashboard/weekly', {
-    params: { weekStart: toDateOnlyString(weekStart) },  // ✅ "2026-10-19"
-  })
+      .get('/dashboard/weekly', {
+        params: { weekStart: toDateOnlyString(weekStart) },
+      })
       .then((res) => {
         if (!cancelled) setData(res.data)
       })
@@ -170,13 +179,13 @@ export default function WeeklyPlanCard() {
     }
   }, [weekStart])
 
-  // Inicializar selección cuando llegan los datos por primera vez
+  // Inicializar selección interna cuando llegan los datos por primera vez
   useEffect(() => {
     if (!data) return
-    if (selectedTeamIds === null) {
-      setSelectedTeamIds(data.teams.map((t) => t.id))
+    if (internalSelectedTeamIds === null) {
+      setInternalSelectedTeamIds(data.teams.map((t) => t.id))
     }
-  }, [data, selectedTeamIds])
+  }, [data, internalSelectedTeamIds])
 
   // Colores ESTABLES: usamos índice sobre data.teams (no visibleTeams),
   // así al filtrar un equipo los colores del resto no cambian.
@@ -247,6 +256,9 @@ export default function WeeklyPlanCard() {
   const canGoNext = weekOffset < MAX_FUTURE_WEEKS
   const isFutureWeek = weekOffset > 0
 
+  // ✅ Solo mostramos el selector interno si NO nos han pasado externalSelectedTeamIds
+  const showInternalSelector = externalSelectedTeamIds === undefined
+
   return (
     <Card>
       <CardBody>
@@ -309,8 +321,8 @@ export default function WeeklyPlanCard() {
           </div>
         </div>
 
-        {/* Selector de equipos (solo si hay más de uno) */}
-        {(data?.teams.length ?? 0) > 1 && (
+        {/* Selector de equipos (solo si NO hay external y hay más de uno) */}
+        {showInternalSelector && (data?.teams.length ?? 0) > 1 && (
           <div className="flex flex-wrap items-center gap-2 mb-4 pb-4 border-b border-border-subtle">
             <span className="text-[10px] uppercase font-bold text-text-muted mr-1">
               Equipos
@@ -319,32 +331,32 @@ export default function WeeklyPlanCard() {
             <button
               type="button"
               onClick={() =>
-                setSelectedTeamIds(
-                  selectedTeamIds?.length === data!.teams.length
+                setInternalSelectedTeamIds(
+                  internalSelectedTeamIds?.length === data!.teams.length
                     ? []
                     : data!.teams.map((t) => t.id),
                 )
               }
               className="text-xs px-2 py-1 rounded-full border border-border-subtle text-text-muted hover:text-text-primary hover:border-border-strong transition"
             >
-              {selectedTeamIds?.length === data!.teams.length
+              {internalSelectedTeamIds?.length === data!.teams.length
                 ? '✕ Ninguno'
                 : '✓ Todos'}
             </button>
 
             {data!.teams.map((t) => {
-              const active = selectedTeamIds?.includes(t.id)
+              const active = internalSelectedTeamIds?.includes(t.id)
               const color = teamColor.get(t.id)
               return (
                 <button
                   key={t.id}
                   type="button"
                   onClick={() => {
-                    const current = selectedTeamIds ?? []
+                    const current = internalSelectedTeamIds ?? []
                     const next = active
                       ? current.filter((id) => id !== t.id)
                       : [...current, t.id]
-                    setSelectedTeamIds(next)
+                    setInternalSelectedTeamIds(next)
                   }}
                   className={`text-xs px-2 py-1 rounded-full border transition flex items-center gap-1.5 ${
                     active
@@ -368,6 +380,27 @@ export default function WeeklyPlanCard() {
             })}
           </div>
         )}
+
+        {/* ✅ NUEVO: Leyenda de colores de los equipos seleccionados */}
+        {data?.teams && selectedTeamIds && selectedTeamIds.length > 0 && (
+          <div className="flex flex-wrap items-center gap-3 mb-4 pb-4 border-b border-border-subtle">
+            <span className="text-[10px] uppercase font-bold text-text-muted">
+              Leyenda:
+            </span>
+            {data.teams
+              .filter((t) => selectedTeamIds.includes(t.id))
+              .map((t) => {
+                const color = teamColor.get(t.id)
+                return (
+                  <div key={t.id} className="flex items-center gap-1.5 text-xs text-text-secondary">
+                    {color && <span className={`w-2.5 h-2.5 rounded-full ${color.dot}`} />}
+                    <span>{getSportIcon(t.sport)} {t.name}</span>
+                  </div>
+                )
+              })}
+          </div>
+        )}
+
 
         {/* Grid semanal */}
         {loading && !data ? (
