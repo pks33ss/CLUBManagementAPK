@@ -5,6 +5,8 @@ import api from '@/lib/api'
 import Peer, { MediaConnection } from 'peerjs'
 import type { MatchDetail } from '../page'
 import { Button, Card, CardBody, Badge, Input, Modal } from '@/components/ui'
+import { useSearchParams } from 'next/navigation'
+import { Logo } from '@/components/ui/Logo'
 
 interface Props {
   match: MatchDetail
@@ -108,6 +110,9 @@ const getPeriodLabel = (scoreboard: ScoreboardState | null | undefined) => {
 // ============================================
 
 export default function LiveStreamTab({ match }: Props) {
+  const searchParams = useSearchParams()
+  const isSpectatorUrl = searchParams.get('spectator') === 'true'
+ 
   // ESTADOS
   const [loading, setLoading] = useState(true)
   const [liveInfo, setLiveInfo] = useState<LiveInfo | null>(null)
@@ -136,7 +141,6 @@ export default function LiveStreamTab({ match }: Props) {
   const [cameraOn, setCameraOn] = useState(true)
   const [audioOn, setAudioOn] = useState(true)
 
-  // ✅ NUEVOS: cámara actual + fullscreen
   const [facingMode, setFacingMode] = useState<'user' | 'environment'>('environment')
   const videoContainerRef = useRef<HTMLDivElement>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
@@ -198,13 +202,20 @@ export default function LiveStreamTab({ match }: Props) {
 
   useEffect(() => { fetchLiveInfo() }, [fetchLiveInfo])
 
+  // ✅ Auto-unirse si viene por enlace de espectador
+  useEffect(() => {
+    if (isSpectatorUrl && liveInfo?.isLive && !isStreaming && !peerRef.current) {
+      joinAsViewer()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSpectatorUrl, liveInfo?.isLive])
+
   // ============================================
   // ASIGNAR STREAMS
   // ============================================
 
   useEffect(() => {
     if (localStream && localVideoRef.current) {
-      console.log('🎥 Asignando stream local')
       localVideoRef.current.srcObject = localStream
       localVideoRef.current.play().catch((err) => console.warn('Autoplay local:', err))
     }
@@ -212,7 +223,6 @@ export default function LiveStreamTab({ match }: Props) {
 
   useEffect(() => {
     if (remoteStream && remoteVideoRef.current) {
-      console.log('📺 Asignando stream remoto')
       remoteVideoRef.current.srcObject = remoteStream
       remoteVideoRef.current.play().catch((err) => console.warn('Autoplay remoto:', err))
     }
@@ -230,10 +240,7 @@ export default function LiveStreamTab({ match }: Props) {
       if (!isNowFullscreen) {
         try {
           const orientation = screen.orientation as any
-          if (orientation?.unlock) {
-            orientation.unlock()
-            console.log('🔓 Orientación desbloqueada')
-          }
+          if (orientation?.unlock) orientation.unlock()
         } catch (err) {}
       }
     }
@@ -318,7 +325,6 @@ export default function LiveStreamTab({ match }: Props) {
     if (peerRef.current) return
 
     const timer = setTimeout(async () => {
-      console.warn('⚠️ No he podido conectar al stream → saliendo sin matar la emisión')
       try {
         await api.delete(`/matches/${match.id}/live/leave`)
       } catch {}
@@ -420,6 +426,21 @@ export default function LiveStreamTab({ match }: Props) {
   }
 
   // ============================================
+  // COMPARTIR ENLACE PARA ESPECTADORES
+  // ============================================
+
+  const shareSpectatorLink = () => {
+    const url = `${window.location.origin}/matches/${match.id}?spectator=true`
+    navigator.clipboard.writeText(url)
+      .then(() => {
+        alert('¡Enlace copiado! Cualquier persona registrada podrá ver este partido.')
+      })
+      .catch(() => {
+        prompt('Copia el enlace para compartir:', url)
+      })
+  }
+
+  // ============================================
   // INICIAR / PARAR EMISIÓN
   // ============================================
 
@@ -443,39 +464,28 @@ export default function LiveStreamTab({ match }: Props) {
       setPeer(newPeer)
       isHost.current = true
 
-      newPeer.on('open', () => {
-        console.log('✅ Peer host abierto:', hostPeerId)
-      })
+      newPeer.on('open', () => {})
 
       newPeer.on('connection', (conn) => {
-        console.log('🔗 Viewer conectado (data):', conn.peer)
         setConnectedViewers((v) => [...v, conn.peer])
         dataChannelsRef.current.set(conn.peer, conn)
 
         conn.on('open', () => {
-          console.log('🔗 Data connection abierta con viewer:', conn.peer)
           if (scoreboard) {
             try {
               conn.send({ type: 'scoreboard-sync', scoreboard })
-            } catch (err) {
-              console.warn('Error enviando sync inicial:', err)
-            }
+            } catch (err) {}
           }
         })
 
         conn.on('close', () => {
-          console.log('🔗 Viewer desconectado:', conn.peer)
           setConnectedViewers((v) => v.filter((p) => p !== conn.peer))
           dataChannelsRef.current.delete(conn.peer)
         })
       })
 
       newPeer.on('call', (call) => {
-        console.log('📞 Viewer llama:', call.peer)
-
         call.answer(stream)
-        console.log('✅ Answer enviado')
-
         activeCallsRef.current.set(call.peer, call)
 
         setTimeout(async () => {
@@ -499,19 +509,13 @@ export default function LiveStreamTab({ match }: Props) {
             try {
               const offer = await pc.createOffer()
               await pc.setLocalDescription(offer)
-            } catch (err) {
-              console.error('❌ Error renegociando:', err)
-            }
+            } catch (err) {}
           }
         }, 500)
 
         call.on('close', () => {
           activeCallsRef.current.delete(call.peer)
           setConnectedViewers((v) => v.filter((p) => p !== call.peer))
-        })
-
-        call.on('error', (err) => {
-          console.error('❌ Error en call:', err)
         })
       })
 
@@ -520,7 +524,6 @@ export default function LiveStreamTab({ match }: Props) {
       setIsStreaming(true)
       await fetchLiveInfo()
     } catch (err: any) {
-      console.error('Error iniciando emisión:', err)
       alert(err.response?.data?.message || err.message || 'Error al iniciar la emisión')
     }
   }
@@ -570,9 +573,7 @@ export default function LiveStreamTab({ match }: Props) {
       } catch (err: any) {}
 
       await fetchLiveInfo()
-      console.log('✅ Reset forzado completado')
     } catch (err) {
-      console.error('Error en forceReset:', err)
       alert('Error al forzar el reset')
       await fetchLiveInfo()
     }
@@ -593,14 +594,11 @@ export default function LiveStreamTab({ match }: Props) {
       isHost.current = false
 
       newPeer.on('open', (myId) => {
-        console.log('✅ Viewer peer abierto:', myId)
         api.post(`/matches/${match.id}/live/peer`, { peerId: myId }).catch(console.error)
 
         const dataConn = newPeer.connect(hostPeerId, { reliable: true })
 
         dataConn.on('open', () => {
-          console.log('🔗 Data connection abierta con host')
-
           dataConn.on('data', (data: any) => {
             if (data?.type === 'scoreboard-update' || data?.type === 'scoreboard-sync') {
               if (data.scoreboard) {
@@ -617,13 +615,9 @@ export default function LiveStreamTab({ match }: Props) {
           ctx.fillRect(0, 0, canvas.width, canvas.height)
 
           const dummyStream = canvas.captureStream(1)
-
           const call = newPeer.call(hostPeerId, dummyStream)
 
-          if (!call) {
-            console.error('❌ newPeer.call devolvió null')
-            return
-          }
+          if (!call) return
 
           call.on('stream', (remoteStream) => {
             setRemoteStream(remoteStream)
@@ -632,23 +626,10 @@ export default function LiveStreamTab({ match }: Props) {
           call.on('close', () => {
             setRemoteStream(null)
           })
-
-          call.on('error', (err) => {
-            console.error('❌ Error en call:', err)
-          })
-        })
-
-        dataConn.on('error', (err) => {
-          console.error('❌ Data connection error:', err)
-        })
-
-        dataConn.on('close', () => {
-          console.log('🔗 Data connection cerrada')
         })
       })
 
       newPeer.on('error', (err) => {
-        console.error('❌ Peer viewer error:', err)
         alert('Error de conexión: ' + err.type)
       })
 
@@ -700,18 +681,14 @@ export default function LiveStreamTab({ match }: Props) {
   const lockOrientation = async () => {
     try {
       const orientation = screen.orientation as any
-      if (orientation?.lock) {
-        await orientation.lock('landscape')
-      }
+      if (orientation?.lock) await orientation.lock('landscape')
     } catch (err) {}
   }
 
   const unlockOrientation = () => {
     try {
       const orientation = screen.orientation as any
-      if (orientation?.unlock) {
-        orientation.unlock()
-      }
+      if (orientation?.unlock) orientation.unlock()
     } catch (err) {}
   }
 
@@ -742,9 +719,7 @@ export default function LiveStreamTab({ match }: Props) {
         await document.exitFullscreen()
         unlockOrientation()
       }
-    } catch (err) {
-      console.error('Error al cambiar a pantalla completa:', err)
-    }
+    } catch (err) {}
   }
 
   // ============================================
@@ -794,7 +769,6 @@ export default function LiveStreamTab({ match }: Props) {
 
       setFacingMode(newFacing)
     } catch (err) {
-      console.error('Error al cambiar cámara:', err)
       alert('No se pudo cambiar la cámara. Puede que este dispositivo no tenga cámara ' + (facingMode === 'user' ? 'trasera' : 'frontal') + '.')
     }
   }
@@ -889,6 +863,22 @@ export default function LiveStreamTab({ match }: Props) {
     } catch (err) {}
   }
 
+    const changePeriod = async (delta: number) => {
+    if (!scoreboard) return
+    const newPeriod = Math.max(1, scoreboard.currentPeriod + delta)
+    // Usamos el endpoint que ya tienes para fijar el periodo
+    try {
+      const label = newPeriod <= 4 ? `Q${newPeriod}` : `OT${newPeriod - 4}`
+      const res = await api.put(`/matches/${match.id}/live/scoreboard/period-value`, { value: label })
+      const updated = { ...scoreboard, ...res.data }
+      setScoreboard(updated)
+      broadcastScoreboard(updated)
+      setPeriodInput(label)
+    } catch (err) {
+      console.error('Error al cambiar de periodo', err)
+    }
+  }
+
   // ============================================
   // CLEANUP
   // ============================================
@@ -914,8 +904,6 @@ export default function LiveStreamTab({ match }: Props) {
       </div>
     )
   }
-
-  // ==== ESTADOS ====
 
   if (!liveInfo.streamingEnabled) {
     if (!liveInfo.canManage) {
@@ -951,50 +939,22 @@ export default function LiveStreamTab({ match }: Props) {
           <CardBody>
             <h3 className="text-lg font-semibold text-text-primary mb-4">🎛️ Configuración</h3>
             <div className="grid grid-cols-2 gap-4 mb-4">
-              <Input
-                label="🏠 Equipo local"
-                type="text"
-                value={setupForm.homeTeamName}
-                onChange={(e) => setSetupForm({ ...setupForm, homeTeamName: e.target.value })}
-              />
-              <Input
-                label="✈️ Equipo visitante"
-                type="text"
-                value={setupForm.awayTeamName}
-                onChange={(e) => setSetupForm({ ...setupForm, awayTeamName: e.target.value })}
-              />
+              <Input label="🏠 Equipo local" type="text" value={setupForm.homeTeamName} onChange={(e) => setSetupForm({ ...setupForm, homeTeamName: e.target.value })} />
+              <Input label="✈️ Equipo visitante" type="text" value={setupForm.awayTeamName} onChange={(e) => setSetupForm({ ...setupForm, awayTeamName: e.target.value })} />
             </div>
             <div className="flex flex-wrap gap-6 mb-4">
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={setupForm.scoreboardEnabled}
-                  onChange={(e) => setSetupForm({ ...setupForm, scoreboardEnabled: e.target.checked })}
-                  className="w-4 h-4 accent-brand-primary" />
+                <input type="checkbox" checked={setupForm.scoreboardEnabled} onChange={(e) => setSetupForm({ ...setupForm, scoreboardEnabled: e.target.checked })} className="w-4 h-4 accent-brand-primary" />
                 <span className="text-sm text-text-secondary">Mostrar marcador</span>
               </label>
               <label className="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" checked={setupForm.clockEnabled}
-                  onChange={(e) => setSetupForm({ ...setupForm, clockEnabled: e.target.checked })}
-                  className="w-4 h-4 accent-brand-primary" />
+                <input type="checkbox" checked={setupForm.clockEnabled} onChange={(e) => setSetupForm({ ...setupForm, clockEnabled: e.target.checked })} className="w-4 h-4 accent-brand-primary" />
                 <span className="text-sm text-text-secondary">Mostrar tiempo</span>
               </label>
             </div>
             <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Duración del cuarto (min)"
-                type="number"
-                min="1"
-                max="20"
-                value={setupForm.quarterDuration / 60}
-                onChange={(e) => setSetupForm({ ...setupForm, quarterDuration: Number(e.target.value) * 60 })}
-              />
-              <Input
-                label="Duración de prórroga (min)"
-                type="number"
-                min="1"
-                max="15"
-                value={setupForm.overtimeDuration / 60}
-                onChange={(e) => setSetupForm({ ...setupForm, overtimeDuration: Number(e.target.value) * 60 })}
-              />
+              <Input label="Duración del cuarto (min)" type="number" min="1" max="20" value={setupForm.quarterDuration / 60} onChange={(e) => setSetupForm({ ...setupForm, quarterDuration: Number(e.target.value) * 60 })} />
+              <Input label="Duración de prórroga (min)" type="number" min="1" max="15" value={setupForm.overtimeDuration / 60} onChange={(e) => setSetupForm({ ...setupForm, overtimeDuration: Number(e.target.value) * 60 })} />
             </div>
           </CardBody>
         </Card>
@@ -1003,28 +963,19 @@ export default function LiveStreamTab({ match }: Props) {
           <CardBody>
             <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
               <h3 className="text-lg font-semibold text-text-primary">👥 Permisos para emitir</h3>
-              <Button
-                size="sm"
-                onClick={handleSavePermissions}
-                disabled={savingPermissions}
-                loading={savingPermissions}
-              >
+              <Button size="sm" onClick={handleSavePermissions} disabled={savingPermissions} loading={savingPermissions}>
                 {savingPermissions ? 'Guardando...' : '💾 Guardar permisos'}
               </Button>
             </div>
             <div className="space-y-2">
               {candidates.map((c) => (
-                <label key={c.userId}
-                  className="flex items-center gap-3 p-3 rounded-lg border border-border-subtle hover:border-brand-primary/50 cursor-pointer transition">
-                  <input type="checkbox" checked={permissions[c.userId] || false}
-                    onChange={() => togglePermission(c.userId)} className="w-4 h-4 accent-brand-primary" />
+                <label key={c.userId} className="flex items-center gap-3 p-3 rounded-lg border border-border-subtle hover:border-brand-primary/50 cursor-pointer transition">
+                  <input type="checkbox" checked={permissions[c.userId] || false} onChange={() => togglePermission(c.userId)} className="w-4 h-4 accent-brand-primary" />
                   <div className="flex-1">
                     <p className="font-medium text-text-primary">{c.name} {c.lastName}</p>
                     <p className="text-xs text-text-muted">{c.role}</p>
                   </div>
-                  {c.userId === currentUserId && (
-                    <Badge variant="brand">Tú</Badge>
-                  )}
+                  {c.userId === currentUserId && <Badge variant="brand">Tú</Badge>}
                 </label>
               ))}
             </div>
@@ -1035,6 +986,20 @@ export default function LiveStreamTab({ match }: Props) {
   }
 
   if (liveInfo.isLive && !isStreaming) {
+    // ✅ Si es espectador y aún se está conectando, mostramos un loader
+    if (isSpectatorUrl) {
+      return (
+        <Card>
+          <CardBody className="text-center py-12">
+            <div className="text-5xl mb-4 animate-pulse">📡</div>
+            <h3 className="text-xl font-semibold text-text-primary mb-2">Conectando a la emisión...</h3>
+            <p className="text-text-secondary text-sm">Preparando el vídeo en directo</p>
+          </CardBody>
+        </Card>
+      )
+    }
+
+    // Si es un usuario normal (no espectador), mantiene el botón
     return (
       <div className="space-y-4">
         <Card>
@@ -1049,12 +1014,12 @@ export default function LiveStreamTab({ match }: Props) {
             </div>
             {liveInfo.canManage && (
               <Button
-                variant="secondary"
+                variant="primary"
                 size="sm"
-                onClick={forceReset}
-                title="Forzar reset del stream"
+                onClick={shareSpectatorLink}
+                title="Copiar enlace para que cualquiera pueda ver el partido (solo lectura)"
               >
-                🔄 Reset
+                🔗 Compartir enlace
               </Button>
             )}
           </CardBody>
@@ -1138,12 +1103,10 @@ export default function LiveStreamTab({ match }: Props) {
     )
   }
 
-  // ==== EN DIRECTO ====
   const periodLabel = scoreboard ? getPeriodLabel(scoreboard) : 'Q1'
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <Card>
         <CardBody className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3 flex-wrap">
@@ -1156,9 +1119,19 @@ export default function LiveStreamTab({ match }: Props) {
           </div>
           <div className="flex gap-2">
             {soyHost ? (
-              <Button variant="danger" size="sm" onClick={stopStreaming}>
-                ⏹️ Detener emisión
-              </Button>
+              <>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={shareSpectatorLink}
+                  title="Copiar enlace para que cualquiera pueda ver el partido (solo lectura)"
+                >
+                  🔗 Compartir enlace
+                </Button>
+                <Button variant="danger" size="sm" onClick={stopStreaming}>
+                  ⏹️ Detener emisión
+                </Button>
+              </>
             ) : (
               <Button variant="secondary" size="sm" onClick={leaveAsViewer}>
                 🚪 Salir
@@ -1179,7 +1152,6 @@ export default function LiveStreamTab({ match }: Props) {
         </CardBody>
       </Card>
 
-      {/* Vídeo con overlay */}
       <div
         ref={videoContainerRef}
         className="relative bg-black rounded-xl overflow-hidden shadow-md border border-border-subtle"
@@ -1193,7 +1165,6 @@ export default function LiveStreamTab({ match }: Props) {
             className="w-full aspect-video object-cover" />
         )}
 
-        {/* Overlay del marcador */}
         {scoreboard && (scoreboard.enabled || scoreboard.clockEnabled) && (
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 inline-flex flex-col max-w-[85%]">
             {soyHost && (
@@ -1207,34 +1178,22 @@ export default function LiveStreamTab({ match }: Props) {
             )}
 
             <div className="rounded-xl overflow-hidden shadow-2xl border border-white/20">
-              {/* FILA PRINCIPAL */}
               <div className="flex items-stretch">
-                
-                {/* BLOQUE IZQUIERDO */}
                 {scoreboard.enabled && (
                   <div className="flex items-stretch shrink-0">
                     <div className="bg-white text-black px-3 py-1.5 flex items-center justify-center min-w-[50px]">
-                      <span className="text-2xl font-bold leading-none">
-                        {scoreboard.homeScore}
-                      </span>
+                      <span className="text-2xl font-bold leading-none">{scoreboard.homeScore}</span>
                     </div>
                     <div className="bg-black text-white px-3 py-1.5 flex items-center justify-end flex-1 min-w-[80px] max-w-[200px]">
-                      <span className="text-sm font-bold uppercase truncate text-right">
-                        {scoreboard.homeTeamName || 'LOCAL'}
-                      </span>
+                      <span className="text-sm font-bold uppercase truncate text-right">{scoreboard.homeTeamName || 'LOCAL'}</span>
                     </div>
                   </div>
                 )}
 
-                {/* BLOQUE CENTRAL */}
                 {scoreboard.clockEnabled && (
                   <div className="flex items-stretch shrink-0">
                     <div className="bg-white text-black px-3 py-1.5 flex items-center justify-center min-w-[80px]">
-                      <span
-                        className={`text-2xl font-mono font-bold leading-none ${
-                          scoreboard.isOvertime ? 'text-orange-600' : ''
-                        }`}
-                      >
+                      <span className={`text-2xl font-mono font-bold leading-none ${scoreboard.isOvertime ? 'text-orange-600' : ''}`}>
                         {formatClock(displayClock)}
                       </span>
                     </div>
@@ -1247,65 +1206,44 @@ export default function LiveStreamTab({ match }: Props) {
                       maxLength={3}
                       disabled={!soyHost}
                       readOnly={!soyHost}
-                      className={`bg-white text-black px-2 py-1.5 text-center text-sm font-bold uppercase w-12 border-l border-gray-300 ${
-                        soyHost
-                          ? 'focus:outline-none focus:ring-2 focus:ring-brand-primary cursor-text'
-                          : 'cursor-default'
-                      }`}
+                      style={{ color: 'black', backgroundColor: 'white' }}
+                      className={`px-2 py-1.5 text-center text-sm font-bold uppercase w-12 border-l border-gray-300 ${soyHost ? 'focus:outline-none focus:ring-2 focus:ring-brand-primary cursor-text' : 'cursor-default'}`}
                     />
                     {scoreboard.isOvertime && (
-                      <div className="bg-orange-500 text-white px-2 py-1.5 flex items-center text-[10px] font-bold uppercase">
-                        PRÓRROGA
-                      </div>
+                      <div className="bg-orange-500 text-white px-2 py-1.5 flex items-center text-[10px] font-bold uppercase">PRÓRROGA</div>
                     )}
                   </div>
                 )}
 
-                {/* BLOQUE DERECHO */}
                 {scoreboard.enabled && (
                   <div className="flex items-stretch shrink-0">
                     <div className="bg-black text-white px-3 py-1.5 flex items-center justify-start flex-1 min-w-[80px] max-w-[200px]">
-                      <span className="text-sm font-bold uppercase truncate text-left">
-                        {scoreboard.awayTeamName || 'VISIT'}
-                      </span>
+                      <span className="text-sm font-bold uppercase truncate text-left">{scoreboard.awayTeamName || 'VISIT'}</span>
                     </div>
                     <div className="bg-white text-black px-3 py-1.5 flex items-center justify-center min-w-[50px]">
-                      <span className="text-2xl font-bold leading-none">
-                        {scoreboard.awayScore}
-                      </span>
+                      <span className="text-2xl font-bold leading-none">{scoreboard.awayScore}</span>
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* CONTROLES DEL HOST */}
               {soyHost && overlayVisible && (
                 <div className="bg-black/90 backdrop-blur-md px-3 py-2 border-t border-white/10 space-y-1.5">
                   {scoreboard.enabled && (
                     <div className="grid grid-cols-2 gap-2">
                       <div className="flex items-center justify-center gap-1">
-                        <button onClick={() => changeScore('home', -1)}
-                          className="w-7 h-7 rounded bg-red-500/80 hover:bg-red-500 text-white text-xs font-bold">−</button>
-                        <button onClick={() => changeScore('home', 1)}
-                          className="w-7 h-7 rounded bg-green-500/80 hover:bg-green-500 text-white text-xs font-bold">+1</button>
-                        <button onClick={() => changeScore('home', 2)}
-                          className="w-7 h-7 rounded bg-blue-500/80 hover:bg-blue-500 text-white text-xs font-bold">+2</button>
-                        <button onClick={() => changeScore('home', 3)}
-                          className="w-7 h-7 rounded bg-purple-500/80 hover:bg-purple-500 text-white text-xs font-bold">+3</button>
-                        <button onClick={() => setScoreManually('home')}
-                          className="w-7 h-7 rounded bg-white/20 hover:bg-white/30 text-white text-xs">✏️</button>
+                        <button onClick={() => changeScore('home', -1)} className="w-7 h-7 rounded bg-red-500/80 hover:bg-red-500 text-white text-xs font-bold">−</button>
+                        <button onClick={() => changeScore('home', 1)} className="w-7 h-7 rounded bg-green-500/80 hover:bg-green-500 text-white text-xs font-bold">+1</button>
+                        <button onClick={() => changeScore('home', 2)} className="w-7 h-7 rounded bg-blue-500/80 hover:bg-blue-500 text-white text-xs font-bold">+2</button>
+                        <button onClick={() => changeScore('home', 3)} className="w-7 h-7 rounded bg-purple-500/80 hover:bg-purple-500 text-white text-xs font-bold">+3</button>
+                        <button onClick={() => setScoreManually('home')} className="w-7 h-7 rounded bg-white/20 hover:bg-white/30 text-white text-xs">✏️</button>
                       </div>
                       <div className="flex items-center justify-center gap-1">
-                        <button onClick={() => changeScore('away', -1)}
-                          className="w-7 h-7 rounded bg-red-500/80 hover:bg-red-500 text-white text-xs font-bold">−</button>
-                        <button onClick={() => changeScore('away', 1)}
-                          className="w-7 h-7 rounded bg-green-500/80 hover:bg-green-500 text-white text-xs font-bold">+1</button>
-                        <button onClick={() => changeScore('away', 2)}
-                          className="w-7 h-7 rounded bg-blue-500/80 hover:bg-blue-500 text-white text-xs font-bold">+2</button>
-                        <button onClick={() => changeScore('away', 3)}
-                          className="w-7 h-7 rounded bg-purple-500/80 hover:bg-purple-500 text-white text-xs font-bold">+3</button>
-                        <button onClick={() => setScoreManually('away')}
-                          className="w-7 h-7 rounded bg-white/20 hover:bg-white/30 text-white text-xs">✏️</button>
+                        <button onClick={() => changeScore('away', -1)} className="w-7 h-7 rounded bg-red-500/80 hover:bg-red-500 text-white text-xs font-bold">−</button>
+                        <button onClick={() => changeScore('away', 1)} className="w-7 h-7 rounded bg-green-500/80 hover:bg-green-500 text-white text-xs font-bold">+1</button>
+                        <button onClick={() => changeScore('away', 2)} className="w-7 h-7 rounded bg-blue-500/80 hover:bg-blue-500 text-white text-xs font-bold">+2</button>
+                        <button onClick={() => changeScore('away', 3)} className="w-7 h-7 rounded bg-purple-500/80 hover:bg-purple-500 text-white text-xs font-bold">+3</button>
+                        <button onClick={() => setScoreManually('away')} className="w-7 h-7 rounded bg-white/20 hover:bg-white/30 text-white text-xs">✏️</button>
                       </div>
                     </div>
                   )}
@@ -1313,29 +1251,14 @@ export default function LiveStreamTab({ match }: Props) {
                   {scoreboard.clockEnabled && (
                     <div className="flex items-center justify-center gap-2 flex-wrap">
                       {!scoreboard.clockRunning ? (
-                        <button onClick={() => clockAction('play')}
-                          className="px-3 py-1.5 rounded bg-green-500/80 hover:bg-green-500 text-white text-xs font-bold">
-                          ▶️ Iniciar
-                        </button>
+                        <button onClick={() => clockAction('play')} className="px-3 py-1.5 rounded bg-green-500/80 hover:bg-green-500 text-white text-xs font-bold">▶️ Iniciar</button>
                       ) : (
-                        <button onClick={() => clockAction('pause')}
-                          className="px-3 py-1.5 rounded bg-orange-500/80 hover:bg-orange-500 text-white text-xs font-bold">
-                          ⏸️ Pausar
-                        </button>
+                        <button onClick={() => clockAction('pause')} className="px-3 py-1.5 rounded bg-orange-500/80 hover:bg-orange-500 text-white text-xs font-bold">⏸️ Pausar</button>
                       )}
-                      <button onClick={() => clockAction('reset')}
-                        className="px-3 py-1.5 rounded bg-white/20 hover:bg-white/30 text-white text-xs font-bold">
-                        🔄 Reset
-                      </button>
-                      <button onClick={setClockManually}
-                        className="px-3 py-1.5 rounded bg-blue-500/80 hover:bg-blue-500 text-white text-xs font-bold">
-                        ✏️ Editar
-                      </button>
-                      <button onClick={nextPeriod}
-                        className="px-3 py-1.5 rounded bg-indigo-500/80 hover:bg-indigo-500 text-white text-xs font-bold">
-                        ➡️ Siguiente
-                      </button>
-                    </div>
+                      <button onClick={() => clockAction('reset')} className="px-3 py-1.5 rounded bg-white/20 hover:bg-white/30 text-white text-xs font-bold">🔄 Reset</button>
+                      <button onClick={setClockManually} className="px-3 py-1.5 rounded bg-blue-500/80 hover:bg-blue-500 text-white text-xs font-bold">✏️ Editar</button>
+                     <button onClick={() => changePeriod(-1)} disabled={scoreboard.currentPeriod <= 1} className="px-3 py-1.5 rounded bg-indigo-500/80 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-bold">⬅️ Q-</button>
+                      <button onClick={() => changePeriod(1)} className="px-3 py-1.5 rounded bg-indigo-500/80 hover:bg-indigo-500 text-white text-xs font-bold">Q+ ➡️</button>          </div>
                   )}
                 </div>
               )}
@@ -1343,40 +1266,35 @@ export default function LiveStreamTab({ match }: Props) {
           </div>
         )}
 
-        {/* Controles flotantes sobre el vídeo */}
+        {/* ✅ NUEVO: Logo de la app (esquina superior izquierda) */}
+        <div className="absolute top-4 left-4 flex items-center gap-2 pointer-events-none z-10">
+          <div className="bg-black/40 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 flex items-center shadow-lg">
+            <Logo variant="mark" height={24} />
+            <span className="text-white font-bold text-sm ml-2 tracking-wide">
+              JoinSport
+            </span>
+          </div>
+        </div>
+
         <div className="absolute top-4 right-4 flex gap-2">
           {soyHost && (
-            <button
-              onClick={switchCamera}
-              className="px-3 py-2 rounded-full text-xs font-medium transition bg-white/90 text-gray-800 hover:bg-white"
-              title={facingMode === 'user' ? 'Cambiar a cámara trasera' : 'Cambiar a cámara frontal'}
-            >
+            <button onClick={switchCamera} className="px-3 py-2 rounded-full text-xs font-medium transition bg-white/90 text-gray-800 hover:bg-white" title={facingMode === 'user' ? 'Cambiar a cámara trasera' : 'Cambiar a cámara frontal'}>
               {facingMode === 'user' ? '🤳' : '📷'}
             </button>
           )}
 
-          <button
-            onClick={toggleFullscreen}
-            className="px-3 py-2 rounded-full text-xs font-medium transition bg-white/90 text-gray-800 hover:bg-white"
-            title={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}
-          >
+          <button onClick={toggleFullscreen} className="px-3 py-2 rounded-full text-xs font-medium transition bg-white/90 text-gray-800 hover:bg-white" title={isFullscreen ? 'Salir de pantalla completa' : 'Pantalla completa'}>
             {isFullscreen ? '⛶' : '⛶'}
           </button>
 
           {soyHost && (
-            <button onClick={toggleCamera}
-              className={`px-3 py-2 rounded-full text-xs font-medium transition ${
-                cameraOn ? 'bg-white/90 text-gray-800' : 'bg-danger text-white'
-              }`}>
+            <button onClick={toggleCamera} className={`px-3 py-2 rounded-full text-xs font-medium transition ${cameraOn ? 'bg-white/90 text-gray-800' : 'bg-danger text-white'}`}>
               {cameraOn ? '📸' : '📸❌'}
             </button>
           )}
 
           {soyHost && (
-            <button onClick={toggleAudio}
-              className={`px-3 py-2 rounded-full text-xs font-medium transition ${
-                audioOn ? 'bg-white/90 text-gray-800' : 'bg-danger text-white'
-              }`}>
+            <button onClick={toggleAudio} className={`px-3 py-2 rounded-full text-xs font-medium transition ${audioOn ? 'bg-white/90 text-gray-800' : 'bg-danger text-white'}`}>
               {audioOn ? '🎤' : '🔇'}
             </button>
           )}

@@ -34,8 +34,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [mounted, setMounted] = useState(false)
   const [pendingInvitations, setPendingInvitations] = useState(0)
-  // ✅ NUEVO — ¿El user es ADMIN_CLUB en algún club?
-  // Sirve para mostrar "Mis Clubs" también a ADMIN_CLUB (antes solo SUPER_ADMIN).
   const [isAnyClubAdmin, setIsAnyClubAdmin] = useState(false)
 
   const authRoutes = ['/login', '/register']
@@ -58,9 +56,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         .then((list) => setPendingInvitations(list.length))
         .catch(() => setPendingInvitations(0))
 
-      // ✅ NUEVO — Comprobamos si el user es ADMIN_CLUB en algún club.
-      // El endpoint /clubs devuelve solo los clubs del user, con sus
-      // members activos. Comprobamos si el user aparece como ADMIN_CLUB.
       clubsApi
         .getMine()
         .then((clubs: ClubListItem[]) => {
@@ -91,15 +86,11 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
 
   const handleLogout = () => {
     try {
-      localStorage.removeItem('token')
-      localStorage.removeItem('refreshToken')
-      localStorage.removeItem('user')
-      localStorage.removeItem('activeTeamId')
+      localStorage.clear()
     } catch (e) {
       console.error('Error limpiando localStorage:', e)
     }
-    // Forzamos recarga completa para que los Providers se reinicien
-    // y no queden cachés residuales del usuario anterior.
+    
     if (typeof window !== 'undefined') {
       window.location.href = '/login'
     } else {
@@ -189,22 +180,22 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             </div>
 
             {/* CENTRO (solo desktop) */}
-{activeTeam && (
-  <div className="hidden lg:flex items-center gap-1 flex-1 justify-start overflow-x-auto scrollbar-menu">
-    {visibleTabs.map((tab) => {
-      const href = tab.href(teamId)
-      return (
-        <Link
-          key={tab.id}
-          href={href}
-          className={linkClass(href, 'px-3 py-2 rounded-lg text-sm whitespace-nowrap shrink-0')}
-        >
-          {tab.label}
-        </Link>
-      )
-    })}
-  </div>
-)}
+            {activeTeam && (
+              <div className="hidden lg:flex items-center gap-1 flex-1 justify-start overflow-x-auto scrollbar-menu">
+                {visibleTabs.map((tab) => {
+                  const href = tab.href(teamId)
+                  return (
+                    <Link
+                      key={tab.id}
+                      href={href}
+                      className={linkClass(href, 'px-3 py-2 rounded-lg text-sm whitespace-nowrap shrink-0')}
+                    >
+                      {tab.label}
+                    </Link>
+                  )
+                })}
+              </div>
+            )}
 
             {/* DERECHA */}
             <div className="flex items-center gap-3 shrink-0">
@@ -409,9 +400,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                 <span className="text-sm font-medium">Configuración</span>
               </Link>
 
-              {/* ✅ AMPLIADO — "Mis Clubs" ahora también para ADMIN_CLUB,
-                  no solo SUPER_ADMIN. La condición se resuelve con
-                  isAnyClubAdmin, calculado en el useEffect de arriba. */}
               {(currentUser?.role === 'SUPER_ADMIN' || isAnyClubAdmin) && (
                 <>
                   <Link
@@ -436,12 +424,55 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                 </>
               )}
 
+              {/* ✅ NUEVO: Redes sociales y soporte */}
+              <div className="pt-4 mt-2 border-t border-border-subtle">
+                <p className="text-[10px] uppercase font-semibold text-text-muted mb-2 px-2">
+                  Síguenos y soporte
+                </p>
+                <div className="flex items-center gap-3 px-2">
+                  {/* Instagram */}
+                  <a
+                    href="https://instagram.com/joinsportapp"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-text-muted hover:text-[#E1306C] transition-colors"
+                    title="Instagram"
+                  >
+                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                    </svg>
+                  </a>
+
+                  {/* X (Twitter) */}
+                  <a
+                    href="https://x.com/joinsportapp"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-text-muted hover:text-text-primary transition-colors"
+                    title="X"
+                  >
+                    <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                    </svg>
+                  </a>
+
+                  {/* Email de soporte */}
+                  <a
+                    href="mailto:support@joinsportapp.com"
+                    className="ml-auto text-xs text-text-muted hover:text-brand-primary transition-colors"
+                    title="Enviar email a soporte"
+                  >
+                    support@joinsportapp.com
+                  </a>
+                </div>
+              </div>
+
               <button
                 onClick={() => {
                   setSidebarOpen(false)
                   handleLogout()
                 }}
-                className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-danger/10 transition text-danger"
+                className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-danger/10 transition text-danger mt-2"
               >
                 <span className="text-lg">🚪</span>
                 <span className="text-sm font-medium">Cerrar Sesión</span>

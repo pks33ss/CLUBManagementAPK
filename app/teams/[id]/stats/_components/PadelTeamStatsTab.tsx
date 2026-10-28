@@ -11,6 +11,7 @@ import type {
   AvailableTrendMetric,
 } from '@/lib/api/teams'
 import type { SetResult } from '@/lib/api/matches'
+import { useMemo } from 'react'
 
 interface Props {
   teamId: string
@@ -53,6 +54,53 @@ export default function PadelTeamStatsTab({
   const appliedTrend = availableTrendMetrics.find((m) => m.key === trendMetric)
   const isTrendUnavailable =
     trend.series === null && trend.requestedMetric !== null
+
+  // ── CÁLCULO DE TOTALES (Suma de todos los jugadores) ──
+  const totals = useMemo(() => {
+    const acc = {
+      matches: 0,
+      wins: 0,
+      losses: 0,
+      draws: 0,
+      availabilityCount: 0,
+      teamMatches: 0,
+      subMatchesPlayed: 0,
+      subMatchesWon: 0,
+      subMatchesLost: 0,
+      subMatchesDrawn: 0,
+      setsPlayed: 0,
+      setsWon: 0,
+      setsLost: 0,
+      setsDrawn: 0,
+      gamesWon: 0,
+      gamesLost: 0,
+      gamesDiff: 0,
+    }
+
+    for (const p of players) {
+      acc.matches += p.matches
+      acc.wins += p.wins
+      acc.losses += p.losses
+      acc.draws += p.draws
+      acc.availabilityCount += p.availabilityCount
+      acc.teamMatches += p.teamMatches
+      acc.subMatchesPlayed += p.subMatchesPlayed
+      acc.subMatchesWon += p.subMatchesWon
+      acc.subMatchesLost += p.subMatchesLost
+      acc.subMatchesDrawn += p.subMatchesDrawn
+      acc.setsPlayed += p.setsPlayed
+      acc.setsWon += p.setsWon
+      acc.setsLost += p.setsLost
+      acc.setsDrawn += p.setsDrawn
+      acc.gamesWon += p.gamesWon
+      acc.gamesLost += p.gamesLost
+    }
+
+    return {
+      ...acc,
+      gamesDiff: acc.gamesWon - acc.gamesLost,
+    }
+  }, [players])
 
   return (
     <div className="space-y-6">
@@ -334,6 +382,72 @@ export default function PadelTeamStatsTab({
                     />
                   ))}
                 </tbody>
+                {/* ✅ NUEVO — Fila de totales del equipo */}
+                <tfoot className="bg-brand-primary/5 border-t-2 border-brand-primary/30">
+                  <tr className="font-semibold">
+                    <td className="px-3 py-2 text-left text-text-primary">
+                      <span className="text-[10px] uppercase tracking-wide text-brand-primary">
+                        TOTALES
+                      </span>
+                    </td>
+                    {show('PLAYER_MATCHES') && (
+                      <td className="px-3 py-2 text-center text-brand-primary font-bold">
+                        {totals.matches}
+                      </td>
+                    )}
+                    {show('PLAYER_W_L_D') && (
+                      <td className="px-3 py-2 text-center text-text-primary whitespace-nowrap">
+                        {totals.wins}-{totals.losses}
+                        {totals.draws > 0 ? `-${totals.draws}` : ''}
+                      </td>
+                    )}
+                    {show('AVAILABILITY') && (
+                      <td className="px-3 py-2 text-center text-text-muted">
+                        —
+                      </td>
+                    )}
+                    {show('PLAYER_WIN_RATE') && (
+                      <td className="px-3 py-2 text-center text-text-muted">
+                        —
+                      </td>
+                    )}
+                    {show('PLAYER_SUB_MATCHES') && (
+                      <td className="px-3 py-2 text-center text-text-primary">
+                        {totals.subMatchesWon}-{totals.subMatchesLost}
+                        {totals.subMatchesDrawn > 0
+                          ? `-${totals.subMatchesDrawn}`
+                          : ''}
+                      </td>
+                    )}
+                    {show('PLAYER_SETS') && (
+                      <td className="px-3 py-2 text-center text-text-primary">
+                        {totals.setsWon}-{totals.setsLost}
+                        {totals.setsDrawn > 0 ? `-${totals.setsDrawn}` : ''}
+                      </td>
+                    )}
+                    {show('PLAYER_GAMES') && (
+                      <td className="px-3 py-2 text-center text-text-primary">
+                        {totals.gamesWon}-{totals.gamesLost}
+                      </td>
+                    )}
+                    {show('PLAYER_GAMES_DIFF') && (
+                      <td
+                        className={`px-3 py-2 text-center font-bold ${
+                          totals.gamesDiff > 0
+                            ? 'text-success'
+                            : totals.gamesDiff < 0
+                            ? 'text-danger'
+                            : 'text-text-muted'
+                        }`}
+                      >
+                        {totals.gamesDiff > 0
+                          ? `+${totals.gamesDiff}`
+                          : totals.gamesDiff}
+                      </td>
+                    )}
+                    <td className="px-2 py-2"></td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           )}

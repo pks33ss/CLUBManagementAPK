@@ -1,26 +1,27 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, Suspense } from 'react' // <-- AÑADIR Suspense
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import api from '@/lib/api'
 import { Button, Input } from '@/components/ui'
 import { Logo } from '@/components/ui/Logo'
 
-// El botón de Google se carga solo en el cliente.
-// `ssr: false` evita que el prerender de Next.js falle porque
-// GoogleLogin necesita el GoogleOAuthProvider en runtime.
 const GoogleLoginButton = dynamic(
   () => import('@/components/GoogleLoginButton'),
   { ssr: false, loading: () => null },
 )
 
-export default function Login() {
+function LoginContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const redirectUrl = searchParams.get('redirect')
+
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
+  const [demoLoading, setDemoLoading] = useState(false)
   const [error, setError] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -38,7 +39,8 @@ export default function Login() {
       localStorage.setItem('refreshToken', response.data.refreshToken)
       localStorage.setItem('user', JSON.stringify(response.data.user))
 
-      router.push('/home')
+      const finalUrl = redirectUrl ? decodeURIComponent(redirectUrl) : '/home'
+      router.push(finalUrl)
     } catch (err: any) {
       console.error('Error:', err)
       const message =
@@ -47,6 +49,39 @@ export default function Login() {
       setError(message)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleDemoLogin = async () => {
+    setDemoLoading(true)
+    setError('')
+
+    localStorage.clear()
+
+    try {
+      const response = await api.post('/auth/login', {
+        email: 'demo@joinsportapp.com',
+        password: 'demo123',
+      })
+
+      localStorage.setItem('token', response.data.accessToken)
+      localStorage.setItem('refreshToken', response.data.refreshToken)
+      localStorage.setItem('user', JSON.stringify(response.data.user))
+
+      localStorage.setItem('joinsport-active-team', JSON.stringify({
+        id: 'cmv7ykscj006v8gv4z5acnost',
+        name: 'Equipo Baloncesto Demo',
+        sport: 'BASKETBALL',
+        club: { id: 'cmv7yjcos00008gv4yu12ak9n', name: 'JoinSport' }
+      }))
+
+      localStorage.setItem('isDemoUser', 'true')
+      router.push('/home')
+    } catch (err: any) {
+      console.error('Error Demo:', err)
+      setError(err.response?.data?.message || 'Error al entrar a la demo.')
+    } finally {
+      setDemoLoading(false)
     }
   }
 
@@ -68,7 +103,8 @@ export default function Login() {
       localStorage.setItem('refreshToken', response.data.refreshToken)
       localStorage.setItem('user', JSON.stringify(response.data.user))
 
-      router.push('/home')
+      const finalUrl = redirectUrl ? decodeURIComponent(redirectUrl) : '/home'
+      router.push(finalUrl)
     } catch (err: any) {
       console.error('Error Google login:', err)
       const message =
@@ -121,7 +157,7 @@ export default function Login() {
 
           <Button
             type="submit"
-            disabled={loading}
+            disabled={loading || demoLoading}
             loading={loading}
             className="w-full"
             size="lg"
@@ -130,7 +166,6 @@ export default function Login() {
           </Button>
         </form>
 
-        {/* Separador */}
         <div className="flex items-center gap-3 my-6">
           <div className="flex-1 h-px bg-border-subtle" />
           <span className="text-xs text-text-muted uppercase font-medium">
@@ -139,23 +174,34 @@ export default function Login() {
           <div className="flex-1 h-px bg-border-subtle" />
         </div>
 
-        {/* Botón de Google (client-only) */}
         <GoogleLoginButton
           onSuccess={handleGoogleSuccess}
           onError={() => setError('Error al iniciar sesión con Google')}
         />
 
+        <div className="mt-6">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={handleDemoLogin}
+            disabled={loading || demoLoading}
+            loading={demoLoading}
+            className="w-full border-brand-primary text-brand-primary hover:bg-brand-primary/10"
+          >
+            {demoLoading ? 'Cargando demo...' : '🚀 Probar la Demo (Solo lectura)'}
+          </Button>
+        </div>
+
         <p className="text-center text-sm text-text-secondary mt-6">
           ¿No tienes cuenta?{' '}
           <Link
-            href="/register"
+            href={`/register${redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : ''}`}
             className="text-brand-primary hover:underline font-medium"
           >
             Regístrate
           </Link>
         </p>
 
-        {/* Aviso: aplicación en desarrollo */}
         <div className="mt-6 bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
           <p className="text-sm font-semibold text-amber-600 flex items-center gap-2">
             <span aria-hidden="true">⚠️</span>
@@ -168,5 +214,19 @@ export default function Login() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function Login() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-bg-base flex items-center justify-center text-text-muted">
+          Cargando...
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
   )
 }

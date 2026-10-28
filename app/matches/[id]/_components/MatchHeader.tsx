@@ -1,5 +1,3 @@
-// frontend-web/app/matches/[id]/_components/MatchHeader.tsx
-
 'use client'
 
 import { useState } from 'react'
@@ -17,6 +15,8 @@ interface Props {
 export default function MatchHeader({ match, onUpdate }: Props) {
   const [showEditModal, setShowEditModal] = useState(false)
   const [showResultModal, setShowResultModal] = useState(false)
+  
+  // ✅ TIPADO EXPLÍCITO AQUÍ
   const [editForm, setEditForm] = useState<{
     opponent: string
     date: string
@@ -30,13 +30,18 @@ export default function MatchHeader({ match, onUpdate }: Props) {
     venue: match.venue || '',
     competition: match.competition || '',
   })
+  
   const [resultForm, setResultForm] = useState({
     teamScore: match.teamScore ?? 0,
     opponentScore: match.opponentScore ?? 0,
+    manualWinner: (match as any).manualWinner || null,
   })
   const [saving, setSaving] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [deleting, setDeleting] = useState(false)
+
+  const isPadel = match.team?.sport === 'PADEL'
+  const isTie = Number(resultForm.teamScore) === Number(resultForm.opponentScore)
 
   const getStatusVariant = (status: string): 'info' | 'warning' | 'success' | 'danger' | 'neutral' => {
     switch (status) {
@@ -121,6 +126,7 @@ export default function MatchHeader({ match, onUpdate }: Props) {
       await api.put(`/matches/${match.id}/result`, {
         teamScore: Number(resultForm.teamScore),
         opponentScore: Number(resultForm.opponentScore),
+        manualWinner: isPadel ? resultForm.manualWinner : null,
       })
       setShowResultModal(false)
       onUpdate()
@@ -149,6 +155,7 @@ export default function MatchHeader({ match, onUpdate }: Props) {
   const isFinished = match.status === 'FINISHED'
   const weWon = match.teamScore !== null && match.opponentScore !== null && match.teamScore > match.opponentScore
   const weLost = match.teamScore !== null && match.opponentScore !== null && match.teamScore < match.opponentScore
+  const manualWinner = (match as any).manualWinner
 
   return (
     <>
@@ -175,24 +182,13 @@ export default function MatchHeader({ match, onUpdate }: Props) {
             {match.competition && <p className="text-text-secondary text-sm">🏆 {match.competition}</p>}
 
             <div className="flex gap-3 mt-4 flex-wrap">
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={() => setShowEditModal(true)}
-              >
+              <Button variant="secondary" size="sm" onClick={() => setShowEditModal(true)}>
                 ✏️ Editar datos
               </Button>
-              <Button
-                size="sm"
-                onClick={() => setShowResultModal(true)}
-              >
+              <Button size="sm" onClick={() => setShowResultModal(true)}>
                 {isFinished ? '🔄 Actualizar resultado' : '🏆 Añadir resultado'}
               </Button>
-              <Button
-                variant="danger"
-                size="sm"
-                onClick={() => setShowDeleteModal(true)}
-              >
+              <Button variant="danger" size="sm" onClick={() => setShowDeleteModal(true)}>
                 🗑️ Eliminar partido
               </Button>
             </div>
@@ -224,7 +220,7 @@ export default function MatchHeader({ match, onUpdate }: Props) {
                 </p>
                 {isFinished ? (
                   <p className="text-sm font-medium text-text-secondary mt-2">
-                    {weWon ? '🏆 Victoria' : weLost ? '❌ Derrota' : '🤝 Empate'}
+                    {weWon || manualWinner === 'TEAM' ? '🏆 Victoria' : weLost || manualWinner === 'OPPONENT' ? '❌ Derrota' : '🤝 Empate'}
                   </p>
                 ) : (
                   <p className="text-xs text-text-muted text-center mt-2">
@@ -240,174 +236,93 @@ export default function MatchHeader({ match, onUpdate }: Props) {
       </div>
 
       {/* Modal Editar */}
-      <Modal
-        isOpen={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        title="✏️ Editar partido"
-        size="md"
-      >
+      <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)} title="✏️ Editar partido" size="md">
         <form onSubmit={handleEdit} className="space-y-4">
-          <Input
-            label="Rival *"
-            type="text"
-            value={editForm.opponent}
-            onChange={(e) => setEditForm({ ...editForm, opponent: e.target.value })}
-            required
-          />
-          <Input
-            label="Fecha y hora *"
-            type="datetime-local"
-            value={editForm.date}
-            onChange={(e) => setEditForm({ ...editForm, date: e.target.value })}
-            required
-          />
-          <Select
-            label="Ubicación *"
-            value={editForm.location}
-            onChange={(e) =>
-              setEditForm({
-                ...editForm,
-                location: e.target.value as 'HOME' | 'AWAY' | 'NEUTRAL' | '',
-              })
-            }
-            required
-          >
+          <Input label="Rival *" type="text" value={editForm.opponent} onChange={(e) => setEditForm({ ...editForm, opponent: e.target.value })} required />
+          <Input label="Fecha y hora *" type="datetime-local" value={editForm.date} onChange={(e) => setEditForm({ ...editForm, date: e.target.value })} required />
+          <Select label="Ubicación *" value={editForm.location} onChange={(e) => setEditForm({ ...editForm, location: e.target.value as 'HOME' | 'AWAY' | 'NEUTRAL' | '' })} required>
             <option value="">— Selecciona —</option>
             <option value="HOME">🏠 Casa</option>
             <option value="AWAY">✈️ Fuera</option>
           </Select>
-          <Input
-            label="Pabellón"
-            type="text"
-            value={editForm.venue}
-            onChange={(e) => setEditForm({ ...editForm, venue: e.target.value })}
-          />
-          <Input
-            label="Competición"
-            type="text"
-            value={editForm.competition}
-            onChange={(e) => setEditForm({ ...editForm, competition: e.target.value })}
-          />
-
+          <Input label="Pabellón" type="text" value={editForm.venue} onChange={(e) => setEditForm({ ...editForm, venue: e.target.value })} />
+          <Input label="Competición" type="text" value={editForm.competition} onChange={(e) => setEditForm({ ...editForm, competition: e.target.value })} />
           <div className="flex gap-3 pt-2">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setShowEditModal(false)}
-              disabled={saving}
-              className="flex-1"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={saving}
-              loading={saving}
-              className="flex-1"
-            >
-              {saving ? 'Guardando...' : 'Guardar'}
-            </Button>
+            <Button type="button" variant="secondary" onClick={() => setShowEditModal(false)} disabled={saving} className="flex-1">Cancelar</Button>
+            <Button type="submit" disabled={saving} loading={saving} className="flex-1">{saving ? 'Guardando...' : 'Guardar'}</Button>
           </div>
         </form>
       </Modal>
 
       {/* Modal Resultado */}
-      <Modal
-        isOpen={showResultModal}
-        onClose={() => setShowResultModal(false)}
-        title="🏆 Resultado final"
-        size="md"
-      >
+      <Modal isOpen={showResultModal} onClose={() => setShowResultModal(false)} title="🏆 Resultado final" size="md">
         <form onSubmit={handleResult} className="space-y-4">
           <p className="text-xs text-text-muted">
-            Introduce los puntos de cada equipo. El resultado se guardará
-            desde nuestra perspectiva (nuestro equipo / rival), independientemente
-            de dónde se juegue.
+            Introduce los puntos de cada equipo. El resultado se guardará desde nuestra perspectiva (nuestro equipo / rival).
           </p>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1">
-                {match.team.name}
-              </label>
-              <input
-                type="number"
-                value={resultForm.teamScore}
-                onChange={(e) =>
-                  setResultForm({ ...resultForm, teamScore: Number(e.target.value) })
-                }
-                className="w-full px-4 py-3 text-center text-2xl font-bold bg-surface-elevated border-2 border-border-subtle text-text-primary rounded-lg focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"
-                min="0"
-                required
-              />
+              <label className="block text-sm font-medium text-text-secondary mb-1">{match.team.name}</label>
+              <input type="number" value={resultForm.teamScore} onChange={(e) => setResultForm({ ...resultForm, teamScore: Number(e.target.value) })} className="w-full px-4 py-3 text-center text-2xl font-bold bg-surface-elevated border-2 border-border-subtle text-text-primary rounded-lg focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition" min="0" required />
             </div>
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-1">
-                {match.opponent}
-              </label>
-              <input
-                type="number"
-                value={resultForm.opponentScore}
-                onChange={(e) =>
-                  setResultForm({ ...resultForm, opponentScore: Number(e.target.value) })
-                }
-                className="w-full px-4 py-3 text-center text-2xl font-bold bg-surface-elevated border-2 border-border-subtle text-text-primary rounded-lg focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"
-                min="0"
-                required
-              />
+              <label className="block text-sm font-medium text-text-secondary mb-1">{match.opponent}</label>
+              <input type="number" value={resultForm.opponentScore} onChange={(e) => setResultForm({ ...resultForm, opponentScore: Number(e.target.value) })} className="w-full px-4 py-3 text-center text-2xl font-bold bg-surface-elevated border-2 border-border-subtle text-text-primary rounded-lg focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition" min="0" required />
             </div>
           </div>
+          
+          {/* ✅ Selector de Ganador Manual (solo Pádel y si hay empate) */}
+          {isPadel && isTie && (
+            <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 mt-4">
+              <p className="text-sm font-semibold text-warning mb-2">
+                ⚖️ Empate en el marcador global
+              </p>
+              <p className="text-xs text-text-muted mb-3">
+                En pádel, un empate se decide por punto de oro. Selecciona quién ganó el partido para que cuente en las estadísticas:
+              </p>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setResultForm({ ...resultForm, manualWinner: 'TEAM' })}
+                  className={`flex-1 py-2 px-3 rounded-lg border-2 font-medium transition ${
+                    resultForm.manualWinner === 'TEAM'
+                      ? 'border-success bg-success/20 text-success'
+                      : 'border-border-subtle hover:border-success/50 text-text-secondary'
+                  }`}
+                >
+                  🏆 Gana {match.team.name}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setResultForm({ ...resultForm, manualWinner: 'OPPONENT' })}
+                  className={`flex-1 py-2 px-3 rounded-lg border-2 font-medium transition ${
+                    resultForm.manualWinner === 'OPPONENT'
+                      ? 'border-success bg-success/20 text-success'
+                      : 'border-border-subtle hover:border-success/50 text-text-secondary'
+                  }`}
+                >
+                  🏆 Gana {match.opponent}
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-3 pt-2">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => setShowResultModal(false)}
-              disabled={saving}
-              className="flex-1"
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              disabled={saving}
-              loading={saving}
-              className="flex-1"
-            >
-              {saving ? 'Guardando...' : 'Guardar resultado'}
-            </Button>
+            <Button type="button" variant="secondary" onClick={() => setShowResultModal(false)} disabled={saving} className="flex-1">Cancelar</Button>
+            <Button type="submit" disabled={saving} loading={saving} className="flex-1">{saving ? 'Guardando...' : 'Guardar resultado'}</Button>
           </div>
         </form>
       </Modal>
 
       {/* Modal Eliminar */}
-      <Modal
-        isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-        title="🗑️ Eliminar partido"
-        size="sm"
-      >
+      <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="🗑️ Eliminar partido" size="sm">
         <p className="text-text-secondary mb-6">
           ¿Seguro que quieres eliminar el partido <strong className="text-text-primary">vs {match.opponent}</strong>?
-          Se eliminarán también las convocatorias y estadísticas asociadas.
-          Esta acción no se puede deshacer.
+          Se eliminarán también las convocatorias y estadísticas asociadas. Esta acción no se puede deshacer.
         </p>
         <div className="flex gap-3">
-          <Button
-            variant="secondary"
-            onClick={() => setShowDeleteModal(false)}
-            disabled={deleting}
-            className="flex-1"
-          >
-            Cancelar
-          </Button>
-          <Button
-            variant="danger"
-            onClick={handleDelete}
-            disabled={deleting}
-            loading={deleting}
-            className="flex-1"
-          >
-            {deleting ? 'Eliminando...' : 'Sí, eliminar'}
-          </Button>
+          <Button variant="secondary" onClick={() => setShowDeleteModal(false)} disabled={deleting} className="flex-1">Cancelar</Button>
+          <Button variant="danger" onClick={handleDelete} disabled={deleting} loading={deleting} className="flex-1">{deleting ? 'Eliminando...' : 'Sí, eliminar'}</Button>
         </div>
       </Modal>
     </>

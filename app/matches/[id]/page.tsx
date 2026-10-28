@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import api from '@/lib/api'
 import { getSportConfig } from '@/lib/sport'
@@ -133,7 +133,11 @@ type Tab = 'callups' | 'lineup' | 'stats' | 'gameplan' | 'notes' | 'live' | 'pis
 export default function MatchDetailPage() {
   const router = useRouter()
   const params = useParams()
+  const searchParams = useSearchParams()
   const matchId = params.id as string
+
+  // ✅ NUEVO: Comprobar si es espectador
+  const isSpectator = searchParams.get('spectator') === 'true'
 
   const [match, setMatch] = useState<MatchDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -146,9 +150,9 @@ export default function MatchDetailPage() {
       setMatch(res.data)
       setError(null)
     } catch (err: any) {
-      if (err.response?.status === 404) setError('Partido no encontrado')
-      else if (err.response?.status === 403) setError('No tienes acceso a este partido')
-      else setError('Error al cargar el partido')
+        if (err.response?.status === 404) setError('Partido no encontrado')
+        else if (err.response?.status === 403) setError('No tienes acceso a este partido')
+        else setError('Error al cargar el partido')
     } finally {
       setLoading(false)
     }
@@ -157,12 +161,27 @@ export default function MatchDetailPage() {
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token) {
-      router.push('/login')
+      // ✅ Guardamos la URL exacta a la que queremos volver (con ?spectator=true si lo hay)
+      const currentUrl = `/matches/${matchId}${isSpectator ? '?spectator=true' : ''}`
+      router.push(`/login?redirect=${encodeURIComponent(currentUrl)}`)
       return
     }
-    fetchMatch()
-  }, [matchId])
 
+    const init = async () => {
+      if (isSpectator) {
+        try {
+          await api.post(`/matches/${matchId}/live/join-spectator`)
+        } catch (err) {
+          console.error('Error al obtener el pase de espectador', err)
+        }
+      }
+      await fetchMatch()
+    }
+
+    init()
+  }, [matchId, isSpectator, router])
+
+  // ✅ Si está cargando o hay error, mostramos el loader/error
   if (loading) {
     return <div className="text-center py-12 text-text-muted">Cargando partido...</div>
   }
@@ -171,8 +190,8 @@ export default function MatchDetailPage() {
     return (
       <div className="text-center py-12">
         <p className="text-danger mb-4">{error || 'Partido no encontrado'}</p>
-        <Link href="/matches" className="text-brand-primary hover:underline">
-          ← Volver a partidos
+        <Link href={isSpectator ? '/home' : '/matches'} className="text-brand-primary hover:underline">
+          ← Volver
         </Link>
       </div>
     )
@@ -181,6 +200,36 @@ export default function MatchDetailPage() {
   const sport = getSportConfig(match.team?.sport)
   const isPadel = match.team?.sport === 'PADEL'
   const isBasketball = match.team?.sport === 'BASKETBALL'
+
+  // ✅ NUEVO: Si es espectador, solo pintamos el LiveStreamTab
+  if (isSpectator) {
+    return (
+      <div className="max-w-5xl mx-auto px-4 py-8 space-y-4">
+        {/* Cabecera simplificada para el espectador */}
+        <div className="text-center mb-6">
+          <h1 className="text-2xl font-bold text-text-primary">
+            {sport.icon} {match.team?.name} vs {match.opponent}
+          </h1>
+          <p className="text-text-secondary mt-1">
+            Estás viendo este partido como espectador
+          </p>
+        </div>
+
+        <LiveStreamTab match={match} />
+
+        <div className="text-center pt-8 border-t border-border-subtle mt-8">
+          <p className="text-sm text-text-muted">
+            ¿Quieres gestionar tu propio equipo?{' '}
+            <Link href="/register" className="text-brand-primary font-medium hover:underline">
+              Crea tu cuenta gratis
+            </Link>
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // ── VISTA NORMAL (Entrenadores/Jugadores) ──
 
   const tabs: { id: Tab; label: string; icon: string }[] = isPadel
     ? [
