@@ -1055,6 +1055,8 @@
   "oneTeam": "1 team",
   "nTeamsSelected": "{count} teams selected",
   "selectAll": "✓ All",
+"errorLoad": "Error loading matches",
+"backToTeam": "← Back to team",
   "selectNone": "✕ None",
   "noTeamsAssigned": "You don't have any teams assigned",
   "noCategory": "No category",

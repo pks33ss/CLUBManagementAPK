@@ -547,6 +547,8 @@
   "oneTeam": "1 equipo",
   "nTeamsSelected": "{count} equipos seleccionados",
   "selectAll": "✓ Todos",
+  "errorLoad": "Error al cargar los partidos",
+"backToTeam": "← Volver al equipo",
   "selectNone": "✕ Ninguno",
   "noTeamsAssigned": "No tienes equipos asignados",
   "noCategory": "Sin categoría",

@@ -8,13 +8,18 @@ export type MatchSortKey =
   | 'result-win'
   | 'result-loss'
 
-export const SORT_OPTIONS: { value: MatchSortKey }[] = [
-  { value: 'date-asc' },
-  { value: 'date-desc' },
-  { value: 'location' },
-  { value: 'opponent-asc' },
-  { value: 'result-win' },
-  { value: 'result-loss' },
+/**
+ * Opciones de ordenación.
+ * `labelKey` apunta al namespace `Matches.sort.options.*` para que el
+ * componente las traduzca con `t(o.labelKey)`.
+ */
+export const SORT_OPTIONS: { value: MatchSortKey; labelKey: string }[] = [
+  { value: 'date-asc', labelKey: 'sort.options.date-asc' },
+  { value: 'date-desc', labelKey: 'sort.options.date-desc' },
+  { value: 'location', labelKey: 'sort.options.location' },
+  { value: 'opponent-asc', labelKey: 'sort.options.opponent-asc' },
+  { value: 'result-win', labelKey: 'sort.options.result-win' },
+  { value: 'result-loss', labelKey: 'sort.options.result-loss' },
 ]
 
 const STORAGE_KEY = 'matches-sort-preference'
