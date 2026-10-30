@@ -2,6 +2,7 @@
 
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { Card, CardBody, Select, Input, Button } from '@/components/ui'
 import MultiSelect, { type MultiSelectOption } from './MultiSelect'
 
@@ -77,6 +78,8 @@ export default function StatsFilters({
   activeTeamId,
   hidePlayerFilter = false,
 }: Props) {
+  const t = useTranslations('Stats.filters')
+
   const hasFilters =
     value.seasonId !== '' ||
     value.from !== '' ||
@@ -101,13 +104,13 @@ export default function StatsFilters({
     : []
 
   const teamOptions: MultiSelectOption[] = showTeams
-    ? teams!.map((t) => {
-        const parts = [t.category]
-        if (t.isFormer) parts.push('Ex')
+    ? teams!.map((t2) => {
+        const parts = [t2.category]
+        if (t2.isFormer) parts.push(t('formerSuffix'))
         const sublabel = parts.filter(Boolean).join(' · ')
         return {
-          value: t.id,
-          label: t.name,
+          value: t2.id,
+          label: t2.name,
           sublabel: sublabel || undefined,
         }
       })
@@ -118,7 +121,7 @@ export default function StatsFilters({
       <CardBody>
         <div className="flex justify-between items-center mb-4 flex-wrap gap-2">
           <h2 className="text-lg font-semibold text-text-primary">
-            🔎 Filtros
+            {t('title')}
           </h2>
           {hasFilters && (
             <Button
@@ -127,21 +130,21 @@ export default function StatsFilters({
               onClick={() => onChange(EMPTY_FILTERS)}
               disabled={loading}
             >
-              Limpiar filtros
+              {t('clear')}
             </Button>
           )}
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
           <Select
-            label="Temporada"
+            label={t('season')}
             value={value.seasonId}
             onChange={(e) =>
               onChange({ ...value, seasonId: e.target.value })
             }
             disabled={loading}
           >
-            <option value="">Todas</option>
+            <option value="">{t('allSeasons')}</option>
             {seasons.map((s) => (
               <option key={s.id} value={s.id}>
                 {s.name}
@@ -150,7 +153,7 @@ export default function StatsFilters({
           </Select>
 
           <Input
-            label="Desde"
+            label={t('from')}
             type="date"
             value={value.from}
             onChange={(e) => onChange({ ...value, from: e.target.value })}
@@ -158,7 +161,7 @@ export default function StatsFilters({
           />
 
           <Input
-            label="Hasta"
+            label={t('to')}
             type="date"
             value={value.to}
             onChange={(e) => onChange({ ...value, to: e.target.value })}
@@ -167,29 +170,29 @@ export default function StatsFilters({
 
           {!hidePlayerFilter && (
             <MultiSelect
-              label="Jugadores"
+              label={t('players')}
               options={playerOptions}
               value={value.playerIds}
               onChange={(next) => onChange({ ...value, playerIds: next })}
-              placeholder="Todos"
+              placeholder={t('allPlayers')}
               disabled={loading}
-              emptyText="No hay jugadores disponibles"
+              emptyText={t('noPlayersAvailable')}
             />
           )}
 
           {showTeams && (
             <div className="md:col-span-2">
               <MultiSelect
-                label="Equipos"
+                label={t('teams')}
                 options={teamOptions}
                 value={value.teamIds}
                 onChange={(next) => {
                   if (next.length === 0) return
                   onChange({ ...value, teamIds: next })
                 }}
-                placeholder="Selecciona al menos un equipo"
+                placeholder={t('selectAtLeastOneTeam')}
                 disabled={loading}
-                emptyText="No hay equipos disponibles"
+                emptyText={t('noTeamsAvailable')}
               />
             </div>
           )}
@@ -201,13 +204,13 @@ export default function StatsFilters({
               }
             >
               <MultiSelect
-                label="Partidos"
+                label={t('matches')}
                 options={matchOptions}
                 value={value.matchIds}
                 onChange={(next) => onChange({ ...value, matchIds: next })}
-                placeholder="Todos los partidos"
+                placeholder={t('allMatches')}
                 disabled={loading}
-                emptyText="No hay partidos finalizados"
+                emptyText={t('noFinishedMatches')}
               />
             </div>
           )}

@@ -1,6 +1,9 @@
+// frontend-web/components/MultiSelect.tsx
+
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
 
 export interface MultiSelectOption {
   value: string
@@ -24,11 +27,12 @@ export default function MultiSelect({
   options,
   value,
   onChange,
-  placeholder = 'Seleccionar...',
+  placeholder,
   disabled,
-  emptyText = 'Sin opciones',
+  emptyText,
   maxHeight = 280,
 }: Props) {
+  const t = useTranslations('Common.multiSelect')
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState('')
   const ref = useRef<HTMLDivElement>(null)
@@ -71,12 +75,15 @@ export default function MultiSelect({
     }
   }
 
+  const resolvedPlaceholder = placeholder ?? t('placeholder')
+  const resolvedEmptyText = emptyText ?? t('empty')
+
   const labelToShow =
     value.length === 0
-      ? placeholder
+      ? resolvedPlaceholder
       : value.length === 1
-      ? options.find((o) => o.value === value[0])?.label ?? '1 seleccionado'
-      : `${value.length} seleccionados`
+      ? options.find((o) => o.value === value[0])?.label ?? t('oneSelected')
+      : t('nSelected', { count: value.length })
 
   return (
     <div ref={ref} className="relative">
@@ -105,7 +112,7 @@ export default function MultiSelect({
             <div className="p-2 border-b border-border-subtle">
               <input
                 type="text"
-                placeholder="Buscar..."
+                placeholder={t('search')}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 className="w-full text-sm bg-surface-elevated border border-border-subtle text-text-primary rounded px-2 py-1 focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"
@@ -113,13 +120,10 @@ export default function MultiSelect({
             </div>
           )}
 
-          <div
-            className="overflow-y-auto"
-            style={{ maxHeight }}
-          >
+          <div className="overflow-y-auto" style={{ maxHeight }}>
             {filtered.length === 0 ? (
               <p className="text-xs text-text-muted text-center py-3">
-                {emptyText}
+                {resolvedEmptyText}
               </p>
             ) : (
               <>
@@ -133,7 +137,7 @@ export default function MultiSelect({
                       onClick={() => onChange(options.map((o) => o.value))}
                       className="text-[10px] text-brand-primary hover:underline"
                     >
-                      Todos
+                      {t('all')}
                     </button>
                     {value.length > 0 && (
                       <button
@@ -141,7 +145,7 @@ export default function MultiSelect({
                         onClick={() => onChange([])}
                         className="text-[10px] text-danger hover:underline"
                       >
-                        Limpiar
+                        {t('clear')}
                       </button>
                     )}
                   </div>

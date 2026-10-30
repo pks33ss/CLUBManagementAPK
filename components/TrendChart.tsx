@@ -1,3 +1,5 @@
+// frontend-web/components/TrendChart.tsx
+
 'use client'
 
 import {
@@ -9,6 +11,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from 'recharts'
+import { useTranslations } from 'next-intl'
 import type { TrendSeriesPoint } from '@/lib/api/teams'
 
 interface Props {
@@ -29,13 +32,15 @@ export default function TrendChart({
   height = 256,
   isPercentage = false,
 }: Props) {
+  const t = useTranslations('Stats.chart')
+
   if (series.length === 0) {
     return (
       <div
         className="flex items-center justify-center text-text-muted text-sm"
         style={{ height }}
       >
-        Sin datos para esta métrica.
+        {t('noData')}
       </div>
     )
   }
@@ -73,7 +78,7 @@ export default function TrendChart({
               fontSize: 12,
             }}
             formatter={formatter as any}
-            labelFormatter={((l: unknown) => `Mes: ${l}`) as any}
+            labelFormatter={(l) => t('monthTooltip', { month: String(l) })}
           />
           <Line
             type="monotone"
