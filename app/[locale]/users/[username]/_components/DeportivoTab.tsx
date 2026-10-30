@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import { Card, CardBody } from '@/components/ui'
 import type { PlayerProfile } from '@/types/user'
 
@@ -18,7 +19,13 @@ function StatBox({ label, value }: { label: string; value: string }) {
   )
 }
 
-function Field({ label, value }: { label: string; value: string | null | undefined }) {
+function Field({
+  label,
+  value,
+}: {
+  label: string
+  value: string | null | undefined
+}) {
   return (
     <div>
       <p className="text-[10px] uppercase text-text-muted font-semibold">
@@ -30,11 +37,13 @@ function Field({ label, value }: { label: string; value: string | null | undefin
 }
 
 export default function DeportivoTab({ profile }: Props) {
+  const t = useTranslations('UserProfile.sport')
+
   if (!profile) {
     return (
       <Card>
         <CardBody className="text-center py-8 text-text-muted">
-          Este jugador todavía no tiene ficha deportiva rellenada.
+          {t('empty')}
         </CardBody>
       </Card>
     )
@@ -45,20 +54,26 @@ export default function DeportivoTab({ profile }: Props) {
       <Card>
         <CardBody>
           <h3 className="text-md font-semibold text-text-primary mb-4">
-            🏃 Datos físicos
+            {t('physicalTitle')}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <StatBox
-              label="Altura"
-              value={profile.height !== null ? `${profile.height} cm` : '—'}
+              label={t('fields.height')}
+              value={
+                profile.height !== null ? `${profile.height} cm` : '—'
+              }
             />
             <StatBox
-              label="Envergadura"
-              value={profile.wingspan !== null ? `${profile.wingspan} cm` : '—'}
+              label={t('fields.wingspan')}
+              value={
+                profile.wingspan !== null ? `${profile.wingspan} cm` : '—'
+              }
             />
             <StatBox
-              label="Peso"
-              value={profile.weight !== null ? `${profile.weight} kg` : '—'}
+              label={t('fields.weight')}
+              value={
+                profile.weight !== null ? `${profile.weight} kg` : '—'
+              }
             />
           </div>
         </CardBody>
@@ -67,12 +82,12 @@ export default function DeportivoTab({ profile }: Props) {
       <Card>
         <CardBody>
           <h3 className="text-md font-semibold text-text-primary mb-4">
-            👕 Tallas
+            {t('sizesTitle')}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Field label="Camiseta" value={profile.shirtSize} />
-            <Field label="Pantalón" value={profile.pantsSize} />
-            <Field label="Calzado" value={profile.shoeSize} />
+            <Field label={t('fields.shirtSize')} value={profile.shirtSize} />
+            <Field label={t('fields.pantsSize')} value={profile.pantsSize} />
+            <Field label={t('fields.shoeSize')} value={profile.shoeSize} />
           </div>
         </CardBody>
       </Card>

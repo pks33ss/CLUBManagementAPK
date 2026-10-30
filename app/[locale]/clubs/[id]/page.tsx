@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { Link } from '@/navigation';
+import { useTranslations } from 'next-intl'
+import { Link } from '@/navigation'
 import api from '@/lib/api'
 import {
   Button,
@@ -50,6 +51,10 @@ export default function ClubDetail() {
   const params = useParams()
   const clubId = params.id as string
 
+  const t = useTranslations('Clubs.detail')
+  const tRoles = useTranslations('Clubs.roles')
+  const tCommon = useTranslations('Common')
+
   const [club, setClub] = useState<ClubDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -81,6 +86,7 @@ export default function ClubDetail() {
     }
     setCurrentUser(JSON.parse(userStr))
     fetchClub()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clubId])
 
   const fetchClub = async () => {
@@ -105,7 +111,7 @@ export default function ClubDetail() {
       }
     } catch (error: any) {
       console.error('Error:', error)
-      setError(error.response?.data?.message || 'Error al cargar el club')
+      setError(error.response?.data?.message || t('errorLoad'))
     } finally {
       setLoading(false)
     }
@@ -130,8 +136,6 @@ export default function ClubDetail() {
     setUpdating(true)
 
     try {
-      // ✅ Convertimos campos vacíos a null antes de enviar. Así la BD no
-      // almacena '' (que se ve mal en el render y mezcla con null).
       const payload = {
         name: editForm.name.trim(),
         description: editForm.description.trim() || null,
@@ -143,10 +147,10 @@ export default function ClubDetail() {
       await api.put(`/clubs/${clubId}`, payload)
       setShowEditModal(false)
       fetchClub()
-      alert('✅ Club actualizado correctamente')
+      alert(t('updateSuccess'))
     } catch (error: any) {
       console.error('Error:', error)
-      alert(error.response?.data?.message || 'Error al actualizar el club')
+      alert(error.response?.data?.message || t('errorUpdate'))
     } finally {
       setUpdating(false)
     }
@@ -157,11 +161,11 @@ export default function ClubDetail() {
 
     try {
       await api.delete(`/clubs/${clubId}`)
-      alert('✅ Club eliminado correctamente')
+      alert(t('deleteSuccess'))
       router.push('/dashboard')
     } catch (error: any) {
       console.error('Error:', error)
-      alert(error.response?.data?.message || 'Error al eliminar el club')
+      alert(error.response?.data?.message || t('errorDelete'))
     } finally {
       setDeleting(false)
       setShowDeleteModal(false)
@@ -173,12 +177,12 @@ export default function ClubDetail() {
     if (!file) return
 
     if (!file.type.startsWith('image/')) {
-      alert('Por favor, selecciona una imagen')
+      alert(t('selectImage'))
       return
     }
 
     if (file.size > 3 * 1024 * 1024) {
-      alert('La imagen es demasiado grande. Máximo 3MB.')
+      alert(t('imageTooBig'))
       return
     }
 
@@ -198,24 +202,24 @@ export default function ClubDetail() {
       })
       setClub((c) => (c ? { ...c, logo: res.data.logo } : c))
       setLogoPreview(null)
-      alert('✅ Logo actualizado correctamente')
+      alert(t('logoUpdated'))
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al subir el logo')
+      alert(err.response?.data?.message || t('logoUploadError'))
     } finally {
       setUploadingLogo(false)
     }
   }
 
   const handleRemoveLogo = async () => {
-    if (!confirm('¿Eliminar el logo del club?')) return
+    if (!confirm(t('removeLogoConfirm'))) return
     setUploadingLogo(true)
     try {
       await api.delete(`/clubs/${clubId}/logo`)
       setClub((c) => (c ? { ...c, logo: '' } : c))
       setLogoPreview(null)
-      alert('✅ Logo eliminado')
+      alert(t('logoRemoved'))
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al eliminar el logo')
+      alert(err.response?.data?.message || t('logoRemoveError'))
     } finally {
       setUploadingLogo(false)
     }
@@ -236,18 +240,23 @@ export default function ClubDetail() {
     }
   }
 
-  const getRoleText = (role: string) => {
+  /**
+   * Traduce el nombre del rol del club.
+   * - ADMIN_CLUB / COACH / ASSISTANT / MEMBER → clave del namespace `Clubs.roles`.
+   * - Cualquier otro valor (roles custom) → se muestra tal cual.
+   */
+  const getRoleText = (role: string): string => {
     switch (role) {
       case 'ADMIN_CLUB':
-        return '🛡️ Admin Club'
+        return tRoles('adminClub')
       case 'COACH':
-        return '🎓 Entrenador'
+        return tRoles('coach')
       case 'ASSISTANT':
-        return '🤝 Asistente'
+        return tRoles('assistant')
       case 'MEMBER':
-        return '👤 Miembro'
+        return tRoles('member')
       default:
-        return role
+        return role || '—'
     }
   }
 
@@ -256,19 +265,19 @@ export default function ClubDetail() {
 
   if (loading) {
     return (
-      <div className="text-center py-12 text-text-muted">Cargando club...</div>
+      <div className="text-center py-12 text-text-muted">{t('loadingClub')}</div>
     )
   }
 
   if (error || !club) {
     return (
       <div className="text-center py-12">
-        <p className="text-danger">{error || 'Club no encontrado'}</p>
+        <p className="text-danger">{error || t('notFound')}</p>
         <Link
           href="/dashboard"
           className="text-brand-primary hover:underline mt-4 inline-block"
         >
-          ← Volver al dashboard
+          {t('backToDashboard')}
         </Link>
       </div>
     )
@@ -280,7 +289,7 @@ export default function ClubDetail() {
         href="/dashboard"
         className="text-brand-primary hover:underline inline-block mb-6"
       >
-        ← Volver a Mis Clubs
+        {t('backToClubs')}
       </Link>
 
       <Card className="mb-6">
@@ -303,7 +312,7 @@ export default function ClubDetail() {
                   {club.name}
                 </h1>
                 <p className="text-text-secondary mt-1">
-                  {club.description || 'Sin descripción'}
+                  {club.description || t('noDescription')}
                 </p>
                 <div className="flex flex-wrap gap-4 mt-3 text-sm text-text-secondary">
                   {club.address && <span>📍 {club.address}</span>}
@@ -316,7 +325,7 @@ export default function ClubDetail() {
             <div className="flex gap-2 flex-shrink-0">
               <Can clubId={clubId} resource="club_settings" action="edit">
                 <Button size="sm" onClick={openEditModal}>
-                  ✏️ Editar
+                  {tCommon('edit')}
                 </Button>
               </Can>
 
@@ -326,7 +335,7 @@ export default function ClubDetail() {
                   variant="danger"
                   onClick={() => setShowDeleteModal(true)}
                 >
-                  🗑️ Eliminar
+                  {tCommon('delete')}
                 </Button>
               )}
             </div>
@@ -337,29 +346,29 @@ export default function ClubDetail() {
               <p className="text-2xl font-bold text-text-primary">
                 {club.teams?.length || 0}
               </p>
-              <p className="text-xs text-text-muted">Equipos</p>
+              <p className="text-xs text-text-muted">{t('teams')}</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-text-primary">
                 {club.members?.length || 0}
               </p>
-              <p className="text-xs text-text-muted">Miembros</p>
+              <p className="text-xs text-text-muted">{t('members')}</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-text-primary">
                 {club.teams?.reduce(
-                  (acc, t) => acc + (t.memberships?.length || 0),
+                  (acc, team) => acc + (team.memberships?.length || 0),
                   0,
                 ) || 0}
               </p>
-              <p className="text-xs text-text-muted">Jugadores</p>
+              <p className="text-xs text-text-muted">{t('players')}</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-brand-primary">
                 {club.members?.filter((m) => m.roleRef?.name === 'ADMIN_CLUB')
                   .length || 0}
               </p>
-              <p className="text-xs text-text-muted">Admins</p>
+              <p className="text-xs text-text-muted">{t('admins')}</p>
             </div>
           </div>
         </CardBody>
@@ -373,19 +382,17 @@ export default function ClubDetail() {
         <CardBody>
           <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
             <h2 className="text-xl font-semibold text-text-primary">
-              🏆 Equipos ({club.teams?.length || 0})
+              {t('teamsTitle', { count: club.teams?.length || 0 })}
             </h2>
             <Can clubId={clubId} resource="team" action="view">
               <Button size="sm" href={`/teams?club=${clubId}`}>
-                Gestionar Equipos
+                {t('manageTeams')}
               </Button>
             </Can>
           </div>
 
           {!club.teams || club.teams.length === 0 ? (
-            <p className="text-text-muted text-center py-8">
-              No hay equipos en este club
-            </p>
+            <p className="text-text-muted text-center py-8">{t('noTeams')}</p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {club.teams.map((team) => (
@@ -396,14 +403,14 @@ export default function ClubDetail() {
                 >
                   <h3 className="font-medium text-text-primary">{team.name}</h3>
                   <p className="text-sm text-text-secondary">
-                    {team.category || 'Sin categoría'}
+                    {team.category || t('noCategory')}
                   </p>
                   <p className="text-xs text-text-muted mt-1">
-                    {team.season || 'Temporada no especificada'}
+                    {team.season || t('noSeason')}
                   </p>
                   <div className="mt-2">
                     <Badge variant="brand">
-                      👥 {team.memberships?.length ?? 0} jugadores
+                      {t('playersCount', { count: team.memberships?.length ?? 0 })}
                     </Badge>
                   </div>
                 </Link>
@@ -417,19 +424,17 @@ export default function ClubDetail() {
         <CardBody>
           <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
             <h2 className="text-xl font-semibold text-text-primary">
-              👥 Miembros ({club.members?.length || 0})
+              {t('membersTitle', { count: club.members?.length || 0 })}
             </h2>
             <Can clubId={clubId} resource="member" action="edit">
               <Button size="sm" href={`/clubs/${clubId}/members`}>
-                Gestionar Miembros
+                {t('manageMembers')}
               </Button>
             </Can>
           </div>
 
           {!club.members || club.members.length === 0 ? (
-            <p className="text-text-muted text-center py-8">
-              No hay miembros en este club
-            </p>
+            <p className="text-text-muted text-center py-8">{t('noMembers')}</p>
           ) : (
             <div className="space-y-2">
               {club.members.map((member) => {
@@ -461,12 +466,12 @@ export default function ClubDetail() {
       <Modal
         isOpen={showEditModal}
         onClose={() => setShowEditModal(false)}
-        title="✏️ Editar Club"
+        title={t('editTitle')}
         size="md"
       >
         <div className="mb-4">
           <label className="block text-sm font-medium text-text-secondary mb-2">
-            Logo del club
+            {t('logoLabel')}
           </label>
           <div className="flex items-center gap-4">
             <div className="w-20 h-20 rounded-xl overflow-hidden bg-brand-primary/10 border border-brand-primary/30 flex items-center justify-center flex-shrink-0">
@@ -501,7 +506,7 @@ export default function ClubDetail() {
                 size="sm"
                 onClick={() => logoInputRef.current?.click()}
               >
-                📸 {logoPreview || club.logo ? 'Cambiar logo' : 'Subir logo'}
+                {logoPreview || club.logo ? t('changeLogo') : t('uploadLogo')}
               </Button>
               {(logoPreview || club.logo) && (
                 <Button
@@ -517,7 +522,7 @@ export default function ClubDetail() {
                   }}
                   disabled={uploadingLogo}
                 >
-                  🗑️ Quitar
+                  {t('remove')}
                 </Button>
               )}
             </div>
@@ -532,7 +537,7 @@ export default function ClubDetail() {
                 loading={uploadingLogo}
                 size="sm"
               >
-                {uploadingLogo ? 'Subiendo...' : '✅ Confirmar subida'}
+                {uploadingLogo ? t('uploading') : t('confirmUpload')}
               </Button>
               <Button
                 type="button"
@@ -541,7 +546,7 @@ export default function ClubDetail() {
                 onClick={() => setLogoPreview(null)}
                 disabled={uploadingLogo}
               >
-                Cancelar
+                {tCommon('cancel')}
               </Button>
             </div>
           )}
@@ -549,7 +554,7 @@ export default function ClubDetail() {
 
         <form onSubmit={updateClub} className="space-y-4">
           <Input
-            label="Nombre del Club *"
+            label={t('formName')}
             type="text"
             value={editForm.name}
             onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
@@ -557,7 +562,7 @@ export default function ClubDetail() {
           />
 
           <Textarea
-            label="Descripción"
+            label={t('formDescription')}
             value={editForm.description}
             onChange={(e) =>
               setEditForm({ ...editForm, description: e.target.value })
@@ -566,33 +571,33 @@ export default function ClubDetail() {
           />
 
           <Input
-            label="Dirección"
+            label={t('formAddress')}
             type="text"
             value={editForm.address}
             onChange={(e) =>
               setEditForm({ ...editForm, address: e.target.value })
             }
-            placeholder="Calle, número, ciudad"
+            placeholder={t('formAddressPlaceholder')}
           />
 
           <div className="grid grid-cols-2 gap-4">
             <Input
-              label="Teléfono"
+              label={t('formPhone')}
               type="tel"
               value={editForm.phone}
               onChange={(e) =>
                 setEditForm({ ...editForm, phone: e.target.value })
               }
-              placeholder="+34 600 123 456"
+              placeholder={t('formPhonePlaceholder')}
             />
             <Input
-              label="Email"
+              label={t('formEmail')}
               type="email"
               value={editForm.email}
               onChange={(e) =>
                 setEditForm({ ...editForm, email: e.target.value })
               }
-              placeholder="club@email.com"
+              placeholder={t('formEmailPlaceholder')}
             />
           </div>
 
@@ -604,7 +609,7 @@ export default function ClubDetail() {
               disabled={updating}
               className="flex-1"
             >
-              Cancelar
+              {tCommon('cancel')}
             </Button>
             <Button
               type="submit"
@@ -612,7 +617,7 @@ export default function ClubDetail() {
               loading={updating}
               className="flex-1"
             >
-              {updating ? 'Guardando...' : 'Guardar Cambios'}
+              {updating ? t('saving') : tCommon('save')}
             </Button>
           </div>
         </form>
@@ -621,14 +626,16 @@ export default function ClubDetail() {
       <Modal
         isOpen={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
-        title="🗑️ Eliminar Club"
+        title={t('deleteTitle')}
         size="sm"
       >
         <p className="text-text-secondary mb-6">
-          ¿Estás seguro de que quieres eliminar el club{' '}
-          <strong className="text-text-primary">{club.name}</strong>? Esta
-          acción no se puede deshacer y eliminará todos los equipos, jugadores
-          y entrenamientos asociados.
+          {t.rich('deleteConfirmRich', {
+            name: club.name,
+            strong: (chunks) => (
+              <strong className="text-text-primary">{chunks}</strong>
+            ),
+          })}
         </p>
         <div className="flex gap-3">
           <Button
@@ -637,7 +644,7 @@ export default function ClubDetail() {
             disabled={deleting}
             className="flex-1"
           >
-            Cancelar
+            {tCommon('cancel')}
           </Button>
           <Button
             variant="danger"
@@ -646,7 +653,7 @@ export default function ClubDetail() {
             loading={deleting}
             className="flex-1"
           >
-            {deleting ? 'Eliminando...' : 'Sí, Eliminar'}
+            {deleting ? t('deleting') : t('yesDelete')}
           </Button>
         </div>
       </Modal>

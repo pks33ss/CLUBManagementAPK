@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Link } from '@/navigation';
+import { useTranslations } from 'next-intl'
+import { Link } from '@/navigation'
 import { usersApi } from '@/lib/api/users'
 import { Card, CardBody, Button, Input, Select, Textarea } from '@/components/ui'
 import type { UserPublic } from '@/types/user'
@@ -47,6 +48,7 @@ interface FormState {
 }
 
 export default function EditPlayerProfilePage() {
+  const t = useTranslations('UserProfile.editPlayerProfile')
   const router = useRouter()
   const params = useParams()
   const username = params.username as string
@@ -88,7 +90,7 @@ export default function EditPlayerProfilePage() {
 
       const perms = await usersApi.getPermissions(u.id)
       if (!perms.canEditProfile) {
-        setError('No tienes permisos para editar esta ficha')
+        setError(t('errorPermission'))
         return
       }
 
@@ -119,14 +121,14 @@ export default function EditPlayerProfilePage() {
     } catch (err: any) {
       console.error(err)
       if (err.response?.status === 404) {
-        setError('Usuario no encontrado')
+        setError(t('errorUserNotFound'))
       } else {
-        setError(err.response?.data?.message || 'Error al cargar la ficha')
+        setError(err.response?.data?.message || t('errorLoad'))
       }
     } finally {
       setLoading(false)
     }
-  }, [username])
+  }, [username, t])
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -144,9 +146,9 @@ export default function EditPlayerProfilePage() {
     if (!user) return
 
     const numOrNull = (v: string): number | null => {
-      const t = v.trim()
-      if (!t) return null
-      const n = Number(t)
+      const s = v.trim()
+      if (!s) return null
+      const n = Number(s)
       return isNaN(n) ? null : n
     }
 
@@ -177,9 +179,7 @@ export default function EditPlayerProfilePage() {
       await usersApi.updatePlayerProfile(user.id, payload as any)
       router.push(`/users/${username}?tab=personal`)
     } catch (err: any) {
-      setFormError(
-        err.response?.data?.message || 'Error al guardar la ficha',
-      )
+      setFormError(err.response?.data?.message || t('errorSave'))
     } finally {
       setSaving(false)
     }
@@ -187,7 +187,7 @@ export default function EditPlayerProfilePage() {
 
   if (loading) {
     return (
-      <div className="text-center py-12 text-text-muted">Cargando ficha...</div>
+      <div className="text-center py-12 text-text-muted">{t('loading')}</div>
     )
   }
 
@@ -195,12 +195,12 @@ export default function EditPlayerProfilePage() {
     return (
       <div className="text-center py-12">
         <div className="text-6xl mb-4">🔒</div>
-        <p className="text-danger mb-4">{error || 'Error'}</p>
+        <p className="text-danger mb-4">{error || t('errorLoad')}</p>
         <Link
           href={`/users/${username}`}
           className="text-brand-primary hover:underline"
         >
-          ← Volver a la ficha
+          {t('backToProfile')}
         </Link>
       </div>
     )
@@ -212,11 +212,11 @@ export default function EditPlayerProfilePage() {
         href={`/users/${username}`}
         className="text-brand-primary hover:underline inline-block mb-6"
       >
-        ← Volver a la ficha
+        {t('backToProfile')}
       </Link>
 
       <h1 className="text-2xl font-bold text-text-primary mb-6">
-        📝 Editar ficha de {user.name} {user.lastName}
+        {t('title', { name: user.name, lastName: user.lastName })}
       </h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -224,11 +224,11 @@ export default function EditPlayerProfilePage() {
         <Card>
           <CardBody>
             <h2 className="text-md font-semibold text-text-primary mb-4">
-              📋 Datos personales
+              {t('personalDataTitle')}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
-                label="Fecha de nacimiento"
+                label={t('fields.birthDate')}
                 type="date"
                 value={form.birthDate}
                 onChange={(e) =>
@@ -237,14 +237,14 @@ export default function EditPlayerProfilePage() {
                 disabled={saving}
               />
               <Input
-                label="DNI"
+                label={t('fields.dni')}
                 type="text"
                 value={form.dni}
                 onChange={(e) => setForm({ ...form, dni: e.target.value })}
                 disabled={saving}
               />
               <Input
-                label="Nombre del padre"
+                label={t('fields.fatherName')}
                 type="text"
                 value={form.fatherName}
                 onChange={(e) =>
@@ -253,7 +253,7 @@ export default function EditPlayerProfilePage() {
                 disabled={saving}
               />
               <Input
-                label="Nombre de la madre"
+                label={t('fields.motherName')}
                 type="text"
                 value={form.motherName}
                 onChange={(e) =>
@@ -262,7 +262,7 @@ export default function EditPlayerProfilePage() {
                 disabled={saving}
               />
               <Input
-                label="Teléfono del padre"
+                label={t('fields.fatherPhone')}
                 type="tel"
                 value={form.fatherPhone}
                 onChange={(e) =>
@@ -271,7 +271,7 @@ export default function EditPlayerProfilePage() {
                 disabled={saving}
               />
               <Input
-                label="Teléfono de la madre"
+                label={t('fields.motherPhone')}
                 type="tel"
                 value={form.motherPhone}
                 onChange={(e) =>
@@ -280,14 +280,14 @@ export default function EditPlayerProfilePage() {
                 disabled={saving}
               />
               <Input
-                label="Dirección"
+                label={t('fields.address')}
                 type="text"
                 value={form.address}
                 onChange={(e) => setForm({ ...form, address: e.target.value })}
                 disabled={saving}
               />
               <Input
-                label="Colegio / Empresa"
+                label={t('fields.schoolOrCompany')}
                 type="text"
                 value={form.schoolOrCompany}
                 onChange={(e) =>
@@ -298,7 +298,7 @@ export default function EditPlayerProfilePage() {
             </div>
             <div className="mt-4">
               <Textarea
-                label="Alergias"
+                label={t('fields.allergies')}
                 value={form.allergies}
                 onChange={(e) =>
                   setForm({ ...form, allergies: e.target.value })
@@ -314,11 +314,11 @@ export default function EditPlayerProfilePage() {
         <Card>
           <CardBody>
             <h2 className="text-md font-semibold text-text-primary mb-4">
-              🏃 Datos físicos
+              {t('physicalDataTitle')}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Input
-                label="Altura (cm)"
+                label={t('fields.height')}
                 type="number"
                 min="50"
                 max="300"
@@ -329,7 +329,7 @@ export default function EditPlayerProfilePage() {
                 disabled={saving}
               />
               <Input
-                label="Envergadura (cm)"
+                label={t('fields.wingspan')}
                 type="number"
                 min="50"
                 max="300"
@@ -340,7 +340,7 @@ export default function EditPlayerProfilePage() {
                 disabled={saving}
               />
               <Input
-                label="Peso (kg)"
+                label={t('fields.weight')}
                 type="number"
                 min="20"
                 max="300"
@@ -353,11 +353,11 @@ export default function EditPlayerProfilePage() {
             </div>
 
             <h2 className="text-md font-semibold text-text-primary mt-6 mb-4">
-              👕 Tallas
+              {t('sizesTitle')}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Select
-                label="Camiseta"
+                label={t('fields.shirtSize')}
                 value={form.shirtSize}
                 onChange={(e) =>
                   setForm({ ...form, shirtSize: e.target.value })
@@ -372,7 +372,7 @@ export default function EditPlayerProfilePage() {
                 ))}
               </Select>
               <Select
-                label="Pantalón"
+                label={t('fields.pantsSize')}
                 value={form.pantsSize}
                 onChange={(e) =>
                   setForm({ ...form, pantsSize: e.target.value })
@@ -387,7 +387,7 @@ export default function EditPlayerProfilePage() {
                 ))}
               </Select>
               <Select
-                label="Calzado"
+                label={t('fields.shoeSize')}
                 value={form.shoeSize}
                 onChange={(e) =>
                   setForm({ ...form, shoeSize: e.target.value })
@@ -409,11 +409,11 @@ export default function EditPlayerProfilePage() {
         <Card>
           <CardBody>
             <h2 className="text-md font-semibold text-text-primary mb-4">
-              🚨 Emergencia
+              {t('emergencyTitle')}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
-                label="Contacto de emergencia"
+                label={t('fields.emergencyContactName')}
                 type="text"
                 value={form.emergencyContactName}
                 onChange={(e) =>
@@ -422,7 +422,7 @@ export default function EditPlayerProfilePage() {
                 disabled={saving}
               />
               <Input
-                label="Teléfono de emergencia"
+                label={t('fields.emergencyContactPhone')}
                 type="tel"
                 value={form.emergencyContactPhone}
                 onChange={(e) =>
@@ -433,11 +433,11 @@ export default function EditPlayerProfilePage() {
             </div>
 
             <h2 className="text-md font-semibold text-text-primary mt-6 mb-4">
-              🏥 Seguro médico
+              {t('insuranceTitle')}
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
-                label="Compañía"
+                label={t('fields.medicalInsurance')}
                 type="text"
                 value={form.medicalInsurance}
                 onChange={(e) =>
@@ -446,7 +446,7 @@ export default function EditPlayerProfilePage() {
                 disabled={saving}
               />
               <Input
-                label="Número de póliza"
+                label={t('fields.medicalInsuranceNumber')}
                 type="text"
                 value={form.medicalInsuranceNumber}
                 onChange={(e) =>
@@ -472,7 +472,7 @@ export default function EditPlayerProfilePage() {
             disabled={saving}
             className="flex-1"
           >
-            Cancelar
+            {t('cancel')}
           </Button>
           <Button
             type="submit"
@@ -480,7 +480,7 @@ export default function EditPlayerProfilePage() {
             loading={saving}
             className="flex-1"
           >
-            {saving ? 'Guardando...' : 'Guardar ficha'}
+            {saving ? t('saving') : t('save')}
           </Button>
         </div>
       </form>

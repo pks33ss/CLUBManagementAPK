@@ -1,8 +1,11 @@
+// frontend-web/app/[locale]/admin/users/page.tsx
+
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { useRouter } from '@/navigation';
-import { Link } from '@/navigation';
+import { useRouter } from '@/navigation'
+import { Link } from '@/navigation'
+import { useTranslations } from 'next-intl'
 import api from '@/lib/api'
 import {
   listEmailSettings,
@@ -26,6 +29,7 @@ interface User {
 }
 
 export default function UsersManagement() {
+  const t = useTranslations('AdminUsers')
   const router = useRouter()
 
   const [users, setUsers] = useState<User[]>([])
@@ -53,7 +57,6 @@ export default function UsersManagement() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('')
   const [deleting, setDeleting] = useState(false)
 
-  // ─── Estado de email settings ───
   const [emailSettings, setEmailSettings] = useState<Map<string, boolean>>(new Map())
   const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set())
   const [bulkLoading, setBulkLoading] = useState(false)
@@ -68,12 +71,13 @@ export default function UsersManagement() {
     setCurrentUser(user)
 
     if (user.role !== 'SUPER_ADMIN') {
-      setError('No tienes permisos para acceder a esta página')
+      setError(t('errorNoPermission'))
       setLoading(false)
       return
     }
 
     fetchAll()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const fetchAll = async () => {
@@ -91,7 +95,7 @@ export default function UsersManagement() {
       setEmailSettings(map)
     } catch (error: any) {
       console.error('Error:', error)
-      setError(error.response?.data?.message || 'Error al cargar datos')
+      setError(error.response?.data?.message || t('errorLoad'))
     } finally {
       setLoading(false)
     }
@@ -105,10 +109,6 @@ export default function UsersManagement() {
       console.error('Error:', error)
     }
   }
-
-  // ============================================
-  // EMAIL SETTINGS
-  // ============================================
 
   const toggleOne = async (userId: string) => {
     const current = emailSettings.get(userId) ?? false
@@ -130,7 +130,7 @@ export default function UsersManagement() {
         next.set(userId, current)
         return next
       })
-      alert('Error al actualizar la preferencia de email')
+      alert(t('errorEmailToggle'))
     } finally {
       setTogglingIds((prev) => {
         const next = new Set(prev)
@@ -141,11 +141,9 @@ export default function UsersManagement() {
   }
 
   const toggleAll = async (enabled: boolean) => {
-    // ⚠️ Solo enviamos usuarios CON email (el backend ignora los demás)
     const userIds = users.filter((u) => u.email).map((u) => u.id)
     if (userIds.length === 0) return
 
-    // Optimistic update
     const prevMap = new Map(emailSettings)
     const nextMap = new Map(emailSettings)
     userIds.forEach((id) => nextMap.set(id, enabled))
@@ -157,13 +155,12 @@ export default function UsersManagement() {
     } catch (e) {
       console.error('Error bulk update:', e)
       setEmailSettings(prevMap)
-      alert('Error al actualizar todos los usuarios')
+      alert(t('errorBulkUpdate'))
     } finally {
       setBulkLoading(false)
     }
   }
 
-  // Estado agregado: SOLO cuenta usuarios con email
   const emailStats = useMemo(() => {
     const withEmail = users.filter((u) => u.email)
     const total = withEmail.length
@@ -177,10 +174,6 @@ export default function UsersManagement() {
   const allChecked = emailStats.total > 0 && emailStats.active === emailStats.total
   const noneChecked = emailStats.active === 0
 
-  // ============================================
-  // ACCIONES EXISTENTES
-  // ============================================
-
   const createUser = async (e: React.FormEvent) => {
     e.preventDefault()
     setCreating(true)
@@ -190,25 +183,25 @@ export default function UsersManagement() {
       setShowCreateModal(false)
       setNewUser({ email: '', password: '', name: '', lastName: '', role: 'USER' })
       await fetchAll()
-      alert('✅ Usuario creado correctamente')
+      alert(t('createSuccess'))
     } catch (error: any) {
       console.error('Error:', error)
-      alert(error.response?.data?.message || 'Error al crear el usuario')
+      alert(error.response?.data?.message || t('createError'))
     } finally {
       setCreating(false)
     }
   }
 
   const updateRole = async (userId: string, newRole: string) => {
-    if (!confirm(`¿Cambiar el rol de este usuario a ${newRole}?`)) return
+    if (!confirm(t('changeRoleConfirm', { role: newRole }))) return
 
     try {
       await api.put(`/users/${userId}/role`, { role: newRole })
       fetchUsers()
-      alert('✅ Rol actualizado correctamente')
+      alert(t('changeRoleSuccess'))
     } catch (error: any) {
       console.error('Error:', error)
-      alert(error.response?.data?.message || 'Error al actualizar el rol')
+      alert(error.response?.data?.message || t('changeRoleError'))
     }
   }
 
@@ -226,7 +219,7 @@ export default function UsersManagement() {
     if (!deleteUser) return
     const expected = getConfirmText(deleteUser)
     if (deleteConfirmText.trim().toLowerCase() !== expected.toLowerCase()) {
-      alert('El texto no coincide. Cópialo exactamente para confirmar.')
+      alert(t('deleteConfirmMismatch'))
       return
     }
 
@@ -237,10 +230,10 @@ export default function UsersManagement() {
       setDeleteUser(null)
       setDeleteConfirmText('')
       await fetchAll()
-      alert('✅ Usuario eliminado permanentemente (hard delete)')
+      alert(t('deleteSuccess'))
     } catch (error: any) {
       console.error('Error:', error)
-      alert(error.response?.data?.message || 'Error al eliminar el usuario')
+      alert(error.response?.data?.message || t('deleteError'))
     } finally {
       setDeleting(false)
     }
@@ -256,7 +249,7 @@ export default function UsersManagement() {
     if (!resetUser || !newPassword) return
 
     if (newPassword.length < 6) {
-      alert('La contraseña debe tener al menos 6 caracteres')
+      alert(t('passwordMinChars'))
       return
     }
 
@@ -267,10 +260,10 @@ export default function UsersManagement() {
       setShowResetPasswordModal(false)
       setResetUser(null)
       setNewPassword('')
-      alert('✅ Contraseña reseteada correctamente')
+      alert(t('resetSuccess'))
     } catch (error: any) {
       console.error('Error:', error)
-      alert(error.response?.data?.message || 'Error al resetear la contraseña')
+      alert(error.response?.data?.message || t('resetError'))
     } finally {
       setResetting(false)
     }
@@ -285,14 +278,14 @@ export default function UsersManagement() {
 
   const getRoleText = (role: string) => {
     switch (role) {
-      case 'SUPER_ADMIN': return '👑 Super Admin'
-      case 'USER': return '👤 Usuario'
+      case 'SUPER_ADMIN': return t('roles.superAdmin')
+      case 'USER': return t('roles.user')
       default: return role
     }
   }
 
   if (loading) {
-    return <div className="text-center py-12 text-text-muted">Cargando usuarios...</div>
+    return <div className="text-center py-12 text-text-muted">{t('loading')}</div>
   }
 
   if (error) {
@@ -300,7 +293,7 @@ export default function UsersManagement() {
       <div className="text-center py-12">
         <p className="text-danger">{error}</p>
         <Link href="/dashboard" className="text-brand-primary hover:underline mt-4 inline-block">
-          ← Volver al dashboard
+          {t('backToDashboard')}
         </Link>
       </div>
     )
@@ -309,33 +302,35 @@ export default function UsersManagement() {
   return (
     <div>
       <Link href="/dashboard" className="text-brand-primary hover:underline inline-block mb-6">
-        ← Volver al dashboard
+        {t('backToDashboard')}
       </Link>
 
       <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">👥 Gestión de Usuarios</h1>
-          <p className="text-text-secondary">Administra los usuarios y sus roles en la aplicación</p>
+          <h1 className="text-2xl font-bold text-text-primary">{t('title')}</h1>
+          <p className="text-text-secondary">{t('subtitle')}</p>
         </div>
         <Button
           onClick={() => setShowCreateModal(true)}
           icon={<span className="text-xl">+</span>}
         >
-          Nuevo Usuario
+          {t('newUser')}
         </Button>
       </div>
 
-      {/* INDICADOR DE EMAILS */}
       <Card className="mb-4">
         <div className="p-4 flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-3">
             <span className="text-2xl">📧</span>
             <div>
               <p className="text-sm font-medium text-text-primary">
-                Notificaciones por email
+                {t('emailStatsTitle')}
               </p>
               <p className="text-xs text-text-muted">
-                {emailStats.active} de {emailStats.total} usuarios con email reciben notificaciones
+                {t('emailStatsSubtitle', {
+                  active: emailStats.active,
+                  total: emailStats.total,
+                })}
               </p>
             </div>
           </div>
@@ -347,7 +342,7 @@ export default function UsersManagement() {
               onClick={() => toggleAll(true)}
               disabled={bulkLoading || allChecked || emailStats.total === 0}
             >
-              Activar todos
+              {t('enableAll')}
             </Button>
             <Button
               size="sm"
@@ -355,7 +350,7 @@ export default function UsersManagement() {
               onClick={() => toggleAll(false)}
               disabled={bulkLoading || noneChecked || emailStats.total === 0}
             >
-              Desactivar todos
+              {t('disableAll')}
             </Button>
           </div>
         </div>
@@ -366,14 +361,12 @@ export default function UsersManagement() {
           <table className="w-full">
             <thead className="bg-surface-elevated">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">Usuario</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">Email</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">Rol Global</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">Clubs</th>
-                <th className="px-6 py-3 text-center text-xs font-medium text-text-muted uppercase">
-                  📧 Recibe emails
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase">Acciones</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">{t('columns.user')}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">{t('columns.email')}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">{t('columns.role')}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">{t('columns.clubs')}</th>
+                <th className="px-6 py-3 text-center text-xs font-medium text-text-muted uppercase">{t('columns.emailToggle')}</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase">{t('columns.actions')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border-subtle">
@@ -390,7 +383,7 @@ export default function UsersManagement() {
                       </p>
                     </td>
                     <td className="px-6 py-4 text-sm text-text-secondary">
-                      {user.email ?? <span className="text-text-muted italic">(sin email)</span>}
+                      {user.email ?? <span className="text-text-muted italic">{t('noEmail')}</span>}
                     </td>
                     <td className="px-6 py-4">
                       <Badge variant={getRoleVariant(user.role)}>
@@ -417,10 +410,10 @@ export default function UsersManagement() {
                         className="w-5 h-5 cursor-pointer accent-brand-primary disabled:opacity-40 disabled:cursor-not-allowed"
                         title={
                           !hasEmail
-                            ? 'Sin email, no puede recibir'
+                            ? t('emailToggleNoEmail')
                             : enabled
-                              ? 'Desactivar emails'
-                              : 'Activar emails'
+                              ? t('emailToggleDisable')
+                              : t('emailToggleEnable')
                         }
                       />
                     </td>
@@ -432,14 +425,14 @@ export default function UsersManagement() {
                           className="text-xs bg-surface-elevated border border-border-subtle text-text-primary rounded px-2 py-1 focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"
                           disabled={user.id === currentUser?.id}
                         >
-                          <option value="SUPER_ADMIN">Super Admin</option>
-                          <option value="USER">Usuario</option>
+                          <option value="SUPER_ADMIN">{t('roles.superAdminOption')}</option>
+                          <option value="USER">{t('roles.userOption')}</option>
                         </select>
                         <button
                           onClick={() => openResetPasswordModal(user)}
                           className="text-warning hover:text-warning/80 p-1"
                           disabled={user.id === currentUser?.id}
-                          title="Resetear contraseña"
+                          title={t('resetTooltip')}
                         >
                           🔑
                         </button>
@@ -447,7 +440,7 @@ export default function UsersManagement() {
                           onClick={() => openDeleteModal(user)}
                           className="text-danger hover:text-danger/80 p-1"
                           disabled={user.id === currentUser?.id}
-                          title="Eliminar usuario"
+                          title={t('deleteTooltip')}
                         >
                           🗑️
                         </button>
@@ -461,24 +454,23 @@ export default function UsersManagement() {
         </div>
       </Card>
 
-      {/* Modal de crear usuario */}
       <Modal
         isOpen={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        title="Crear Nuevo Usuario"
+        title={t('createModalTitle')}
         size="md"
       >
         <form onSubmit={createUser} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <Input
-              label="Nombre *"
+              label={t('form.name')}
               type="text"
               value={newUser.name}
               onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
               required
             />
             <Input
-              label="Apellido *"
+              label={t('form.lastName')}
               type="text"
               value={newUser.lastName}
               onChange={(e) => setNewUser({ ...newUser, lastName: e.target.value })}
@@ -487,7 +479,7 @@ export default function UsersManagement() {
           </div>
 
           <Input
-            label="Email *"
+            label={t('form.email')}
             type="email"
             value={newUser.email}
             onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
@@ -495,7 +487,7 @@ export default function UsersManagement() {
           />
 
           <Input
-            label="Contraseña *"
+            label={t('form.password')}
             type="password"
             value={newUser.password}
             onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
@@ -504,12 +496,12 @@ export default function UsersManagement() {
           />
 
           <Select
-            label="Rol Global"
+            label={t('form.role')}
             value={newUser.role}
             onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
           >
-            <option value="USER">Usuario</option>
-            <option value="SUPER_ADMIN">Super Admin</option>
+            <option value="USER">{t('roles.userOption')}</option>
+            <option value="SUPER_ADMIN">{t('roles.superAdminOption')}</option>
           </Select>
 
           <div className="flex gap-3 pt-2">
@@ -520,7 +512,7 @@ export default function UsersManagement() {
               disabled={creating}
               className="flex-1"
             >
-              Cancelar
+              {t('cancel')}
             </Button>
             <Button
               type="submit"
@@ -528,13 +520,12 @@ export default function UsersManagement() {
               loading={creating}
               className="flex-1"
             >
-              {creating ? 'Creando...' : 'Crear Usuario'}
+              {creating ? t('creating') : t('createButton')}
             </Button>
           </div>
         </form>
       </Modal>
 
-      {/* Modal de resetear contraseña */}
       <Modal
         isOpen={showResetPasswordModal && !!resetUser}
         onClose={() => {
@@ -542,24 +533,29 @@ export default function UsersManagement() {
           setResetUser(null)
           setNewPassword('')
         }}
-        title="🔑 Resetear Contraseña"
+        title={t('resetModalTitle')}
         size="md"
       >
         {resetUser && (
           <>
             <p className="text-sm text-text-secondary mb-4">
-              Vas a resetear la contraseña de <strong className="text-text-primary">{resetUser.name} {resetUser.lastName}</strong> ({resetUser.email ?? 'sin email'})
+              {t.rich('resetModalDescription', {
+                name: resetUser.name,
+                lastName: resetUser.lastName,
+                email: resetUser.email ?? t('noEmail'),
+                strong: (chunks) => <strong className="text-text-primary">{chunks}</strong>,
+              })}
             </p>
 
             <Input
-              label="Nueva contraseña *"
+              label={t('resetForm.newPassword')}
               type="text"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Mínimo 6 caracteres"
+              placeholder={t('resetForm.placeholder')}
               minLength={6}
               required
-              helperText="Comunica esta contraseña al usuario. Deberá cambiarla al iniciar sesión."
+              helperText={t('resetForm.helper')}
             />
 
             <div className="flex gap-3 pt-6">
@@ -573,7 +569,7 @@ export default function UsersManagement() {
                 disabled={resetting}
                 className="flex-1"
               >
-                Cancelar
+                {t('cancel')}
               </Button>
               <Button
                 onClick={resetPassword}
@@ -581,14 +577,13 @@ export default function UsersManagement() {
                 loading={resetting}
                 className="flex-1"
               >
-                {resetting ? 'Reseteando...' : '🔑 Resetear'}
+                {resetting ? t('resetting') : t('resetButton')}
               </Button>
             </div>
           </>
         )}
       </Modal>
 
-      {/* Modal de confirmación de borrado */}
       <Modal
         isOpen={showDeleteModal && !!deleteUser}
         onClose={() => {
@@ -597,7 +592,7 @@ export default function UsersManagement() {
           setDeleteUser(null)
           setDeleteConfirmText('')
         }}
-        title="⚠️ Eliminar usuario permanentemente"
+        title={t('deleteModalTitle')}
         size="md"
       >
         {deleteUser && (() => {
@@ -606,31 +601,29 @@ export default function UsersManagement() {
             <>
               <div className="bg-danger/10 border border-danger/30 rounded-lg p-4 mb-4">
                 <p className="text-sm text-danger font-semibold mb-1">
-                  Esta acción es IRREVERSIBLE
+                  {t('deleteWarningTitle')}
                 </p>
                 <p className="text-xs text-text-secondary">
-                  Se borrarán todos los datos del usuario: membresías de equipos y clubes,
-                  estadísticas, convocatorias, asistencias, relaciones con tutores,
-                  permisos de emisión, tokens de sesión y favoritos.
-                  Las sesiones, partidos y eventos que creó se mantendrán pero sin autor asignado.
+                  {t('deleteWarningBody')}
                 </p>
               </div>
 
               <p className="text-text-secondary mb-4">
-                Vas a eliminar permanentemente a{' '}
-                <strong className="text-text-primary">
-                  {deleteUser.name} {deleteUser.lastName}
-                </strong>
-                {deleteUser.email ? ` (${deleteUser.email})` : ''}.
+                {t.rich('deleteConfirmBody', {
+                  name: deleteUser.name,
+                  lastName: deleteUser.lastName,
+                  email: deleteUser.email ? ` (${deleteUser.email})` : '',
+                  strong: (chunks) => <strong className="text-text-primary">{chunks}</strong>,
+                })}
               </p>
 
               <Input
-                label="Escribe para confirmar"
+                label={t('deleteConfirmLabel')}
                 type="text"
                 value={deleteConfirmText}
                 onChange={(e) => setDeleteConfirmText(e.target.value)}
                 placeholder={expected}
-                helperText={`Copia exactamente: ${expected}`}
+                helperText={t('deleteConfirmHelper', { expected })}
               />
 
               <div className="flex gap-3 pt-6">
@@ -644,7 +637,7 @@ export default function UsersManagement() {
                   disabled={deleting}
                   className="flex-1"
                 >
-                  Cancelar
+                  {t('cancel')}
                 </Button>
                 <Button
                   variant="danger"
@@ -656,7 +649,7 @@ export default function UsersManagement() {
                   loading={deleting}
                   className="flex-1"
                 >
-                  {deleting ? 'Eliminando...' : '🗑️ Eliminar permanentemente'}
+                  {deleting ? t('deleting') : t('deleteButton')}
                 </Button>
               </div>
             </>

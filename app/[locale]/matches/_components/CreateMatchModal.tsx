@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import api from '@/lib/api'
 import { Button, Input, Textarea, Select, Modal } from '@/components/ui'
 
@@ -17,6 +18,7 @@ export default function CreateMatchModal({
   onClose,
   onSuccess,
 }: Props) {
+  const t = useTranslations('Matches.createModal')
   const isPadel = teamSport === 'PADEL'
 
   const [form, setForm] = useState({
@@ -67,10 +69,10 @@ export default function CreateMatchModal({
 
       onSuccess()
       onClose()
-      alert('✅ Partido creado correctamente')
+      alert(t('success'))
     } catch (error: any) {
       console.error('Error:', error)
-      alert(error.response?.data?.message || 'Error al crear el partido')
+      alert(error.response?.data?.message || t('errorCreate'))
     } finally {
       setCreating(false)
     }
@@ -80,29 +82,29 @@ export default function CreateMatchModal({
     <Modal
       isOpen={true}
       onClose={creating ? () => {} : onClose}
-      title="🏆 Nuevo Partido"
+      title={t('title')}
       size="md"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input
-          label="Rival *"
+          label={t('opponentLabel')}
           type="text"
           value={form.opponent}
           onChange={(e) => setForm({ ...form, opponent: e.target.value })}
-          placeholder="Ej: CB Madrid"
+          placeholder={t('opponentPlaceholder')}
           required
         />
 
         <div className="grid grid-cols-2 gap-4">
           <Input
-            label="Fecha *"
+            label={t('dateLabel')}
             type="date"
             value={form.date}
             onChange={(e) => setForm({ ...form, date: e.target.value })}
             required
           />
           <Input
-            label="Hora *"
+            label={t('timeLabel')}
             type="time"
             value={form.time}
             onChange={(e) => setForm({ ...form, time: e.target.value })}
@@ -112,59 +114,56 @@ export default function CreateMatchModal({
 
         <div className="grid grid-cols-2 gap-4">
           <Select
-            label="Ubicación *"
+            label={t('locationLabel')}
             value={form.location}
             onChange={(e) => setForm({ ...form, location: e.target.value })}
             required
           >
-            <option value="">— Selecciona —</option>
-            <option value="HOME">🏠 Casa</option>
-            <option value="AWAY">✈️ Fuera</option>
+            <option value="">{t('locationPlaceholder')}</option>
+            <option value="HOME">{t('locationHome')}</option>
+            <option value="AWAY">{t('locationAway')}</option>
           </Select>
           <Select
-            label="Tipo"
+            label={t('typeLabel')}
             value={form.type}
             onChange={(e) => setForm({ ...form, type: e.target.value })}
           >
-            <option value="LEAGUE">🏆 Liga</option>
-            <option value="FRIENDLY">🤝 Amistoso</option>
-            <option value="CUP">🏅 Copa</option>
-            <option value="PLAYOFF">🔥 Playoff</option>
-            <option value="TOURNAMENT">🎯 Torneo</option>
+            <option value="LEAGUE">{t('typeLeague')}</option>
+            <option value="FRIENDLY">{t('typeFriendly')}</option>
+            <option value="CUP">{t('typeCup')}</option>
+            <option value="PLAYOFF">{t('typePlayoff')}</option>
+            <option value="TOURNAMENT">{t('typeTournament')}</option>
           </Select>
         </div>
 
         {form.location === '' && (
-          <p className="text-xs text-warning -mt-2">
-            ⚠️ Indica si jugáis en casa o fuera. Esto afecta a cómo se
-            interpretan los resultados de los sets.
-          </p>
+          <p className="text-xs text-warning -mt-2">{t('locationWarning')}</p>
         )}
 
         <Input
-          label="Pabellón / Ubicación"
+          label={t('venueLabel')}
           type="text"
           value={form.venue}
           onChange={(e) => setForm({ ...form, venue: e.target.value })}
-          placeholder="Ej: Pabellón Municipal"
+          placeholder={t('venuePlaceholder')}
         />
 
         <Input
-          label="Competición"
+          label={t('competitionLabel')}
           type="text"
           value={form.competition}
           onChange={(e) => setForm({ ...form, competition: e.target.value })}
-          placeholder="Ej: Liga Local Senior"
+          placeholder={t('competitionPlaceholder')}
         />
 
         {isPadel && (
           <div className="border-t border-border-subtle pt-4">
             <h4 className="text-sm font-semibold text-text-primary mb-3">
-              🏟️ Configuración de pistas
+              {t('padelTitle')}
             </h4>
             <div className="grid grid-cols-2 gap-4">
               <Input
-                label="Nº de pistas *"
+                label={t('subMatchesLabel')}
                 type="number"
                 min="1"
                 max="20"
@@ -173,10 +172,10 @@ export default function CreateMatchModal({
                   setForm({ ...form, subMatchesCount: Number(e.target.value) })
                 }
                 required
-                helperText="¿Cuántas parejas jugarán?"
+                helperText={t('subMatchesHelper')}
               />
               <Input
-                label="Sets por pista *"
+                label={t('setsPerSubMatchLabel')}
                 type="number"
                 min="1"
                 max="7"
@@ -185,18 +184,18 @@ export default function CreateMatchModal({
                   setForm({ ...form, setsPerSubMatch: Number(e.target.value) })
                 }
                 required
-                helperText="¿Al mejor de cuántos?"
+                helperText={t('setsPerSubMatchHelper')}
               />
             </div>
           </div>
         )}
 
         <Textarea
-          label="Notas"
+          label={t('notesLabel')}
           value={form.notes}
           onChange={(e) => setForm({ ...form, notes: e.target.value })}
           rows={2}
-          placeholder="Notas adicionales"
+          placeholder={t('notesPlaceholder')}
         />
 
         <div className="flex gap-3 pt-2">
@@ -207,7 +206,7 @@ export default function CreateMatchModal({
             disabled={creating}
             className="flex-1"
           >
-            Cancelar
+            {t('cancel')}
           </Button>
           <Button
             type="submit"
@@ -215,7 +214,7 @@ export default function CreateMatchModal({
             loading={creating}
             className="flex-1"
           >
-            {creating ? 'Creando...' : 'Crear Partido'}
+            {creating ? t('creating') : t('create')}
           </Button>
         </div>
       </form>

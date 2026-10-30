@@ -1,8 +1,11 @@
+// frontend-web/app/[locale]/attendance/overview/page.tsx
+
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from '@/navigation';
-import { Link } from '@/navigation';
+import { useRouter } from '@/navigation'
+import { Link } from '@/navigation'
+import { useTranslations } from 'next-intl'
 import api from '@/lib/api'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
 import { Card, CardBody, Badge } from '@/components/ui'
@@ -28,11 +31,7 @@ interface PlayerStats {
 }
 
 interface TeamStats {
-  team: {
-    id: string
-    name: string
-    club: string
-  }
+  team: { id: string; name: string; club: string }
   summary: {
     totalSessions: number
     totalPlayers: number
@@ -47,6 +46,7 @@ interface TeamStats {
 }
 
 export default function AttendanceOverview() {
+  const t = useTranslations('Attendance.overview')
   const router = useRouter()
   const { activeTeam, loading: loadingTeams } = useActiveTeam()
 
@@ -68,6 +68,7 @@ export default function AttendanceOverview() {
     }
 
     fetchTeamStats(activeTeam.id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTeam, router])
 
   const fetchTeamStats = async (teamId: string) => {
@@ -78,7 +79,7 @@ export default function AttendanceOverview() {
       setError('')
     } catch (error: any) {
       console.error('Error:', error)
-      setError(error.response?.data?.message || 'Error al cargar las estadísticas')
+      setError(error.response?.data?.message || t('errorLoad'))
       setTeamStats(null)
     } finally {
       setLoading(false)
@@ -98,7 +99,7 @@ export default function AttendanceOverview() {
   }
 
   if (loadingTeams || loading) {
-    return <div className="text-center py-12 text-text-muted">Cargando estadísticas...</div>
+    return <div className="text-center py-12 text-text-muted">{t('loading')}</div>
   }
 
   if (!activeTeam) {
@@ -106,10 +107,10 @@ export default function AttendanceOverview() {
       <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
         <div className="text-6xl mb-4">📊</div>
         <h3 className="text-xl font-semibold text-text-primary mb-2">
-          Selecciona un equipo
+          {t('selectTeamTitle')}
         </h3>
         <p className="text-text-secondary mb-6">
-          Elige un equipo desde el menú superior para ver sus estadísticas
+          {t('selectTeamDesc')}
         </p>
       </div>
     )
@@ -118,7 +119,7 @@ export default function AttendanceOverview() {
   return (
     <div>
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-text-primary">📊 Overview de Asistencias</h1>
+        <h1 className="text-2xl font-bold text-text-primary">{t('title')}</h1>
         <p className="text-text-secondary">
           {activeTeam.name} · {activeTeam.club?.name}
         </p>
@@ -136,25 +137,25 @@ export default function AttendanceOverview() {
             <Card>
               <CardBody className="text-center">
                 <p className="text-3xl font-bold text-text-primary">{teamStats.summary.totalSessions}</p>
-                <p className="text-sm text-text-secondary">Entrenamientos</p>
+                <p className="text-sm text-text-secondary">{t('summary.sessions')}</p>
               </CardBody>
             </Card>
             <Card>
               <CardBody className="text-center">
                 <p className="text-3xl font-bold text-text-primary">{teamStats.summary.totalPlayers}</p>
-                <p className="text-sm text-text-secondary">Jugadores</p>
+                <p className="text-sm text-text-secondary">{t('summary.players')}</p>
               </CardBody>
             </Card>
             <Card>
               <CardBody className="text-center">
                 <p className="text-3xl font-bold text-text-primary">{teamStats.summary.totalAttendances}</p>
-                <p className="text-sm text-text-secondary">Registros</p>
+                <p className="text-sm text-text-secondary">{t('summary.records')}</p>
               </CardBody>
             </Card>
             <Card>
               <CardBody className="text-center">
                 <p className="text-3xl font-bold text-brand-primary">{teamStats.summary.attendanceRate}%</p>
-                <p className="text-sm text-text-secondary">Asistencia media</p>
+                <p className="text-sm text-text-secondary">{t('summary.avgAttendance')}</p>
               </CardBody>
             </Card>
           </div>
@@ -162,24 +163,24 @@ export default function AttendanceOverview() {
           <Card className="mb-6">
             <CardBody>
               <h2 className="text-lg font-semibold text-text-primary mb-4">
-                Distribución de Asistencia
+                {t('distributionTitle')}
               </h2>
               <div className="grid grid-cols-4 gap-4">
                 <div className="text-center">
                   <p className="text-2xl font-bold text-success">{teamStats.summary.totalPresent}</p>
-                  <p className="text-xs text-text-muted">✅ Presentes</p>
+                  <p className="text-xs text-text-muted">{t('distribution.present')}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-danger">{teamStats.summary.totalAbsent}</p>
-                  <p className="text-xs text-text-muted">❌ Ausentes</p>
+                  <p className="text-xs text-text-muted">{t('distribution.absent')}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-warning">{teamStats.summary.totalLate}</p>
-                  <p className="text-xs text-text-muted">⏰ Tarde</p>
+                  <p className="text-xs text-text-muted">{t('distribution.late')}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-info">{teamStats.summary.totalExcused}</p>
-                  <p className="text-xs text-text-muted">📝 Justificados</p>
+                  <p className="text-xs text-text-muted">{t('distribution.excused')}</p>
                 </div>
               </div>
             </CardBody>
@@ -188,20 +189,20 @@ export default function AttendanceOverview() {
           <Card>
             <CardBody>
               <h2 className="text-lg font-semibold text-text-primary mb-4">
-                Estadísticas por Jugador
+                {t('playersStatsTitle')}
               </h2>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead className="bg-surface-elevated">
                     <tr>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-text-muted uppercase">#</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-text-muted uppercase">Jugador</th>
-                      <th className="px-4 py-3 text-center text-xs font-medium text-text-muted uppercase">Total</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-text-muted uppercase">{t('columns.number')}</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-text-muted uppercase">{t('columns.player')}</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-text-muted uppercase">{t('columns.total')}</th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-text-muted uppercase">✅</th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-text-muted uppercase">❌</th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-text-muted uppercase">⏰</th>
                       <th className="px-4 py-3 text-center text-xs font-medium text-text-muted uppercase">📝</th>
-                      <th className="px-4 py-3 text-left text-xs font-medium text-text-muted uppercase">% Asistencia</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-text-muted uppercase">{t('columns.attendancePct')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border-subtle">
@@ -217,7 +218,7 @@ export default function AttendanceOverview() {
                               {item.player.name} {item.player.lastName}
                               {item.player.isGhost && (
                                 <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning font-bold uppercase">
-                                  sin cuenta
+                                  {t('ghostBadge')}
                                 </span>
                               )}
                             </Link>
@@ -256,7 +257,7 @@ export default function AttendanceOverview() {
       ) : (
         <div className="text-center py-12 bg-surface rounded-xl shadow border border-border-subtle">
           <div className="text-4xl mb-4">📊</div>
-          <p className="text-text-secondary">No hay estadísticas disponibles para este equipo</p>
+          <p className="text-text-secondary">{t('noStats')}</p>
         </div>
       )}
     </div>

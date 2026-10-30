@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Link } from '@/navigation';
+import { useTranslations } from 'next-intl'
+import { Link } from '@/navigation'
 import api from '@/lib/api'
 import { teamsApi } from '@/lib/api/teams'
 import { matchesApi } from '@/lib/api/matches'
@@ -28,6 +29,7 @@ interface PlayerLite {
 }
 
 export default function PlayerStatsPage() {
+  const t = useTranslations('Players.stats')
   const params = useParams()
   const router = useRouter()
   const teamId = params.id as string
@@ -42,7 +44,6 @@ export default function PlayerStatsPage() {
   const [error, setError] = useState<string | null>(null)
   const [season, setSeason] = useState<string>('')
 
-  // ── Carga inicial
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token) {
@@ -70,12 +71,12 @@ export default function PlayerStatsPage() {
         setSeasons(seasonList)
 
         const teamList: TeamOption[] = Array.isArray(playerTeamsRes)
-          ? playerTeamsRes.map((t) => ({
-              id: t.id,
-              name: t.name,
-              category: t.category ?? null,
-              sport: t.sport ?? '',
-              isFormer: t.isFormer ?? false,
+          ? playerTeamsRes.map((tm) => ({
+              id: tm.id,
+              name: tm.name,
+              category: tm.category ?? null,
+              sport: tm.sport ?? '',
+              isFormer: tm.isFormer ?? false,
             }))
           : []
         setAllTeams(teamList)
@@ -83,13 +84,11 @@ export default function PlayerStatsPage() {
       .catch((err) => {
         if (cancelled) return
         if (err.response?.status === 403) {
-          setError('No tienes acceso a este equipo.')
+          setError(t('errorAccess'))
         } else if (err.response?.status === 404) {
-          setError('Este equipo no existe.')
+          setError(t('errorNotFound'))
         } else {
-          setError(
-            err.response?.data?.message || 'Error al cargar los datos',
-          )
+          setError(err.response?.data?.message || t('errorLoad'))
         }
       })
       .finally(() => {
@@ -99,9 +98,8 @@ export default function PlayerStatsPage() {
     return () => {
       cancelled = true
     }
-  }, [teamId, userId, router])
+  }, [teamId, userId, router, t])
 
-  // ── Carga de partidos según temporada
   const fetchMatches = useCallback(
     async (s: string) => {
       try {
@@ -137,11 +135,7 @@ export default function PlayerStatsPage() {
   const handlePlayerLoaded = useCallback(
     (p: { name: string; lastName: string }) => {
       setPlayer((prev) => {
-        if (
-          prev &&
-          prev.name === p.name &&
-          prev.lastName === p.lastName
-        ) {
+        if (prev && prev.name === p.name && prev.lastName === p.lastName) {
           return prev
         }
         return { id: userId, name: p.name, lastName: p.lastName }
@@ -153,7 +147,7 @@ export default function PlayerStatsPage() {
   if (loading) {
     return (
       <div className="text-center py-12 text-text-muted">
-        Cargando estadísticas del jugador...
+        {t('loadingPage')}
       </div>
     )
   }
@@ -162,13 +156,15 @@ export default function PlayerStatsPage() {
     return (
       <div className="text-center py-12">
         <div className="text-6xl mb-4">❌</div>
-        <h2 className="text-xl font-bold text-text-primary mb-2">Error</h2>
+        <h2 className="text-xl font-bold text-text-primary mb-2">
+          {t('errorHeader')}
+        </h2>
         <p className="text-text-secondary mb-6">{error}</p>
         <Link
           href={`/teams/${teamId}/stats`}
           className="text-brand-primary hover:underline"
         >
-          ← Volver a estadísticas del equipo
+          {t('backToTeamStats')}
         </Link>
       </div>
     )
@@ -180,13 +176,16 @@ export default function PlayerStatsPage() {
         href={`/teams/${teamId}/stats`}
         className="text-brand-primary hover:underline inline-block mb-6"
       >
-        ← Volver a estadísticas del equipo
+        {t('backToTeamStats')}
       </Link>
 
       <Card className="mb-6">
         <CardBody>
           <h1 className="text-3xl font-bold text-text-primary">
-            👤 {player ? `${player.name} ${player.lastName}` : 'Jugador'}
+            👤{' '}
+            {player
+              ? `${player.name} ${player.lastName}`
+              : t('fallbackName')}
           </h1>
           <p className="text-text-secondary mt-1">{team.name}</p>
         </CardBody>

@@ -1,6 +1,7 @@
 'use client'
 
-import { Link } from '@/navigation';
+import { useTranslations, useFormatter } from 'next-intl'
+import { Link } from '@/navigation'
 import { Card, CardBody } from '@/components/ui'
 import MetricSelect from '@/components/MetricSelect'
 import TrendChart from '@/components/TrendChart'
@@ -19,15 +20,33 @@ interface Props {
   onTrendMetricChange: (next: string) => void
 }
 
-function ResultPill({ result }: { result: SetResult }) {
+function ResultPill({
+  result,
+  t,
+}: {
+  result: SetResult
+  t: ReturnType<typeof useTranslations>
+}) {
   const base =
     'inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold'
   if (result === 'WIN')
-    return <span className={`${base} bg-success/20 text-success`}>W</span>
+    return (
+      <span className={`${base} bg-success/20 text-success`}>
+        {t('results.winShort')}
+      </span>
+    )
   if (result === 'LOSS')
-    return <span className={`${base} bg-danger/20 text-danger`}>L</span>
+    return (
+      <span className={`${base} bg-danger/20 text-danger`}>
+        {t('results.lossShort')}
+      </span>
+    )
   if (result === 'DRAW')
-    return <span className={`${base} bg-warning/20 text-warning`}>D</span>
+    return (
+      <span className={`${base} bg-warning/20 text-warning`}>
+        {t('results.drawShort')}
+      </span>
+    )
   return (
     <span className={`${base} bg-surface-elevated text-text-muted`}>—</span>
   )
@@ -40,6 +59,9 @@ export default function PadelPlayerStatsTab({
   trendMetric,
   onTrendMetricChange,
 }: Props) {
+  const t = useTranslations('Players.stats')
+  const format = useFormatter()
+
   const { summary, byMatch, trend, player } = data
   const show = (key: string) => visibleMetrics.includes(key)
 
@@ -59,23 +81,25 @@ export default function PadelPlayerStatsTab({
       <Card>
         <CardBody>
           <h2 className="text-xl font-semibold text-text-primary mb-4">
-            📊 Resumen de {player.name} {player.lastName}
+            {t('summaryTitle', { name: player.name, lastName: player.lastName })}
           </h2>
 
           {summary.matches === 0 ? (
             <p className="text-center text-text-muted py-4">
-              No hay partidos finalizados con los filtros seleccionados.
+              {t('summaryEmpty')}
             </p>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
               {show('PLAYER_MATCHES') && (
                 <StatBox
-                  label="Partidos"
+                  label={t('summaryLabels.matches')}
                   value={`${summary.matches}`}
                   hint={
                     show('PLAYER_W_L_D')
-                      ? `${summary.wins}W · ${summary.losses}L${
-                          summary.draws > 0 ? ` · ${summary.draws}D` : ''
+                      ? `${summary.wins}${t('summaryLabels.wldShort').charAt(0)} · ${summary.losses}${t('summaryLabels.wldShort').charAt(2)}${
+                          summary.draws > 0
+                            ? ` · ${summary.draws}${t('summaryLabels.wldShort').charAt(4)}`
+                            : ''
                         }`
                       : undefined
                   }
@@ -83,7 +107,7 @@ export default function PadelPlayerStatsTab({
               )}
               {show('PLAYER_WIN_RATE') && (
                 <StatBox
-                  label="% Victorias"
+                  label={t('summaryLabels.winRate')}
                   value={`${summary.winRate}%`}
                   hintColor={
                     summary.winRate >= 50 ? 'text-success' : 'text-danger'
@@ -92,33 +116,37 @@ export default function PadelPlayerStatsTab({
               )}
               {show('AVAILABILITY') && (
                 <StatBox
-                  label="Disponibilidad"
+                  label={t('summaryLabels.availability')}
                   value={`${summary.availabilityCount}/${summary.teamMatches}`}
                 />
               )}
               {show('PLAYER_SUB_MATCHES') && (
                 <StatBox
-                  label="Pistas"
+                  label={t('summaryLabels.courts')}
                   value={`${summary.subMatchesWon}-${summary.subMatchesLost}${
                     summary.subMatchesDrawn > 0
                       ? `-${summary.subMatchesDrawn}`
                       : ''
                   }`}
-                  hint={`${summary.subMatchesPlayed} jugadas`}
+                  hint={t('summaryLabels.courtsPlayed', {
+                    n: summary.subMatchesPlayed,
+                  })}
                 />
               )}
               {show('PLAYER_SETS') && (
                 <StatBox
-                  label="Sets"
+                  label={t('summaryLabels.sets')}
                   value={`${summary.setsWon}-${summary.setsLost}${
                     summary.setsDrawn > 0 ? `-${summary.setsDrawn}` : ''
                   }`}
-                  hint={`${summary.setsPlayed} jugados`}
+                  hint={t('summaryLabels.setsPlayed', {
+                    n: summary.setsPlayed,
+                  })}
                 />
               )}
               {show('PLAYER_GAMES') && (
                 <StatBox
-                  label="Games"
+                  label={t('summaryLabels.games')}
                   value={`${summary.gamesWon}-${summary.gamesLost}`}
                   hintColor={
                     summary.gamesDiff > 0
@@ -131,7 +159,7 @@ export default function PadelPlayerStatsTab({
               )}
               {show('PLAYER_GAMES_DIFF') && (
                 <StatBox
-                  label="Dif. games"
+                  label={t('summaryLabels.gamesDiff')}
                   value={
                     summary.gamesDiff > 0
                       ? `+${summary.gamesDiff}`
@@ -157,11 +185,11 @@ export default function PadelPlayerStatsTab({
           <CardBody>
             <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
               <h3 className="text-lg font-semibold text-text-primary">
-                📈 Evolución por mes
+                {t('trendTitle')}
               </h3>
               {trendOptions.length > 0 && (
                 <MetricSelect
-                  label="Métrica"
+                  label={t('trendMetric')}
                   options={trendOptions}
                   value={trendMetric}
                   onChange={onTrendMetricChange}
@@ -171,8 +199,7 @@ export default function PadelPlayerStatsTab({
 
             {isTrendUnavailable ? (
               <p className="text-sm text-text-muted py-6 text-center">
-                La métrica seleccionada no está disponible para tu rol. Se
-                muestra % victorias por defecto.
+                {t('trendUnavailable')}
               </p>
             ) : (
               <TrendChart
@@ -183,7 +210,7 @@ export default function PadelPlayerStatsTab({
                     value: m.winRate,
                   }))
                 }
-                label={appliedTrend?.label ?? '% Victorias'}
+                label={appliedTrend?.label ?? t('trendFallbackLabel')}
                 unit={appliedTrend?.unit ?? '%'}
                 isPercentage={appliedTrend?.unit === '%'}
               />
@@ -197,49 +224,55 @@ export default function PadelPlayerStatsTab({
         <Card>
           <CardBody>
             <h3 className="text-lg font-semibold text-text-primary mb-4">
-              🗓️ Partido a partido ({byMatch.length})
+              {t('byMatchTitle', { count: byMatch.length })}
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-surface-elevated">
                   <tr>
                     <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase">
-                      Fecha
+                      {t('byMatchColumns.date')}
                     </th>
                     <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase">
-                      Rival
+                      {t('byMatchColumns.opponent')}
                     </th>
                     <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                      Res.
+                      {t('byMatchColumns.result')}
                     </th>
                     <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                      Marc.
+                      {t('byMatchColumns.score')}
                     </th>
                     {show('PLAYER_SUB_MATCHES') && (
                       <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        Pistas
+                        {t('byMatchColumns.courts')}
                       </th>
                     )}
                     {show('PLAYER_SETS') && (
                       <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        Sets
+                        {t('byMatchColumns.sets')}
                       </th>
                     )}
                     {show('PLAYER_GAMES') && (
                       <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        Games
+                        {t('byMatchColumns.games')}
                       </th>
                     )}
                     {show('PLAYER_GAMES_DIFF') && (
                       <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        Dif.
+                        {t('byMatchColumns.diff')}
                       </th>
                     )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-subtle">
                   {byMatch.map((bm) => (
-                    <MatchRow key={bm.matchId} bm={bm} show={show} />
+                    <MatchRow
+                      key={bm.matchId}
+                      bm={bm}
+                      show={show}
+                      t={t}
+                      format={format}
+                    />
                   ))}
                 </tbody>
               </table>
@@ -254,18 +287,26 @@ export default function PadelPlayerStatsTab({
 function MatchRow({
   bm,
   show,
+  t,
+  format,
 }: {
   bm: PlayerByMatchPadel
   show: (key: string) => boolean
+  t: ReturnType<typeof useTranslations>
+  format: ReturnType<typeof useFormatter>
 }) {
   return (
     <tr className="hover:bg-surface-elevated transition">
       <td className="px-3 py-2 text-text-secondary whitespace-nowrap">
-        {new Date(bm.date).toLocaleDateString()}
+        {format.dateTime(new Date(bm.date), {
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        })}
       </td>
       <td className="px-3 py-2 text-text-primary">{bm.opponent}</td>
       <td className="px-3 py-2 text-center">
-        <ResultPill result={bm.result} />
+        <ResultPill result={bm.result} t={t} />
       </td>
       <td className="px-3 py-2 text-center text-text-secondary whitespace-nowrap">
         {bm.teamScore !== null && bm.opponentScore !== null

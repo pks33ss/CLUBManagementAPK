@@ -336,6 +336,312 @@
     },
     "tacticalBoard": "🎨 Pizarra Táctica"
   },
+  
+ "UserProfile": {
+  "tabs": {
+    "teams": "Teams",
+    "personal": "Personal",
+    "sport": "Sport",
+    "injuries": "Injuries"
+  },
+  "errors": {
+    "notFound": "User not found",
+    "load": "Error loading profile"
+  },
+  "header": {
+	"editProfile": "Editar perfil",
+  "save": "Guardar",
+  "cancel": "Cancelar",
+  "saving": "Guardando...",
+  "email": "Email",
+  "phone": "Teléfono",
+  "noEmail": "Sin email",
+  "noPhone": "Sin teléfono",
+  "username": "Usuario",
+  "memberSince": "Miembro desde {date}",
+  "roles": "Roles",
+  "noRoles": "Sin roles",
+  "ghostBadge": "sin cuenta",
+  "editData": "✏️ Editar datos",
+  "saveError": "Error al guardar el perfil",
+  "updateSuccess": "✅ Perfil actualizado",
+	"editProfileTooltip": "Editar perfil",
+	"editProfile": "✏️ Editar perfil",
+	"viewStats": "📊 Ver stats",
+	"viewStatsTooltip": "Ver estadísticas individuales"
+},
+"editPlayerProfile": {
+  "loading": "Cargando ficha...",
+  "errorPermission": "No tienes permisos para editar esta ficha",
+  "errorUserNotFound": "Usuario no encontrado",
+  "errorLoad": "Error al cargar la ficha",
+  "errorSave": "Error al guardar la ficha",
+  "title": "📝 Editar ficha de {name} {lastName}",
+  "backToProfile": "← Volver a la ficha",
+  "personalDataTitle": "📋 Datos personales",
+  "physicalDataTitle": "🏃 Datos físicos",
+  "sizesTitle": "👕 Tallas",
+  "emergencyTitle": "🚨 Emergencia",
+  "insuranceTitle": "🏥 Seguro médico",
+  "fields": {
+    "birthDate": "Fecha de nacimiento",
+    "dni": "DNI",
+    "fatherName": "Nombre del padre",
+    "motherName": "Nombre de la madre",
+    "fatherPhone": "Teléfono del padre",
+    "motherPhone": "Teléfono de la madre",
+    "address": "Dirección",
+    "schoolOrCompany": "Colegio / Empresa",
+    "allergies": "Alergias",
+    "height": "Altura (cm)",
+    "wingspan": "Envergadura (cm)",
+    "weight": "Peso (kg)",
+    "shirtSize": "Camiseta",
+    "pantsSize": "Pantalón",
+    "shoeSize": "Calzado",
+    "emergencyContactName": "Contacto de emergencia",
+    "emergencyContactPhone": "Teléfono de emergencia",
+    "medicalInsurance": "Compañía",
+    "medicalInsuranceNumber": "Número de póliza"
+  },
+  "cancel": "Cancelar",
+  "saving": "Guardando...",
+  "save": "Guardar ficha"
+},
+"injuries": {
+  "title": "🩹 Lesiones ({count})",
+  "empty": "Este usuario no tiene lesiones registradas",
+  "addButton": "Nueva lesión",
+  "editTooltip": "Editar lesión",
+  "deleteTooltip": "Eliminar lesión",
+  "deleteConfirm": "¿Eliminar la lesión \"{description}\"?",
+  "deleteError": "Error al eliminar la lesión",
+  "expectedReturnLabel": "Vuelta prevista:",
+  "actualReturnLabel": "Vuelta real:",
+  "treatmentLabel": "Tratamiento:",
+  "statuses": {
+    "ACTIVE": "Activa",
+    "RECOVERED": "Recuperada",
+    "CHRONIC": "Crónica"
+  }
+},
+"sport": {
+  "empty": "Este usuario todavía no ha rellenado sus datos deportivos",
+  "physicalTitle": "📏 Datos físicos",
+  "sizesTitle": "👕 Tallas",
+  "fields": {
+    "height": "Altura",
+    "wingspan": "Envergadura",
+    "weight": "Peso",
+    "shirtSize": "Talla de camiseta",
+    "pantsSize": "Talla de pantalón",
+    "shoeSize": "Talla de calzado"
+  }
+},
+"personal": {
+  "empty": "Este usuario todavía no ha rellenado sus datos personales",
+  "personalDataTitle": "📋 Datos personales",
+  "emergencyTitle": "🚨 Contacto de emergencia",
+  "insuranceTitle": "🏥 Seguro médico",
+  "fields": {
+    "birthDate": "Fecha de nacimiento",
+    "dni": "DNI",
+    "fatherName": "Nombre del padre",
+    "motherName": "Nombre de la madre",
+    "fatherPhone": "Teléfono del padre",
+    "motherPhone": "Teléfono de la madre",
+    "address": "Dirección",
+    "schoolOrCompany": "Colegio / Empresa",
+    "emergencyContactName": "Nombre del contacto de emergencia",
+    "emergencyContactPhone": "Teléfono del contacto de emergencia",
+    "allergies": "Alergias",
+    "medicalInsurance": "Seguro médico",
+    "medicalInsuranceNumber": "Número de seguro"
+  }
+},
+"teams": {
+  "title": "🏆 Equipos ({count})",
+  "noTeams": "Este usuario no tiene equipos",
+  "empty": "Este usuario no tiene equipos",
+  "ghost": "sin cuenta",
+  "since": "Desde {date}",
+  "roles": "Roles",
+  "noPosition": "Sin posición",
+  "status": {
+    "ACTIVE": "Activo",
+    "PENDING": "Pendiente",
+    "INACTIVE": "Inactivo",
+    "LEFT": "Salido"
+  },
+  "editMembership": "✏️ Editar",
+  "editMembershipTooltip": "Editar datos de la membership",
+  "leaveTeam": "Salir del equipo",
+  "leaveConfirm": "¿Seguro que quieres salir del equipo \"{team}\"?",
+  "leaveError": "Error al salir del equipo",
+  "leaving": "Saliendo...",
+  "yesLeave": "Sí, salir",
+  "cancel": "Cancelar"
+},
+  "loading": "Loading...",
+  "back": "Back",
+  "backToHome": "Back to home",
+  "injuryModal": {
+    "titleEdit": "Editar lesión",
+    "titleNew": "Nueva lesión",
+    "statusLabel": "Estado",
+    "dateLabel": "Fecha *",
+    "descriptionLabel": "Descripción *",
+    "descriptionPlaceholder": "Ej: Esguince tobillo derecho",
+    "bodyPartLabel": "Zona del cuerpo",
+    "severityLabel": "Gravedad",
+    "expectedReturnLabel": "Fecha prevista de vuelta",
+    "actualReturnLabel": "Fecha real de vuelta",
+    "treatmentLabel": "Tratamiento",
+    "doctorLabel": "Médico",
+    "notesLabel": "Notas",
+    "cancel": "Cancelar",
+    "saving": "Guardando...",
+    "saveChanges": "Guardar cambios",
+    "create": "Crear lesión",
+    "errorDateRequired": "La fecha es obligatoria",
+    "errorDescriptionRequired": "La descripción es obligatoria",
+    "errorSave": "Error al guardar la lesión",
+    "statuses": {
+      "ACTIVE": "Activa",
+      "RECOVERED": "Recuperada",
+      "CHRONIC": "Crónica"
+    },
+    "bodyParts": {
+      "head": "Cabeza",
+      "neck": "Cuello",
+      "shoulder": "Hombro",
+      "elbow": "Codo",
+      "wrist": "Muñeca",
+      "hand": "Mano",
+      "back": "Espalda",
+      "lumbar": "Lumbar",
+      "hip": "Cadera",
+      "thigh": "Muslo",
+      "knee": "Rodilla",
+      "ankle": "Tobillo",
+      "foot": "Pie",
+      "other": "Otro"
+    },
+    "severities": {
+      "leve": "Leve",
+      "moderada": "Moderada",
+      "grave": "Grave"
+    }
+  }
+},
+
+"Matches": {
+  "loading": "Cargando partidos...",
+  "selectTeamTitle": "Selecciona un equipo",
+  "selectTeamDesc": "Elige un equipo desde el menú superior para ver sus partidos",
+  "title": "🏆 Partidos",
+  "newMatch": "Nuevo Partido",
+  "teamsLabel": "Equipos",
+  "teamsPlaceholder": "Selecciona equipos...",
+  "allMyTeams": "Todos mis equipos",
+  "oneTeam": "1 equipo",
+  "nTeamsSelected": "{count} equipos seleccionados",
+  "selectAll": "✓ Todos",
+  "selectNone": "✕ Ninguno",
+  "noTeamsAssigned": "No tienes equipos asignados",
+  "noCategory": "Sin categoría",
+  "stats": {
+    "matches": "Partidos",
+    "wins": "Victorias",
+    "losses": "Derrotas",
+    "winRate": "% Victorias",
+    "pointsPerMatch": "Puntos/Partido",
+    "opponentPointsPerMatch": "Puntos / Partido (Rival)"
+  },
+  "filter": {
+    "label": "Filtrar:",
+    "all": "Todos ({count})",
+    "scheduled": "📅 Programados",
+    "finished": "✅ Finalizados"
+  },
+  "sort": {
+    "label": "Ordenar:",
+  "options": {
+    "date-asc": "📅 Fecha (más próximos)",
+    "date-desc": "📅 Fecha (más lejanos)",
+    "location": "🏠 Local primero",
+    "opponent-asc": "🔤 Rival (A-Z)",
+    "result-win": "🏆 Victorias primero",
+    "result-loss": "❌ Derrotas primero"
+  }
+  },
+  "emptyNoSelection": "Selecciona al menos un equipo para ver sus partidos",
+  "emptyNoMatches": "No hay partidos registrados para los equipos seleccionados",
+  "emptyNoMatchesInFilter": "No hay partidos que coincidan con el filtro",
+  "createMatch": "Crear Partido",
+  "noResult": "Sin resultado",
+  "vs": "vs {opponent}",
+  "callupsCount": "👥 {count} convocados",
+  "statsCount": "📊 {count} con estadísticas",
+  "types": {
+    "LEAGUE": "🏆 Liga",
+    "FRIENDLY": "🤝 Amistoso",
+    "CUP": "🏅 Copa",
+    "PLAYOFF": "🔥 Playoff",
+    "TOURNAMENT": "🎯 Torneo"
+  },
+  "locations": {
+    "HOME": "🏠 Casa",
+    "AWAY": "✈️ Fuera",
+    "NEUTRAL": "⚖️ Neutral"
+  },
+  "statuses": {
+    "SCHEDULED": "📅 Programado",
+    "IN_PROGRESS": "🔴 En curso",
+    "FINISHED": "✅ Finalizado",
+    "CANCELLED": "❌ Cancelado",
+    "POSTPONED": "⏸️ Aplazado"
+  },
+  "results": {
+    "win": "🏆 Victoria",
+    "loss": "❌ Derrota",
+    "draw": "🤝 Empate"
+  },
+  "createModal": {
+  "title": "🏆 Nuevo Partido",
+  "opponentLabel": "Rival *",
+  "opponentPlaceholder": "Ej: CB Madrid",
+  "dateLabel": "Fecha *",
+  "timeLabel": "Hora *",
+  "locationLabel": "Ubicación *",
+  "locationPlaceholder": "— Selecciona —",
+  "locationHome": "🏠 Casa",
+  "locationAway": "✈️ Fuera",
+  "locationWarning": "⚠️ Indica si jugáis en casa o fuera. Esto afecta a cómo se interpretan los resultados de los sets.",
+  "typeLabel": "Tipo",
+  "typeLeague": "🏆 Liga",
+  "typeFriendly": "🤝 Amistoso",
+  "typeCup": "🏅 Copa",
+  "typePlayoff": "🔥 Playoff",
+  "typeTournament": "🎯 Torneo",
+  "venueLabel": "Pabellón / Ubicación",
+  "venuePlaceholder": "Ej: Pabellón Municipal",
+  "competitionLabel": "Competición",
+  "competitionPlaceholder": "Ej: Liga Local Senior",
+  "padelTitle": "🏟️ Configuración de pistas",
+  "subMatchesLabel": "Nº de pistas *",
+  "subMatchesHelper": "¿Cuántas parejas jugarán?",
+  "setsPerSubMatchLabel": "Sets por pista *",
+  "setsPerSubMatchHelper": "¿Al mejor de cuántos?",
+  "notesLabel": "Notas",
+  "notesPlaceholder": "Notas adicionales",
+  "cancel": "Cancelar",
+  "creating": "Creando...",
+  "create": "Crear Partido",
+  "success": "✅ Partido creado correctamente",
+  "errorCreate": "Error al crear el partido"
+}
+},
 
 "Members": {
   "invite": {
@@ -950,7 +1256,7 @@
     "nameRequired": "El nombre es obligatorio",
     "errorSave": "Error al guardar el ejercicio"
   },
-  "edit": {
+  "editPage": {
     "loading": "Cargando ejercicio...",
     "errorLoad": "Error al cargar el ejercicio",
     "notFound": "Ejercicio no encontrado",
@@ -968,6 +1274,7 @@
     "title": "📚 Nuevo ejercicio de biblioteca"
    }
 },
+
   "MenuTabs": {
   "home": "🏠 Inicio",
   "team": "🏆 Equipo",
@@ -988,6 +1295,251 @@
   "playbook": "📘 Playbook",
   "payments": "💰 Pagos",
   "myPayments": "💰 Mis pagos"
+},
+"Players": {
+  "stats": {
+    "loadingPage": "Cargando estadísticas del jugador...",
+    "errorAccess": "No tienes acceso a este equipo.",
+    "errorNotFound": "Este equipo no existe.",
+    "errorLoad": "Error al cargar los datos",
+    "errorHeader": "Error",
+    "backToTeamStats": "← Volver a estadísticas del equipo",
+    "player": "Jugador",
+    "fallbackName": "Jugador",
+    "loadingStats": "Cargando estadísticas...",
+    "errorLoadStats": "No se pudieron cargar las estadísticas",
+    "errorLoadStatsMsg": "Error al cargar estadísticas del jugador",
+    "sportInDevelopmentTitle": "Estadísticas de jugador en {sport} — próximamente",
+    "sportInDevelopmentHint": "Este deporte todavía no tiene vista individual implementada.",
+    "summaryTitle": "📊 Resumen de {name} {lastName}",
+    "summaryEmpty": "No hay partidos finalizados con los filtros seleccionados.",
+    "summaryLabels": {
+      "matches": "Partidos",
+      "winRate": "% Victorias",
+      "availability": "Disponibilidad",
+      "points": "Puntos",
+      "pointsPerMatch": "{n}/partido",
+      "minutes": "Minutos",
+      "minutesPerMatch": "{n}/partido",
+      "rebounds": "Rebotes",
+      "assists": "Asistencias",
+      "steals": "Robos",
+      "blocks": "Tapones",
+      "blocksAgainst": "Tapones c.",
+      "turnovers": "Pérdidas",
+      "foulsCommitted": "Faltas c.",
+      "foulsDrawn": "Faltas r.",
+      "valuation": "Valoración",
+      "valuationPerMatch": "{n}/partido",
+      "plusMinus": "+/-",
+      "twoPointPct": "% 2P",
+      "fieldGoalPct": "% TC",
+      "threePointPct": "% 3P",
+      "freeThrowPct": "% TL",
+      "courts": "Pistas",
+      "courtsPlayed": "{n} jugadas",
+      "sets": "Sets",
+      "setsPlayed": "{n} jugados",
+      "games": "Games",
+      "gamesDiff": "Dif. games"
+    },
+    "trendTitle": "📈 Evolución por mes",
+    "trendMetric": "Métrica",
+    "trendUnavailable": "La métrica seleccionada no está disponible para tu rol. Se muestra % victorias por defecto.",
+    "trendFallbackLabel": "% Victorias",
+    "byMatchTitle": "🗓️ Partido a partido ({count})",
+    "byMatchColumns": {
+      "date": "Fecha",
+      "opponent": "Rival",
+      "result": "Res.",
+      "score": "Marc.",
+      "min": "Min",
+      "pts": "Pts",
+      "reb": "Reb",
+      "ast": "Ast",
+      "stl": "Rob",
+      "blk": "Tap",
+      "tov": "Per",
+      "fouls": "Fal",
+      "val": "Val",
+      "plusMinus": "+/-",
+      "twoP": "2P",
+      "fg": "TC",
+      "threeP": "3P",
+      "ft": "TL",
+      "courts": "Pistas",
+      "sets": "Sets",
+      "games": "Games",
+      "diff": "Dif."
+    }
+  }
+},
+"Clubs": {
+  "redirecting": "Redirigiendo a Mis Clubs...",
+  "detail": {
+    "loadingClub": "Cargando club...",
+    "errorLoad": "Error al cargar el club",
+    "notFound": "Club no encontrado",
+    "backToDashboard": "← Volver al dashboard",
+    "backToClubs": "← Volver a Mis Clubs",
+    "noDescription": "Sin descripción",
+    "teams": "Equipos",
+    "members": "Miembros",
+    "players": "Jugadores",
+    "admins": "Admins",
+    "teamsTitle": "🏆 Equipos ({count})",
+    "manageTeams": "Gestionar Equipos",
+    "noTeams": "No hay equipos en este club",
+    "noCategory": "Sin categoría",
+    "noSeason": "Temporada no especificada",
+    "playersCount": "{count, plural, one {👥 # jugador} other {👥 # jugadores}}",
+    "membersTitle": "👥 Miembros ({count})",
+    "manageMembers": "Gestionar Miembros",
+    "noMembers": "No hay miembros en este club",
+    "editTitle": "✏️ Editar Club",
+    "logoLabel": "Logo del club",
+    "changeLogo": "📸 Cambiar logo",
+    "uploadLogo": "📸 Subir logo",
+    "remove": "🗑️ Quitar",
+    "uploading": "Subiendo...",
+    "confirmUpload": "✅ Confirmar subida",
+    "formName": "Nombre del Club *",
+    "formDescription": "Descripción",
+    "formAddress": "Dirección",
+    "formAddressPlaceholder": "Calle, número, ciudad",
+    "formPhone": "Teléfono",
+    "formPhonePlaceholder": "+34 600 123 456",
+    "formEmail": "Email",
+    "formEmailPlaceholder": "club@email.com",
+    "saving": "Guardando...",
+    "deleteTitle": "🗑️ Eliminar Club",
+    "deleteConfirmRich": "¿Estás seguro de que quieres eliminar el club <strong>{name}</strong>? Esta acción no se puede deshacer y eliminará todos los equipos, jugadores y entrenamientos asociados.",
+    "deleting": "Eliminando...",
+    "yesDelete": "Sí, Eliminar",
+    "updateSuccess": "✅ Club actualizado correctamente",
+    "errorUpdate": "Error al actualizar el club",
+    "deleteSuccess": "✅ Club eliminado correctamente",
+    "errorDelete": "Error al eliminar el club",
+    "selectImage": "Por favor, selecciona una imagen",
+    "imageTooBig": "La imagen es demasiado grande. Máximo 3MB.",
+    "logoUpdated": "✅ Logo actualizado correctamente",
+    "logoUploadError": "Error al subir el logo",
+    "removeLogoConfirm": "¿Eliminar el logo del club?",
+    "logoRemoved": "✅ Logo eliminado",
+    "logoRemoveError": "Error al eliminar el logo"
+  },
+  "reminders": {
+  "loading": "Cargando configuración de recordatorios...",
+  "errorLoad": "No se pudo cargar la configuración de recordatorios",
+  "errorLoadShort": "Error cargando configuración",
+  "title": "🔔 Recordatorios de pago",
+  "enabled": "Activados",
+  "disabled": "Desactivados",
+  "globalDisabled": "Global desactivado",
+  "autoSend": "⏰ Envío automático diario a las <strong>{time}</strong> (hora del servidor).",
+  "globalDisabledWarning": "⚠️ Los recordatorios están <strong>desactivados globalmente</strong> en la plataforma. Aunque este club los tenga activados, no se enviarán emails. Contacta con soporte si necesitas reactivarlos.",
+  "infoTitle": "ℹ️ Los emails se envían <strong>una sola vez</strong> por jugador y concepto:",
+  "infoBeforeDue": "<strong>Antes de vencer:</strong> cuando faltan los días configurados en cada concepto (por defecto 3).",
+  "infoAfterDue": "<strong>Después de vencer:</strong> el primer día que el cron los detecte ya vencidos y sigan pendientes.",
+  "toggleAria": "Activar o desactivar recordatorios de pago",
+  "onlyAdmins": "Solo los administradores del club pueden cambiar esta configuración.",
+  "confirmGlobalDisabled": "Los recordatorios están desactivados globalmente por el administrador de la plataforma. Aunque actives este club, no se enviarán emails hasta que se reactive el global.\n\n¿Quieres activarlo igualmente?",
+  "errorUpdate": "Error al actualizar la configuración de recordatorios"
+},
+"members": {
+  "loading": "Cargando miembros...",
+  "errorLoad": "Error al cargar miembros",
+  "backToDashboard": "← Volver al dashboard",
+  "backToClub": "← Volver al club",
+  "title": "👥 Miembros del Club",
+  "subtitle": "Gestiona los miembros y sus roles",
+  "inviteButton": "Invitar Miembro",
+  "tableColumns": {
+    "user": "Usuario",
+    "email": "Email",
+    "role": "Rol",
+    "since": "Desde",
+    "actions": "Acciones"
+  },
+  "since": "Desde {date}",
+  "selfRoleDisabled": "No puedes modificar tu propio rol",
+  "actions": {
+    "changeRole": "Cambiar rol",
+    "manageTeams": "Gestionar equipos",
+    "resetPassword": "Resetear contraseña",
+    "removeMember": "Eliminar miembro",
+    "changeRoleShort": "✏️ Cambiar rol",
+    "teamsShort": "🏀 Equipos",
+    "passwordShort": "🔑 Contraseña",
+    "removeShort": "🗑️ Eliminar"
+  },
+  "inviteModal": {
+    "title": "Invitar Miembro al Club",
+    "emailLabel": "Email del usuario *",
+    "emailPlaceholder": "usuario@email.com",
+    "emailHelper": "El usuario debe estar registrado en la app",
+    "roleLabel": "Rol en el club *",
+    "cancel": "Cancelar",
+    "inviting": "Invitando...",
+    "submit": "Invitar",
+    "success": "✅ Miembro invitado correctamente",
+    "error": "Error al invitar al miembro"
+  },
+  "roleModal": {
+    "title": "Cambiar Rol de {name} {lastName}",
+    "roles": {
+      "adminClub": {
+        "label": "Admin Club",
+        "description": "Puede gestionar todo el club"
+      },
+      "coach": {
+        "label": "Entrenador",
+        "description": "Puede gestionar sus equipos"
+      },
+      "assistant": {
+        "label": "Asistente",
+        "description": "Puede ver y ayudar"
+      }
+    },
+    "cancel": "Cancelar",
+    "saving": "Guardando...",
+    "save": "Guardar Cambios",
+    "success": "✅ Rol actualizado correctamente",
+    "error": "Error al actualizar el rol"
+  },
+  "resetPasswordModal": {
+    "title": "🔑 Resetear Contraseña",
+    "description": "Vas a resetear la contraseña de <strong>{name} {lastName}</strong> ({email})",
+    "newPasswordLabel": "Nueva contraseña *",
+    "newPasswordPlaceholder": "Mínimo 6 caracteres",
+    "minChars": "La contraseña debe tener al menos 6 caracteres",
+    "cancel": "Cancelar",
+    "resetting": "Reseteando...",
+    "submit": "🔑 Resetear",
+    "success": "✅ Contraseña reseteada correctamente",
+    "error": "Error al resetear la contraseña"
+  },
+  "teamsModal": {
+    "title": "🏆 Equipos de {name} {lastName}",
+    "description": "Asigna los equipos a los que este entrenador tendrá acceso",
+    "loading": "Cargando equipos...",
+    "noTeams": "No hay equipos en este club",
+    "noCategory": "Sin categoría",
+    "assigned": "Asignado",
+    "close": "Cerrar",
+    "loadError": "Error al cargar los equipos del miembro",
+    "toggleError": "Error al actualizar la asignación"
+  },
+  "removeConfirm": "¿Eliminar a {name} del club?",
+  "removeSuccess": "✅ Miembro eliminado correctamente",
+  "removeError": "Error al eliminar el miembro"
+},
+  "roles": {
+    "adminClub": "🛡️ Admin Club",
+    "coach": "🎓 Entrenador",
+    "assistant": "🤝 Asistente",
+    "member": "👤 Miembro"
+  }
 },
   "Settings": {
   "title": "⚙️ Configuración",
@@ -1730,6 +2282,140 @@
   "back": "trasera"
 }
 },
+
+  "Attendance": {
+    "report": {
+      "loading": "Cargando informe...",
+      "errorLoad": "No se pudieron cargar las estadísticas",
+      "backToTeams": "← Volver a equipos",
+      "backToTeam": "← Volver al equipo",
+      "title": "📊 Reporte de Asistencia",
+      "summary": {
+        "sessions": "Sesiones",
+        "players": "Jugadores",
+        "records": "Registros",
+        "avgAttendance": "Asistencia media"
+      },
+      "distributionTitle": "Distribución de Asistencia",
+      "distribution": {
+        "present": "Presentes",
+        "absent": "Ausentes",
+        "late": "Tarde",
+        "excused": "Justificados"
+      },
+      "playersStatsTitle": "Estadísticas por Jugador",
+      "columns": {
+        "number": "#",
+        "player": "Jugador",
+        "total": "Total",
+        "attendancePct": "% Asistencia"
+      },
+      "ghostBadge": "sin cuenta"
+    },
+    "overview": {
+      "loading": "Cargando...",
+      "errorLoad": "Error al cargar las estadísticas",
+      "selectTeamTitle": "Selecciona un equipo",
+      "selectTeamDesc": "Elige un equipo desde el menú superior para ver sus estadísticas de asistencia",
+      "title": "📊 Asistencias",
+      "summary": {
+        "sessions": "Sesiones",
+        "players": "Jugadores",
+        "records": "Registros",
+        "avgAttendance": "Asistencia media"
+      },
+      "distributionTitle": "Distribución de Asistencia",
+      "distribution": {
+        "present": "Presentes",
+        "absent": "Ausentes",
+        "late": "Tarde",
+        "excused": "Justificados"
+      },
+      "playersStatsTitle": "Estadísticas por Jugador",
+      "columns": {
+        "number": "#",
+        "player": "Jugador",
+        "total": "Total",
+        "attendancePct": "% Asistencia"
+      },
+      "ghostBadge": "sin cuenta",
+      "noStats": "No hay estadísticas de asistencia todavía"
+    }
+  },
+  "AdminUsers": {
+    "loading": "Cargando usuarios...",
+    "errorNoPermission": "No tienes permiso para acceder a esta sección",
+    "errorLoad": "Error al cargar los usuarios",
+    "backToDashboard": "← Volver al dashboard",
+    "title": "👥 Administración de Usuarios",
+    "subtitle": "Gestiona los usuarios de la aplicación",
+    "newUser": "Nuevo Usuario",
+    "emailStatsTitle": "Notificaciones por email",
+    "emailStatsSubtitle": "{active} de {total} usuarios con email activo",
+    "enableAll": "✅ Activar todos",
+    "disableAll": "🚫 Desactivar todos",
+    "columns": {
+      "user": "Usuario",
+      "email": "Email",
+      "role": "Rol",
+      "clubs": "Clubes",
+      "emailToggle": "📧 Email",
+      "actions": "Acciones"
+    },
+    "noEmail": "Sin email",
+    "emailToggleNoEmail": "Este usuario no tiene email",
+    "emailToggleEnable": "Activar notificaciones",
+    "emailToggleDisable": "Desactivar notificaciones",
+    "resetTooltip": "Resetear contraseña",
+    "deleteTooltip": "Eliminar usuario",
+    "errorEmailToggle": "Error al actualizar las notificaciones por email",
+    "errorBulkUpdate": "Error al actualizar en bloque",
+    "createSuccess": "✅ Usuario creado correctamente",
+    "createError": "Error al crear el usuario",
+    "changeRoleConfirm": "¿Cambiar el rol a {role}?",
+    "changeRoleSuccess": "✅ Rol actualizado",
+    "changeRoleError": "Error al cambiar el rol",
+    "deleteConfirmMismatch": "El texto de confirmación no coincide",
+    "deleteSuccess": "✅ Usuario eliminado",
+    "deleteError": "Error al eliminar el usuario",
+    "passwordMinChars": "La contraseña debe tener al menos 6 caracteres",
+    "resetSuccess": "✅ Contraseña reseteada",
+    "resetError": "Error al resetear la contraseña",
+    "roles": {
+      "superAdmin": "👑 Super Admin",
+      "user": "👤 Usuario",
+      "superAdminOption": "👑 Super Admin",
+      "userOption": "👤 Usuario"
+    },
+    "cancel": "Cancelar",
+    "creating": "Creando...",
+    "createButton": "Crear usuario",
+    "createModalTitle": "Crear nuevo usuario",
+    "form": {
+      "name": "Nombre",
+      "lastName": "Apellido",
+      "email": "Email",
+      "password": "Contraseña",
+      "role": "Rol"
+    },
+    "resetModalTitle": "Resetear contraseña",
+    "resetModalDescription": "Vas a resetear la contraseña de <strong>{name} {lastName}</strong> ({email}).",
+    "resetForm": {
+      "newPassword": "Nueva contraseña",
+      "placeholder": "Mínimo 6 caracteres",
+      "helper": "Comunica esta contraseña al usuario por un canal seguro."
+    },
+    "resetting": "Reseteando...",
+    "resetButton": "Resetear contraseña",
+    "deleteModalTitle": "Eliminar usuario",
+    "deleteWarningTitle": "⚠️ Acción irreversible",
+    "deleteWarningBody": "Se eliminará el usuario y todos sus datos asociados. Esta acción no se puede deshacer.",
+    "deleteConfirmBody": "Para confirmar, escribe <strong>{name} {lastName}{email}</strong> en el campo de abajo.",
+    "deleteConfirmLabel": "Confirmar eliminación",
+    "deleteConfirmHelper": "Escribe exactamente: {expected}",
+    "deleting": "Eliminando...",
+    "deleteButton": "Eliminar usuario"
+  },
   
   "Sports": {
     "BASKETBALL": "Baloncesto",

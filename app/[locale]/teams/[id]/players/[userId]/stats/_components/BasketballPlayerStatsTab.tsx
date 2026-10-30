@@ -1,5 +1,6 @@
 'use client'
 
+import { useLocale, useTranslations } from 'next-intl'
 import { Card, CardBody } from '@/components/ui'
 import MetricSelect from '@/components/MetricSelect'
 import TrendChart from '@/components/TrendChart'
@@ -18,17 +19,23 @@ interface Props {
   onTrendMetricChange: (next: string) => void
 }
 
-function ResultPill({ result }: { result: MatchResult }) {
+function ResultPill({
+  result,
+  labels,
+}: {
+  result: MatchResult
+  labels: { win: string; loss: string; draw: string; none: string }
+}) {
   const base =
     'inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold'
   if (result === 'WIN')
-    return <span className={`${base} bg-success/20 text-success`}>W</span>
+    return <span className={`${base} bg-success/20 text-success`}>{labels.win}</span>
   if (result === 'LOSS')
-    return <span className={`${base} bg-danger/20 text-danger`}>L</span>
+    return <span className={`${base} bg-danger/20 text-danger`}>{labels.loss}</span>
   if (result === 'DRAW')
-    return <span className={`${base} bg-warning/20 text-warning`}>D</span>
+    return <span className={`${base} bg-warning/20 text-warning`}>{labels.draw}</span>
   return (
-    <span className={`${base} bg-surface-elevated text-text-muted`}>—</span>
+    <span className={`${base} bg-surface-elevated text-text-muted`}>{labels.none}</span>
   )
 }
 
@@ -45,6 +52,8 @@ export default function BasketballPlayerStatsTab({
   trendMetric,
   onTrendMetricChange,
 }: Props) {
+  const t = useTranslations('Players.stats')
+  const locale = useLocale()
   const { summary, byMatch, trend, player } = data
   const show = (key: string) => visibleMetrics.includes(key)
 
@@ -63,37 +72,43 @@ export default function BasketballPlayerStatsTab({
   const isTrendUnavailable =
     trend.series === null && trend.requestedMetric !== null
 
+  const resultLabels = {
+    win: 'W',
+    loss: 'L',
+    draw: 'D',
+    none: '—',
+  }
+
+  const matchRecordHint =
+    show('wins') || show('losses') || show('draws')
+      ? `${summary.wins}W · ${summary.losses}L${
+          summary.draws > 0 ? ` · ${summary.draws}D` : ''
+        }`
+      : undefined
+
   return (
     <div className="space-y-6">
       {/* ── Resumen ── */}
       <Card>
         <CardBody>
           <h2 className="text-xl font-semibold text-text-primary mb-4">
-            📊 Resumen de {player.name} {player.lastName}
+            {t('summaryTitle', { name: player.name, lastName: player.lastName })}
           </h2>
 
           {summary.matches === 0 ? (
-            <p className="text-center text-text-muted py-4">
-              No hay partidos finalizados con los filtros seleccionados.
-            </p>
+            <p className="text-center text-text-muted py-4">{t('summaryEmpty')}</p>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
               {show('MATCHES') && (
                 <StatBox
-                  label="Partidos"
+                  label={t('summaryLabels.matches')}
                   value={`${summary.matches}`}
-                  hint={
-                    show('WINS') || show('LOSSES') || show('DRAWS')
-                      ? `${summary.wins}W · ${summary.losses}L${
-                          summary.draws > 0 ? ` · ${summary.draws}D` : ''
-                        }`
-                      : undefined
-                  }
+                  hint={matchRecordHint}
                 />
               )}
               {show('WIN_RATE') && (
                 <StatBox
-                  label="% Victorias"
+                  label={t('summaryLabels.winRate')}
                   value={`${summary.winRate}%`}
                   hintColor={
                     summary.winRate >= 50 ? 'text-success' : 'text-danger'
@@ -102,73 +117,89 @@ export default function BasketballPlayerStatsTab({
               )}
               {show('AVAILABILITY') && (
                 <StatBox
-                  label="Disponibilidad"
+                  label={t('summaryLabels.availability')}
                   value={`${summary.availabilityCount}/${summary.teamMatches}`}
                 />
               )}
               {show('POINTS_PLAYER') && (
                 <StatBox
-                  label="Puntos"
+                  label={t('summaryLabels.points')}
                   value={`${summary.points}`}
                   hint={
                     show('POINTS_PER_MATCH_PLAYER')
-                      ? `${summary.pointsPerMatch}/partido`
+                      ? t('summaryLabels.pointsPerMatch', { n: summary.pointsPerMatch })
                       : undefined
                   }
                 />
               )}
               {show('MINUTES') && (
                 <StatBox
-                  label="Minutos"
+                  label={t('summaryLabels.minutes')}
                   value={`${summary.minutes}`}
                   hint={
                     show('MINUTES_PER_MATCH_PLAYER')
-                      ? `${summary.minutesPerMatch}/partido`
+                      ? t('summaryLabels.minutesPerMatch', {
+                          n: summary.minutesPerMatch,
+                        })
                       : undefined
                   }
                 />
               )}
               {show('REBOUNDS') && (
-                <StatBox label="Rebotes" value={`${summary.rebounds}`} />
+                <StatBox
+                  label={t('summaryLabels.rebounds')}
+                  value={`${summary.rebounds}`}
+                />
               )}
               {show('ASSISTS') && (
                 <StatBox
-                  label="Asistencias"
+                  label={t('summaryLabels.assists')}
                   value={`${summary.assists}`}
                 />
               )}
               {show('STEALS') && (
-                <StatBox label="Robos" value={`${summary.steals}`} />
+                <StatBox
+                  label={t('summaryLabels.steals')}
+                  value={`${summary.steals}`}
+                />
               )}
               {show('BLOCKS') && (
-                <StatBox label="Tapones" value={`${summary.blocks}`} />
+                <StatBox
+                  label={t('summaryLabels.blocks')}
+                  value={`${summary.blocks}`}
+                />
               )}
               {show('BLOCKS_AGAINST') && (
                 <StatBox
-                  label="Tapones c."
+                  label={t('summaryLabels.blocksAgainst')}
                   value={`${summary.blocksAgainst}`}
                 />
               )}
               {show('TURNOVERS') && (
                 <StatBox
-                  label="Pérdidas"
+                  label={t('summaryLabels.turnovers')}
                   value={`${summary.turnovers}`}
                 />
               )}
               {show('FOULS') && (
-                <StatBox label="Faltas c." value={`${summary.fouls}`} />
+                <StatBox
+                  label={t('summaryLabels.foulsCommitted')}
+                  value={`${summary.fouls}`}
+                />
               )}
               {show('FOULS_DRAWN') && (
                 <StatBox
-                  label="Faltas r."
+                  label={t('summaryLabels.foulsDrawn')}
                   value={`${summary.foulsDrawn}`}
                 />
               )}
               {show('VALUATION') && (
                 <StatBox
-                  label="Valoración"
+                  label={t('summaryLabels.valuation')}
                   value={`${summary.valuation}`}
-                  hint={`${summary.valuationPerMatch}/partido`}
+                  hint={t('summaryLabels.valuationPerMatch', {
+                    n: summary.valuationPerMatch,
+                  })}
                   hintColor={
                     summary.valuation > 0
                       ? 'text-success'
@@ -180,7 +211,7 @@ export default function BasketballPlayerStatsTab({
               )}
               {show('PLUS_MINUS') && (
                 <StatBox
-                  label="+/-"
+                  label={t('summaryLabels.plusMinus')}
                   value={fmtPlusMinus(summary.plusMinus)}
                   hintColor={
                     summary.plusMinus > 0
@@ -193,7 +224,7 @@ export default function BasketballPlayerStatsTab({
               )}
               {show2P && (
                 <StatBox
-                  label="% 2P"
+                  label={t('summaryLabels.twoPointPct')}
                   value={`${summary.twoPointersPct}%`}
                   hint={
                     show2PMade && show2PAttempted
@@ -204,21 +235,21 @@ export default function BasketballPlayerStatsTab({
               )}
               {show('FG_PCT') && (
                 <StatBox
-                  label="% TC"
+                  label={t('summaryLabels.fieldGoalPct')}
                   value={`${summary.fieldGoalPct}%`}
                   hint={`${summary.fieldGoalsMade}/${summary.fieldGoalsAttempted}`}
                 />
               )}
               {show('TP_PCT') && (
                 <StatBox
-                  label="% 3P"
+                  label={t('summaryLabels.threePointPct')}
                   value={`${summary.threePointPct}%`}
                   hint={`${summary.threePointersMade}/${summary.threePointersAttempted}`}
                 />
               )}
               {show('FT_PCT') && (
                 <StatBox
-                  label="% TL"
+                  label={t('summaryLabels.freeThrowPct')}
                   value={`${summary.freeThrowPct}%`}
                   hint={`${summary.freeThrowsMade}/${summary.freeThrowsAttempted}`}
                 />
@@ -234,11 +265,11 @@ export default function BasketballPlayerStatsTab({
           <CardBody>
             <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
               <h3 className="text-lg font-semibold text-text-primary">
-                📈 Evolución por mes
+                {t('trendTitle')}
               </h3>
               {trendOptions.length > 0 && (
                 <MetricSelect
-                  label="Métrica"
+                  label={t('trendMetric')}
                   options={trendOptions}
                   value={trendMetric}
                   onChange={onTrendMetricChange}
@@ -248,8 +279,7 @@ export default function BasketballPlayerStatsTab({
 
             {isTrendUnavailable ? (
               <p className="text-sm text-text-muted py-6 text-center">
-                La métrica seleccionada no está disponible para tu rol. Se
-                muestra % victorias por defecto.
+                {t('trendUnavailable')}
               </p>
             ) : (
               <TrendChart
@@ -260,7 +290,7 @@ export default function BasketballPlayerStatsTab({
                     value: m.winRate,
                   }))
                 }
-                label={appliedTrend?.label ?? '% Victorias'}
+                label={appliedTrend?.label ?? t('trendFallbackLabel')}
                 unit={appliedTrend?.unit ?? '%'}
                 isPercentage={appliedTrend?.unit === '%'}
               />
@@ -274,92 +304,92 @@ export default function BasketballPlayerStatsTab({
         <Card>
           <CardBody>
             <h3 className="text-lg font-semibold text-text-primary mb-4">
-              🗓️ Partido a partido ({byMatch.length})
+              {t('byMatchTitle', { count: byMatch.length })}
             </h3>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead className="bg-surface-elevated">
                   <tr>
                     <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase">
-                      Fecha
+                      {t('byMatchColumns.date')}
                     </th>
                     <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase">
-                      Rival
+                      {t('byMatchColumns.opponent')}
                     </th>
                     <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                      Res.
+                      {t('byMatchColumns.result')}
                     </th>
                     <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                      Marc.
+                      {t('byMatchColumns.score')}
                     </th>
                     {show('MINUTES') && (
                       <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        Min
+                        {t('byMatchColumns.min')}
                       </th>
                     )}
                     {show('POINTS_PLAYER') && (
                       <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        Pts
+                        {t('byMatchColumns.pts')}
                       </th>
                     )}
                     {show('REBOUNDS') && (
                       <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        Reb
+                        {t('byMatchColumns.reb')}
                       </th>
                     )}
                     {show('ASSISTS') && (
                       <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        Ast
+                        {t('byMatchColumns.ast')}
                       </th>
                     )}
                     {show('STEALS') && (
                       <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        Rob
+                        {t('byMatchColumns.stl')}
                       </th>
                     )}
                     {show('BLOCKS') && (
                       <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        Tap
+                        {t('byMatchColumns.blk')}
                       </th>
                     )}
                     {show('TURNOVERS') && (
                       <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        Per
+                        {t('byMatchColumns.tov')}
                       </th>
                     )}
                     {show('FOULS') && (
                       <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        Fal
+                        {t('byMatchColumns.fouls')}
                       </th>
                     )}
                     {show('VALUATION') && (
                       <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        Val
+                        {t('byMatchColumns.val')}
                       </th>
                     )}
                     {show('PLUS_MINUS') && (
                       <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        +/-
+                        {t('byMatchColumns.plusMinus')}
                       </th>
                     )}
                     {show2P && (
                       <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        2P
+                        {t('byMatchColumns.twoP')}
                       </th>
                     )}
                     {show('FG_PCT') && (
                       <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        TC
+                        {t('byMatchColumns.fg')}
                       </th>
                     )}
                     {show('TP_PCT') && (
                       <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        3P
+                        {t('byMatchColumns.threeP')}
                       </th>
                     )}
                     {show('FT_PCT') && (
                       <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        TL
+                        {t('byMatchColumns.ft')}
                       </th>
                     )}
                   </tr>
@@ -374,6 +404,8 @@ export default function BasketballPlayerStatsTab({
                       show2PAttempted={show2PAttempted}
                       show2PPct={show2PPct}
                       show2P={show2P}
+                      resultLabels={resultLabels}
+                      locale={locale}
                     />
                   ))}
                 </tbody>
@@ -393,6 +425,8 @@ function MatchRow({
   show2PAttempted,
   show2PPct,
   show2P,
+  resultLabels,
+  locale,
 }: {
   bm: PlayerByMatchBasketball
   show: (key: string) => boolean
@@ -400,15 +434,17 @@ function MatchRow({
   show2PAttempted: boolean
   show2PPct: boolean
   show2P: boolean
+  resultLabels: { win: string; loss: string; draw: string; none: string }
+  locale: string
 }) {
   return (
     <tr className="hover:bg-surface-elevated transition">
       <td className="px-3 py-2 text-text-secondary whitespace-nowrap">
-        {new Date(bm.date).toLocaleDateString()}
+        {new Date(bm.date).toLocaleDateString(locale)}
       </td>
       <td className="px-3 py-2 text-text-primary">{bm.opponent}</td>
       <td className="px-3 py-2 text-center">
-        <ResultPill result={bm.result} />
+        <ResultPill result={bm.result} labels={resultLabels} />
       </td>
       <td className="px-3 py-2 text-center text-text-secondary whitespace-nowrap">
         {bm.teamScore !== null && bm.opponentScore !== null
@@ -483,7 +519,7 @@ function MatchRow({
           {fmtPlusMinus(bm.plusMinus)}
         </td>
       )}
-      
+
       {show2P && (
         <td className="px-3 py-2 text-center text-text-secondary whitespace-nowrap">
           {show2PMade && show2PAttempted

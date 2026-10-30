@@ -1,6 +1,7 @@
 'use client'
 
-import { Link } from '@/navigation';
+import { useTranslations } from 'next-intl'
+import { Link } from '@/navigation'
 import { Card, CardBody, Badge } from '@/components/ui'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
 import type { UserPublic } from '@/types/user'
@@ -8,13 +9,7 @@ import type { UserPublic } from '@/types/user'
 interface Props {
   user: UserPublic
   canEditProfile?: boolean
-  /** Si el viewer puede ver email/phone del user (lo decide el backend). */
   canViewEmail?: boolean
-}
-
-const ROLE_LABEL: Record<string, string> = {
-  SUPER_ADMIN: '👑 Super Admin',
-  USER: '👤 Usuario',
 }
 
 export default function UserProfileHeader({
@@ -22,6 +17,8 @@ export default function UserProfileHeader({
   canEditProfile = false,
   canViewEmail = false,
 }: Props) {
+  const t = useTranslations('UserProfile.header')
+  const tRoles = useTranslations('AdminUsers.roles')
   const { activeTeam } = useActiveTeam()
 
   const initials = `${user.name?.[0] || ''}${user.lastName?.[0] || ''}`.toUpperCase()
@@ -39,12 +36,24 @@ export default function UserProfileHeader({
 
   const showPrivate = canViewEmail && (user.email || user.phone)
 
+  const roleLabel = (() => {
+    switch (user.role) {
+      case 'SUPER_ADMIN':
+        return tRoles('superAdmin')
+      case 'USER':
+        return tRoles('user')
+      default:
+        return user.role
+    }
+  })()
+
   return (
     <Card>
       <CardBody>
         <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
           <div className="w-24 h-24 rounded-full bg-brand-primary text-bg-base flex items-center justify-center text-3xl font-bold shrink-0">
             {user.avatar ? (
+              // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={user.avatar}
                 alt={user.name}
@@ -62,12 +71,10 @@ export default function UserProfileHeader({
                   {user.username}
                 </span>
               )}
-              <Badge variant="neutral">
-                {ROLE_LABEL[user.role] || user.role}
-              </Badge>
+              <Badge variant="neutral">{roleLabel}</Badge>
               {user.isGhost && (
                 <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning font-bold uppercase">
-                  sin cuenta
+                  {t('ghostBadge')}
                 </span>
               )}
             </div>
@@ -105,18 +112,18 @@ export default function UserProfileHeader({
               <Link
                 href={`/teams/${statsTeamId}/players/${user.id}/stats`}
                 className="text-sm font-medium px-3 py-2 rounded-md bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 transition whitespace-nowrap"
-                title="Ver estadísticas individuales"
+                title={t('viewStatsTooltip')}
               >
-                📊 Ver estadísticas
+                {t('viewStats')}
               </Link>
             )}
             {canEditProfile && profileUsername && (
               <Link
                 href={`/users/${profileUsername}/edit`}
                 className="text-sm font-medium px-3 py-2 rounded-md bg-brand-primary text-bg-base hover:bg-brand-primary/90 transition whitespace-nowrap"
-                title="Editar ficha"
+                title={t('editProfileTooltip')}
               >
-                📝 Editar ficha
+                {t('editProfile')}
               </Link>
             )}
           </div>

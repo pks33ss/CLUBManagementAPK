@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from '@/navigation';
-import { Link } from '@/navigation';
+import { useRouter } from '@/navigation'
+import { Link } from '@/navigation'
+import { useLocale, useTranslations } from 'next-intl'
 import api from '@/lib/api'
 import { getSportIcon } from '@/lib/sport'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
@@ -56,16 +57,8 @@ interface TeamStats {
   winRate: number
 }
 
-// ============================================
-// HELPERS
-// ============================================
-
 const round2 = (n: number) => Math.round(n * 100) / 100
 
-/**
- * Agrega una lista de TeamStats (uno por equipo) en un único TeamStats.
- * Devuelve null si la lista está vacía.
- */
 function aggregateStats(statsList: TeamStats[]): TeamStats | null {
   if (statsList.length === 0) return null
 
@@ -93,11 +86,9 @@ function aggregateStats(statsList: TeamStats[]): TeamStats | null {
   }
 }
 
-// ============================================
-// COMPONENTE
-// ============================================
-
 export default function AllMatches() {
+  const t = useTranslations('Matches')
+  const locale = useLocale()
   const router = useRouter()
   const { activeTeam, allTeams, loading: loadingTeams } = useActiveTeam()
 
@@ -108,16 +99,13 @@ export default function AllMatches() {
   const [sortKey, setSortKey] = useState<MatchSortKey>('date-asc')
   const [showCreateModal, setShowCreateModal] = useState(false)
 
-  // Multi-selector de equipos
   const [selectedTeams, setSelectedTeams] = useState<string[]>([])
   const [showTeamSelector, setShowTeamSelector] = useState(false)
 
-  // ✅ Preferencia de ordenación
   useEffect(() => {
     setSortKey(getSavedSort())
   }, [])
 
-  // ✅ Sincronizar selección con activeTeam
   useEffect(() => {
     if (activeTeam) {
       setSelectedTeams([activeTeam.id])
@@ -126,7 +114,6 @@ export default function AllMatches() {
     }
   }, [activeTeam])
 
-  // ✅ Cerrar dropdown al hacer click fuera
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       const target = e.target as HTMLElement
@@ -138,7 +125,6 @@ export default function AllMatches() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // ✅ Fetch cuando cambia la selección de equipos
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token) {
@@ -186,10 +172,6 @@ export default function AllMatches() {
     }
   }
 
-  // ============================================
-  // MULTI-SELECTOR
-  // ============================================
-
   const toggleTeam = (teamId: string) => {
     setSelectedTeams((prev) =>
       prev.includes(teamId)
@@ -207,65 +189,79 @@ export default function AllMatches() {
   }
 
   const getSelectedTeamsText = () => {
-    if (selectedTeams.length === 0) return 'Selecciona equipos...'
-    if (selectedTeams.length === allTeams.length) return 'Todos mis equipos'
+    if (selectedTeams.length === 0) return t('teamsPlaceholder')
+    if (selectedTeams.length === allTeams.length) return t('allMyTeams')
     if (selectedTeams.length === 1) {
       const team = allTeams.find((t) => t.id === selectedTeams[0])
-      return team?.name || '1 equipo'
+      return team?.name || t('oneTeam')
     }
-    return `${selectedTeams.length} equipos seleccionados`
+    return t('nTeamsSelected', { count: selectedTeams.length })
   }
 
   const showTeamBadge = selectedTeams.length > 1
 
-  // ============================================
-  // TEXTO / VARIANTES DE PARTIDOS
-  // ============================================
-
   const getTypeText = (type: string) => {
     switch (type) {
-      case 'LEAGUE': return '🏆 Liga'
-      case 'FRIENDLY': return '🤝 Amistoso'
-      case 'CUP': return '🏅 Copa'
-      case 'PLAYOFF': return '🔥 Playoff'
-      case 'TOURNAMENT': return '🎯 Torneo'
-      default: return type
+      case 'LEAGUE':
+      case 'FRIENDLY':
+      case 'CUP':
+      case 'PLAYOFF':
+      case 'TOURNAMENT':
+        return t(`types.${type}`)
+      default:
+        return type
     }
   }
 
   const getLocationText = (location: string) => {
     switch (location) {
-      case 'HOME': return '🏠 Casa'
-      case 'AWAY': return '✈️ Fuera'
-      case 'NEUTRAL': return '⚖️ Neutral'
-      default: return location
+      case 'HOME':
+      case 'AWAY':
+      case 'NEUTRAL':
+        return t(`locations.${location}`)
+      default:
+        return location
     }
   }
 
-  const getStatusVariant = (status: string): 'info' | 'warning' | 'success' | 'danger' | 'neutral' => {
+  const getStatusVariant = (
+    status: string,
+  ): 'info' | 'warning' | 'success' | 'danger' | 'neutral' => {
     switch (status) {
-      case 'SCHEDULED': return 'info'
-      case 'IN_PROGRESS': return 'warning'
-      case 'FINISHED': return 'success'
-      case 'CANCELLED': return 'danger'
-      case 'POSTPONED': return 'warning'
-      default: return 'neutral'
+      case 'SCHEDULED':
+        return 'info'
+      case 'IN_PROGRESS':
+        return 'warning'
+      case 'FINISHED':
+        return 'success'
+      case 'CANCELLED':
+        return 'danger'
+      case 'POSTPONED':
+        return 'warning'
+      default:
+        return 'neutral'
     }
   }
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'SCHEDULED': return '📅 Programado'
-      case 'IN_PROGRESS': return '🔴 En curso'
-      case 'FINISHED': return '✅ Finalizado'
-      case 'CANCELLED': return '❌ Cancelado'
-      case 'POSTPONED': return '⏸️ Aplazado'
-      default: return status
+      case 'SCHEDULED':
+      case 'IN_PROGRESS':
+      case 'FINISHED':
+      case 'CANCELLED':
+      case 'POSTPONED':
+        return t(`statuses.${status}`)
+      default:
+        return status
     }
   }
 
   const getResultColor = (match: Match) => {
-    if (match.status !== 'FINISHED' || match.teamScore === null || match.opponentScore === null) {
+    if (
+      match.status !== 'FINISHED' ||
+      match.teamScore === null ||
+      match.opponentScore === null
+    ) {
       return 'text-text-muted'
     }
     if (match.teamScore > match.opponentScore) return 'text-success'
@@ -273,8 +269,14 @@ export default function AllMatches() {
     return 'text-warning'
   }
 
-  const getResultVariant = (match: Match): 'success' | 'danger' | 'warning' | null => {
-    if (match.status !== 'FINISHED' || match.teamScore === null || match.opponentScore === null) {
+  const getResultVariant = (
+    match: Match,
+  ): 'success' | 'danger' | 'warning' | null => {
+    if (
+      match.status !== 'FINISHED' ||
+      match.teamScore === null ||
+      match.opponentScore === null
+    ) {
       return null
     }
     if (match.teamScore > match.opponentScore) return 'success'
@@ -283,17 +285,21 @@ export default function AllMatches() {
   }
 
   const getResultText = (match: Match) => {
-    if (match.status !== 'FINISHED' || match.teamScore === null || match.opponentScore === null) {
+    if (
+      match.status !== 'FINISHED' ||
+      match.teamScore === null ||
+      match.opponentScore === null
+    ) {
       return null
     }
-    if (match.teamScore > match.opponentScore) return '🏆 Victoria'
-    if (match.teamScore < match.opponentScore) return '❌ Derrota'
-    return '🤝 Empate'
+    if (match.teamScore > match.opponentScore) return t('results.win')
+    if (match.teamScore < match.opponentScore) return t('results.loss')
+    return t('results.draw')
   }
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString)
-    return date.toLocaleDateString('es-ES', {
+    return date.toLocaleDateString(locale, {
       day: '2-digit',
       month: 'short',
       year: 'numeric',
@@ -302,25 +308,20 @@ export default function AllMatches() {
     })
   }
 
-  // ============================================
-  // DATOS DERIVADOS
-  // ============================================
-
   const filteredMatches = matches.filter((m) => {
     if (filter === 'all') return true
-    if (filter === 'scheduled') return m.status === 'SCHEDULED' || m.status === 'POSTPONED'
+    if (filter === 'scheduled')
+      return m.status === 'SCHEDULED' || m.status === 'POSTPONED'
     if (filter === 'finished') return m.status === 'FINISHED'
     return true
   })
 
-  const sortedAndFiltered = sortMatches(filteredMatches, sortKey)
-
-  // ============================================
-  // RENDER
-  // ============================================
+  const sortedAndFiltered = sortMatches(filteredMatches, sortKey, locale)
 
   if (loadingTeams || loading) {
-    return <div className="text-center py-12 text-text-muted">Cargando partidos...</div>
+    return (
+      <div className="text-center py-12 text-text-muted">{t('loading')}</div>
+    )
   }
 
   if (!activeTeam) {
@@ -328,21 +329,20 @@ export default function AllMatches() {
       <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
         <div className="text-6xl mb-4">🏆</div>
         <h3 className="text-xl font-semibold text-text-primary mb-2">
-          Selecciona un equipo
+          {t('selectTeamTitle')}
         </h3>
-        <p className="text-text-secondary mb-6">
-          Elige un equipo desde el menú superior para ver sus partidos
-        </p>
+        <p className="text-text-secondary mb-6">{t('selectTeamDesc')}</p>
       </div>
     )
   }
 
   return (
     <div>
-      {/* Header */}
       <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">🏆 Partidos</h1>
+          <h1 className="text-2xl font-bold text-text-primary">
+            {t('title')}
+          </h1>
           <p className="text-text-secondary">
             {activeTeam.name} · {activeTeam.club?.name}
           </p>
@@ -351,21 +351,26 @@ export default function AllMatches() {
           onClick={() => setShowCreateModal(true)}
           icon={<span className="text-xl">+</span>}
         >
-          Nuevo Partido
+          {t('newMatch')}
         </Button>
       </div>
 
-      {/* Multi-selector de equipos */}
       <div className="team-selector-container relative mb-6 max-w-md">
         <label className="block text-sm font-medium text-text-secondary mb-1">
-          Equipos
+          {t('teamsLabel')}
         </label>
         <button
           type="button"
           onClick={() => setShowTeamSelector(!showTeamSelector)}
           className="w-full bg-surface-elevated border border-border-subtle rounded-lg px-4 py-2 text-left flex justify-between items-center hover:border-brand-primary/50 transition"
         >
-          <span className={selectedTeams.length === 0 ? 'text-text-muted' : 'text-text-primary'}>
+          <span
+            className={
+              selectedTeams.length === 0
+                ? 'text-text-muted'
+                : 'text-text-primary'
+            }
+          >
             {getSelectedTeamsText()}
           </span>
           <span className="text-text-muted">▼</span>
@@ -379,20 +384,20 @@ export default function AllMatches() {
                 onClick={selectAllTeams}
                 className="flex-1 text-xs bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 py-1.5 rounded transition"
               >
-                ✓ Todos
+                {t('selectAll')}
               </button>
               <button
                 type="button"
                 onClick={deselectAllTeams}
                 className="flex-1 text-xs bg-surface-elevated text-text-secondary hover:bg-border-subtle py-1.5 rounded transition"
               >
-                ✕ Ninguno
+                {t('selectNone')}
               </button>
             </div>
 
             {allTeams.length === 0 ? (
               <div className="p-4 text-sm text-text-muted text-center">
-                No tienes equipos asignados
+                {t('noTeamsAssigned')}
               </div>
             ) : (
               allTeams.map((team) => (
@@ -412,7 +417,7 @@ export default function AllMatches() {
                       <span>{team.name}</span>
                     </p>
                     <p className="text-xs text-text-muted">
-                      {team.category || 'Sin categoría'}
+                      {team.category || t('noCategory')}
                       {team.club?.name ? ` · ${team.club.name}` : ''}
                     </p>
                   </div>
@@ -423,80 +428,96 @@ export default function AllMatches() {
         )}
       </div>
 
-      {/* Estadísticas agregadas */}
       {teamStats && teamStats.totalMatches > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
           <Card>
             <CardBody className="text-center p-4">
-              <p className="text-3xl font-bold text-text-primary">{teamStats.totalMatches}</p>
-              <p className="text-sm text-text-muted">Partidos</p>
+              <p className="text-3xl font-bold text-text-primary">
+                {teamStats.totalMatches}
+              </p>
+              <p className="text-sm text-text-muted">{t('stats.matches')}</p>
             </CardBody>
           </Card>
           <Card>
             <CardBody className="text-center p-4">
-              <p className="text-3xl font-bold text-success">{teamStats.wins}</p>
-              <p className="text-sm text-text-muted">Victorias</p>
+              <p className="text-3xl font-bold text-success">
+                {teamStats.wins}
+              </p>
+              <p className="text-sm text-text-muted">{t('stats.wins')}</p>
             </CardBody>
           </Card>
           <Card>
             <CardBody className="text-center p-4">
-              <p className="text-3xl font-bold text-danger">{teamStats.losses}</p>
-              <p className="text-sm text-text-muted">Derrotas</p>
+              <p className="text-3xl font-bold text-danger">
+                {teamStats.losses}
+              </p>
+              <p className="text-sm text-text-muted">{t('stats.losses')}</p>
             </CardBody>
           </Card>
           <Card>
             <CardBody className="text-center p-4">
-              <p className="text-3xl font-bold text-brand-primary">{teamStats.winRate}%</p>
-              <p className="text-sm text-text-muted">% Victorias</p>
+              <p className="text-3xl font-bold text-brand-primary">
+                {teamStats.winRate}%
+              </p>
+              <p className="text-sm text-text-muted">{t('stats.winRate')}</p>
             </CardBody>
           </Card>
           <Card>
             <CardBody className="text-center p-4">
-              <p className="text-3xl font-bold text-text-primary">{teamStats.avgPoints}</p>
-              <p className="text-sm text-text-muted">Puntos/Partido</p>
+              <p className="text-3xl font-bold text-text-primary">
+                {teamStats.avgPoints}
+              </p>
+              <p className="text-sm text-text-muted">
+                {t('stats.pointsPerMatch')}
+              </p>
             </CardBody>
           </Card>
           <Card>
             <CardBody className="text-center p-4">
-              <p className="text-3xl font-bold text-text-primary">{teamStats.avgOpponentPoints}</p>
-              <p className="text-sm text-text-muted">Puntos / Partido (Rival)</p>
+              <p className="text-3xl font-bold text-text-primary">
+                {teamStats.avgOpponentPoints}
+              </p>
+              <p className="text-sm text-text-muted">
+                {t('stats.opponentPointsPerMatch')}
+              </p>
             </CardBody>
           </Card>
         </div>
       )}
 
-      {/* Filtros + Ordenación */}
       {matches.length > 0 && (
         <Card className="mb-4">
           <div className="p-4 flex flex-wrap items-center gap-3">
-            <span className="text-sm font-medium text-text-secondary">Filtrar:</span>
+            <span className="text-sm font-medium text-text-secondary">
+              {t('filter.label')}
+            </span>
             <div className="flex gap-1 flex-wrap">
               <Button
                 variant={filter === 'all' ? 'primary' : 'secondary'}
                 size="sm"
                 onClick={() => setFilter('all')}
               >
-                Todos ({matches.length})
+                {t('filter.all', { count: matches.length })}
               </Button>
               <Button
                 variant={filter === 'scheduled' ? 'primary' : 'secondary'}
                 size="sm"
                 onClick={() => setFilter('scheduled')}
               >
-                📅 Programados
+                {t('filter.scheduled')}
               </Button>
               <Button
                 variant={filter === 'finished' ? 'primary' : 'secondary'}
                 size="sm"
                 onClick={() => setFilter('finished')}
               >
-                ✅ Finalizados
+                {t('filter.finished')}
               </Button>
             </div>
 
             <div className="flex items-center gap-2 ml-auto">
               <span className="text-sm font-medium text-text-secondary whitespace-nowrap">
-                Ordenar:
+                {t('sort.label')}
               </span>
               <select
                 value={sortKey}
@@ -508,34 +529,31 @@ export default function AllMatches() {
                 className="text-sm bg-surface-elevated border border-border-subtle text-text-primary rounded px-3 py-1.5 focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"
               >
                 {SORT_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
+  <option key={o.value} value={o.value}>
+    {t(`sort.options.${o.value}`)}
+  </option>
+))}
               </select>
             </div>
           </div>
         </Card>
       )}
 
-      {/* Lista de partidos */}
       {selectedTeams.length === 0 ? (
         <div className="text-center py-12 bg-surface rounded-xl shadow border border-border-subtle">
           <div className="text-4xl mb-4">🔍</div>
-          <p className="text-text-secondary">
-            Selecciona al menos un equipo para ver sus partidos
-          </p>
+          <p className="text-text-secondary">{t('emptyNoSelection')}</p>
         </div>
       ) : sortedAndFiltered.length === 0 ? (
         <div className="text-center py-12 bg-surface rounded-xl shadow border border-border-subtle">
           <div className="text-4xl mb-4">🏆</div>
           <p className="text-text-secondary">
             {matches.length === 0
-              ? 'No hay partidos registrados para los equipos seleccionados'
-              : 'No hay partidos que coincidan con el filtro'}
+              ? t('emptyNoMatches')
+              : t('emptyNoMatchesInFilter')}
           </p>
           <Button onClick={() => setShowCreateModal(true)} className="mt-4">
-            Crear Partido
+            {t('createMatch')}
           </Button>
         </div>
       ) : (
@@ -552,17 +570,25 @@ export default function AllMatches() {
                         <Badge variant={getStatusVariant(match.status)}>
                           {getStatusText(match.status)}
                         </Badge>
-                        <Badge variant="neutral">{getTypeText(match.type)}</Badge>
-                        <Badge variant="neutral">{getLocationText(match.location)}</Badge>
-                        {/* ✅ Badge del equipo solo cuando hay >1 equipo seleccionado */}
+                        <Badge variant="neutral">
+                          {getTypeText(match.type)}
+                        </Badge>
+                        <Badge variant="neutral">
+                          {getLocationText(match.location)}
+                        </Badge>
                         {showTeamBadge && (
                           <Badge variant="brand">
-                            {getSportIcon(match.team?.sport)} {match.team?.name}
+                            {getSportIcon(match.team?.sport)}{' '}
+                            {match.team?.name}
                           </Badge>
                         )}
                       </div>
-                      <h3 className="text-lg font-bold text-text-primary">{match.opponent}</h3>
-                      <p className="text-sm text-text-secondary mt-1">📅 {formatDate(match.date)}</p>
+                      <h3 className="text-lg font-bold text-text-primary">
+                        {match.opponent}
+                      </h3>
+                      <p className="text-sm text-text-secondary mt-1">
+                        📅 {formatDate(match.date)}
+                      </p>
                       {(match.venue || match.competition) && (
                         <p className="text-xs text-text-muted mt-1">
                           {match.venue && `📍 ${match.venue}`}
@@ -580,15 +606,21 @@ export default function AllMatches() {
                     <div className="flex flex-col items-center md:items-end gap-1">
                       {match.status === 'FINISHED' && score.hasScore ? (
                         <>
-                          <p className={`text-3xl font-bold ${getResultColor(match)}`}>
+                          <p
+                            className={`text-3xl font-bold ${getResultColor(match)}`}
+                          >
                             {score.local} - {score.visitante}
                           </p>
                           {resultVariant && (
-                            <Badge variant={resultVariant}>{getResultText(match)}</Badge>
+                            <Badge variant={resultVariant}>
+                              {getResultText(match)}
+                            </Badge>
                           )}
                         </>
                       ) : (
-                        <p className="text-sm text-text-muted">Sin resultado</p>
+                        <p className="text-sm text-text-muted">
+                          {t('noResult')}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -596,10 +628,12 @@ export default function AllMatches() {
                   {match._count && (
                     <div className="flex gap-3 mt-3 pt-3 border-t border-border-subtle">
                       <span className="text-xs text-text-muted">
-                        👥 {match._count.callups} convocados
+                        {t('callupsCount', { count: match._count.callups })}
                       </span>
                       <span className="text-xs text-text-muted">
-                        📊 {match._count.playerStats} con estadísticas
+                        {t('statsCount', {
+                          count: match._count.playerStats,
+                        })}
                       </span>
                     </div>
                   )}

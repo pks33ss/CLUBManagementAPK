@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import api from '@/lib/api'
 import { Card, CardBody, Badge } from '@/components/ui'
 
@@ -20,6 +21,8 @@ interface Props {
 }
 
 export function ClubRemindersSection({ clubId, canManage }: Props) {
+  const t = useTranslations('Clubs.reminders')
+
   const [config, setConfig] = useState<RemindersConfig | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -37,11 +40,8 @@ export function ClubRemindersSection({ clubId, canManage }: Props) {
       })
       .catch((e: any) => {
         if (cancelled) return
-        console.error('Error cargando config de recordatorios:', e)
-        setError(
-          e?.response?.data?.message ||
-            'No se pudo cargar la configuración de recordatorios',
-        )
+        console.error('Error loading reminders config:', e)
+        setError(e?.response?.data?.message || t('errorLoad'))
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -50,6 +50,7 @@ export function ClubRemindersSection({ clubId, canManage }: Props) {
     return () => {
       cancelled = true
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clubId])
 
   const handleToggle = async () => {
@@ -59,9 +60,7 @@ export function ClubRemindersSection({ clubId, canManage }: Props) {
 
     // Si vamos a activar y el global está desactivado, avisar
     if (newValue && !config.globalEnabled) {
-      const ok = confirm(
-        'Los recordatorios están desactivados globalmente por el administrador de la plataforma. Aunque actives este club, no se enviarán emails hasta que se reactive el global.\n\n¿Quieres activarlo igualmente?',
-      )
+      const ok = confirm(t('confirmGlobalDisabled'))
       if (!ok) return
     }
 
@@ -77,11 +76,8 @@ export function ClubRemindersSection({ clubId, canManage }: Props) {
       )
       setConfig({ ...config, enabled: res.data.enabled })
     } catch (e: any) {
-      console.error('Error actualizando recordatorios:', e)
-      alert(
-        e?.response?.data?.message ||
-          'Error al actualizar la configuración de recordatorios',
-      )
+      console.error('Error updating reminders:', e)
+      alert(e?.response?.data?.message || t('errorUpdate'))
       // Revertir
       setConfig({ ...config, enabled: previous })
     } finally {
@@ -93,9 +89,7 @@ export function ClubRemindersSection({ clubId, canManage }: Props) {
     return (
       <Card className="mb-6">
         <CardBody>
-          <p className="text-text-muted text-sm">
-            Cargando configuración de recordatorios...
-          </p>
+          <p className="text-text-muted text-sm">{t('loading')}</p>
         </CardBody>
       </Card>
     )
@@ -106,7 +100,7 @@ export function ClubRemindersSection({ clubId, canManage }: Props) {
       <Card className="mb-6">
         <CardBody>
           <p className="text-danger text-sm">
-            {error ?? 'Error cargando configuración'}
+            {error ?? t('errorLoadShort')}
           </p>
         </CardBody>
       </Card>
@@ -120,48 +114,51 @@ export function ClubRemindersSection({ clubId, canManage }: Props) {
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               <h2 className="text-xl font-semibold text-text-primary">
-                🔔 Recordatorios de pago
+                {t('title')}
               </h2>
               <Badge variant={config.enabled ? 'success' : 'neutral'}>
-                {config.enabled ? 'Activados' : 'Desactivados'}
+                {config.enabled ? t('enabled') : t('disabled')}
               </Badge>
               {!config.globalEnabled && (
-                <Badge variant="danger">Global desactivado</Badge>
+                <Badge variant="danger">{t('globalDisabled')}</Badge>
               )}
             </div>
-            <p className="text-text-secondary text-sm">
-              {config.description}
-            </p>
+            <p className="text-text-secondary text-sm">{config.description}</p>
+
             {config.scheduledHour && (
               <p className="text-text-secondary text-sm mt-2">
-                ⏰ Envío automático diario a las{' '}
-                <strong className="text-text-primary">
-                  {config.scheduledHour}
-                </strong>{' '}
-                (hora del servidor).
+                {t.rich('autoSend', {
+                  time: config.scheduledHour,
+                  strong: (chunks) => (
+                    <strong className="text-text-primary">{chunks}</strong>
+                  ),
+                })}
               </p>
             )}
 
             {!config.globalEnabled && (
               <div className="bg-danger/10 border border-danger/30 rounded-lg p-3 mt-3 text-sm text-danger">
-                ⚠️ Los recordatorios están <strong>desactivados globalmente</strong>{' '}
-                en la plataforma. Aunque este club los tenga activados, no se
-                enviarán emails. Contacta con soporte si necesitas reactivarlos.
+                {t.rich('globalDisabledWarning', {
+                  strong: (chunks) => <strong>{chunks}</strong>,
+                })}
               </div>
             )}
 
             {config.enabled && config.globalEnabled && (
               <div className="bg-warning/10 border border-warning/30 rounded-lg p-3 mt-3 text-xs text-text-secondary">
-                ℹ️ Los emails se envían <strong>una sola vez</strong> por
-                jugador y concepto:
+                {t.rich('infoTitle', {
+                  strong: (chunks) => <strong>{chunks}</strong>,
+                })}
                 <ul className="list-disc list-inside mt-1 space-y-0.5">
                   <li>
-                    <strong>Antes de vencer:</strong> cuando faltan los días
-                    configurados en cada concepto (por defecto 3).
+                    {t.rich('infoBeforeDue', {
+                      strong: (chunks) => <strong>{chunks}</strong>,
+                    })}
                   </li>
                   <li>
-                    <strong>Después de vencer:</strong> el primer día que el
-                    cron los detecte ya vencidos y sigan pendientes.
+                    {t.rich('infoAfterDue', {
+                      strong: (chunks) => <strong>{chunks}</strong>,
+                    })}
                   </li>
                 </ul>
               </div>
@@ -177,7 +174,7 @@ export function ClubRemindersSection({ clubId, canManage }: Props) {
               className={`relative inline-flex h-7 w-12 items-center rounded-full transition shrink-0 ${
                 config.enabled ? 'bg-brand-primary' : 'bg-surface-elevated'
               } ${saving ? 'opacity-50 cursor-wait' : 'cursor-pointer'}`}
-              aria-label="Activar o desactivar recordatorios de pago"
+              aria-label={t('toggleAria')}
               aria-pressed={config.enabled}
             >
               <span
@@ -187,10 +184,7 @@ export function ClubRemindersSection({ clubId, canManage }: Props) {
               />
             </button>
           ) : (
-            <p className="text-text-muted text-xs">
-              Solo los administradores del club pueden cambiar esta
-              configuración.
-            </p>
+            <p className="text-text-muted text-xs">{t('onlyAdmins')}</p>
           )}
         </div>
       </CardBody>

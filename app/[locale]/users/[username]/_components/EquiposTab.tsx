@@ -1,16 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { Link } from '@/navigation';
+import { useTranslations } from 'next-intl'
+import { Link } from '@/navigation'
 import { Badge, Card, CardBody } from '@/components/ui'
 import EditMembershipModal from '@/app/[locale]/teams/[id]/members/_components/EditMembershipModal'
 import type { UserPublic } from '@/types/user'
 
 interface Props {
   user: UserPublic
-  /** Lista de teamIds donde el viewer puede editar la membership. */
   manageableTeamIds?: string[]
-  /** Callback que el padre da para recargar la ficha tras guardar. */
   onSaved?: () => void | Promise<void>
 }
 
@@ -19,23 +18,34 @@ export default function EquiposTab({
   manageableTeamIds = [],
   onSaved,
 }: Props) {
+  const t = useTranslations('UserProfile.teams')
+  const tRoles = useTranslations('Roles')
+
   const [editingMembership, setEditingMembership] = useState<any | null>(null)
 
   const canManageTeam = (teamId: string) =>
     manageableTeamIds.includes(teamId)
+
+  const roleLabel = (role: string) => {
+    try {
+      // tRoles lanza si la clave no existe; usamos has() para comprobar
+      if ((tRoles as any).has?.(role)) return tRoles(role as any)
+    } catch {
+      /* noop */
+    }
+    return role
+  }
 
   return (
     <>
       <Card>
         <CardBody>
           <h2 className="text-lg font-semibold text-text-primary mb-4">
-            🏆 Equipos actuales ({user.memberships?.length || 0})
+            {t('title', { count: user.memberships?.length || 0 })}
           </h2>
 
           {!user.memberships || user.memberships.length === 0 ? (
-            <p className="text-text-muted text-center py-8">
-              No pertenece a ningún equipo actualmente
-            </p>
+            <p className="text-text-muted text-center py-8">{t('empty')}</p>
           ) : (
             <div className="space-y-2">
               {user.memberships.map((m) => (
@@ -48,6 +58,7 @@ export default function EquiposTab({
                     className="flex items-center gap-4 flex-1 min-w-0"
                   >
                     {m.team.club?.logo ? (
+                      // eslint-disable-next-line @next/next/no-img-element
                       <img
                         src={m.team.club.logo}
                         alt={m.team.club.name}
@@ -69,7 +80,7 @@ export default function EquiposTab({
                         {m.position && ` · ${m.position}`}
                       </p>
                     </div>
-                    <Badge variant="brand">{m.role}</Badge>
+                    <Badge variant="brand">{roleLabel(m.role)}</Badge>
                   </Link>
 
                   {canManageTeam(m.team.id) && (
@@ -77,9 +88,9 @@ export default function EquiposTab({
                       type="button"
                       onClick={() => setEditingMembership(m)}
                       className="shrink-0 text-xs font-medium px-2.5 py-1.5 rounded-md bg-surface-elevated hover:bg-border-subtle text-text-secondary transition whitespace-nowrap"
-                      title="Editar dorsal, posición y datos básicos"
+                      title={t('editMembershipTooltip')}
                     >
-                      ✏️ Editar dorsal y posición
+                      {t('editMembership')}
                     </button>
                   )}
                 </div>
@@ -94,8 +105,6 @@ export default function EquiposTab({
           membership={editingMembership as any}
           onClose={() => setEditingMembership(null)}
           onSuccess={async () => {
-            // ✅ Refrescamos la ficha del padre antes de cerrar el modal.
-            // Así el usuario ve el dorsal/posición actualizados sin recargar.
             await onSaved?.()
             setEditingMembership(null)
           }}

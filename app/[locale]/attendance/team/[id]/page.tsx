@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter, useParams } from 'next/navigation'
-import { Link } from '@/navigation';
+import { useParams } from 'next/navigation'
+import { useRouter, Link } from '@/navigation'
+import { useTranslations } from 'next-intl'
 import api from '@/lib/api'
 import { Card, CardBody, Badge } from '@/components/ui'
 
 export default function TeamAttendanceReport() {
+  const t = useTranslations('Attendance.report')
   const router = useRouter()
   const params = useParams()
   const teamId = params.id as string
@@ -21,6 +23,7 @@ export default function TeamAttendanceReport() {
       return
     }
     fetchStats()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [teamId])
 
   const fetchStats = async () => {
@@ -35,15 +38,15 @@ export default function TeamAttendanceReport() {
   }
 
   if (loading) {
-    return <div className="text-center py-12 text-text-muted">Cargando reporte...</div>
+    return <div className="text-center py-12 text-text-muted">{t('loading')}</div>
   }
 
   if (!data) {
     return (
       <div className="text-center py-12">
-        <p className="text-danger">No se pudieron cargar las estadísticas</p>
+        <p className="text-danger">{t('errorLoad')}</p>
         <Link href="/teams" className="text-brand-primary hover:underline mt-4 inline-block">
-          ← Volver a equipos
+          {t('backToTeams')}
         </Link>
       </div>
     )
@@ -51,14 +54,15 @@ export default function TeamAttendanceReport() {
 
   return (
     <div>
-      <Link href={`/teams/${teamId}`} className="text-brand-primary hover:underline inline-block mb-6">
-        ← Volver al equipo
+      <Link
+        href={`/teams/${teamId}`}
+        className="text-brand-primary hover:underline inline-block mb-6"
+      >
+        {t('backToTeam')}
       </Link>
 
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-text-primary">
-          📊 Reporte de Asistencia
-        </h1>
+        <h1 className="text-2xl font-bold text-text-primary">{t('title')}</h1>
         <p className="text-text-secondary">
           {data.team.name} • {data.team.club}
         </p>
@@ -68,25 +72,25 @@ export default function TeamAttendanceReport() {
         <Card>
           <CardBody className="text-center">
             <p className="text-3xl font-bold text-text-primary">{data.summary.totalSessions}</p>
-            <p className="text-sm text-text-secondary">Sesiones</p>
+            <p className="text-sm text-text-secondary">{t('summary.sessions')}</p>
           </CardBody>
         </Card>
         <Card>
           <CardBody className="text-center">
             <p className="text-3xl font-bold text-text-primary">{data.summary.totalPlayers}</p>
-            <p className="text-sm text-text-secondary">Jugadores</p>
+            <p className="text-sm text-text-secondary">{t('summary.players')}</p>
           </CardBody>
         </Card>
         <Card>
           <CardBody className="text-center">
             <p className="text-3xl font-bold text-text-primary">{data.summary.totalAttendances}</p>
-            <p className="text-sm text-text-secondary">Registros</p>
+            <p className="text-sm text-text-secondary">{t('summary.records')}</p>
           </CardBody>
         </Card>
         <Card>
           <CardBody className="text-center">
             <p className="text-3xl font-bold text-brand-primary">{data.summary.attendanceRate}%</p>
-            <p className="text-sm text-text-secondary">Asistencia media</p>
+            <p className="text-sm text-text-secondary">{t('summary.avgAttendance')}</p>
           </CardBody>
         </Card>
       </div>
@@ -94,24 +98,24 @@ export default function TeamAttendanceReport() {
       <Card className="mb-6">
         <CardBody>
           <h2 className="text-lg font-semibold text-text-primary mb-4">
-            Distribución de Asistencia
+            {t('distributionTitle')}
           </h2>
           <div className="grid grid-cols-4 gap-4">
             <div className="text-center">
               <p className="text-2xl font-bold text-success">{data.summary.totalPresent}</p>
-              <p className="text-xs text-text-muted">Presentes</p>
+              <p className="text-xs text-text-muted">{t('distribution.present')}</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-danger">{data.summary.totalAbsent}</p>
-              <p className="text-xs text-text-muted">Ausentes</p>
+              <p className="text-xs text-text-muted">{t('distribution.absent')}</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-warning">{data.summary.totalLate}</p>
-              <p className="text-xs text-text-muted">Tarde</p>
+              <p className="text-xs text-text-muted">{t('distribution.late')}</p>
             </div>
             <div className="text-center">
               <p className="text-2xl font-bold text-info">{data.summary.totalExcused}</p>
-              <p className="text-xs text-text-muted">Justificados</p>
+              <p className="text-xs text-text-muted">{t('distribution.excused')}</p>
             </div>
           </div>
         </CardBody>
@@ -120,20 +124,20 @@ export default function TeamAttendanceReport() {
       <Card>
         <CardBody>
           <h2 className="text-lg font-semibold text-text-primary mb-4">
-            Estadísticas por Jugador
+            {t('playersStatsTitle')}
           </h2>
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead className="bg-surface-elevated">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-text-muted uppercase">#</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-text-muted uppercase">Jugador</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-text-muted uppercase">Total</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-muted uppercase">{t('columns.number')}</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-text-muted uppercase">{t('columns.player')}</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-text-muted uppercase">{t('columns.total')}</th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-text-muted uppercase">✅</th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-text-muted uppercase">❌</th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-text-muted uppercase">⏰</th>
                   <th className="px-4 py-3 text-center text-xs font-medium text-text-muted uppercase">📝</th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-text-muted uppercase">% Asistencia</th>
+                  <th className="px-4 py-3 text-center text-xs font-medium text-text-muted uppercase">{t('columns.attendancePct')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border-subtle">
@@ -158,7 +162,7 @@ export default function TeamAttendanceReport() {
                             {item.player.name} {item.player.lastName}
                             {item.player.isGhost && (
                               <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning font-bold uppercase">
-                                sin cuenta
+                                {t('ghostBadge')}
                               </span>
                             )}
                           </Link>

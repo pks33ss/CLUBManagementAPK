@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { teamsApi } from '@/lib/api/teams'
 import type {
   PlayerStatsResponse,
@@ -53,9 +54,7 @@ function readStoredTrendMetric(
   playerUserId: string,
 ): string {
   if (typeof window === 'undefined') return DEFAULT_TREND_METRIC
-  const stored = window.localStorage.getItem(
-    storageKey(teamId, playerUserId),
-  )
+  const stored = window.localStorage.getItem(storageKey(teamId, playerUserId))
   return stored && stored.length > 0 ? stored : DEFAULT_TREND_METRIC
 }
 
@@ -69,6 +68,7 @@ export default function PlayerStatsView({
   onPlayerLoaded,
   onSeasonChange,
 }: Props) {
+  const t = useTranslations('Players.stats')
   const [filters, setFilters] = useState<StatsFiltersValue>(() => ({
     ...EMPTY_FILTERS,
     teamIds: [teamId],
@@ -88,14 +88,10 @@ export default function PlayerStatsView({
   const setTrendMetric = (next: string) => {
     setTrendMetricState(next)
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(
-        storageKey(teamId, playerUserId),
-        next,
-      )
+      window.localStorage.setItem(storageKey(teamId, playerUserId), next)
     }
   }
 
-  // Avisar al padre cuando cambia la temporada
   useEffect(() => {
     onSeasonChange?.(filters.seasonId)
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -127,10 +123,7 @@ export default function PlayerStatsView({
       })
       .catch((err) => {
         if (cancelled) return
-        setError(
-          err.response?.data?.message ||
-            'Error al cargar estadísticas del jugador',
-        )
+        setError(err.response?.data?.message || t('errorLoadStatsMsg'))
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -163,7 +156,7 @@ export default function PlayerStatsView({
       return (
         <Card>
           <CardBody className="text-center py-8 text-text-muted">
-            Cargando estadísticas...
+            {t('loadingStats')}
           </CardBody>
         </Card>
       )
@@ -173,7 +166,7 @@ export default function PlayerStatsView({
       return (
         <Card>
           <CardBody className="text-center py-8 text-danger">
-            {error || 'No se pudieron cargar las estadísticas'}
+            {error || t('errorLoadStats')}
           </CardBody>
         </Card>
       )
@@ -208,10 +201,10 @@ export default function PlayerStatsView({
         <CardBody className="text-center py-12">
           <div className="text-5xl mb-4">🚧</div>
           <h3 className="text-lg font-semibold text-text-primary mb-2">
-            Estadísticas de jugador en {teamSport} — próximamente
+            {t('sportInDevelopmentTitle', { sport: teamSport })}
           </h3>
           <p className="text-text-muted text-sm">
-            Este deporte todavía no tiene vista individual implementada.
+            {t('sportInDevelopmentHint')}
           </p>
         </CardBody>
       </Card>
@@ -223,7 +216,7 @@ export default function PlayerStatsView({
     teamSport,
     availableTrendMetrics,
     trendMetric,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    t,
   ])
 
   return (

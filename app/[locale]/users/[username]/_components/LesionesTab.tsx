@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useLocale, useTranslations } from 'next-intl'
 import { Card, CardBody, Button, Badge } from '@/components/ui'
 import type { Injury, InjuryStatus } from '@/types/user'
 import InjuryModal from './InjuryModal'
@@ -10,12 +11,6 @@ interface Props {
   injuries: Injury[]
   canEdit: boolean
   onRefresh: () => Promise<void> | void
-}
-
-const STATUS_LABEL: Record<InjuryStatus, string> = {
-  ACTIVE: '🔴 Activa',
-  RECOVERED: '🟢 Recuperada',
-  CHRONIC: '🟡 Crónica',
 }
 
 const STATUS_VARIANT: Record<
@@ -33,16 +28,16 @@ export default function LesionesTab({
   canEdit,
   onRefresh,
 }: Props) {
+  const t = useTranslations('UserProfile.injuries')
+  const locale = useLocale()
   const [editing, setEditing] = useState<Injury | null>(null)
   const [creating, setCreating] = useState(false)
   const [deletingId, setDeletingId] = useState<string | null>(null)
 
+  const statusLabel = (s: InjuryStatus) => t(`statuses.${s}`)
+
   const handleDelete = async (injury: Injury) => {
-    if (
-      !window.confirm(
-        `¿Borrar la lesión "${injury.description}"? Esta acción no se puede deshacer.`,
-      )
-    ) {
+    if (!window.confirm(t('deleteConfirm', { description: injury.description }))) {
       return
     }
     setDeletingId(injury.id)
@@ -51,7 +46,7 @@ export default function LesionesTab({
       await usersApi.deleteInjury(userId, injury.id)
       await onRefresh()
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al borrar la lesión')
+      alert(err.response?.data?.message || t('deleteError'))
     } finally {
       setDeletingId(null)
     }
@@ -63,7 +58,7 @@ export default function LesionesTab({
         <CardBody>
           <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
             <h2 className="text-lg font-semibold text-text-primary">
-              🩹 Historial de lesiones ({injuries.length})
+              {t('title', { count: injuries.length })}
             </h2>
             {canEdit && (
               <Button
@@ -71,14 +66,14 @@ export default function LesionesTab({
                 onClick={() => setCreating(true)}
                 icon={<span className="text-lg">+</span>}
               >
-                Añadir lesión
+                {t('addButton')}
               </Button>
             )}
           </div>
 
           {injuries.length === 0 ? (
             <p className="text-center text-text-muted py-8">
-              No hay lesiones registradas
+              {t('empty')}
             </p>
           ) : (
             <div className="space-y-2">
@@ -94,36 +89,44 @@ export default function LesionesTab({
                           {inj.description}
                         </p>
                         <Badge variant={STATUS_VARIANT[inj.status]}>
-                          {STATUS_LABEL[inj.status]}
+                          {statusLabel(inj.status)}
                         </Badge>
                       </div>
                       <p className="text-xs text-text-muted">
-  {new Date(inj.date).toLocaleDateString('es-ES')}
-  {inj.bodyPart && ` · ${inj.bodyPart}`}
-  {inj.severity && ` · ${inj.severity}`}
-</p>
-{inj.expectedReturn && (
-  <p className="text-xs text-text-secondary mt-1">
-    <span className="text-text-muted">Vuelta prevista: </span>
-    {new Date(inj.expectedReturn).toLocaleDateString('es-ES')}
-    {inj.actualReturn && (
-      <>
-        {' · '}
-        <span className="text-text-muted">Vuelta real: </span>
-        {new Date(inj.actualReturn).toLocaleDateString('es-ES')}
-      </>
-    )}
-  </p>
-)}
-{!inj.expectedReturn && inj.actualReturn && (
-  <p className="text-xs text-text-secondary mt-1">
-    <span className="text-text-muted">Vuelta real: </span>
-    {new Date(inj.actualReturn).toLocaleDateString('es-ES')}
-  </p>
-)}
+                        {new Date(inj.date).toLocaleDateString(locale)}
+                        {inj.bodyPart && ` · ${inj.bodyPart}`}
+                        {inj.severity && ` · ${inj.severity}`}
+                      </p>
+                      {inj.expectedReturn && (
+                        <p className="text-xs text-text-secondary mt-1">
+                          <span className="text-text-muted">
+                            {t('expectedReturnLabel')}{' '}
+                          </span>
+                          {new Date(inj.expectedReturn).toLocaleDateString(locale)}
+                          {inj.actualReturn && (
+                            <>
+                              {' · '}
+                              <span className="text-text-muted">
+                                {t('actualReturnLabel')}{' '}
+                              </span>
+                              {new Date(inj.actualReturn).toLocaleDateString(locale)}
+                            </>
+                          )}
+                        </p>
+                      )}
+                      {!inj.expectedReturn && inj.actualReturn && (
+                        <p className="text-xs text-text-secondary mt-1">
+                          <span className="text-text-muted">
+                            {t('actualReturnLabel')}{' '}
+                          </span>
+                          {new Date(inj.actualReturn).toLocaleDateString(locale)}
+                        </p>
+                      )}
                       {inj.treatment && (
                         <p className="text-sm text-text-secondary mt-2">
-                          <span className="text-text-muted">Tratamiento: </span>
+                          <span className="text-text-muted">
+                            {t('treatmentLabel')}{' '}
+                          </span>
                           {inj.treatment}
                         </p>
                       )}
@@ -140,7 +143,7 @@ export default function LesionesTab({
                           type="button"
                           onClick={() => setEditing(inj)}
                           className="text-xs bg-surface-elevated hover:bg-border-subtle text-text-secondary px-2 py-1 rounded"
-                          title="Editar"
+                          title={t('editTooltip')}
                         >
                           ✏️
                         </button>
@@ -149,7 +152,7 @@ export default function LesionesTab({
                           onClick={() => handleDelete(inj)}
                           disabled={deletingId === inj.id}
                           className="text-xs text-danger hover:text-danger/80 px-2 py-1 disabled:opacity-50"
-                          title="Borrar"
+                          title={t('deleteTooltip')}
                         >
                           🗑️
                         </button>

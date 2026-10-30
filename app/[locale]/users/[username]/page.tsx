@@ -2,14 +2,14 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
-import { Link } from '@/navigation';
+import { useTranslations } from 'next-intl'
+import { Link } from '@/navigation'
 import { usersApi } from '@/lib/api/users'
 import UserProfileHeader from './_components/UserProfileHeader'
 import EquiposTab from './_components/EquiposTab'
 import PersonalTab from './_components/PersonalTab'
 import DeportivoTab from './_components/DeportivoTab'
 import LesionesTab from './_components/LesionesTab'
-import { Card, CardBody } from '@/components/ui'
 import type {
   UserPublic,
   PlayerProfile,
@@ -19,18 +19,14 @@ import type {
 
 type TabKey = 'equipos' | 'personal' | 'deportivo' | 'lesiones'
 
-const TABS: { key: TabKey; label: string; icon: string }[] = [
-  { key: 'equipos', label: 'Equipos', icon: '🏆' },
-  { key: 'personal', label: 'Datos Pers.', icon: '📋' },
-  { key: 'deportivo', label: 'Datos Depor.', icon: '🏃' },
-  { key: 'lesiones', label: 'Lesiones', icon: '🩹' },
-]
+const TAB_KEYS: TabKey[] = ['equipos', 'personal', 'deportivo', 'lesiones']
 
 function isValidTab(v: string | null): v is TabKey {
-  return v === 'equipos' || v === 'personal' || v === 'deportivo' || v === 'lesiones'
+  return !!v && (TAB_KEYS as string[]).includes(v)
 }
 
 export default function UserProfilePage() {
+  const t = useTranslations('UserProfile')
   const router = useRouter()
   const params = useParams()
   const searchParams = useSearchParams()
@@ -46,6 +42,16 @@ export default function UserProfilePage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  const tabs = useMemo(
+    () => [
+      { key: 'equipos' as const, label: t('tabs.teams'), icon: '🏆' },
+      { key: 'personal' as const, label: t('tabs.personal'), icon: '📋' },
+      { key: 'deportivo' as const, label: t('tabs.sport'), icon: '🏃' },
+      { key: 'lesiones' as const, label: t('tabs.injuries'), icon: '🩹' },
+    ],
+    [t],
+  )
+
   const fetchUser = useCallback(async () => {
     setLoading(true)
     setError('')
@@ -53,9 +59,7 @@ export default function UserProfilePage() {
       const data = await usersApi.getByUsername(username)
       setUser(data)
 
-      
-            // Pedimos permisos en paralelo. Si falla, asumimos todo false.
-            try {
+      try {
         const perms = await usersApi.getPermissions(data.id)
         setPermissions(perms)
       } catch {
@@ -70,16 +74,15 @@ export default function UserProfilePage() {
     } catch (err: any) {
       console.error('Error:', err)
       if (err.response?.status === 404) {
-        setError('Usuario no encontrado')
+        setError(t('errors.notFound'))
       } else {
-        setError(err.response?.data?.message || 'Error al cargar el usuario')
+        setError(err.response?.data?.message || t('errors.load'))
       }
     } finally {
       setLoading(false)
     }
-  }, [username])
+  }, [username, t])
 
-  // Cargar perfil y lesiones cuando ya tenemos user + permisos
   const fetchProfileData = useCallback(async () => {
     if (!user || !permissions?.canViewProfile) {
       setProfile(null)
@@ -113,12 +116,11 @@ export default function UserProfilePage() {
 
   const visibleTabs = useMemo(() => {
     if (!permissions?.canViewProfile) {
-      return TABS.filter((t) => t.key === 'equipos')
+      return tabs.filter((t) => t.key === 'equipos')
     }
-    return TABS
-  }, [permissions?.canViewProfile])
+    return tabs
+  }, [permissions?.canViewProfile, tabs])
 
-  // Si el usuario intenta acceder a una tab no visible, redirigimos a "equipos"
   useEffect(() => {
     if (!permissions) return
     const allowed = visibleTabs.some((t) => t.key === tab)
@@ -132,16 +134,18 @@ export default function UserProfilePage() {
   }
 
   if (loading) {
-    return <div className="text-center py-12 text-text-muted">Cargando ficha...</div>
+    return (
+      <div className="text-center py-12 text-text-muted">{t('loading')}</div>
+    )
   }
 
   if (error || !user) {
     return (
       <div className="text-center py-12">
         <div className="text-6xl mb-4">🔍</div>
-        <p className="text-danger mb-4">{error || 'Usuario no encontrado'}</p>
+        <p className="text-danger mb-4">{error || t('errors.notFound')}</p>
         <Link href="/home" className="text-brand-primary hover:underline">
-          ← Volver al inicio
+          {t('backToHome')}
         </Link>
       </div>
     )
@@ -153,7 +157,7 @@ export default function UserProfilePage() {
         href="/home"
         className="text-brand-primary hover:underline inline-block mb-6"
       >
-        ← Volver
+        {t('back')}
       </Link>
 
       <UserProfileHeader
@@ -162,32 +166,30 @@ export default function UserProfilePage() {
         canViewEmail={permissions?.canViewEmail ?? false}
       />
 
-      {/* Tabs */}
       {visibleTabs.length > 1 && (
         <div className="mt-6 flex flex-wrap gap-2 border-b border-border-subtle pb-2">
-          {visibleTabs.map((t) => {
-            const active = t.key === tab
+          {visibleTabs.map((tb) => {
+            const active = tb.key === tab
             return (
               <button
-                key={t.key}
+                key={tb.key}
                 type="button"
-                onClick={() => setTab(t.key)}
+                onClick={() => setTab(tb.key)}
                 className={`px-4 py-2 text-sm font-medium rounded-t-lg transition ${
                   active
                     ? 'bg-brand-primary/10 text-brand-primary border-b-2 border-brand-primary'
                     : 'text-text-secondary hover:text-text-primary hover:bg-surface-elevated'
                 }`}
               >
-                {t.icon} {t.label}
+                {tb.icon} {tb.label}
               </button>
             )
           })}
         </div>
       )}
 
-      {/* Contenido */}
       <div className="mt-6">
-                {tab === 'equipos' && (
+        {tab === 'equipos' && (
           <EquiposTab
             user={user}
             manageableTeamIds={permissions?.manageableTeamIds ?? []}

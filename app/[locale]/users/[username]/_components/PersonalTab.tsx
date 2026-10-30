@@ -1,5 +1,6 @@
 'use client'
 
+import { useLocale, useTranslations } from 'next-intl'
 import { Card, CardBody } from '@/components/ui'
 import type { PlayerProfile } from '@/types/user'
 
@@ -7,7 +8,13 @@ interface Props {
   profile: PlayerProfile | null
 }
 
-function Field({ label, value }: { label: string; value: string | null | undefined }) {
+function Field({
+  label,
+  value,
+}: {
+  label: string
+  value: string | null | undefined
+}) {
   return (
     <div>
       <p className="text-[10px] uppercase text-text-muted font-semibold">
@@ -19,11 +26,14 @@ function Field({ label, value }: { label: string; value: string | null | undefin
 }
 
 export default function PersonalTab({ profile }: Props) {
+  const t = useTranslations('UserProfile.personal')
+  const locale = useLocale()
+
   if (!profile) {
     return (
       <Card>
         <CardBody className="text-center py-8 text-text-muted">
-          Este jugador todavía no tiene ficha personal rellenada.
+          {t('empty')}
         </CardBody>
       </Card>
     )
@@ -32,7 +42,7 @@ export default function PersonalTab({ profile }: Props) {
   const fmtDate = (iso: string | null) => {
     if (!iso) return null
     const d = new Date(iso)
-    return isNaN(d.getTime()) ? iso : d.toLocaleDateString('es-ES')
+    return isNaN(d.getTime()) ? iso : d.toLocaleDateString(locale)
   }
 
   return (
@@ -40,17 +50,20 @@ export default function PersonalTab({ profile }: Props) {
       <Card>
         <CardBody>
           <h3 className="text-md font-semibold text-text-primary mb-4">
-            📋 Datos personales
+            {t('personalDataTitle')}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Field label="Fecha de nacimiento" value={fmtDate(profile.birthDate)} />
-            <Field label="DNI" value={profile.dni} />
-            <Field label="Nombre del padre" value={profile.fatherName} />
-            <Field label="Nombre de la madre" value={profile.motherName} />
-            <Field label="Teléfono del padre" value={profile.fatherPhone} />
-            <Field label="Teléfono de la madre" value={profile.motherPhone} />
-            <Field label="Dirección" value={profile.address} />
-            <Field label="Colegio / Empresa" value={profile.schoolOrCompany} />
+            <Field label={t('fields.birthDate')} value={fmtDate(profile.birthDate)} />
+            <Field label={t('fields.dni')} value={profile.dni} />
+            <Field label={t('fields.fatherName')} value={profile.fatherName} />
+            <Field label={t('fields.motherName')} value={profile.motherName} />
+            <Field label={t('fields.fatherPhone')} value={profile.fatherPhone} />
+            <Field label={t('fields.motherPhone')} value={profile.motherPhone} />
+            <Field label={t('fields.address')} value={profile.address} />
+            <Field
+              label={t('fields.schoolOrCompany')}
+              value={profile.schoolOrCompany}
+            />
           </div>
         </CardBody>
       </Card>
@@ -58,18 +71,18 @@ export default function PersonalTab({ profile }: Props) {
       <Card>
         <CardBody>
           <h3 className="text-md font-semibold text-text-primary mb-4">
-            🚨 Emergencia y alergias
+            {t('emergencyTitle')}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Field
-              label="Contacto de emergencia"
+              label={t('fields.emergencyContactName')}
               value={profile.emergencyContactName}
             />
             <Field
-              label="Teléfono de emergencia"
+              label={t('fields.emergencyContactPhone')}
               value={profile.emergencyContactPhone}
             />
-            <Field label="Alergias" value={profile.allergies} />
+            <Field label={t('fields.allergies')} value={profile.allergies} />
           </div>
         </CardBody>
       </Card>
@@ -77,12 +90,15 @@ export default function PersonalTab({ profile }: Props) {
       <Card>
         <CardBody>
           <h3 className="text-md font-semibold text-text-primary mb-4">
-            🏥 Seguro médico
+            {t('insuranceTitle')}
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Field label="Compañía" value={profile.medicalInsurance} />
             <Field
-              label="Número de póliza"
+              label={t('fields.medicalInsurance')}
+              value={profile.medicalInsurance}
+            />
+            <Field
+              label={t('fields.medicalInsuranceNumber')}
               value={profile.medicalInsuranceNumber}
             />
           </div>

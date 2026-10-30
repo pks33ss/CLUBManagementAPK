@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Button, Input, Select, Textarea } from '@/components/ui'
 import { Modal } from '@/components/ui'
 import { usersApi } from '@/lib/api/users'
@@ -13,30 +14,27 @@ interface Props {
   onSuccess: () => Promise<void> | void
 }
 
-const BODY_PARTS = [
-  'Cabeza',
-  'Cuello',
-  'Hombro',
-  'Codo',
-  'Muñeca',
-  'Mano',
-  'Espalda',
-  'Lumbar',
-  'Cadera',
-  'Muslo',
-  'Rodilla',
-  'Tobillo',
-  'Pie',
-  'Otro',
+// value que se guarda en BD (en español) -> clave del diccionario
+const BODY_PARTS: { value: string; key: string }[] = [
+  { value: 'Cabeza', key: 'head' },
+  { value: 'Cuello', key: 'neck' },
+  { value: 'Hombro', key: 'shoulder' },
+  { value: 'Codo', key: 'elbow' },
+  { value: 'Muñeca', key: 'wrist' },
+  { value: 'Mano', key: 'hand' },
+  { value: 'Espalda', key: 'back' },
+  { value: 'Lumbar', key: 'lumbar' },
+  { value: 'Cadera', key: 'hip' },
+  { value: 'Muslo', key: 'thigh' },
+  { value: 'Rodilla', key: 'knee' },
+  { value: 'Tobillo', key: 'ankle' },
+  { value: 'Pie', key: 'foot' },
+  { value: 'Otro', key: 'other' },
 ]
 
-const SEVERITIES = ['leve', 'moderada', 'grave']
+const SEVERITIES: string[] = ['leve', 'moderada', 'grave']
 
-const STATUSES: { value: InjuryStatus; label: string }[] = [
-  { value: 'ACTIVE', label: 'Activa' },
-  { value: 'RECOVERED', label: 'Recuperada' },
-  { value: 'CHRONIC', label: 'Crónica' },
-]
+const STATUSES: InjuryStatus[] = ['ACTIVE', 'RECOVERED', 'CHRONIC']
 
 function toDateInput(iso: string | null): string {
   if (!iso) return ''
@@ -54,6 +52,7 @@ export default function InjuryModal({
   onClose,
   onSuccess,
 }: Props) {
+  const t = useTranslations('UserProfile.injuryModal')
   const isEdit = !!injury
 
   const [form, setForm] = useState({
@@ -75,9 +74,9 @@ export default function InjuryModal({
     e.preventDefault()
     setError('')
 
-    if (!form.date) return setError('La fecha es obligatoria')
+    if (!form.date) return setError(t('errorDateRequired'))
     if (!form.description.trim())
-      return setError('La descripción es obligatoria')
+      return setError(t('errorDescriptionRequired'))
 
     setSaving(true)
     try {
@@ -102,7 +101,7 @@ export default function InjuryModal({
 
       await onSuccess()
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Error al guardar la lesión')
+      setError(err.response?.data?.message || t('errorSave'))
     } finally {
       setSaving(false)
     }
@@ -112,13 +111,13 @@ export default function InjuryModal({
     <Modal
       isOpen={true}
       onClose={onClose}
-      title={isEdit ? 'Editar lesión' : 'Nueva lesión'}
+      title={isEdit ? t('titleEdit') : t('titleNew')}
       size="lg"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
-            label="Fecha *"
+            label={t('dateLabel')}
             type="date"
             value={form.date}
             onChange={(e) => setForm({ ...form, date: e.target.value })}
@@ -126,7 +125,7 @@ export default function InjuryModal({
             required
           />
           <Select
-            label="Estado"
+            label={t('statusLabel')}
             value={form.status}
             onChange={(e) =>
               setForm({ ...form, status: e.target.value as InjuryStatus })
@@ -134,42 +133,42 @@ export default function InjuryModal({
             disabled={saving}
           >
             {STATUSES.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
+              <option key={s} value={s}>
+                {t(`statuses.${s}`)}
               </option>
             ))}
           </Select>
         </div>
 
         <Input
-          label="Descripción *"
+          label={t('descriptionLabel')}
           type="text"
           value={form.description}
           onChange={(e) =>
             setForm({ ...form, description: e.target.value })
           }
-          placeholder="Ej: Esguince tobillo derecho"
+          placeholder={t('descriptionPlaceholder')}
           disabled={saving}
           required
         />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Select
-            label="Zona del cuerpo"
+            label={t('bodyPartLabel')}
             value={form.bodyPart}
             onChange={(e) => setForm({ ...form, bodyPart: e.target.value })}
             disabled={saving}
           >
             <option value="">—</option>
             {BODY_PARTS.map((bp) => (
-              <option key={bp} value={bp}>
-                {bp}
+              <option key={bp.value} value={bp.value}>
+                {t(`bodyParts.${bp.key}`)}
               </option>
             ))}
           </Select>
 
           <Select
-            label="Gravedad"
+            label={t('severityLabel')}
             value={form.severity}
             onChange={(e) => setForm({ ...form, severity: e.target.value })}
             disabled={saving}
@@ -177,7 +176,7 @@ export default function InjuryModal({
             <option value="">—</option>
             {SEVERITIES.map((s) => (
               <option key={s} value={s}>
-                {s}
+                {t(`severities.${s}`)}
               </option>
             ))}
           </Select>
@@ -185,7 +184,7 @@ export default function InjuryModal({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
-            label="Fecha prevista de vuelta"
+            label={t('expectedReturnLabel')}
             type="date"
             value={form.expectedReturn}
             onChange={(e) =>
@@ -194,7 +193,7 @@ export default function InjuryModal({
             disabled={saving}
           />
           <Input
-            label="Fecha real de vuelta"
+            label={t('actualReturnLabel')}
             type="date"
             value={form.actualReturn}
             onChange={(e) =>
@@ -205,7 +204,7 @@ export default function InjuryModal({
         </div>
 
         <Input
-          label="Tratamiento"
+          label={t('treatmentLabel')}
           type="text"
           value={form.treatment}
           onChange={(e) => setForm({ ...form, treatment: e.target.value })}
@@ -213,7 +212,7 @@ export default function InjuryModal({
         />
 
         <Input
-          label="Médico"
+          label={t('doctorLabel')}
           type="text"
           value={form.doctor}
           onChange={(e) => setForm({ ...form, doctor: e.target.value })}
@@ -221,7 +220,7 @@ export default function InjuryModal({
         />
 
         <Textarea
-          label="Notas"
+          label={t('notesLabel')}
           value={form.notes}
           onChange={(e) => setForm({ ...form, notes: e.target.value })}
           rows={3}
@@ -242,7 +241,7 @@ export default function InjuryModal({
             disabled={saving}
             className="flex-1"
           >
-            Cancelar
+            {t('cancel')}
           </Button>
           <Button
             type="submit"
@@ -250,7 +249,11 @@ export default function InjuryModal({
             loading={saving}
             className="flex-1"
           >
-            {saving ? 'Guardando...' : isEdit ? 'Guardar cambios' : 'Crear lesión'}
+            {saving
+              ? t('saving')
+              : isEdit
+                ? t('saveChanges')
+                : t('create')}
           </Button>
         </div>
       </form>

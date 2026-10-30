@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { Link } from '@/navigation';
+import { useTranslations, useFormatter } from 'next-intl'
+import { Link } from '@/navigation'
 import api from '@/lib/api'
 import { Button, Card, CardBody, Badge, Input, Select, Modal } from '@/components/ui'
 
@@ -26,6 +27,11 @@ export default function ClubMembers() {
   const router = useRouter()
   const params = useParams()
   const clubId = params.id as string
+
+  const t = useTranslations('Clubs.members')
+  const tRoles = useTranslations('Clubs.roles')
+  const tCommon = useTranslations('Common')
+  const format = useFormatter()
 
   const [members, setMembers] = useState<Member[]>([])
   const [teams, setTeams] = useState<any[]>([])
@@ -63,6 +69,7 @@ export default function ClubMembers() {
     setCurrentUser(JSON.parse(userStr))
     fetchMembers()
     fetchTeams()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [clubId])
 
   const fetchMembers = async () => {
@@ -78,7 +85,7 @@ export default function ClubMembers() {
       }
     } catch (error: any) {
       console.error('Error:', error)
-      setError(error.response?.data?.message || 'Error al cargar miembros')
+      setError(error.response?.data?.message || t('errorLoad'))
     } finally {
       setLoading(false)
     }
@@ -106,10 +113,10 @@ export default function ClubMembers() {
       setInviteEmail('')
       setInviteRole('COACH')
       fetchMembers()
-      alert('✅ Miembro invitado correctamente')
+      alert(t('inviteModal.success'))
     } catch (error: any) {
       console.error('Error:', error)
-      alert(error.response?.data?.message || 'Error al invitar al miembro')
+      alert(error.response?.data?.message || t('inviteModal.error'))
     } finally {
       setInviting(false)
     }
@@ -126,14 +133,16 @@ export default function ClubMembers() {
     setSavingRole(true)
 
     try {
-      await api.put(`/clubs/${clubId}/members/${selectedMember.id}`, { role: selectedRole })
+      await api.put(`/clubs/${clubId}/members/${selectedMember.id}`, {
+        role: selectedRole,
+      })
       setShowRoleModal(false)
       setSelectedMember(null)
       fetchMembers()
-      alert('✅ Rol actualizado correctamente')
+      alert(t('roleModal.success'))
     } catch (error: any) {
       console.error('Error:', error)
-      alert(error.response?.data?.message || 'Error al actualizar el rol')
+      alert(error.response?.data?.message || t('roleModal.error'))
     } finally {
       setSavingRole(false)
     }
@@ -145,11 +154,13 @@ export default function ClubMembers() {
     setLoadingMemberTeams(true)
 
     try {
-      const response = await api.get(`/clubs/${clubId}/members/${member.id}/teams`)
+      const response = await api.get(
+        `/clubs/${clubId}/members/${member.id}/teams`,
+      )
       setMemberTeams(response.data)
     } catch (error) {
       console.error('Error:', error)
-      alert('Error al cargar los equipos del miembro')
+      alert(t('teamsModal.loadError'))
     } finally {
       setLoadingMemberTeams(false)
     }
@@ -160,28 +171,35 @@ export default function ClubMembers() {
 
     try {
       if (isAssigned) {
-        await api.delete(`/clubs/${clubId}/members/${selectedMemberForTeams.id}/teams/${teamId}`)
+        await api.delete(
+          `/clubs/${clubId}/members/${selectedMemberForTeams.id}/teams/${teamId}`,
+        )
       } else {
-        await api.post(`/clubs/${clubId}/members/${selectedMemberForTeams.id}/teams`, { teamId })
+        await api.post(
+          `/clubs/${clubId}/members/${selectedMemberForTeams.id}/teams`,
+          { teamId },
+        )
       }
-      const response = await api.get(`/clubs/${clubId}/members/${selectedMemberForTeams.id}/teams`)
+      const response = await api.get(
+        `/clubs/${clubId}/members/${selectedMemberForTeams.id}/teams`,
+      )
       setMemberTeams(response.data)
     } catch (error: any) {
       console.error('Error:', error)
-      alert(error.response?.data?.message || 'Error al actualizar la asignación')
+      alert(error.response?.data?.message || t('teamsModal.toggleError'))
     }
   }
 
   const removeMember = async (memberId: string, userName: string) => {
-    if (!confirm(`¿Eliminar a ${userName} del club?`)) return
+    if (!confirm(t('removeConfirm', { name: userName }))) return
 
     try {
       await api.delete(`/clubs/${clubId}/members/${memberId}`)
       fetchMembers()
-      alert('✅ Miembro eliminado correctamente')
+      alert(t('removeSuccess'))
     } catch (error: any) {
       console.error('Error:', error)
-      alert(error.response?.data?.message || 'Error al eliminar el miembro')
+      alert(error.response?.data?.message || t('removeError'))
     }
   }
 
@@ -195,42 +213,61 @@ export default function ClubMembers() {
     if (!resetMember || !newPassword) return
 
     if (newPassword.length < 6) {
-      alert('La contraseña debe tener al menos 6 caracteres')
+      alert(t('resetPasswordModal.minChars'))
       return
     }
 
     setResetting(true)
 
     try {
-      await api.post(`/clubs/${clubId}/members/${resetMember.id}/reset-password`, { newPassword })
+      await api.post(
+        `/clubs/${clubId}/members/${resetMember.id}/reset-password`,
+        { newPassword },
+      )
       setShowResetPasswordModal(false)
       setResetMember(null)
       setNewPassword('')
-      alert('✅ Contraseña reseteada correctamente')
+      alert(t('resetPasswordModal.success'))
     } catch (error: any) {
       console.error('Error:', error)
-      alert(error.response?.data?.message || 'Error al resetear la contraseña')
+      alert(error.response?.data?.message || t('resetPasswordModal.error'))
     } finally {
       setResetting(false)
     }
   }
 
-  const getRoleVariant = (role: string): 'brand' | 'info' | 'success' | 'neutral' => {
+  const getRoleVariant = (
+    role: string,
+  ): 'brand' | 'info' | 'success' | 'neutral' => {
     switch (role) {
-      case 'ADMIN_CLUB': return 'brand'
-      case 'COACH': return 'info'
-      case 'ASSISTANT': return 'success'
-      default: return 'neutral'
+      case 'ADMIN_CLUB':
+        return 'brand'
+      case 'COACH':
+        return 'info'
+      case 'ASSISTANT':
+        return 'success'
+      default:
+        return 'neutral'
     }
   }
 
-  const getRoleText = (role: string) => {
+  /**
+   * Traduce el rol del club.
+   * - ADMIN_CLUB / COACH / ASSISTANT / MEMBER → namespace `Clubs.roles`.
+   * - Cualquier otro valor (roles custom) → se muestra tal cual.
+   */
+  const getRoleText = (role: string): string => {
     switch (role) {
-      case 'ADMIN_CLUB': return '🏛️ Admin Club'
-      case 'COACH': return '🏆 Entrenador'
-      case 'ASSISTANT': return '🤝 Asistente'
-      case 'MEMBER': return '👤 Miembro'
-      default: return role
+      case 'ADMIN_CLUB':
+        return tRoles('adminClub')
+      case 'COACH':
+        return tRoles('coach')
+      case 'ASSISTANT':
+        return tRoles('assistant')
+      case 'MEMBER':
+        return tRoles('member')
+      default:
+        return role || '—'
     }
   }
 
@@ -238,15 +275,20 @@ export default function ClubMembers() {
     userRole === 'ADMIN_CLUB' || currentUser?.role === 'SUPER_ADMIN'
 
   if (loading) {
-    return <div className="text-center py-12 text-text-muted">Cargando miembros...</div>
+    return (
+      <div className="text-center py-12 text-text-muted">{t('loading')}</div>
+    )
   }
 
   if (error) {
     return (
       <div className="text-center py-12">
         <p className="text-danger">{error}</p>
-        <Link href="/dashboard" className="text-brand-primary hover:underline mt-4 inline-block">
-          ← Volver al dashboard
+        <Link
+          href="/dashboard"
+          className="text-brand-primary hover:underline mt-4 inline-block"
+        >
+          {t('backToDashboard')}
         </Link>
       </div>
     )
@@ -254,21 +296,26 @@ export default function ClubMembers() {
 
   return (
     <div>
-      <Link href={`/clubs/${clubId}`} className="text-brand-primary hover:underline inline-block mb-6">
-        ← Volver al club
+      <Link
+        href={`/clubs/${clubId}`}
+        className="text-brand-primary hover:underline inline-block mb-6"
+      >
+        {t('backToClub')}
       </Link>
 
       <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">👥 Miembros del Club</h1>
-          <p className="text-text-secondary">Gestiona los miembros y sus roles</p>
+          <h1 className="text-2xl font-bold text-text-primary">
+            {t('title')}
+          </h1>
+          <p className="text-text-secondary">{t('subtitle')}</p>
         </div>
         {isAdmin && (
           <Button
             onClick={() => setShowInviteModal(true)}
             icon={<span className="text-xl">+</span>}
           >
-            Invitar Miembro
+            {t('inviteButton')}
           </Button>
         )}
       </div>
@@ -280,12 +327,22 @@ export default function ClubMembers() {
           <table className="w-full">
             <thead className="bg-surface-elevated">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">Usuario</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">Email</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">Rol</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">Desde</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">
+                  {t('tableColumns.user')}
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">
+                  {t('tableColumns.email')}
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">
+                  {t('tableColumns.role')}
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">
+                  {t('tableColumns.since')}
+                </th>
                 {isAdmin && (
-                  <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase">Acciones</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase">
+                    {t('tableColumns.actions')}
+                  </th>
                 )}
               </tr>
             </thead>
@@ -293,7 +350,10 @@ export default function ClubMembers() {
               {members.map((member) => {
                 const roleName = member.role ?? member.roleRef?.name ?? ''
                 return (
-                  <tr key={member.id} className="hover:bg-surface-elevated transition">
+                  <tr
+                    key={member.id}
+                    className="hover:bg-surface-elevated transition"
+                  >
                     <td className="px-6 py-4">
                       <p className="font-medium text-text-primary">
                         {member.user.name} {member.user.lastName}
@@ -308,7 +368,11 @@ export default function ClubMembers() {
                       </Badge>
                     </td>
                     <td className="px-6 py-4 text-sm text-text-secondary">
-                      {new Date(member.joinedAt).toLocaleDateString('es-ES')}
+                      {format.dateTime(new Date(member.joinedAt), {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                      })}
                     </td>
                     {isAdmin && (
                       <td className="px-6 py-4 text-right">
@@ -317,7 +381,7 @@ export default function ClubMembers() {
                             onClick={() => openRoleModal(member)}
                             className="text-xs px-3 py-1 rounded-full font-medium transition hover:opacity-80 bg-surface-elevated text-text-secondary"
                             disabled={member.userId === currentUser?.id}
-                            title="Cambiar rol"
+                            title={t('actions.changeRole')}
                           >
                             {getRoleText(roleName)} ✏️
                           </button>
@@ -325,7 +389,7 @@ export default function ClubMembers() {
                             onClick={() => openTeamsModal(member)}
                             className="text-warning hover:text-warning/80 p-1"
                             disabled={member.userId === currentUser?.id}
-                            title="Gestionar equipos"
+                            title={t('actions.manageTeams')}
                           >
                             🏀
                           </button>
@@ -333,15 +397,20 @@ export default function ClubMembers() {
                             onClick={() => openResetPasswordModal(member)}
                             className="text-warning hover:text-warning/80 p-1"
                             disabled={member.userId === currentUser?.id}
-                            title="Resetear contraseña"
+                            title={t('actions.resetPassword')}
                           >
                             🔑
                           </button>
                           <button
-                            onClick={() => removeMember(member.id, `${member.user.name} ${member.user.lastName}`)}
+                            onClick={() =>
+                              removeMember(
+                                member.id,
+                                `${member.user.name} ${member.user.lastName}`,
+                              )
+                            }
                             className="text-danger hover:text-danger/80 p-1"
                             disabled={member.userId === currentUser?.id}
-                            title="Eliminar miembro"
+                            title={t('actions.removeMember')}
                           >
                             🗑️
                           </button>
@@ -366,9 +435,17 @@ export default function ClubMembers() {
                     <p className="font-medium text-text-primary truncate">
                       {member.user.name} {member.user.lastName}
                     </p>
-                    <p className="text-xs text-text-muted truncate">{member.user.email}</p>
+                    <p className="text-xs text-text-muted truncate">
+                      {member.user.email}
+                    </p>
                     <p className="text-xs text-text-muted mt-0.5">
-                      Desde {new Date(member.joinedAt).toLocaleDateString('es-ES')}
+                      {t('since', {
+                        date: format.dateTime(new Date(member.joinedAt), {
+                          year: 'numeric',
+                          month: '2-digit',
+                          day: '2-digit',
+                        }),
+                      })}
                     </p>
                   </div>
                   <Badge variant={getRoleVariant(roleName)}>
@@ -382,32 +459,37 @@ export default function ClubMembers() {
                       onClick={() => openRoleModal(member)}
                       className="flex-1 min-w-[120px] text-xs bg-surface-elevated hover:bg-border-subtle text-text-secondary px-3 py-2 rounded-lg font-medium transition"
                     >
-                      ✏️ Cambiar rol
+                      {t('actions.changeRoleShort')}
                     </button>
                     <button
                       onClick={() => openTeamsModal(member)}
                       className="flex-1 min-w-[120px] text-xs bg-warning/10 hover:bg-warning/20 text-warning px-3 py-2 rounded-lg font-medium transition"
                     >
-                      🏀 Equipos
+                      {t('actions.teamsShort')}
                     </button>
                     <button
                       onClick={() => openResetPasswordModal(member)}
                       className="flex-1 min-w-[120px] text-xs bg-warning/10 hover:bg-warning/20 text-warning px-3 py-2 rounded-lg font-medium transition"
                     >
-                      🔑 Contraseña
+                      {t('actions.passwordShort')}
                     </button>
                     <button
-                      onClick={() => removeMember(member.id, `${member.user.name} ${member.user.lastName}`)}
+                      onClick={() =>
+                        removeMember(
+                          member.id,
+                          `${member.user.name} ${member.user.lastName}`,
+                        )
+                      }
                       className="flex-1 min-w-[120px] text-xs bg-danger/10 hover:bg-danger/20 text-danger px-3 py-2 rounded-lg font-medium transition"
                     >
-                      🗑️ Eliminar
+                      {t('actions.removeShort')}
                     </button>
                   </div>
                 )}
 
                 {isAdmin && member.userId === currentUser?.id && (
                   <p className="text-xs text-text-muted italic pt-2 border-t border-border-subtle">
-                    No puedes modificar tu propio rol
+                    {t('selfRoleDisabled')}
                   </p>
                 )}
               </div>
@@ -420,29 +502,33 @@ export default function ClubMembers() {
       <Modal
         isOpen={showInviteModal}
         onClose={() => setShowInviteModal(false)}
-        title="Invitar Miembro al Club"
+        title={t('inviteModal.title')}
         size="md"
       >
         <form onSubmit={inviteMember} className="space-y-4">
           <Input
-            label="Email del usuario *"
+            label={t('inviteModal.emailLabel')}
             type="email"
             value={inviteEmail}
             onChange={(e) => setInviteEmail(e.target.value)}
-            placeholder="usuario@email.com"
+            placeholder={t('inviteModal.emailPlaceholder')}
             required
-            helperText="El usuario debe estar registrado en la app"
+            helperText={t('inviteModal.emailHelper')}
           />
 
           <Select
-            label="Rol en el club *"
+            label={t('inviteModal.roleLabel')}
             value={inviteRole}
             onChange={(e) => setInviteRole(e.target.value)}
             required
           >
-            <option value="COACH">🏆 Entrenador</option>
-            <option value="ASSISTANT">🤝 Asistente</option>
-            <option value="ADMIN_CLUB">🏛️ Admin Club</option>
+            <option value="COACH">🏆 {t('roleModal.roles.coach.label')}</option>
+            <option value="ASSISTANT">
+              🤝 {t('roleModal.roles.assistant.label')}
+            </option>
+            <option value="ADMIN_CLUB">
+              🏛️ {t('roleModal.roles.adminClub.label')}
+            </option>
           </Select>
 
           <div className="flex gap-3 pt-2">
@@ -453,7 +539,7 @@ export default function ClubMembers() {
               disabled={inviting}
               className="flex-1"
             >
-              Cancelar
+              {t('inviteModal.cancel')}
             </Button>
             <Button
               type="submit"
@@ -461,7 +547,7 @@ export default function ClubMembers() {
               loading={inviting}
               className="flex-1"
             >
-              {inviting ? 'Invitando...' : 'Invitar'}
+              {inviting ? t('inviteModal.inviting') : t('inviteModal.submit')}
             </Button>
           </div>
         </form>
@@ -474,14 +560,36 @@ export default function ClubMembers() {
           setShowRoleModal(false)
           setSelectedMember(null)
         }}
-        title={selectedMember ? `Cambiar Rol de ${selectedMember.user.name} ${selectedMember.user.lastName}` : ''}
+        title={
+          selectedMember
+            ? t('roleModal.title', {
+                name: selectedMember.user.name,
+                lastName: selectedMember.user.lastName,
+              })
+            : ''
+        }
         size="md"
       >
         <div className="space-y-3">
           {[
-            { value: 'ADMIN_CLUB', emoji: '🏛️', label: 'Admin Club', desc: 'Puede gestionar todo el club' },
-            { value: 'COACH', emoji: '🏆', label: 'Entrenador', desc: 'Puede gestionar sus equipos' },
-            { value: 'ASSISTANT', emoji: '🤝', label: 'Asistente', desc: 'Puede ver y ayudar' },
+            {
+              value: 'ADMIN_CLUB',
+              emoji: '🏛️',
+              label: t('roleModal.roles.adminClub.label'),
+              desc: t('roleModal.roles.adminClub.description'),
+            },
+            {
+              value: 'COACH',
+              emoji: '🏆',
+              label: t('roleModal.roles.coach.label'),
+              desc: t('roleModal.roles.coach.description'),
+            },
+            {
+              value: 'ASSISTANT',
+              emoji: '🤝',
+              label: t('roleModal.roles.assistant.label'),
+              desc: t('roleModal.roles.assistant.description'),
+            },
           ].map((role) => (
             <label
               key={role.value}
@@ -500,7 +608,9 @@ export default function ClubMembers() {
                 className="w-4 h-4 accent-brand-primary"
               />
               <div>
-                <p className="font-medium text-text-primary">{role.emoji} {role.label}</p>
+                <p className="font-medium text-text-primary">
+                  {role.emoji} {role.label}
+                </p>
                 <p className="text-xs text-text-muted">{role.desc}</p>
               </div>
             </label>
@@ -517,7 +627,7 @@ export default function ClubMembers() {
             disabled={savingRole}
             className="flex-1"
           >
-            Cancelar
+            {t('roleModal.cancel')}
           </Button>
           <Button
             onClick={saveRole}
@@ -525,7 +635,7 @@ export default function ClubMembers() {
             loading={savingRole}
             className="flex-1"
           >
-            {savingRole ? 'Guardando...' : 'Guardar Cambios'}
+            {savingRole ? t('roleModal.saving') : t('roleModal.save')}
           </Button>
         </div>
       </Modal>
@@ -538,21 +648,28 @@ export default function ClubMembers() {
           setResetMember(null)
           setNewPassword('')
         }}
-        title="🔑 Resetear Contraseña"
+        title={t('resetPasswordModal.title')}
         size="md"
       >
         {resetMember && (
           <>
             <p className="text-sm text-text-secondary mb-4">
-              Vas a resetear la contraseña de <strong className="text-text-primary">{resetMember.user.name} {resetMember.user.lastName}</strong> ({resetMember.user.email})
+              {t.rich('resetPasswordModal.description', {
+                name: resetMember.user.name,
+                lastName: resetMember.user.lastName,
+                email: resetMember.user.email,
+                strong: (chunks) => (
+                  <strong className="text-text-primary">{chunks}</strong>
+                ),
+              })}
             </p>
 
             <Input
-              label="Nueva contraseña *"
+              label={t('resetPasswordModal.newPasswordLabel')}
               type="text"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Mínimo 6 caracteres"
+              placeholder={t('resetPasswordModal.newPasswordPlaceholder')}
               minLength={6}
               required
             />
@@ -568,7 +685,7 @@ export default function ClubMembers() {
                 disabled={resetting}
                 className="flex-1"
               >
-                Cancelar
+                {t('resetPasswordModal.cancel')}
               </Button>
               <Button
                 onClick={resetPassword}
@@ -576,7 +693,9 @@ export default function ClubMembers() {
                 loading={resetting}
                 className="flex-1"
               >
-                {resetting ? 'Reseteando...' : '🔑 Resetear'}
+                {resetting
+                  ? t('resetPasswordModal.resetting')
+                  : t('resetPasswordModal.submit')}
               </Button>
             </div>
           </>
@@ -591,18 +710,27 @@ export default function ClubMembers() {
           setSelectedMemberForTeams(null)
           setMemberTeams([])
         }}
-        title={selectedMemberForTeams ? `🏆 Equipos de ${selectedMemberForTeams.user.name} ${selectedMemberForTeams.user.lastName}` : ''}
+        title={
+          selectedMemberForTeams
+            ? t('teamsModal.title', {
+                name: selectedMemberForTeams.user.name,
+                lastName: selectedMemberForTeams.user.lastName,
+              })
+            : ''
+        }
         size="md"
       >
         <p className="text-sm text-text-muted mb-4">
-          Asigna los equipos a los que este entrenador tendrá acceso
+          {t('teamsModal.description')}
         </p>
 
         {loadingMemberTeams ? (
-          <div className="text-center py-8 text-text-muted">Cargando equipos...</div>
+          <div className="text-center py-8 text-text-muted">
+            {t('teamsModal.loading')}
+          </div>
         ) : memberTeams.length === 0 ? (
           <div className="text-center py-8 text-text-muted">
-            No hay equipos en este club
+            {t('teamsModal.noTeams')}
           </div>
         ) : (
           <div className="space-y-2">
@@ -618,17 +746,19 @@ export default function ClubMembers() {
                 <input
                   type="checkbox"
                   checked={team.isAssigned}
-                  onChange={() => toggleTeamAssignment(team.id, team.isAssigned)}
+                  onChange={() =>
+                    toggleTeamAssignment(team.id, team.isAssigned)
+                  }
                   className="w-5 h-5 accent-brand-primary"
                 />
                 <div className="flex-1">
                   <p className="font-medium text-text-primary">{team.name}</p>
                   <p className="text-xs text-text-muted">
-                    {team.category || 'Sin categoría'}
+                    {team.category || t('teamsModal.noCategory')}
                   </p>
                 </div>
                 {team.isAssigned && (
-                  <Badge variant="brand">Asignado</Badge>
+                  <Badge variant="brand">{t('teamsModal.assigned')}</Badge>
                 )}
               </label>
             ))}
@@ -645,7 +775,7 @@ export default function ClubMembers() {
             }}
             className="flex-1"
           >
-            Cerrar
+            {t('teamsModal.close')}
           </Button>
         </div>
       </Modal>

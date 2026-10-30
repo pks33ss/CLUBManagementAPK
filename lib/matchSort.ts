@@ -8,13 +8,13 @@ export type MatchSortKey =
   | 'result-win'
   | 'result-loss'
 
-export const SORT_OPTIONS: { value: MatchSortKey; label: string }[] = [
-  { value: 'date-asc',     label: '📅 Fecha (más próximos)' },
-  { value: 'date-desc',    label: '📅 Fecha (más lejanos)' },
-  { value: 'location',     label: '🏠 Local primero' },
-  { value: 'opponent-asc', label: '🔤 Rival (A-Z)' },
-  { value: 'result-win',   label: '🏆 Victorias primero' },
-  { value: 'result-loss',  label: '❌ Derrotas primero' },
+export const SORT_OPTIONS: { value: MatchSortKey }[] = [
+  { value: 'date-asc' },
+  { value: 'date-desc' },
+  { value: 'location' },
+  { value: 'opponent-asc' },
+  { value: 'result-win' },
+  { value: 'result-loss' },
 ]
 
 const STORAGE_KEY = 'matches-sort-preference'
@@ -41,7 +41,11 @@ interface SortableMatch {
 }
 
 function resultValue(m: SortableMatch): number {
-  if (m.status !== 'FINISHED' || m.teamScore === null || m.opponentScore === null) {
+  if (
+    m.status !== 'FINISHED' ||
+    m.teamScore === null ||
+    m.opponentScore === null
+  ) {
     return 0
   }
   if (m.teamScore > m.opponentScore) return 1
@@ -52,6 +56,7 @@ function resultValue(m: SortableMatch): number {
 export function sortMatches<T extends SortableMatch>(
   matches: T[],
   sortKey: MatchSortKey,
+  locale: string = 'es',
 ): T[] {
   const copy = [...matches]
 
@@ -73,7 +78,7 @@ export function sortMatches<T extends SortableMatch>(
       })
     }
     case 'opponent-asc':
-      return copy.sort((a, b) => a.opponent.localeCompare(b.opponent, 'es'))
+      return copy.sort((a, b) => a.opponent.localeCompare(b.opponent, locale))
     case 'result-win':
       return copy.sort((a, b) => resultValue(b) - resultValue(a))
     case 'result-loss':
