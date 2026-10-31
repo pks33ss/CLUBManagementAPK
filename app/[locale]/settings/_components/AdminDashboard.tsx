@@ -139,7 +139,7 @@ export default function AdminDashboard() {
                     stroke="#666" 
                     tick={{ fill: '#888', fontSize: 12 }}
                     tickFormatter={(val) => {
-                      const parts = val.split('-')
+                      const parts = String(val).split('-')
                       return `${parts[2]}/${parts[1]}` // DD/MM
                     }}
                   />
@@ -152,7 +152,8 @@ export default function AdminDashboard() {
                     contentStyle={{ backgroundColor: '#1a1a1a', borderColor: '#333', borderRadius: '8px' }}
                     itemStyle={{ color: activeColor }}
                     labelFormatter={(label) => {
-                      const parts = label.split('-')
+                      const strLabel = String(label) // <-- CORRECCIÓN TS
+                      const parts = strLabel.split('-')
                       return `${parts[2]}/${parts[1]}/${parts[0]}`
                     }}
                   />
