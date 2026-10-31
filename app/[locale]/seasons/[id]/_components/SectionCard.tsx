@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import type { SeasonSection } from '../page'
 import InlineEditName from './InlineEditName'
 
@@ -12,6 +13,8 @@ interface Props {
 }
 
 export default function SectionCard({ section, canManage, onEdit, onDelete, onMove }: Props) {
+  const t = useTranslations('Seasons.detail.sectionCard')
+
   return (
     <div className="bg-brand-primary/5 border-2 border-brand-primary/30 rounded-lg px-3 py-2 flex flex-col gap-1 group hover:border-brand-primary/50 transition min-w-[180px] max-w-[280px] shrink-0">
       {/* Header: nombre + acciones */}
@@ -38,7 +41,7 @@ export default function SectionCard({ section, canManage, onEdit, onDelete, onMo
                 onMove(section, 'up')
               }}
               className="p-1 rounded hover:bg-surface-elevated text-text-muted text-xs transition"
-              title="Mover izquierda"
+              title={t('moveLeft')}
             >
               ⬅️
             </button>
@@ -48,7 +51,7 @@ export default function SectionCard({ section, canManage, onEdit, onDelete, onMo
                 onMove(section, 'down')
               }}
               className="p-1 rounded hover:bg-surface-elevated text-text-muted text-xs transition"
-              title="Mover derecha"
+              title={t('moveRight')}
             >
               ➡️
             </button>
@@ -58,7 +61,7 @@ export default function SectionCard({ section, canManage, onEdit, onDelete, onMo
                 onEdit(section)
               }}
               className="p-1 rounded hover:bg-surface-elevated text-brand-primary text-xs transition"
-              title="Editar"
+              title={t('edit')}
             >
               ✏️
             </button>
@@ -68,7 +71,7 @@ export default function SectionCard({ section, canManage, onEdit, onDelete, onMo
                 onDelete(section)
               }}
               className="p-1 rounded hover:bg-surface-elevated text-danger text-xs transition"
-              title="Eliminar"
+              title={t('delete')}
             >
               ✕
             </button>

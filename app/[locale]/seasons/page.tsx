@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { useRouter } from '@/navigation';
-import { Link } from '@/navigation';
+import { useRouter } from '@/navigation'
+import { Link } from '@/navigation'
+import { useTranslations, useFormatter } from 'next-intl'
 import api from '@/lib/api'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
 import { Button, Card, Badge, Input, Textarea, Modal } from '@/components/ui'
@@ -78,6 +79,9 @@ function applySavedOrder(seasons: Season[], savedOrder: string[]): Season[] {
 
 export default function SeasonsPage() {
   const router = useRouter()
+  const t = useTranslations('Seasons.list')
+  const format = useFormatter()
+
   const { activeTeam, loading: loadingTeams } = useActiveTeam()
 
   const [seasons, setSeasons] = useState<Season[]>([])
@@ -113,6 +117,7 @@ export default function SeasonsPage() {
 
     setSavedOrder(getSavedOrder(activeTeam.id))
     fetchSeasons(activeTeam.id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTeam, router])
 
   const fetchSeasons = async (teamId: string) => {
@@ -145,7 +150,7 @@ export default function SeasonsPage() {
       setForm({ name: '', description: '', startDate: '', endDate: '', color: '#00E676' })
       fetchSeasons(activeTeam.id)
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al crear la planificación')
+      alert(err.response?.data?.message || t('createError'))
     } finally {
       setSaving(false)
     }
@@ -175,12 +180,14 @@ export default function SeasonsPage() {
   }
 
   const formatDateRange = (start: string | null, end: string | null) => {
-    if (!start && !end) return 'Sin fechas definidas'
+    if (!start && !end) return t('dates.none')
+    
     const fmt = (d: string) =>
-      new Date(d).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' })
-    if (start && end) return `${fmt(start)} → ${fmt(end)}`
-    if (start) return `Desde ${fmt(start)}`
-    return `Hasta ${fmt(end!)}`
+      format.dateTime(new Date(d), { day: '2-digit', month: 'short', year: 'numeric' })
+      
+    if (start && end) return t('dates.range', { start: fmt(start), end: fmt(end) })
+    if (start) return t('dates.from', { date: fmt(start) })
+    return t('dates.until', { date: fmt(end!) })
   }
 
   // ============================================
@@ -188,7 +195,7 @@ export default function SeasonsPage() {
   // ============================================
 
   if (loadingTeams || loading) {
-    return <div className="text-center py-12 text-text-muted">Cargando planificaciones...</div>
+    return <div className="text-center py-12 text-text-muted">{t('loading')}</div>
   }
 
   // Sin equipo activo
@@ -197,10 +204,10 @@ export default function SeasonsPage() {
       <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
         <div className="text-6xl mb-4">📅</div>
         <h3 className="text-xl font-semibold text-text-primary mb-2">
-          Selecciona un equipo
+          {t('selectTeamTitle')}
         </h3>
         <p className="text-text-secondary mb-6">
-          Elige un equipo desde el menú superior para ver sus planificaciones
+          {t('selectTeamDesc')}
         </p>
       </div>
     )
@@ -211,7 +218,7 @@ export default function SeasonsPage() {
       {/* Header */}
       <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">📅 Planificación</h1>
+          <h1 className="text-2xl font-bold text-text-primary">{t('title')}</h1>
           <p className="text-text-secondary">
             {activeTeam.name} · {activeTeam.club?.name}
           </p>
@@ -220,7 +227,7 @@ export default function SeasonsPage() {
           onClick={() => setShowModal(true)}
           icon={<span className="text-xl">+</span>}
         >
-          Nueva Planificación
+          {t('newSeason')}
         </Button>
       </div>
 
@@ -229,13 +236,13 @@ export default function SeasonsPage() {
         <div className="text-center py-12 bg-surface rounded-xl shadow border border-border-subtle">
           <div className="text-5xl mb-4">📅</div>
           <h3 className="text-lg font-semibold text-text-primary mb-2">
-            No hay planificaciones todavía
+            {t('emptyTitle')}
           </h3>
           <p className="text-text-secondary text-sm mb-4">
-            Crea tu primera planificación para empezar
+            {t('emptyDesc')}
           </p>
           <Button onClick={() => setShowModal(true)}>
-            Crear Primera Planificación
+            {t('createFirst')}
           </Button>
         </div>
       ) : (
@@ -267,7 +274,7 @@ export default function SeasonsPage() {
                         </p>
                         <div className="mt-3">
                           <Badge variant="brand">
-                            📦 {season._count.blocks} bloque{season._count.blocks !== 1 ? 's' : ''}
+                            {t('blocksCount', { count: season._count.blocks })}
                           </Badge>
                         </div>
                       </div>
@@ -281,8 +288,8 @@ export default function SeasonsPage() {
                     type="button"
                     onClick={() => moveSeason(index, -1)}
                     disabled={isFirst}
-                    title="Mover arriba"
-                    aria-label="Mover arriba"
+                    title={t('moveUp')}
+                    aria-label={t('moveUp')}
                     className={`w-6 h-6 flex items-center justify-center rounded text-xs transition ${
                       isFirst
                         ? 'opacity-0 pointer-events-none'
@@ -295,8 +302,8 @@ export default function SeasonsPage() {
                     type="button"
                     onClick={() => moveSeason(index, 1)}
                     disabled={isLast}
-                    title="Mover abajo"
-                    aria-label="Mover abajo"
+                    title={t('moveDown')}
+                    aria-label={t('moveDown')}
                     className={`w-6 h-6 flex items-center justify-center rounded text-xs transition ${
                       isLast
                         ? 'opacity-0 pointer-events-none'
@@ -316,36 +323,36 @@ export default function SeasonsPage() {
       <Modal
         isOpen={showModal}
         onClose={() => setShowModal(false)}
-        title="Nueva Planificación"
+        title={t('modal.title')}
         size="md"
       >
         <form onSubmit={createSeason} className="space-y-4">
           <Input
-            label="Nombre *"
+            label={t('modal.nameLabel')}
             type="text"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
-            placeholder="Ej: Planificación 2026-27"
+            placeholder={t('modal.namePlaceholder')}
             required
           />
 
           <Textarea
-            label="Contenido"
+            label={t('modal.contentLabel')}
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
             rows={3}
-            placeholder="Objetivos, notas generales..."
+            placeholder={t('modal.contentPlaceholder')}
           />
 
           <div className="grid grid-cols-2 gap-4">
             <Input
-              label="Fecha inicio"
+              label={t('modal.startDate')}
               type="date"
               value={form.startDate}
               onChange={(e) => setForm({ ...form, startDate: e.target.value })}
             />
             <Input
-              label="Fecha fin"
+              label={t('modal.endDate')}
               type="date"
               value={form.endDate}
               onChange={(e) => setForm({ ...form, endDate: e.target.value })}
@@ -354,7 +361,7 @@ export default function SeasonsPage() {
 
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-1">
-              Color
+              {t('modal.colorLabel')}
             </label>
             <div className="flex gap-2 items-center">
               <input
@@ -375,7 +382,7 @@ export default function SeasonsPage() {
               disabled={saving}
               className="flex-1"
             >
-              Cancelar
+              {t('modal.cancel')}
             </Button>
             <Button
               type="submit"
@@ -383,7 +390,7 @@ export default function SeasonsPage() {
               loading={saving}
               className="flex-1"
             >
-              {saving ? 'Creando...' : 'Crear Planificación'}
+              {saving ? t('modal.creating') : t('modal.create')}
             </Button>
           </div>
         </form>

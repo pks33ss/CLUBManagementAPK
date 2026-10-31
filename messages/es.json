@@ -7,6 +7,10 @@
     "edit": "Editar",
     "back": "Volver",
     "search": "Buscar",
+	"inlineEdit": {
+  "editTitle": "Doble clic para editar",
+  "saveError": "Error al guardar"
+},
     "error": "Error",
     "multiSelect": {
       "placeholder": "Seleccionar...",
@@ -49,7 +53,20 @@
     "errorRegister": "Error al registrar usuario. Intenta de nuevo.",
     "devWarningTitle": "Aplicación en desarrollo",
     "devWarningText": "Esta versión está en fase de desarrollo. Algunas funciones pueden cambiar o no estar disponibles todavía.",
-    "passwordMinChars": "Mínimo 6 caracteres"
+    "passwordMinChars": "Mínimo 6 caracteres",
+	"or": "o",
+"invitationTitle": "¡Te han invitado!",
+"invitationText": "{inviter} te invita al equipo {team} de {club}",
+"invitationTextNoInviter": "Te invitan al equipo {team} de {club}",
+"invitationRoleText": "Al registrarte te unirás automáticamente como {role}.",
+"invitationError": "La invitación no es válida o ha caducado",
+"invitationErrorHint": "Puedes registrarte igualmente, pero no se aplicará la invitación.",
+"registerSuccess": "✅ ¡Registro exitoso! Redirigiendo...",
+"emailFromInvitation": "El email viene de la invitación y no se puede cambiar",
+"googleTokenError": "No se pudo obtener el token de Google",
+"googleLoginError": "Error al iniciar sesión con Google",
+"googleRegisterError": "Error al registrarse con Google",
+"demoError": "Error al entrar a la demo."
   },
   "Navbar": {
   "dashboard": "Dashboard",
@@ -531,6 +548,44 @@
       "leve": "Leve",
       "moderada": "Moderada",
       "grave": "Grave"
+    }
+  }
+},
+"Payments": {
+  "reminders": {
+    "title": "▶️ Ejecutar recordatorios de pago",
+    "intro": "Se enviarán recordatorios a los jugadores con pagos pendientes de conceptos que tengan los recordatorios activados.",
+    "beforeDueInfo": "Antes de vencer:",
+    "beforeDueHint": "cuando falten menos de X días para el vencimiento.",
+    "overdueInfo": "Vencidos:",
+    "overdueHint": "el primer día después del vencimiento si sigue pendiente.",
+    "dryRunButton": "🔍 Simular (dry run)",
+    "runButton": "✉️ Ejecutar y enviar",
+    "errorRun": "Error al ejecutar recordatorios",
+    "stats": {
+      "conceptsProcessed": "Conceptos procesados",
+      "remindersSent": "Emails enviados",
+      "remindersSkipped": "Omitidos"
+    },
+    "dryRunWarning": "⚠️ Esto es un <strong>dry run</strong>. No se ha enviado ningún email ni se ha creado ningún registro.",
+    "noCandidates": "No hay conceptos candidatos para ejecutar recordatorios.",
+    "concept": {
+      "dueIn": "{days, plural, =0 {Vence hoy} one {Vence en # día} other {Vence en # días}}",
+      "overdueBy": "{days, plural, one {Vencido hace # día} other {Vencido hace # días}}",
+      "sent": "✓ {n}",
+      "skipped": "omitidos: {n}",
+      "recipientStatus": {
+        "sent": "Enviado",
+        "failed": "Falló",
+        "skipped": "Omitido"
+      },
+      "skippedWithReason": "Omitido ({reason})"
+    },
+    "close": "Cerrar",
+    "confirm": "Aceptar",
+    "reminderType": {
+      "BEFORE_DUE": "Antes de vencer",
+      "AFTER_DUE": "Vencido"
     }
   }
 },
@@ -1437,6 +1492,7 @@
   "title": "🔔 Recordatorios de pago",
   "enabled": "Activados",
   "disabled": "Desactivados",
+  "description": "Los recordatorios se envían automáticamente a los jugadores con pagos pendientes. Se ejecutan una vez al día.",
   "globalDisabled": "Global desactivado",
   "autoSend": "⏰ Envío automático diario a las <strong>{time}</strong> (hora del servidor).",
   "globalDisabledWarning": "⚠️ Los recordatorios están <strong>desactivados globalmente</strong> en la plataforma. Aunque este club los tenga activados, no se enviarán emails. Contacta con soporte si necesitas reactivarlos.",
@@ -1543,6 +1599,261 @@
     "member": "👤 Miembro"
   }
 },
+
+"Seasons": {
+  "list": {
+    "loading": "Cargando planificaciones...",
+    "selectTeamTitle": "Selecciona un equipo",
+    "selectTeamDesc": "Elige un equipo desde el menú superior para ver sus planificaciones",
+    "title": "📅 Planificación",
+    "newSeason": "Nueva Planificación",
+    "emptyTitle": "No hay planificaciones todavía",
+    "emptyDesc": "Crea tu primera planificación para empezar",
+    "createFirst": "Crear Primera Planificación",
+    "blocksCount": "{count, plural, one {📦 # bloque} other {📦 # bloques}}",
+    "moveUp": "Mover arriba",
+    "moveDown": "Mover abajo",
+    "dates": {
+      "none": "Sin fechas definidas",
+      "from": "Desde {date}",
+      "until": "Hasta {date}",
+      "range": "{start} → {end}"
+    },
+    "createError": "Error al crear la planificación",
+    "modal": {
+      "title": "Nueva Planificación",
+      "nameLabel": "Nombre *",
+      "namePlaceholder": "Ej: Planificación 2026-27",
+      "contentLabel": "Contenido",
+      "contentPlaceholder": "Objetivos, notas generales...",
+      "startDate": "Fecha inicio",
+      "endDate": "Fecha fin",
+      "colorLabel": "Color",
+      "cancel": "Cancelar",
+      "creating": "Creando...",
+      "create": "Crear Planificación"
+    }
+  },
+  "detail": {
+  "loading": "Cargando planificación...",
+  "errorNotFound": "Planificación no encontrada",
+  "errorAccess": "No tienes acceso a esta planificación",
+  "errorLoad": "Error al cargar la planificación",
+  "backToList": "← Volver a planificaciones",
+  "emptyTitle": "No hay bloques todavía",
+  "emptyDesc": "Crea el primer bloque de la planificación",
+  "createFirstBlock": "➕ Crear Primer Bloque",
+  "header": {
+  "rootBlockBtn": "➕ Root block",
+  "expandAll": "⬇️ Expand",
+  "expandAllTitle": "Expand all",
+  "collapseAll": "⬆️ Collapse",
+  "collapseAllTitle": "Collapse all",
+  "editBtnTitle": "Edit season",
+  "deleteBtnTitle": "Delete season",
+  "dateFrom": "From {date}",
+  "dateUntil": "Until {date}",
+  "editModalTitle": "Edit Season",
+  "sectionCard": {
+  "moveLeft": "Mover izquierda",
+  "moveRight": "Mover derecha",
+  "edit": "Editar",
+  "delete": "Eliminar"
+},
+  "deleteModalTitle": "Delete Season",
+  "deleteConfirmRich": "Are you sure you want to delete <strong>{name}</strong>? ALL its blocks and sections will be deleted. This action cannot be undone.",
+  "cancel": "Cancel",
+  "saving": "Saving...",
+  "save": "Save",
+  "deleting": "Deleting...",
+  "yesDelete": "Yes, delete",
+  "form": {
+    "nameLabel": "Name *",
+    "contentLabel": "Content",
+    "startDate": "Start date",
+    "endDate": "End date",
+    "colorLabel": "Color"
+  },
+  "errorUpdate": "Error updating",
+  "errorDelete": "Error deleting"
+},
+"sectionModal": {
+  "editTitle": "✏️ Editar Sección",
+  "newTitle": "➕ Nueva Sección",
+  "nameLabel": "Nombre *",
+  "namePlaceholder": "Ej: Técnica Ataque, Pretemporada...",
+  "contentLabel": "Contenido",
+  "contentPlaceholder": "Ej: Objetivos técnicos, ejercicios clave, criterios de evaluación...",
+  "startDate": "Fecha inicio",
+  "endDate": "Fecha fin",
+  "cancel": "Cancelar",
+  "saving": "Guardando...",
+  "save": "Guardar",
+  "create": "Crear",
+  "errorSave": "Error al guardar"
+},
+  "loadingFallback": "Cargando...",
+  "confirmDeleteBlock": "¿Eliminar el bloque \"{name}\"?{warning}",
+  "confirmDeleteBlockWarning": "\n\n⚠️ Se eliminarán {childCount} sub-bloques y {sectionCount} secciones.",
+  "confirmDeleteSection": "¿Eliminar la sección \"{name}\"?",
+  "errorDelete": "Error al eliminar",
+  "errorReorder": "Error al reordenar",
+  "blockModal": {
+  "editTitle": "✏️ Editar Bloque",
+  "newChildTitle": "➕ Nuevo Sub-bloque",
+  "newTitle": "➕ Nuevo Bloque",
+  "nameLabel": "Nombre *",
+  "namePlaceholder": "Ej: Trimestre 1, Septiembre...",
+  "contentLabel": "Contenido",
+  "contentPlaceholder": "Objetivo del bloque, contenido general...",
+  "startDate": "Fecha inicio",
+  "endDate": "Fecha fin",
+  "colorLabel": "Color",
+  "colorHint": "Opcional, sobreescribe el color por defecto",
+  "cancel": "Cancelar",
+  "saving": "Guardando...",
+  "save": "Guardar",
+  "create": "Crear",
+  "errorSave": "Error al guardar"
+},
+"blockNode": {
+  "collapse": "Colapsar bloque",
+  "expand": "Expandir bloque",
+  "childrenCount": "{count, plural, one {# sub-bloque} other {# sub-bloques}}",
+  "sectionsCount": "{count, plural, one {# sección} other {# secciones}}",
+  "moveUp": "Mover arriba",
+  "moveUpAria": "Mover bloque arriba",
+  "moveDown": "Mover abajo",
+  "moveDownAria": "Mover bloque abajo",
+  "addChild": "Añadir sub-bloque",
+  "addSection": "Añadir sección",
+  "edit": "Editar",
+  "editAria": "Editar bloque",
+  "delete": "Eliminar",
+  "deleteAria": "Eliminar bloque",
+  "emptyBlock": "Este bloque está vacío",
+  "addChildBtn": "➕ Sub-bloque",
+  "addSectionBtn": "➕ Sección"
+}
+}
+},
+"Playbook": {
+  "list": {
+    "loading": "Cargando playbook...",
+    "selectTeamTitle": "Selecciona un equipo",
+    "selectTeamDesc": "Elige un equipo desde el menú superior para ver sus jugadas",
+    "title": "📘 Playbook · {icon}",
+    "newPlay": "Nueva jugada",
+    "searchPlaceholder": "🔍 Buscar por nombre...",
+    "resultsCount": "{filtered} de {total}",
+    "errorLoad": "Error al cargar el playbook",
+    "retry": "Reintentar",
+    "emptyTitle": "Playbook vacío",
+    "emptyDesc": "Crea tu primera jugada y añade pasos con descripción e imagen o pizarra.",
+    "createFirst": "Crear primera jugada",
+    "noResultsTitle": "No hay jugadas que coincidan con \"{query}\".",
+    "clearSearch": "Limpiar búsqueda",
+    "stepsCount": "{count, plural, one {# paso} other {# pasos}}",
+    "system": "Sistema"
+  },
+  "new": {
+  "loading": "Cargando...",
+  "selectTeamTitle": "Selecciona un equipo",
+  "selectTeamDesc": "Elige un equipo desde el menú superior para crear jugadas",
+  "backToPlaybook": "← Volver al Playbook",
+  "title": "📘 Nueva jugada",
+  "form": {
+    "nameLabel": "Nombre de la jugada *",
+    "namePlaceholder": "Ej: Pick and roll",
+    "descriptionLabel": "Descripción",
+    "descriptionPlaceholder": "Descripción breve de la jugada",
+    "infoHint": "Después de crearla podrás añadir los pasos.",
+    "cancel": "Cancelar",
+    "creating": "Creando...",
+    "create": "Crear jugada"
+  },
+  "errorNameRequired": "El nombre es obligatorio",
+  "errorCreate": "Error al crear la jugada"
+},
+"stepEditor": {
+  "descriptionLabel": "Descripción del paso",
+  "descriptionPlaceholder": "Ej: El base pasa al pívot y hace un bloqueo directo",
+  "imageLabel": "Imagen",
+  "imageAlt": "Imagen del paso",
+  "removeImageTitle": "Quitar imagen",
+  "changeBoard": "🎨 Cambiar pizarra",
+  "drawBoard": "🎨 Dibujar en pizarra",
+  "changeImage": "📸 Cambiar imagen",
+  "uploadImage": "📸 Subir imagen",
+  "cancel": "Cancelar",
+  "saving": "Guardando...",
+  "saveStep": "Guardar paso",
+  "boardModalTitle": "🎨 Pizarra Táctica",
+  "errors": {
+    "notImage": "Por favor, selecciona una imagen",
+    "tooBig": "La imagen es demasiado grande. Máximo 5MB."
+  }
+},
+"present": {
+  "loading": "Cargando jugada...",
+  "errorNotFound": "Jugada no encontrada",
+  "errorLoad": "Error al cargar la jugada",
+  "backToPlaybook": "← Volver al Playbook",
+  "emptyStepsTitle": "Esta jugada todavía no tiene pasos.",
+  "exit": "Salir",
+  "addSteps": "Añadir pasos",
+  "exitTooltip": "Salir de la presentación (Esc)",
+  "stepIndicator": "Paso {current} de {total}",
+  "imageAlt": "Paso {number}",
+  "emptyStep": "Este paso no tiene contenido todavía.",
+  "prev": "Anterior",
+  "next": "Siguiente",
+  "goToStepTooltip": "Ir al paso {number}",
+  "keyboardHelp": "← → para navegar · Esc para salir"
+},
+"detail": {
+  "loading": "Cargando jugada...",
+  "errorNotFound": "Jugada no encontrada",
+  "errorLoad": "Error al cargar la jugada",
+  "backToPlaybook": "← Volver al Playbook",
+  "createdBy": "Creada por {author} · {date}",
+  "system": "Sistema",
+  "namePlaceholder": "Nombre de la jugada",
+  "saveChanges": "Guardar cambios",
+  "saving": "Guardando...",
+  "present": "▶️ Presentar",
+  "delete": "🗑️ Eliminar",
+  "descriptionLabel": "Descripción",
+  "descriptionPlaceholder": "Descripción general de la jugada",
+  "stepsTitle": "📝 Pasos ({count})",
+  "addStep": "Añadir paso",
+  "noStepsTitle": "Esta jugada no tiene pasos todavía.",
+  "addFirstStep": "➕ Añadir primer paso",
+  "imageAlt": "Paso {number}",
+  "emptyStep": "Paso sin contenido. Pulsa ✏️ para editarlo.",
+  "moveUp": "Mover arriba",
+  "moveDown": "Mover abajo",
+  "editStep": "Editar paso",
+  "deleteStep": "Eliminar paso",
+  "deleteModalTitle": "🗑️ Eliminar jugada",
+  "deleteConfirmRich": "¿Seguro que quieres eliminar la jugada <strong>{name}</strong>? Se eliminarán también todos sus pasos. Esta acción no se puede deshacer.",
+  "cancel": "Cancelar",
+  "deleting": "Eliminando...",
+  "yesDelete": "Sí, eliminar",
+  "errors": {
+    "nameEmpty": "El nombre no puede estar vacío",
+    "saveHeader": "Error al guardar cambios",
+    "addStep": "Error al añadir el paso",
+    "saveStep": "Error al guardar el paso",
+    "deleteStep": "Error al eliminar el paso",
+    "reorderSteps": "Error al reordenar los pasos",
+    "deletePlay": "Error al eliminar la jugada",
+    "deleteStepConfirm": "¿Eliminar el paso {number}?"
+  }
+}
+},
+
+
   "Settings": {
   "title": "⚙️ Configuración",
   "loading": "Cargando configuración...",
@@ -1584,6 +1895,25 @@
   "passwordTooShort": "La contraseña debe tener al menos 6 caracteres",
   "selectImage": "Por favor, selecciona una imagen",
   "imageTooBig": "La imagen es demasiado grande. Máximo 2MB."
+},
+"dashboard": {
+  "tabLabel": "Dashboard",
+  "title": "📊 Dashboard Global",
+  "subtitle": "Métricas de uso y crecimiento de la aplicación",
+  "metrics": {
+    "demoOpens": "Veces abierta la demo",
+    "users": "Usuarios registrados",
+    "clubs": "Clubes",
+    "teams": "Equipos",
+    "sessions": "Entrenamientos",
+    "exercises": "Ejercicios",
+    "plays": "Jugadas"
+  },
+  "chartTitle": "Evolución temporal (últimos 30 días)",
+  "chartDesc": "Nuevos registros por día",
+  "chartEmpty": "No hay datos para mostrar en este período.",
+  "loading": "Cargando datos del dashboard...",
+  "errorLoad": "Error al cargar los datos del dashboard"
 },
 "menuTab": {
   "title": "🧭 Pestañas del menú superior",

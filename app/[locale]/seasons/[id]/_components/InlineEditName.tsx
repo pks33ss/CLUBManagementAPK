@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect } from 'react'
+import { useTranslations } from 'next-intl'
 
 interface Props {
   value: string
@@ -10,6 +11,8 @@ interface Props {
 }
 
 export default function InlineEditName({ value, canEdit, onSave, className = '' }: Props) {
+  const t = useTranslations('Common.inlineEdit')
+  
   const [editing, setEditing] = useState(false)
   const [tempValue, setTempValue] = useState(value)
   const [saving, setSaving] = useState(false)
@@ -38,7 +41,7 @@ export default function InlineEditName({ value, canEdit, onSave, className = '' 
       await onSave(trimmed)
       setEditing(false)
     } catch (err) {
-      console.error('Error al guardar:', err)
+      console.error('Error saving:', err)
       setTempValue(value)
     } finally {
       setSaving(false)
@@ -79,7 +82,7 @@ export default function InlineEditName({ value, canEdit, onSave, className = '' 
         setEditing(true)
       }}
       className={`${className} ${canEdit ? 'cursor-text' : ''} select-none`}
-      title={canEdit ? 'Doble clic para editar' : ''}
+      title={canEdit ? t('editTitle') : ''}
     >
       {value}
     </span>

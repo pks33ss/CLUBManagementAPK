@@ -57,6 +57,12 @@ function LoginContent() {
     localStorage.clear()
 
     try {
+      // 1. Registrar el evento de demo abierta (público, sin token)
+      api.post('/analytics/demo-open').catch((err) => {
+        console.warn('No se pudo registrar la apertura de demo', err)
+      })
+
+      // 2. Login de demo
       const response = await api.post('/auth/login', {
         email: 'demo@joinsportapp.com',
         password: 'demo123',
@@ -77,7 +83,7 @@ function LoginContent() {
       router.push('/home')
     } catch (err: any) {
       console.error('Error Demo:', err)
-      setError(err.response?.data?.message || 'Error al entrar a la demo.')
+      setError(err.response?.data?.message || t('demoError'))
     } finally {
       setDemoLoading(false)
     }
@@ -85,7 +91,7 @@ function LoginContent() {
 
   const handleGoogleSuccess = async (credentialResponse: any) => {
     if (!credentialResponse?.credential) {
-      setError('No se pudo obtener el token de Google')
+      setError(t('googleTokenError'))
       return
     }
 
@@ -105,7 +111,7 @@ function LoginContent() {
       router.push(finalUrl)
     } catch (err: any) {
       console.error('Error Google login:', err)
-      setError(err.response?.data?.message || 'No se pudo iniciar sesión con Google')
+      setError(err.response?.data?.message || t('googleLoginError'))
     } finally {
       setLoading(false)
     }
@@ -163,13 +169,13 @@ function LoginContent() {
 
         <div className="flex items-center gap-3 my-6">
           <div className="flex-1 h-px bg-border-subtle" />
-          <span className="text-xs text-text-muted uppercase font-medium">o</span>
+          <span className="text-xs text-text-muted uppercase font-medium">{t('or')}</span>
           <div className="flex-1 h-px bg-border-subtle" />
         </div>
 
         <GoogleLoginButton
           onSuccess={handleGoogleSuccess}
-          onError={() => setError('Error al iniciar sesión con Google')}
+          onError={() => setError(t('googleLoginError'))}
         />
 
         <div className="mt-6">

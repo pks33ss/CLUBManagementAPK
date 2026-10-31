@@ -1,10 +1,10 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Modal, Button, Badge } from '@/components/ui'
 import {
   runPaymentReminders,
-  reminderTypeLabel,
   type RunRemindersResponse,
 } from '@/lib/payments'
 
@@ -25,6 +25,8 @@ export function RunRemindersModal({
   teamId,
   onDone,
 }: Props) {
+  const t = useTranslations('Payments.reminders')
+
   const [loading, setLoading] = useState(false)
   const [result, setResult] = useState<RunRemindersResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -34,11 +36,11 @@ export function RunRemindersModal({
     setError(null)
     setResult(null)
     try {
-            const res = await runPaymentReminders({ season, clubId, teamId, dryRun })
+      const res = await runPaymentReminders({ season, clubId, teamId, dryRun })
       setResult(res)
     } catch (e: any) {
-      console.error('Error ejecutando recordatorios:', e)
-      setError(e?.response?.data?.message || 'Error al ejecutar recordatorios')
+      console.error('Error running reminders:', e)
+      setError(e?.response?.data?.message || t('errorRun'))
     } finally {
       setLoading(false)
     }
@@ -55,25 +57,31 @@ export function RunRemindersModal({
     handleClose()
   }
 
+  const getReminderTypeLabel = (type: string): string => {
+    switch (type) {
+      case 'BEFORE_DUE':
+        return t('reminderType.BEFORE_DUE')
+      case 'AFTER_DUE':
+        return t('reminderType.AFTER_DUE')
+      default:
+        return type
+    }
+  }
+
   return (
     <Modal
       isOpen={isOpen}
       onClose={handleClose}
-      title="▶️ Ejecutar recordatorios de pago"
+      title={t('title')}
       size="xl"
     >
       <div className="space-y-4">
         <div className="bg-surface-elevated border border-border-subtle rounded-lg p-3 text-sm text-text-secondary">
-          <p className="mb-1">
-            Se enviarán recordatorios a los jugadores con pagos pendientes de
-            conceptos que tengan los recordatorios activados.
-          </p>
+          <p className="mb-1">{t('intro')}</p>
           <p className="text-xs text-text-muted">
-            <strong>Antes de vencer:</strong> cuando falten menos de X días para
-            el vencimiento.
+            <strong>{t('beforeDueInfo')}</strong> {t('beforeDueHint')}
             <br />
-            <strong>Vencidos:</strong> el primer día después del vencimiento si
-            sigue pendiente.
+            <strong>{t('overdueInfo')}</strong> {t('overdueHint')}
           </p>
         </div>
 
@@ -86,14 +94,14 @@ export function RunRemindersModal({
               disabled={loading}
               loading={loading}
             >
-              🔍 Simular (dry run)
+              {t('dryRunButton')}
             </Button>
             <Button
               onClick={() => handleRun(false)}
               disabled={loading}
               loading={loading}
             >
-              ✉️ Ejecutar y enviar
+              {t('runButton')}
             </Button>
           </div>
         )}
@@ -109,16 +117,16 @@ export function RunRemindersModal({
           <>
             <div className="grid grid-cols-3 gap-3">
               <StatCard
-                label="Conceptos procesados"
+                label={t('stats.conceptsProcessed')}
                 value={String(result.conceptsProcessed)}
               />
               <StatCard
-                label="Emails enviados"
+                label={t('stats.remindersSent')}
                 value={String(result.remindersSent)}
                 color="text-success"
               />
               <StatCard
-                label="Omitidos"
+                label={t('stats.remindersSkipped')}
                 value={String(result.remindersSkipped)}
                 color="text-warning"
               />
@@ -126,14 +134,15 @@ export function RunRemindersModal({
 
             {result.dryRun && (
               <div className="bg-warning/10 border border-warning/30 rounded-lg p-2 text-xs text-warning">
-                ⚠️ Esto es un <strong>dry run</strong>. No se ha enviado ningún
-                email ni se ha creado ningún registro.
+                {t.rich('dryRunWarning', {
+                  strong: (chunks) => <strong>{chunks}</strong>,
+                })}
               </div>
             )}
 
             {result.details.length === 0 && (
               <p className="text-center py-6 text-text-muted">
-                No hay conceptos candidatos para ejecutar recordatorios.
+                {t('noCandidates')}
               </p>
             )}
 
@@ -151,23 +160,29 @@ export function RunRemindersModal({
                         </p>
                         <p className="text-xs text-text-muted">
                           {d.daysUntilDue >= 0
-                            ? `Vence en ${d.daysUntilDue} día${d.daysUntilDue === 1 ? '' : 's'}`
-                            : `Vencido hace ${Math.abs(d.daysUntilDue)} día${Math.abs(d.daysUntilDue) === 1 ? '' : 's'}`}
+                            ? t('concept.dueIn', { days: d.daysUntilDue })
+                            : t('concept.overdueBy', {
+                                days: Math.abs(d.daysUntilDue),
+                              })}
                           {' · '}
                           <Badge
-                            variant={d.reminderType === 'BEFORE_DUE' ? 'warning' : 'danger'}
+                            variant={
+                              d.reminderType === 'BEFORE_DUE'
+                                ? 'warning'
+                                : 'danger'
+                            }
                           >
-                            {reminderTypeLabel(d.reminderType)}
+                            {getReminderTypeLabel(d.reminderType)}
                           </Badge>
                         </p>
                       </div>
                       <div className="text-right text-xs">
                         <p className="text-success font-semibold">
-                          ✓ {d.sent}
+                          {t('concept.sent', { n: d.sent })}
                         </p>
                         {d.skipped > 0 && (
                           <p className="text-text-muted">
-                            omitidos: {d.skipped}
+                            {t('concept.skipped', { n: d.skipped })}
                           </p>
                         )}
                       </div>
@@ -193,10 +208,14 @@ export function RunRemindersModal({
                               }
                             >
                               {s.status === 'sent'
-                                ? 'Enviado'
+                                ? t('concept.recipientStatus.sent')
                                 : s.status === 'failed'
-                                  ? 'Falló'
-                                  : `Omitido${s.reason ? ` (${s.reason})` : ''}`}
+                                  ? t('concept.recipientStatus.failed')
+                                  : s.reason
+                                    ? t('concept.skippedWithReason', {
+                                        reason: s.reason,
+                                      })
+                                    : t('concept.recipientStatus.skipped')}
                             </Badge>
                           </div>
                         ))}
@@ -208,11 +227,15 @@ export function RunRemindersModal({
             )}
 
             <div className="flex gap-3 pt-4 border-t border-border-subtle">
-              <Button variant="secondary" onClick={handleClose} className="flex-1">
-                Cerrar
+              <Button
+                variant="secondary"
+                onClick={handleClose}
+                className="flex-1"
+              >
+                {t('close')}
               </Button>
               <Button onClick={handleConfirm} className="flex-1">
-                Aceptar
+                {t('confirm')}
               </Button>
             </div>
           </>

@@ -123,7 +123,7 @@ export function ClubRemindersSection({ clubId, canManage }: Props) {
                 <Badge variant="danger">{t('globalDisabled')}</Badge>
               )}
             </div>
-            <p className="text-text-secondary text-sm">{config.description}</p>
+           <p className="text-text-secondary text-sm">{t('description')}</p>
 
             {config.scheduledHour && (
               <p className="text-text-secondary text-sm mt-2">

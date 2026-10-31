@@ -1,5 +1,6 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
 import type { SeasonBlock, BlockWithChildren } from '../page'
 import SectionCard from './SectionCard'
 import InlineEditName from './InlineEditName'
@@ -65,6 +66,8 @@ export default function BlockNode({
   onDeleteSection,
   onMoveSection,
 }: Props) {
+  const t = useTranslations('Seasons.detail.blockNode')
+  
   const style = getDepthStyle(depth)
   const isExpanded = expandedBlocks[block.id] ?? false
   const hasChildren =
@@ -84,7 +87,7 @@ export default function BlockNode({
           type="button"
           onClick={() => onToggle(block.id)}
           className="flex items-center gap-2 min-w-0 flex-1 text-left touch-manipulation"
-          aria-label={isExpanded ? 'Colapsar bloque' : 'Expandir bloque'}
+          aria-label={isExpanded ? t('collapse') : t('expand')}
         >
           <span className="text-lg shrink-0">
             {isExpanded ? '▼' : '▶'}
@@ -111,12 +114,12 @@ export default function BlockNode({
           {/* Contadores (solo desktop) */}
           <span className="text-xs text-text-muted shrink-0 hidden md:inline">
             {block.children.length > 0 &&
-              `${block.children.length} sub-bloques`}
+              t('childrenCount', { count: block.children.length })}
             {block.children.length > 0 &&
               block.sections.length > 0 &&
               ' · '}
             {block.sections.length > 0 &&
-              `${block.sections.length} secciones`}
+              t('sectionsCount', { count: block.sections.length })}
           </span>
         </button>
 
@@ -125,43 +128,43 @@ export default function BlockNode({
           <div className="flex items-center gap-1 flex-wrap md:justify-end md:shrink-0">
             <ActionBtn
               onClick={() => onMove(block, 'up')}
-              title="Mover arriba"
-              ariaLabel="Mover bloque arriba"
+              title={t('moveUp')}
+              ariaLabel={t('moveUpAria')}
             >
               ⬆️
             </ActionBtn>
             <ActionBtn
               onClick={() => onMove(block, 'down')}
-              title="Mover abajo"
-              ariaLabel="Mover bloque abajo"
+              title={t('moveDown')}
+              ariaLabel={t('moveDownAria')}
             >
               ⬇️
             </ActionBtn>
             <ActionBtn
               onClick={() => onCreateChild(block.id)}
-              title="Añadir sub-bloque"
-              ariaLabel="Añadir sub-bloque"
+              title={t('addChild')}
+              ariaLabel={t('addChild')}
             >
               ➕📦
             </ActionBtn>
             <ActionBtn
               onClick={() => onCreateSection(block.id)}
-              title="Añadir sección"
-              ariaLabel="Añadir sección"
+              title={t('addSection')}
+              ariaLabel={t('addSection')}
             >
               ➕📄
             </ActionBtn>
             <ActionBtn
               onClick={() => onEdit(block)}
-              title="Editar"
-              ariaLabel="Editar bloque"
+              title={t('edit')}
+              ariaLabel={t('editAria')}
             >
               ✏️
             </ActionBtn>
             <ActionBtn
               onClick={() => onDelete(block)}
-              title="Eliminar"
-              ariaLabel="Eliminar bloque"
+              title={t('delete')}
+              ariaLabel={t('deleteAria')}
               danger
             >
               🗑️
@@ -219,7 +222,7 @@ export default function BlockNode({
       {isExpanded && !hasChildren && (
         <div className="bg-surface p-4 text-center">
           <p className="text-sm text-text-muted mb-2">
-            Este bloque está vacío
+            {t('emptyBlock')}
           </p>
           {canManage && (
             <div className="flex gap-2 justify-center flex-wrap">
@@ -228,14 +231,14 @@ export default function BlockNode({
                 onClick={() => onCreateChild(block.id)}
                 className="text-xs bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary px-3 py-1.5 rounded transition touch-manipulation"
               >
-                ➕ Sub-bloque
+                {t('addChildBtn')}
               </button>
               <button
                 type="button"
                 onClick={() => onCreateSection(block.id)}
                 className="text-xs bg-success/10 hover:bg-success/20 text-success px-3 py-1.5 rounded transition touch-manipulation"
               >
-                ➕ Sección
+                {t('addSectionBtn')}
               </button>
             </div>
           )}

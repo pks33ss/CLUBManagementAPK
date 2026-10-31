@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { Button, Textarea } from '@/components/ui'
 import TacticalBoard from '@/components/tactical/TacticalBoard'
 import type { PlayStep } from '@/lib/playbook'
@@ -12,13 +13,15 @@ interface Props {
   onSave: (data: {
     description: string
     imageUrl: string | null
-    tacticalData?: any                                     // ✅ NUEVO
+    tacticalData?: any
   }) => Promise<void>
   onCancel: () => void
   saving?: boolean
 }
 
 export function PlayStepEditor({ step, onSave, onCancel, saving }: Props) {
+  const t = useTranslations('Playbook.stepEditor')
+
   const [description, setDescription] = useState(step.description ?? '')
   const [imageUrl, setImageUrl] = useState<string | null>(step.imageUrl)
   const [showBoard, setShowBoard] = useState(false)
@@ -28,19 +31,19 @@ export function PlayStepEditor({ step, onSave, onCancel, saving }: Props) {
   const { activeTeam } = useActiveTeam()
 
   const [pendingBoardItems, setPendingBoardItems] = useState<any[] | null>(
-  (step as any).tacticalData ?? null,
-)
+    (step as any).tacticalData ?? null,
+  )
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
 
     if (!file.type.startsWith('image/')) {
-      alert('Por favor, selecciona una imagen')
+      alert(t('errors.notImage'))
       return
     }
     if (file.size > 5 * 1024 * 1024) {
-      alert('La imagen es demasiado grande. Máximo 5MB.')
+      alert(t('errors.tooBig'))
       return
     }
 
@@ -52,39 +55,41 @@ export function PlayStepEditor({ step, onSave, onCancel, saving }: Props) {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-    const handleSave = async () => {
+  const handleSave = async () => {
     await onSave({
       description: description.trim(),
       imageUrl,
-      tacticalData: pendingBoardItems ?? undefined,          // ✅ NUEVO
+      tacticalData: pendingBoardItems ?? undefined,
     } as any)
   }
 
   return (
     <div className="space-y-3">
       <Textarea
-        label="Descripción del paso"
+        label={t('descriptionLabel')}
         value={description}
         onChange={(e) => setDescription(e.target.value)}
         rows={3}
-        placeholder="Ej: El base pasa al pívot y hace un bloqueo directo"
+        placeholder={t('descriptionPlaceholder')}
       />
 
       {/* Imagen actual o nueva */}
       {imageUrl && (
         <div>
-          <p className="text-sm font-medium text-text-secondary mb-2">Imagen</p>
+          <p className="text-sm font-medium text-text-secondary mb-2">
+            {t('imageLabel')}
+          </p>
           <div className="relative inline-block">
             <img
               src={imageUrl}
-              alt="Imagen del paso"
+              alt={t('imageAlt')}
               className="max-w-full max-h-64 rounded-lg border border-border-subtle"
             />
             <button
               type="button"
               onClick={() => setImageUrl(null)}
               className="absolute top-2 right-2 bg-danger hover:bg-danger/80 text-white rounded-full w-8 h-8 flex items-center justify-center"
-              title="Quitar imagen"
+              title={t('removeImageTitle')}
             >
               ✕
             </button>
@@ -100,7 +105,7 @@ export function PlayStepEditor({ step, onSave, onCancel, saving }: Props) {
           size="sm"
           onClick={() => setShowBoard(true)}
         >
-          🎨 {imageUrl ? 'Cambiar pizarra' : 'Dibujar en pizarra'}
+          {imageUrl ? t('changeBoard') : t('drawBoard')}
         </Button>
 
         <input
@@ -116,7 +121,7 @@ export function PlayStepEditor({ step, onSave, onCancel, saving }: Props) {
           size="sm"
           onClick={() => fileInputRef.current?.click()}
         >
-          📸 {imageUrl ? 'Cambiar imagen' : 'Subir imagen'}
+          {imageUrl ? t('changeImage') : t('uploadImage')}
         </Button>
       </div>
 
@@ -129,7 +134,7 @@ export function PlayStepEditor({ step, onSave, onCancel, saving }: Props) {
           disabled={saving}
           className="flex-1"
         >
-          Cancelar
+          {t('cancel')}
         </Button>
         <Button
           type="button"
@@ -138,7 +143,7 @@ export function PlayStepEditor({ step, onSave, onCancel, saving }: Props) {
           loading={saving}
           className="flex-1"
         >
-          {saving ? 'Guardando...' : 'Guardar paso'}
+          {saving ? t('saving') : t('saveStep')}
         </Button>
       </div>
 
@@ -148,7 +153,7 @@ export function PlayStepEditor({ step, onSave, onCancel, saving }: Props) {
           <div className="bg-surface border border-border-subtle rounded-xl max-w-5xl w-full p-6 max-h-[95vh] overflow-auto">
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl font-bold text-text-primary">
-                🎨 Pizarra Táctica
+                {t('boardModalTitle')}
               </h3>
               <button
                 type="button"
@@ -161,14 +166,12 @@ export function PlayStepEditor({ step, onSave, onCancel, saving }: Props) {
             <TacticalBoard
               width={800}
               height={800}
-              // ✅ Pasa el deporte del equipo activo. El playbook se crea
-              // siempre desde un equipo, así que activeTeam.sport es el
-              // contexto correcto. Fallback a 'BASKETBALL'.
               sport={activeTeam?.sport ?? 'BASKETBALL'}
-              initialItems={pendingBoardItems ?? undefined}              // ✅ NUEVO
-  onSave={(dataUrl, items) => {     
+              initialItems={pendingBoardItems ?? undefined}
+              onSave={(dataUrl, items) => {
                 setImageUrl(dataUrl)
                 setShowBoard(false)
+                setPendingBoardItems(items)
               }}
               userBackground={userBackground}
               onBackgroundChange={(url, mode) => {

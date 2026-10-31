@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Link } from '@/navigation';
+import { Link } from '@/navigation'
+import { useTranslations } from 'next-intl'
 import api from '@/lib/api'
 
 import SeasonHeader from './_components/SeasonHeader'
@@ -90,6 +91,7 @@ function SeasonDetailContent() {
   const router = useRouter()
   const params = useParams()
   const seasonId = params.id as string
+  const t = useTranslations('Seasons.detail')
 
   const [season, setSeason] = useState<SeasonDetail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -111,13 +113,13 @@ function SeasonDetailContent() {
       setSeason(res.data)
       setError(null)
     } catch (err: any) {
-      if (err.response?.status === 404) setError('Planificación no encontrada')
-      else if (err.response?.status === 403) setError('No tienes acceso a esta planificación')
-      else setError('Error al cargar la planificación')
+      if (err.response?.status === 404) setError(t('errorNotFound'))
+      else if (err.response?.status === 403) setError(t('errorAccess'))
+      else setError(t('errorLoad'))
     } finally {
       setLoading(false)
     }
-  }, [seasonId])
+  }, [seasonId, t])
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -189,14 +191,14 @@ function SeasonDetailContent() {
     const sectionCount = block.sections.length
     const warning =
       childCount + sectionCount > 0
-        ? `\n\n⚠️ Se eliminarán ${childCount} sub-bloques y ${sectionCount} secciones.`
+        ? t('confirmDeleteBlockWarning', { childCount, sectionCount })
         : ''
-    if (!confirm(`¿Eliminar el bloque "${block.name}"?${warning}`)) return
+    if (!confirm(t('confirmDeleteBlock', { name: block.name, warning }))) return
     try {
       await api.delete(`/seasons/blocks/${block.id}`)
       await fetchSeason()
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al eliminar')
+      alert(err.response?.data?.message || t('errorDelete'))
     }
   }
 
@@ -225,7 +227,7 @@ function SeasonDetailContent() {
       await api.put(`/seasons/${seasonId}/blocks/reorder`, { blocks: payload })
       await fetchSeason()
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al reordenar')
+      alert(err.response?.data?.message || t('errorReorder'))
     }
   }
 
@@ -242,12 +244,12 @@ function SeasonDetailContent() {
   }
 
   const handleDeleteSection = async (section: SeasonSection) => {
-    if (!confirm(`¿Eliminar la sección "${section.name}"?`)) return
+    if (!confirm(t('confirmDeleteSection', { name: section.name }))) return
     try {
       await api.delete(`/seasons/sections/${section.id}`)
       await fetchSeason()
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al eliminar')
+      alert(err.response?.data?.message || t('errorDelete'))
     }
   }
 
@@ -272,22 +274,22 @@ function SeasonDetailContent() {
       await api.put(`/seasons/blocks/${block.id}/sections/reorder`, { sections: payload })
       await fetchSeason()
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al reordenar')
+      alert(err.response?.data?.message || t('errorReorder'))
     }
   }
 
   // ---------- Render ----------
 
   if (loading) {
-    return <div className="text-center py-12 text-text-muted">Cargando planificación...</div>
+    return <div className="text-center py-12 text-text-muted">{t('loading')}</div>
   }
 
   if (error || !season) {
     return (
       <div className="text-center py-12">
-        <p className="text-danger mb-4">{error || 'Planificación no encontrada'}</p>
+        <p className="text-danger mb-4">{error || t('errorNotFound')}</p>
         <Link href="/seasons" className="text-brand-primary hover:underline">
-          ← Volver a planificaciones
+          {t('backToList')}
         </Link>
       </div>
     )
@@ -298,7 +300,7 @@ function SeasonDetailContent() {
   return (
     <div>
       <Link href="/seasons" className="text-brand-primary hover:underline inline-block mb-6">
-        ← Volver a planificaciones
+        {t('backToList')}
       </Link>
 
       <SeasonHeader
@@ -313,17 +315,17 @@ function SeasonDetailContent() {
         <div className="text-center py-12 bg-surface rounded-xl shadow border border-border-subtle">
           <div className="text-5xl mb-4">📦</div>
           <h3 className="text-lg font-semibold text-text-primary mb-2">
-            No hay bloques todavía
+            {t('emptyTitle')}
           </h3>
           <p className="text-text-secondary text-sm mb-4">
-            Crea el primer bloque de la planificación
+            {t('emptyDesc')}
           </p>
           {season.canManage && (
             <button
               onClick={handleCreateRootBlock}
               className="bg-brand-primary hover:bg-brand-primary-dark text-bg-base px-6 py-2 rounded-lg transition font-medium"
             >
-              ➕ Crear Primer Bloque
+              {t('createFirstBlock')}
             </button>
           )}
         </div>
@@ -382,8 +384,10 @@ function SeasonDetailContent() {
 }
 
 export default function SeasonDetailPage() {
+  const t = useTranslations('Seasons.detail')
+
   return (
-    <Suspense fallback={<div className="text-center py-12 text-text-muted">Cargando...</div>}>
+    <Suspense fallback={<div className="text-center py-12 text-text-muted">{t('loadingFallback')}</div>}>
       <SeasonDetailContent />
     </Suspense>
   )

@@ -1,14 +1,17 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Link } from '@/navigation';
-import { useRouter } from '@/navigation';
+import { Link } from '@/navigation'
+import { useRouter } from '@/navigation'
+import { useTranslations } from 'next-intl'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
 import { createPlay } from '@/lib/playbook'
 import { Button, Card, CardBody, Input, Textarea } from '@/components/ui'
 
 export default function NewPlayPage() {
   const router = useRouter()
+  const t = useTranslations('Playbook.new')
+
   const { activeTeam, loading: loadingTeams } = useActiveTeam()
 
   const [name, setName] = useState('')
@@ -25,7 +28,7 @@ export default function NewPlayPage() {
     e.preventDefault()
     if (!activeTeam) return
     if (!name.trim()) {
-      alert('El nombre es obligatorio')
+      alert(t('errorNameRequired'))
       return
     }
 
@@ -39,15 +42,15 @@ export default function NewPlayPage() {
       })
       router.push(`/playbook/${play.id}`)
     } catch (e: any) {
-      console.error('Error creando jugada:', e)
-      setError(e?.response?.data?.message || 'Error al crear la jugada')
+      console.error('Error creating play:', e)
+      setError(e?.response?.data?.message || t('errorCreate'))
     } finally {
       setSaving(false)
     }
   }
 
   if (loadingTeams) {
-    return <div className="text-center py-12 text-text-muted">Cargando...</div>
+    return <div className="text-center py-12 text-text-muted">{t('loading')}</div>
   }
 
   if (!activeTeam) {
@@ -55,10 +58,10 @@ export default function NewPlayPage() {
       <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
         <div className="text-6xl mb-4">📘</div>
         <h3 className="text-xl font-semibold text-text-primary mb-2">
-          Selecciona un equipo
+          {t('selectTeamTitle')}
         </h3>
         <p className="text-text-secondary mb-6">
-          Elige un equipo desde el menú superior para crear jugadas
+          {t('selectTeamDesc')}
         </p>
       </div>
     )
@@ -67,31 +70,31 @@ export default function NewPlayPage() {
   return (
     <div className="max-w-2xl mx-auto">
       <Link href="/playbook" className="text-brand-primary hover:underline inline-block mb-6">
-        ← Volver al Playbook
+        {t('backToPlaybook')}
       </Link>
 
       <Card>
         <CardBody>
           <h1 className="text-2xl font-bold text-text-primary mb-6">
-            📘 Nueva jugada
+            {t('title')}
           </h1>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <Input
-              label="Nombre de la jugada *"
+              label={t('form.nameLabel')}
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Ej: Pick and roll"
+              placeholder={t('form.namePlaceholder')}
               required
             />
 
             <Textarea
-              label="Descripción"
+              label={t('form.descriptionLabel')}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={3}
-              placeholder="Descripción breve de la jugada"
+              placeholder={t('form.descriptionPlaceholder')}
             />
 
             {error && (
@@ -99,7 +102,7 @@ export default function NewPlayPage() {
             )}
 
             <div className="bg-surface-elevated border border-border-subtle rounded-lg p-3 text-sm text-text-muted">
-              Después de crearla podrás añadir los pasos.
+              {t('form.infoHint')}
             </div>
 
             <div className="flex gap-3 pt-2">
@@ -110,7 +113,7 @@ export default function NewPlayPage() {
                 className="flex-1"
                 disabled={saving}
               >
-                Cancelar
+                {t('form.cancel')}
               </Button>
               <Button
                 type="submit"
@@ -118,7 +121,7 @@ export default function NewPlayPage() {
                 disabled={saving}
                 loading={saving}
               >
-                {saving ? 'Creando...' : 'Crear jugada'}
+                {saving ? t('form.creating') : t('form.create')}
               </Button>
             </div>
           </form>

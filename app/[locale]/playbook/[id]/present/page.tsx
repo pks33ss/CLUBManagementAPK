@@ -1,14 +1,16 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from '@/navigation';
+import { Link } from '@/navigation'
 import { useParams, useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
 import { getPlay, type Play } from '@/lib/playbook'
 
 export default function PlayPresentPage() {
   const router = useRouter()
   const params = useParams()
   const playId = params.id as string
+  const t = useTranslations('Playbook.present')
 
   const [play, setPlay] = useState<Play | null>(null)
   const [loading, setLoading] = useState(true)
@@ -33,11 +35,11 @@ export default function PlayPresentPage() {
         const data = await getPlay(playId)
         setPlay(data)
       } catch (e: any) {
-        console.error('Error cargando jugada:', e)
+        console.error('Error loading play:', e)
         if (e?.response?.status === 404) {
-          setError('Jugada no encontrada')
+          setError(t('errorNotFound'))
         } else {
-          setError(e?.response?.data?.message || 'Error al cargar la jugada')
+          setError(e?.response?.data?.message || t('errorLoad'))
         }
       } finally {
         setLoading(false)
@@ -45,6 +47,7 @@ export default function PlayPresentPage() {
     }
 
     if (playId) load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playId, router])
 
   // ============================================
@@ -103,7 +106,7 @@ export default function PlayPresentPage() {
   if (loading) {
     return (
       <div className="fixed inset-0 bg-bg-base flex items-center justify-center text-text-muted z-[100]">
-        Cargando jugada...
+        {t('loading')}
       </div>
     )
   }
@@ -111,9 +114,9 @@ export default function PlayPresentPage() {
   if (error || !play) {
     return (
       <div className="fixed inset-0 bg-bg-base flex flex-col items-center justify-center p-6 text-center z-[100]">
-        <p className="text-danger mb-4">{error || 'Jugada no encontrada'}</p>
+        <p className="text-danger mb-4">{error || t('errorNotFound')}</p>
         <Link href="/playbook" className="text-brand-primary hover:underline">
-          ← Volver al Playbook
+          {t('backToPlaybook')}
         </Link>
       </div>
     )
@@ -131,20 +134,20 @@ export default function PlayPresentPage() {
           {play.name}
         </h2>
         <p className="text-text-secondary mb-6">
-          Esta jugada todavía no tiene pasos.
+          {t('emptyStepsTitle')}
         </p>
         <div className="flex gap-3">
           <button
             onClick={exit}
             className="px-4 py-2 rounded-lg bg-surface-elevated text-text-secondary hover:text-text-primary transition"
           >
-            Salir
+            {t('exit')}
           </button>
           <Link
             href={`/playbook/${playId}`}
             className="px-4 py-2 rounded-lg bg-brand-primary text-bg-base font-medium hover:bg-brand-primary-dark transition"
           >
-            Añadir pasos
+            {t('addSteps')}
           </Link>
         </div>
       </div>
@@ -157,7 +160,7 @@ export default function PlayPresentPage() {
       <button
         onClick={exit}
         className="absolute top-4 right-4 z-20 flex items-center gap-2 px-4 py-2 rounded-lg bg-surface border border-border-subtle shadow-lg text-text-primary hover:bg-danger/10 hover:text-danger hover:border-danger/40 transition font-medium"
-        title="Salir de la presentación (Esc)"
+        title={t('exitTooltip')}
       >
         <svg
           className="w-5 h-5"
@@ -172,7 +175,7 @@ export default function PlayPresentPage() {
             d="M6 18L18 6M6 6l12 12"
           />
         </svg>
-        <span>Salir</span>
+        <span>{t('exit')}</span>
       </button>
 
       {/* CABECERA (nombre + indicador de paso) */}
@@ -189,7 +192,7 @@ export default function PlayPresentPage() {
         </div>
 
         <span className="text-sm md:text-base text-text-secondary font-medium whitespace-nowrap">
-          Paso {stepIndex + 1} de {totalSteps}
+          {t('stepIndicator', { current: stepIndex + 1, total: totalSteps })}
         </span>
       </div>
 
@@ -208,7 +211,7 @@ export default function PlayPresentPage() {
             <div className="flex justify-center">
               <img
                 src={currentStep.imageUrl}
-                alt={`Paso ${stepIndex + 1}`}
+                alt={t('imageAlt', { number: stepIndex + 1 })}
                 className="max-w-full max-h-[60vh] rounded-xl border border-border-subtle shadow-lg"
               />
             </div>
@@ -216,7 +219,7 @@ export default function PlayPresentPage() {
 
           {!currentStep.description && !currentStep.imageUrl && (
             <p className="text-center text-text-muted italic">
-              Este paso no tiene contenido todavía.
+              {t('emptyStep')}
             </p>
           )}
         </div>
@@ -234,7 +237,7 @@ export default function PlayPresentPage() {
           }`}
         >
           <span className="text-xl">←</span>
-          <span className="hidden md:inline">Anterior</span>
+          <span className="hidden md:inline">{t('prev')}</span>
         </button>
 
         <div className="flex items-center gap-2">
@@ -247,7 +250,7 @@ export default function PlayPresentPage() {
                   ? 'w-3 h-3 bg-brand-primary'
                   : 'w-2 h-2 bg-text-muted/40 hover:bg-text-muted/70'
               }`}
-              title={`Ir al paso ${i + 1}`}
+              title={t('goToStepTooltip', { number: i + 1 })}
             />
           ))}
         </div>
@@ -261,14 +264,14 @@ export default function PlayPresentPage() {
               : 'bg-brand-primary text-bg-base hover:bg-brand-primary-dark'
           }`}
         >
-          <span className="hidden md:inline">Siguiente</span>
+          <span className="hidden md:inline">{t('next')}</span>
           <span className="text-xl">→</span>
         </button>
       </div>
 
       {/* Ayuda de teclado */}
       <div className="absolute bottom-2 right-3 text-xs text-text-muted/60 hidden md:block">
-        ← → para navegar · Esc para salir
+        {t('keyboardHelp')}
       </div>
     </div>
   )

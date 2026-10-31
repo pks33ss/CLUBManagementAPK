@@ -10,12 +10,9 @@ import EquiposTab from './_components/EquiposTab'
 import PersonalTab from './_components/PersonalTab'
 import DeportivoTab from './_components/DeportivoTab'
 import LesionesTab from './_components/LesionesTab'
-import type {
-  UserPublic,
-  PlayerProfile,
-  Injury,
-  UserPermissions,
-} from '@/types/user'
+import EditGhostProfileModal from '@/app/[locale]/teams/[id]/members/_components/EditGhostProfileModal' // <-- IMPORTANTE: ajusta la ruta si es necesario
+import type { UserPublic, PlayerProfile, Injury, UserPermissions } from '@/types/user'
+import type { MembershipWithUser } from '@/types/membership' // Asegúrate de que tienes este tipo
 
 type TabKey = 'equipos' | 'personal' | 'deportivo' | 'lesiones'
 
@@ -41,6 +38,7 @@ export default function UserProfilePage() {
   const [permissions, setPermissions] = useState<UserPermissions | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [editingGhostUser, setEditingGhostUser] = useState<MembershipWithUser | null>(null) // <-- NUEVO
 
   const tabs = useMemo(
     () => [
@@ -133,6 +131,28 @@ export default function UserProfilePage() {
     router.replace(`/users/${username}?tab=${next}`, { scroll: false })
   }
 
+  // Construimos un objeto MembershipWithUser mínimo para el modal
+  const handleOpenEditGhost = () => {
+    if (!user || !user.memberships || user.memberships.length === 0) return
+    const m = user.memberships[0]
+    
+    // Creamos el objeto que espera el modal
+    const fakeMembership: any = {
+      id: 'ghost-profile', // No importa para este endpoint
+      teamId: m.team.id,
+      userId: user.id,
+      user: {
+        id: user.id,
+        name: user.name,
+        lastName: user.lastName,
+        email: user.email,
+        phone: user.phone,
+        bio: user.bio,
+      }
+    }
+    setEditingGhostUser(fakeMembership)
+  }
+
   if (loading) {
     return (
       <div className="text-center py-12 text-text-muted">{t('loading')}</div>
@@ -164,6 +184,7 @@ export default function UserProfilePage() {
         user={user}
         canEditProfile={permissions?.canEditProfile ?? false}
         canViewEmail={permissions?.canViewEmail ?? false}
+        onEditGhost={handleOpenEditGhost} // <-- NUEVO
       />
 
       {visibleTabs.length > 1 && (
@@ -207,6 +228,18 @@ export default function UserProfilePage() {
           />
         )}
       </div>
+
+      {/* NUEVO: Modal para editar datos del fantasma */}
+      {editingGhostUser && (
+        <EditGhostProfileModal
+          member={editingGhostUser}
+          onClose={() => setEditingGhostUser(null)}
+          onSaved={async () => {
+            setEditingGhostUser(null)
+            await fetchUser() // Recargamos los datos del usuario para ver los cambios
+          }}
+        />
+      )}
     </div>
   )
 }

@@ -10,6 +10,7 @@ import { Button, Card, Badge, Modal } from '@/components/ui'
 import { CardBody } from '@/components/ui/Card'
 import type { MembershipWithUser } from '@/types/membership'
 import InvitePlayerModal from './InvitePlayerModal'
+import EditGhostProfileModal from './EditGhostProfileModal' // <-- NUEVO
 import type { UsePermissionsResult } from '@/lib/usePermissions'
 
 type Role = 'PLAYER' | 'ASSISTANT' | 'COACH' | 'ADMIN_TEAM'
@@ -53,6 +54,7 @@ export default function MembersList({
   const [confirmRemove, setConfirmRemove] = useState<MembershipWithUser | null>(null)
   const [invitingMember, setInvitingMember] = useState<MembershipWithUser | null>(null)
   const [rolesModalMember, setRolesModalMember] = useState<MembershipWithUser | null>(null)
+  const [editingGhostMember, setEditingGhostMember] = useState<MembershipWithUser | null>(null) // <-- NUEVO
 
   const handleRemove = async (m: MembershipWithUser) => {
     setProcessing(m.id)
@@ -184,7 +186,16 @@ export default function MembersList({
                     </td>
                     {(perms.canManage || perms.canEdit) && (
                       <td className="px-6 py-4 text-right">
-                        <div className="flex gap-2 justify-end">
+                        <div className="flex gap-2 justify-end items-center">
+                          {m.user?.isGhost && canEditRow(m) && (
+                            <button
+                              onClick={() => setEditingGhostMember(m)}
+                              className="text-xs bg-surface-elevated hover:bg-border-subtle text-text-secondary px-3 py-1 rounded-full font-medium transition"
+                              title={t('editTooltip')}
+                            >
+                              📝
+                            </button>
+                          )}
                           {m.user?.isGhost && (
                             <button
                               onClick={() => setInvitingMember(m)}
@@ -194,7 +205,7 @@ export default function MembersList({
                               {t('inviteButton')}
                             </button>
                           )}
-                          {canEditRow(m) && profileHref && (
+                          {canEditRow(m) && profileHref && !m.user?.isGhost && (
                             <Link
                               href={profileHref}
                               className="text-xs bg-surface-elevated hover:bg-border-subtle text-text-secondary px-3 py-1 rounded-full font-medium transition"
@@ -290,6 +301,15 @@ export default function MembersList({
 
                 {perms.canManage && (canEditRow(m) || canRemoveRow(m) || canEditRolesRow(m)) && (
                   <div className="flex flex-wrap gap-2 pt-2 border-t border-border-subtle">
+                    {m.user?.isGhost && canEditRow(m) && (
+                      <button
+                        onClick={() => setEditingGhostMember(m)}
+                        className="flex-1 min-w-[120px] text-xs bg-surface-elevated hover:bg-border-subtle text-text-secondary px-3 py-2 rounded-lg font-medium transition"
+                      >
+                        📝 Datos
+                      </button>
+                    )}
+                    
                     {m.user?.isGhost && (
                       <button
                         onClick={() => setInvitingMember(m)}
@@ -307,7 +327,7 @@ export default function MembersList({
                         {t('rolesButton')}
                       </button>
                     )}
-                    {canEditRow(m) && profileHref && (
+                    {canEditRow(m) && profileHref && !m.user?.isGhost && (
                       <Link
                         href={profileHref}
                         className="flex-1 min-w-[120px] text-xs bg-surface-elevated hover:bg-border-subtle text-text-secondary px-3 py-2 rounded-lg font-medium transition text-center"
@@ -393,6 +413,18 @@ export default function MembersList({
           teamId={invitingMember.teamId}
           member={invitingMember}
           onClose={() => setInvitingMember(null)}
+        />
+      )}
+
+      {/* NUEVO: Modal para editar datos del fantasma */}
+      {editingGhostMember && (
+        <EditGhostProfileModal
+          member={editingGhostMember}
+          onClose={() => setEditingGhostMember(null)}
+          onSaved={async () => {
+            setEditingGhostMember(null)
+            await onUpdate()
+          }}
         />
       )}
     </>

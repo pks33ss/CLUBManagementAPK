@@ -11,6 +11,7 @@ import ProfileNotificationsTab from './_components/ProfileNotificationsTab'
 import ProfileCustomizationTab from './_components/ProfileCustomizationTab'
 import ProfileMyNetworkTab from './_components/ProfileMyNetworkTab'
 import PermissionsHubPage from './permissions/page'
+import AdminDashboard from './_components/AdminDashboard' // <-- NUEVO
 
 type Tab =
   | 'account'
@@ -18,6 +19,7 @@ type Tab =
   | 'customization'
   | 'network'
   | 'permissions'
+  | 'dashboard' // <-- NUEVO
 
 export default function SettingsPage() {
   const t = useTranslations('Settings')
@@ -56,6 +58,7 @@ export default function SettingsPage() {
   }
 
   const hasAnyClub = userMe.memberships?.some((m) => !!m.team?.club) ?? false
+  const isSuperAdmin = userMe.role === 'SUPER_ADMIN' // <-- NUEVO
 
   const tabs: { id: Tab; label: string; icon: string }[] = [
     { id: 'account',       label: t('tabs.account'),       icon: '👤' },
@@ -69,6 +72,15 @@ export default function SettingsPage() {
       id: 'permissions',
       label: t('tabs.permissions'),
       icon: '🔐',
+    })
+  }
+
+  // Añadir la pestaña Dashboard solo si es SuperAdmin
+  if (isSuperAdmin) {
+    tabs.push({
+      id: 'dashboard',
+      label: t('dashboard.tabLabel'),
+      icon: '📊',
     })
   }
 
@@ -118,6 +130,7 @@ export default function SettingsPage() {
         {activeTab === 'customization' && <ProfileCustomizationTab />}
         {activeTab === 'network' && <ProfileMyNetworkTab />}
         {activeTab === 'permissions' && <PermissionsHubPage />}
+        {activeTab === 'dashboard' && <AdminDashboard />} {/* <-- NUEVO */}
       </div>
     </div>
   )

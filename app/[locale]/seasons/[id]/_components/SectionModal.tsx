@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import api from '@/lib/api'
 import type { SeasonSection } from '../page'
 import { Button, Input, Textarea, Modal } from '@/components/ui'
@@ -13,6 +14,7 @@ interface Props {
 }
 
 export default function SectionModal({ blockId, section, onClose, onSuccess }: Props) {
+  const t = useTranslations('Seasons.detail.sectionModal')
   const isEditing = !!section
 
   const [form, setForm] = useState({
@@ -43,7 +45,7 @@ export default function SectionModal({ blockId, section, onClose, onSuccess }: P
       }
       onSuccess()
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al guardar')
+      alert(err.response?.data?.message || t('errorSave'))
     } finally {
       setSaving(false)
     }
@@ -53,37 +55,37 @@ export default function SectionModal({ blockId, section, onClose, onSuccess }: P
     <Modal
       isOpen={true}
       onClose={onClose}
-      title={isEditing ? '✏️ Editar Sección' : '➕ Nueva Sección'}
+      title={isEditing ? t('editTitle') : t('newTitle')}
       size="md"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input
-          label="Nombre *"
+          label={t('nameLabel')}
           type="text"
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
-          placeholder="Ej: Técnica Ataque, Pretemporada..."
+          placeholder={t('namePlaceholder')}
           required
           autoFocus
         />
 
         <Textarea
-          label="Contenido"
+          label={t('contentLabel')}
           value={form.description}
           onChange={(e) => setForm({ ...form, description: e.target.value })}
           rows={6}
-          placeholder="Ej: Objetivos técnicos, ejercicios clave, criterios de evaluación..."
+          placeholder={t('contentPlaceholder')}
         />
 
         <div className="grid grid-cols-2 gap-4">
           <Input
-            label="Fecha inicio"
+            label={t('startDate')}
             type="date"
             value={form.startDate}
             onChange={(e) => setForm({ ...form, startDate: e.target.value })}
           />
           <Input
-            label="Fecha fin"
+            label={t('endDate')}
             type="date"
             value={form.endDate}
             onChange={(e) => setForm({ ...form, endDate: e.target.value })}
@@ -92,10 +94,10 @@ export default function SectionModal({ blockId, section, onClose, onSuccess }: P
 
         <div className="flex gap-3 pt-2">
           <Button type="button" variant="secondary" onClick={onClose} disabled={saving} className="flex-1">
-            Cancelar
+            {t('cancel')}
           </Button>
           <Button type="submit" disabled={saving} loading={saving} className="flex-1">
-            {saving ? 'Guardando...' : isEditing ? 'Guardar' : 'Crear'}
+            {saving ? t('saving') : isEditing ? t('save') : t('create')}
           </Button>
         </div>
       </form>

@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from '@/navigation';
+import { Link } from '@/navigation'
 import { useParams, useRouter } from 'next/navigation'
+import { useTranslations, useFormatter } from 'next-intl'
 import {
   getPlay,
   updatePlay,
@@ -14,7 +15,6 @@ import {
   type Play,
   type PlayStep,
 } from '@/lib/playbook'
-import { formatPlayDate } from '@/lib/playbookHelpers'
 import { Button, Card, CardBody, Input, Textarea } from '@/components/ui'
 import { PlayStepEditor } from '../_components/PlayStepEditor'
 
@@ -22,6 +22,9 @@ export default function PlayDetailPage() {
   const router = useRouter()
   const params = useParams()
   const playId = params.id as string
+
+  const t = useTranslations('Playbook.detail')
+  const format = useFormatter()
 
   const [play, setPlay] = useState<Play | null>(null)
   const [loading, setLoading] = useState(true)
@@ -61,11 +64,11 @@ export default function PlayDetailPage() {
         setName(data.name)
         setDescription(data.description ?? '')
       } catch (e: any) {
-        console.error('Error cargando jugada:', e)
+        console.error('Error loading play:', e)
         if (e?.response?.status === 404) {
-          setError('Jugada no encontrada')
+          setError(t('errorNotFound'))
         } else {
-          setError(e?.response?.data?.message || 'Error al cargar la jugada')
+          setError(e?.response?.data?.message || t('errorLoad'))
         }
       } finally {
         setLoading(false)
@@ -73,6 +76,7 @@ export default function PlayDetailPage() {
     }
 
     if (playId) load()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playId, router])
 
   // Detectar cambios pendientes en cabecera
@@ -90,7 +94,7 @@ export default function PlayDetailPage() {
   const handleSaveHeader = async () => {
     if (!play) return
     if (!name.trim()) {
-      alert('El nombre no puede estar vacío')
+      alert(t('errors.nameEmpty'))
       return
     }
 
@@ -103,8 +107,8 @@ export default function PlayDetailPage() {
       setPlay(updated)
       setHeaderDirty(false)
     } catch (e: any) {
-      console.error('Error guardando cabecera:', e)
-      alert(e?.response?.data?.message || 'Error al guardar cambios')
+      console.error('Error saving header:', e)
+      alert(e?.response?.data?.message || t('errors.saveHeader'))
     } finally {
       setSavingHeader(false)
     }
@@ -122,12 +126,12 @@ export default function PlayDetailPage() {
       setPlay(updated)
       setEditingStepId(newStep.id)
     } catch (e: any) {
-      console.error('Error añadiendo paso:', e)
-      alert(e?.response?.data?.message || 'Error al añadir el paso')
+      console.error('Error adding step:', e)
+      alert(e?.response?.data?.message || t('errors.addStep'))
     }
   }
 
-    const handleSaveStep = async (
+  const handleSaveStep = async (
     stepId: string,
     data: {
       description: string
@@ -138,7 +142,7 @@ export default function PlayDetailPage() {
     if (!play) return
     setSavingStepId(stepId)
     try {
-            const updatedStep = await updateStep(play.id, stepId, {
+      const updatedStep = await updateStep(play.id, stepId, {
         description: data.description || undefined,
         imageUrl: data.imageUrl ?? undefined,
         tacticalData: data.tacticalData ?? undefined,
@@ -149,8 +153,8 @@ export default function PlayDetailPage() {
       })
       setEditingStepId(null)
     } catch (e: any) {
-      console.error('Error guardando paso:', e)
-      alert(e?.response?.data?.message || 'Error al guardar el paso')
+      console.error('Error saving step:', e)
+      alert(e?.response?.data?.message || t('errors.saveStep'))
     } finally {
       setSavingStepId(null)
     }
@@ -158,7 +162,7 @@ export default function PlayDetailPage() {
 
   const handleDeleteStep = async (step: PlayStep) => {
     if (!play) return
-    if (!confirm(`¿Eliminar el paso ${step.order + 1}?`)) return
+    if (!confirm(t('errors.deleteStepConfirm', { number: step.order + 1 }))) return
 
     try {
       await deleteStep(play.id, step.id)
@@ -167,8 +171,8 @@ export default function PlayDetailPage() {
         steps: play.steps.filter((s) => s.id !== step.id),
       })
     } catch (e: any) {
-      console.error('Error eliminando paso:', e)
-      alert(e?.response?.data?.message || 'Error al eliminar el paso')
+      console.error('Error deleting step:', e)
+      alert(e?.response?.data?.message || t('errors.deleteStep'))
     }
   }
 
@@ -192,8 +196,8 @@ export default function PlayDetailPage() {
     try {
       await reorderSteps(play.id, reordered.map((s) => s.id))
     } catch (e: any) {
-      console.error('Error reordenando:', e)
-      alert('Error al reordenar los pasos')
+      console.error('Error reordering:', e)
+      alert(t('errors.reorderSteps'))
       // Recargar
       const fresh = await getPlay(play.id)
       setPlay(fresh)
@@ -211,8 +215,8 @@ export default function PlayDetailPage() {
       await deletePlay(play.id)
       router.push('/playbook')
     } catch (e: any) {
-      console.error('Error eliminando jugada:', e)
-      alert(e?.response?.data?.message || 'Error al eliminar la jugada')
+      console.error('Error deleting play:', e)
+      alert(e?.response?.data?.message || t('errors.deletePlay'))
       setDeleting(false)
       setShowDeleteModal(false)
     }
@@ -228,15 +232,15 @@ export default function PlayDetailPage() {
   )
 
   if (loading) {
-    return <div className="text-center py-12 text-text-muted">Cargando jugada...</div>
+    return <div className="text-center py-12 text-text-muted">{t('loading')}</div>
   }
 
   if (error || !play) {
     return (
       <div className="max-w-2xl mx-auto text-center py-12">
-        <p className="text-danger mb-4">{error || 'Jugada no encontrada'}</p>
+        <p className="text-danger mb-4">{error || t('errorNotFound')}</p>
         <Link href="/playbook" className="text-brand-primary hover:underline">
-          ← Volver al Playbook
+          {t('backToPlaybook')}
         </Link>
       </div>
     )
@@ -248,7 +252,7 @@ export default function PlayDetailPage() {
         href="/playbook"
         className="text-brand-primary hover:underline inline-block mb-6"
       >
-        ← Volver al Playbook
+        {t('backToPlaybook')}
       </Link>
 
       {/* CABECERA */}
@@ -260,15 +264,20 @@ export default function PlayDetailPage() {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Nombre de la jugada"
+                placeholder={t('namePlaceholder')}
                 className="text-xl font-bold"
               />
               <p className="text-xs text-text-muted mt-1">
-                Creada por{' '}
-                {play.createdBy
-                  ? `${play.createdBy.name} ${play.createdBy.lastName}`
-                  : 'Sistema'}{' '}
-                · {formatPlayDate(play.createdAt)}
+                {t('createdBy', {
+                  author: play.createdBy
+                    ? `${play.createdBy.name} ${play.createdBy.lastName}`
+                    : t('system'),
+                  date: format.dateTime(new Date(play.createdAt), {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                  }),
+                })}
               </p>
             </div>
             <div className="flex gap-2 shrink-0">
@@ -279,7 +288,7 @@ export default function PlayDetailPage() {
                   disabled={savingHeader}
                   loading={savingHeader}
                 >
-                  {savingHeader ? 'Guardando...' : 'Guardar cambios'}
+                  {savingHeader ? t('saving') : t('saveChanges')}
                 </Button>
               )}
               <Button
@@ -287,24 +296,24 @@ export default function PlayDetailPage() {
                 variant="secondary"
                 href={`/playbook/${play.id}/present`}
               >
-                ▶️ Presentar
+                {t('present')}
               </Button>
               <Button
                 size="sm"
                 variant="danger"
                 onClick={() => setShowDeleteModal(true)}
               >
-                🗑️ Eliminar
+                {t('delete')}
               </Button>
             </div>
           </div>
 
           <Textarea
-            label="Descripción"
+            label={t('descriptionLabel')}
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             rows={2}
-            placeholder="Descripción general de la jugada"
+            placeholder={t('descriptionPlaceholder')}
           />
         </CardBody>
       </Card>
@@ -314,22 +323,22 @@ export default function PlayDetailPage() {
         <CardBody>
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-text-primary">
-              📝 Pasos ({sortedSteps.length})
+              {t('stepsTitle', { count: sortedSteps.length })}
             </h2>
             <Button
               size="sm"
               onClick={handleAddStep}
               icon={<span className="text-xl">+</span>}
             >
-              Añadir paso
+              {t('addStep')}
             </Button>
           </div>
 
           {sortedSteps.length === 0 && (
             <div className="text-center py-10 text-text-muted">
-              <p className="mb-4">Esta jugada no tiene pasos todavía.</p>
+              <p className="mb-4">{t('noStepsTitle')}</p>
               <Button onClick={handleAddStep} variant="secondary">
-                ➕ Añadir primer paso
+                {t('addFirstStep')}
               </Button>
             </div>
           )}
@@ -368,14 +377,14 @@ export default function PlayDetailPage() {
                             <div className="mt-2">
                               <img
                                 src={step.imageUrl}
-                                alt={`Paso ${index + 1}`}
+                                alt={t('imageAlt', { number: index + 1 })}
                                 className="max-w-full max-h-64 rounded-lg border border-border-subtle"
                               />
                             </div>
                           )}
                           {!step.description && !step.imageUrl && (
                             <p className="text-text-muted italic text-sm">
-                              Paso sin contenido. Pulsa ✏️ para editarlo.
+                              {t('emptyStep')}
                             </p>
                           )}
                         </>
@@ -393,7 +402,7 @@ export default function PlayDetailPage() {
                               ? 'text-text-muted/30 cursor-not-allowed'
                               : 'text-text-muted hover:text-brand-primary hover:bg-brand-primary/10'
                           }`}
-                          title="Mover arriba"
+                          title={t('moveUp')}
                         >
                           ⬆️
                         </button>
@@ -406,7 +415,7 @@ export default function PlayDetailPage() {
                               ? 'text-text-muted/30 cursor-not-allowed'
                               : 'text-text-muted hover:text-brand-primary hover:bg-brand-primary/10'
                           }`}
-                          title="Mover abajo"
+                          title={t('moveDown')}
                         >
                           ⬇️
                         </button>
@@ -414,7 +423,7 @@ export default function PlayDetailPage() {
                           type="button"
                           onClick={() => setEditingStepId(step.id)}
                           className="p-1.5 rounded text-brand-primary hover:bg-brand-primary/10 transition"
-                          title="Editar paso"
+                          title={t('editStep')}
                         >
                           ✏️
                         </button>
@@ -422,7 +431,7 @@ export default function PlayDetailPage() {
                           type="button"
                           onClick={() => handleDeleteStep(step)}
                           className="p-1.5 rounded text-danger hover:bg-danger/10 transition"
-                          title="Eliminar paso"
+                          title={t('deleteStep')}
                         >
                           🗑️
                         </button>
@@ -445,13 +454,13 @@ export default function PlayDetailPage() {
           />
           <div className="relative bg-surface border border-border-subtle rounded-xl shadow-2xl w-full max-w-md p-6">
             <h3 className="text-lg font-bold text-text-primary mb-4">
-              🗑️ Eliminar jugada
+              {t('deleteModalTitle')}
             </h3>
             <p className="text-text-secondary mb-6">
-              ¿Seguro que quieres eliminar la jugada{' '}
-              <strong className="text-text-primary">"{play.name}"</strong>?
-              Se eliminarán también todos sus pasos. Esta acción no se puede
-              deshacer.
+              {t.rich('deleteConfirmRich', {
+                name: play.name,
+                strong: (chunks) => <strong className="text-text-primary">{chunks}</strong>
+              })}
             </p>
             <div className="flex gap-3">
               <Button
@@ -460,7 +469,7 @@ export default function PlayDetailPage() {
                 disabled={deleting}
                 className="flex-1"
               >
-                Cancelar
+                {t('cancel')}
               </Button>
               <Button
                 variant="danger"
@@ -469,7 +478,7 @@ export default function PlayDetailPage() {
                 loading={deleting}
                 className="flex-1"
               >
-                {deleting ? 'Eliminando...' : 'Sí, eliminar'}
+                {deleting ? t('deleting') : t('yesDelete')}
               </Button>
             </div>
           </div>

@@ -1,7 +1,8 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter } from '@/navigation';
+import { useRouter } from '@/navigation'
+import { useTranslations, useFormatter } from 'next-intl'
 import api from '@/lib/api'
 import type { SeasonDetail } from '../page'
 import { getSportIcon } from '@/lib/sport'
@@ -23,6 +24,9 @@ export default function SeasonHeader({
   onCollapseAll,
 }: Props) {
   const router = useRouter()
+  const t = useTranslations('Seasons.detail.header')
+  const format = useFormatter()
+  
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -50,7 +54,7 @@ export default function SeasonHeader({
       setShowEditModal(false)
       onUpdate()
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al actualizar')
+      alert(err.response?.data?.message || t('errorUpdate'))
     } finally {
       setSaving(false)
     }
@@ -62,13 +66,13 @@ export default function SeasonHeader({
       await api.delete(`/seasons/${season.id}`)
       router.push('/seasons')
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al eliminar')
+      alert(err.response?.data?.message || t('errorDelete'))
       setDeleting(false)
     }
   }
 
   const fmtDate = (d: string | null) =>
-    d ? new Date(d).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }) : null
+    d ? format.dateTime(new Date(d), { day: '2-digit', month: 'short', year: 'numeric' }) : null
 
   return (
     <>
@@ -94,9 +98,9 @@ export default function SeasonHeader({
 
             {(season.startDate || season.endDate) && (
               <p className="text-sm text-text-muted mt-2">
-                📆 {fmtDate(season.startDate) && `Desde ${fmtDate(season.startDate)}`}
+                📆 {season.startDate && t('dateFrom', { date: fmtDate(season.startDate)! })}
                 {season.startDate && season.endDate && ' · '}
-                {fmtDate(season.endDate) && `Hasta ${fmtDate(season.endDate)}`}
+                {season.endDate && t('dateUntil', { date: fmtDate(season.endDate)! })}
               </p>
             )}
           </div>
@@ -104,18 +108,18 @@ export default function SeasonHeader({
           {season.canManage && (
             <div className="flex gap-2 flex-wrap">
               <Button size="sm" onClick={onCreateBlock}>
-                ➕ Bloque raíz
+                {t('rootBlockBtn')}
               </Button>
-              <Button variant="secondary" size="sm" onClick={onExpandAll} title="Expandir todo">
-                ⬇️ Expandir
+              <Button variant="secondary" size="sm" onClick={onExpandAll} title={t('expandAllTitle')}>
+                {t('expandAll')}
               </Button>
-              <Button variant="secondary" size="sm" onClick={onCollapseAll} title="Colapsar todo">
-                ⬆️ Colapsar
+              <Button variant="secondary" size="sm" onClick={onCollapseAll} title={t('collapseAllTitle')}>
+                {t('collapseAll')}
               </Button>
-              <Button variant="secondary" size="sm" onClick={() => setShowEditModal(true)} title="Editar temporada">
+              <Button variant="secondary" size="sm" onClick={() => setShowEditModal(true)} title={t('editBtnTitle')}>
                 ✏️
               </Button>
-              <Button variant="danger" size="sm" onClick={() => setShowDeleteModal(true)} title="Eliminar temporada">
+              <Button variant="danger" size="sm" onClick={() => setShowDeleteModal(true)} title={t('deleteBtnTitle')}>
                 🗑️
               </Button>
             </div>
@@ -123,37 +127,37 @@ export default function SeasonHeader({
         </div>
       </div>
 
-      <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)} title="Editar Temporada" size="md">
+      <Modal isOpen={showEditModal} onClose={() => setShowEditModal(false)} title={t('editModalTitle')} size="md">
         <form onSubmit={handleUpdate} className="space-y-4">
           <Input
-            label="Nombre *"
+            label={t('form.nameLabel')}
             type="text"
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
             required
           />
           <Textarea
-            label="Contenido"
+            label={t('form.contentLabel')}
             value={form.description}
             onChange={(e) => setForm({ ...form, description: e.target.value })}
             rows={4}
           />
           <div className="grid grid-cols-2 gap-4">
             <Input
-              label="Fecha inicio"
+              label={t('form.startDate')}
               type="date"
               value={form.startDate}
               onChange={(e) => setForm({ ...form, startDate: e.target.value })}
             />
             <Input
-              label="Fecha fin"
+              label={t('form.endDate')}
               type="date"
               value={form.endDate}
               onChange={(e) => setForm({ ...form, endDate: e.target.value })}
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-text-secondary mb-1">Color</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">{t('form.colorLabel')}</label>
             <input
               type="color"
               value={form.color}
@@ -163,26 +167,28 @@ export default function SeasonHeader({
           </div>
           <div className="flex gap-3 pt-2">
             <Button type="button" variant="secondary" onClick={() => setShowEditModal(false)} disabled={saving} className="flex-1">
-              Cancelar
+              {t('cancel')}
             </Button>
             <Button type="submit" disabled={saving} loading={saving} className="flex-1">
-              {saving ? 'Guardando...' : 'Guardar'}
+              {saving ? t('saving') : t('save')}
             </Button>
           </div>
         </form>
       </Modal>
 
-      <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title="Eliminar Temporada" size="sm">
+      <Modal isOpen={showDeleteModal} onClose={() => setShowDeleteModal(false)} title={t('deleteModalTitle')} size="sm">
         <p className="text-text-secondary mb-6">
-          ¿Seguro que quieres eliminar <strong className="text-text-primary">"{season.name}"</strong>?
-          Se eliminarán TODOS sus bloques y secciones. Esta acción no se puede deshacer.
+          {t.rich('deleteConfirmRich', {
+            name: season.name,
+            strong: (chunks) => <strong className="text-text-primary">{chunks}</strong>
+          })}
         </p>
         <div className="flex gap-3">
           <Button variant="secondary" onClick={() => setShowDeleteModal(false)} disabled={deleting} className="flex-1">
-            Cancelar
+            {t('cancel')}
           </Button>
           <Button variant="danger" onClick={handleDelete} disabled={deleting} loading={deleting} className="flex-1">
-            {deleting ? 'Eliminando...' : 'Sí, eliminar'}
+            {deleting ? t('deleting') : t('yesDelete')}
           </Button>
         </div>
       </Modal>

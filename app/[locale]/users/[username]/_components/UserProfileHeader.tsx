@@ -10,12 +10,14 @@ interface Props {
   user: UserPublic
   canEditProfile?: boolean
   canViewEmail?: boolean
+  onEditGhost?: () => void // <-- NUEVO
 }
 
 export default function UserProfileHeader({
   user,
   canEditProfile = false,
   canViewEmail = false,
+  onEditGhost, // <-- NUEVO
 }: Props) {
   const t = useTranslations('UserProfile.header')
   const tRoles = useTranslations('AdminUsers.roles')
@@ -108,6 +110,18 @@ export default function UserProfileHeader({
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2 shrink-0 self-start md:self-center">
+            
+            {/* NUEVO: Botón de editar fantasma (solo si es fantasma y hay equipo) */}
+            {user.isGhost && statsTeamId && onEditGhost && (
+              <button
+                onClick={onEditGhost}
+                className="text-sm font-medium px-3 py-2 rounded-md bg-warning/10 text-warning hover:bg-warning/20 transition whitespace-nowrap"
+                title="Editar datos"
+              >
+                📝
+              </button>
+            )}
+
             {statsTeamId && (
               <Link
                 href={`/teams/${statsTeamId}/players/${user.id}/stats`}

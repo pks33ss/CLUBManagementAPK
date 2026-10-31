@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useTranslations } from 'next-intl'
 import api from '@/lib/api'
 import type { SeasonBlock } from '../page'
 import { Button, Input, Textarea, Modal } from '@/components/ui'
@@ -20,6 +21,7 @@ export default function BlockModal({
   onClose,
   onSuccess,
 }: Props) {
+  const t = useTranslations('Seasons.detail.blockModal')
   const isEditing = !!block
 
   const [form, setForm] = useState({
@@ -53,49 +55,49 @@ export default function BlockModal({
       }
       onSuccess()
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error al guardar')
+      alert(err.response?.data?.message || t('errorSave'))
     } finally {
       setSaving(false)
     }
+  }
+
+  const getTitle = () => {
+    if (isEditing) return t('editTitle')
+    if (parentId) return t('newChildTitle')
+    return t('newTitle')
   }
 
   return (
     <Modal
       isOpen={true}
       onClose={onClose}
-      title={
-        isEditing
-          ? '✏️ Editar Bloque'
-          : parentId
-            ? '➕ Nuevo Sub-bloque'
-            : '➕ Nuevo Bloque'
-      }
+      title={getTitle()}
       size="md"
     >
       <form onSubmit={handleSubmit} className="space-y-4">
         <Input
-          label="Nombre *"
+          label={t('nameLabel')}
           type="text"
           value={form.name}
           onChange={(e) => setForm({ ...form, name: e.target.value })}
-          placeholder="Ej: Trimestre 1, Septiembre..."
+          placeholder={t('namePlaceholder')}
           required
           autoFocus
         />
 
         <Textarea
-          label="Contenido"
+          label={t('contentLabel')}
           value={form.description}
           onChange={(e) =>
             setForm({ ...form, description: e.target.value })
           }
           rows={4}
-          placeholder="Objetivo del bloque, contenido general..."
+          placeholder={t('contentPlaceholder')}
         />
 
         <div className="grid grid-cols-2 gap-4">
           <Input
-            label="Fecha inicio"
+            label={t('startDate')}
             type="date"
             value={form.startDate}
             onChange={(e) =>
@@ -103,7 +105,7 @@ export default function BlockModal({
             }
           />
           <Input
-            label="Fecha fin"
+            label={t('endDate')}
             type="date"
             value={form.endDate}
             onChange={(e) => setForm({ ...form, endDate: e.target.value })}
@@ -112,7 +114,7 @@ export default function BlockModal({
 
         <div>
           <label className="block text-sm font-medium text-text-secondary mb-1">
-            Color
+            {t('colorLabel')}
           </label>
           <div className="flex gap-2 items-center">
             <input
@@ -122,7 +124,7 @@ export default function BlockModal({
               className="w-12 h-10 rounded border border-border-subtle cursor-pointer bg-surface-elevated"
             />
             <span className="text-xs text-text-muted">
-              Opcional, sobreescribe el color por defecto
+              {t('colorHint')}
             </span>
           </div>
         </div>
@@ -135,7 +137,7 @@ export default function BlockModal({
             disabled={saving}
             className="flex-1"
           >
-            Cancelar
+            {t('cancel')}
           </Button>
           <Button
             type="submit"
@@ -143,7 +145,7 @@ export default function BlockModal({
             loading={saving}
             className="flex-1"
           >
-            {saving ? 'Guardando...' : isEditing ? 'Guardar' : 'Crear'}
+            {saving ? t('saving') : isEditing ? t('save') : t('create')}
           </Button>
         </div>
       </form>

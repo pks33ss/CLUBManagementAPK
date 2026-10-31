@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Link } from '@/navigation';
+import { Link } from '@/navigation'
 import { useTranslations, useLocale } from 'next-intl'
 import dynamic from 'next/dynamic'
 import api from '@/lib/api'
@@ -67,10 +67,9 @@ function RegisterContent() {
           setFormData((prev) => ({ ...prev, email: data.email }))
         }
       } catch (err: any) {
-        console.error('Error validando invitación:', err)
+        console.error('Error validating invitation:', err)
         setInvitationError(
-          err.response?.data?.message ||
-            'La invitación no es válida o ha caducado',
+          err.response?.data?.message || t('invitationError')
         )
       } finally {
         setLoadingInvitation(false)
@@ -78,6 +77,7 @@ function RegisterContent() {
     }
 
     fetchInvitation()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invitationCode])
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -110,7 +110,7 @@ function RegisterContent() {
 
   const handleGoogleSuccess = async (credentialResponse: any) => {
     if (!credentialResponse?.credential) {
-      setError('No se pudo obtener el token de Google')
+      setError(t('googleTokenError'))
       return
     }
 
@@ -133,7 +133,7 @@ function RegisterContent() {
       console.error('Error Google register:', err)
       const message =
         err.response?.data?.message ||
-        'No se pudo completar el registro con Google'
+        t('googleRegisterError')
       setError(message)
     } finally {
       setLoading(false)
@@ -163,27 +163,25 @@ function RegisterContent() {
             <div className="flex items-center gap-3 mb-2">
               <span className="text-2xl">🎉</span>
               <p className="text-sm font-semibold text-brand-primary">
-                ¡Te han invitado!
+                {t('invitationTitle')}
               </p>
             </div>
             <p className="text-sm text-text-primary">
-              {invitation.invitedBy && (
-                <>
-                  <strong>
-                    {invitation.invitedBy.name} {invitation.invitedBy.lastName}
-                  </strong>{' '}
-                  te invita al equipo{' '}
-                </>
-              )}
-              {!invitation.invitedBy && <>Te invitan al equipo </>}
-              <strong>{invitation.team.name}</strong>
-              {invitation.team.club && (
-                <> de <strong>{invitation.team.club.name}</strong></>
+              {invitation.invitedBy ? (
+                t('invitationText', {
+                  inviter: `${invitation.invitedBy.name} ${invitation.invitedBy.lastName}`,
+                  team: invitation.team.name,
+                  club: invitation.team.club?.name || '',
+                })
+              ) : (
+                t('invitationTextNoInviter', {
+                  team: invitation.team.name,
+                  club: invitation.team.club?.name || '',
+                })
               )}
             </p>
             <p className="text-xs text-text-muted mt-2">
-              Al registrarte te unirás automáticamente como{' '}
-              <strong>{invitation.role}</strong>.
+              {t('invitationRoleText', { role: invitation.role })}
             </p>
           </div>
         )}
@@ -192,14 +190,14 @@ function RegisterContent() {
           <div className="bg-danger/10 text-danger border border-danger/20 p-3 rounded-lg text-sm mb-4">
             ⚠️ {invitationError}
             <p className="text-xs mt-1">
-              Puedes registrarte igualmente, pero no se aplicará la invitación.
+              {t('invitationErrorHint')}
             </p>
           </div>
         )}
 
         {success ? (
           <div className="bg-success/10 text-success border border-success/20 p-4 rounded-lg text-center">
-            ✅ ¡Registro exitoso! Redirigiendo...
+            {t('registerSuccess')}
           </div>
         ) : (
           <>
@@ -236,7 +234,7 @@ function RegisterContent() {
                 disabled={!!invitation?.email}
                 helperText={
                   invitation?.email
-                    ? 'El email viene de la invitación y no se puede cambiar'
+                    ? t('emailFromInvitation')
                     : undefined
                 }
               />
@@ -250,7 +248,6 @@ function RegisterContent() {
                 autoComplete="new-password"
                 required
                 minLength={6}
-
                 helperText={t('passwordMinChars')} 
               />
 
@@ -284,21 +281,20 @@ function RegisterContent() {
             <div className="flex items-center gap-3 my-6">
               <div className="flex-1 h-px bg-border-subtle" />
               <span className="text-xs text-text-muted uppercase font-medium">
-                o
+                {t('or')}
               </span>
               <div className="flex-1 h-px bg-border-subtle" />
             </div>
 
             <GoogleLoginButton
               onSuccess={handleGoogleSuccess}
-              onError={() => setError('Error al registrarse con Google')}
+              onError={() => setError(t('googleRegisterError'))}
               text="signup_with"
-             
             />
           </>
         )}
 
-                <div className="mt-6 bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
+        <div className="mt-6 bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
           <p className="text-sm font-semibold text-amber-600 flex items-center gap-2">
             <span aria-hidden="true">⚠️</span>
             {t('devWarningTitle')}

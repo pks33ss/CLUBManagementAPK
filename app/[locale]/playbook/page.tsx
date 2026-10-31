@@ -1,16 +1,20 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from '@/navigation';
-import { useRouter } from '@/navigation';
+import { Link } from '@/navigation'
+import { useRouter } from '@/navigation'
+import { useTranslations, useFormatter } from 'next-intl'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
 import { listPlaysByTeam, type PlaySummary } from '@/lib/playbook'
-import { formatPlayDate, formatStepsCount, filterPlaysByName } from '@/lib/playbookHelpers'
+import { filterPlaysByName } from '@/lib/playbookHelpers'
 import { getSportConfig } from '@/lib/sport'
 import { Button, Card, CardBody } from '@/components/ui'
 
 export default function PlaybookPage() {
   const router = useRouter()
+  const t = useTranslations('Playbook.list')
+  const format = useFormatter()
+
   const { activeTeam, loading: loadingTeams } = useActiveTeam()
 
   const [plays, setPlays] = useState<PlaySummary[]>([])
@@ -33,6 +37,7 @@ export default function PlaybookPage() {
     }
 
     fetchPlays(activeTeam.id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTeam, router])
 
   const fetchPlays = async (teamId: string) => {
@@ -42,8 +47,8 @@ export default function PlaybookPage() {
       const data = await listPlaysByTeam(teamId)
       setPlays(data)
     } catch (e: any) {
-      console.error('Error cargando jugadas:', e)
-      setError(e?.response?.data?.message || 'Error al cargar el playbook')
+      console.error('Error loading plays:', e)
+      setError(e?.response?.data?.message || t('errorLoad'))
       setPlays([])
     } finally {
       setLoading(false)
@@ -56,7 +61,7 @@ export default function PlaybookPage() {
 
   // ─── Estados de carga / sin equipo ───
   if (loadingTeams || loading) {
-    return <div className="text-center py-12 text-text-muted">Cargando playbook...</div>
+    return <div className="text-center py-12 text-text-muted">{t('loading')}</div>
   }
 
   if (!activeTeam) {
@@ -64,10 +69,10 @@ export default function PlaybookPage() {
       <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
         <div className="text-6xl mb-4">📘</div>
         <h3 className="text-xl font-semibold text-text-primary mb-2">
-          Selecciona un equipo
+          {t('selectTeamTitle')}
         </h3>
         <p className="text-text-secondary mb-6">
-          Elige un equipo desde el menú superior para ver sus jugadas
+          {t('selectTeamDesc')}
         </p>
       </div>
     )
@@ -79,14 +84,14 @@ export default function PlaybookPage() {
       <div className="flex justify-between items-center mb-6 gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-text-primary">
-            📘 Playbook · {sport.icon}
+            {t('title', { icon: sport.icon })}
           </h1>
           <p className="text-text-secondary text-sm">
             {activeTeam.name} · {activeTeam.club?.name}
           </p>
         </div>
         <Button href="/playbook/new" icon={<span className="text-xl">+</span>}>
-          Nueva jugada
+          {t('newPlay')}
         </Button>
       </div>
 
@@ -98,12 +103,12 @@ export default function PlaybookPage() {
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="🔍 Buscar por nombre..."
+              placeholder={t('searchPlaceholder')}
               className="w-full bg-surface-elevated border border-border-subtle rounded-lg px-4 py-2 text-text-primary placeholder:text-text-muted focus:outline-none focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"
             />
             {query && (
               <p className="text-xs text-text-muted mt-2">
-                {filtered.length} de {plays.length}
+                {t('resultsCount', { filtered: filtered.length, total: plays.length })}
               </p>
             )}
           </CardBody>
@@ -115,7 +120,7 @@ export default function PlaybookPage() {
         <div className="text-center py-12 bg-surface rounded-xl shadow border border-danger/50 mb-6">
           <p className="text-danger mb-4">{error}</p>
           <Button onClick={() => activeTeam && fetchPlays(activeTeam.id)}>
-            Reintentar
+            {t('retry')}
           </Button>
         </div>
       )}
@@ -125,13 +130,13 @@ export default function PlaybookPage() {
         <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
           <div className="text-6xl mb-4">📘</div>
           <h3 className="text-xl font-semibold text-text-primary mb-2">
-            Playbook vacío
+            {t('emptyTitle')}
           </h3>
           <p className="text-text-secondary mb-6">
-            Crea tu primera jugada y añade pasos con descripción e imagen o pizarra.
+            {t('emptyDesc')}
           </p>
           <Button href="/playbook/new" icon={<span className="text-xl">+</span>}>
-            Crear primera jugada
+            {t('createFirst')}
           </Button>
         </div>
       )}
@@ -141,10 +146,10 @@ export default function PlaybookPage() {
         <div className="text-center py-12 bg-surface rounded-xl shadow border border-border-subtle">
           <div className="text-4xl mb-3">🔍</div>
           <p className="text-text-secondary mb-4">
-            No hay jugadas que coincidan con "{query}".
+            {t('noResultsTitle', { query })}
           </p>
           <Button variant="secondary" onClick={() => setQuery('')}>
-            Limpiar búsqueda
+            {t('clearSearch')}
           </Button>
         </div>
       )}
@@ -173,7 +178,7 @@ export default function PlaybookPage() {
 
               <div className="flex flex-wrap gap-2 mb-3">
                 <span className="bg-brand-primary/10 text-brand-primary text-xs px-2 py-1 rounded-full font-medium">
-                  {formatStepsCount(play.stepsCount)}
+                  {t('stepsCount', { count: play.stepsCount })}
                 </span>
               </div>
 
@@ -181,9 +186,15 @@ export default function PlaybookPage() {
                 <span>
                   {play.createdBy
                     ? `${play.createdBy.name} ${play.createdBy.lastName}`
-                    : 'Sistema'}
+                    : t('system')}
                 </span>
-                <span>{formatPlayDate(play.createdAt)}</span>
+                <span>
+                  {format.dateTime(new Date(play.createdAt), {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric',
+                  })}
+                </span>
               </div>
             </Link>
           ))}
