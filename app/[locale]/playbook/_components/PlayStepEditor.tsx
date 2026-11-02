@@ -55,13 +55,23 @@ export function PlayStepEditor({ step, onSave, onCancel, saving }: Props) {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  const handleSave = async () => {
-    await onSave({
-      description: description.trim(),
-      imageUrl,
-      tacticalData: pendingBoardItems ?? undefined,
-    } as any)
+ const handleSave = async () => {
+  let cleanTacticalData = null;
+
+  if (pendingBoardItems && Array.isArray(pendingBoardItems)) {
+    try {
+      cleanTacticalData = JSON.parse(JSON.stringify(pendingBoardItems)); // Array limpio
+    } catch (e) {
+      console.error('Error limpiando tacticalData:', e);
+    }
   }
+
+  await onSave({
+    description: description.trim(),
+    imageUrl: imageUrl || null,
+    tacticalData: cleanTacticalData,
+  } as any);
+};
 
   return (
     <div className="space-y-3">

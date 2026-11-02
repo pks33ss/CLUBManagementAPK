@@ -81,8 +81,7 @@ export default function TeamDetail() {
   const teamId = params.id as string
   const t = useTranslations('TeamDetail')
   const tCommon = useTranslations('Common')
-    const tSports = useTranslations('Sports')
-  const tPositions = useTranslations('Positions')
+  const tSports = useTranslations('Sports')
 
   const { setActiveTeam, activeTeam } = useActiveTeam()
 
@@ -298,7 +297,7 @@ export default function TeamDetail() {
                   <Badge variant="warning">{t('sportInDevelopment')}</Badge>
                 )}
               </div>
-                            <p className="text-text-secondary mt-1">
+              <p className="text-text-secondary mt-1">
                 {tSports(team.sport)} · {team.category || t('noCategory')} • {team.season || t('noSeason')}
               </p>
               <p className="text-sm text-text-muted mt-2">
@@ -349,7 +348,7 @@ export default function TeamDetail() {
               👥 {t('players')} ({players.length})
             </h2>
             {perms.canManage && (
-                            <Button
+              <Button
                 size="sm"
                 href={`/teams/${teamId}/members?action=invite`}
                 icon={<span className="text-xl">+</span>}
@@ -384,8 +383,8 @@ export default function TeamDetail() {
                       <p className="font-medium text-text-primary truncate">
                         {m.user.name} {m.user.lastName}
                       </p>
-                                            <p className="text-sm text-text-secondary truncate">
-                        {m.position ? tPositions(m.position) : t('noPosition')}
+                      <p className="text-sm text-text-secondary truncate">
+                        {m.position || t('noPosition')}
                       </p>
                     </div>
                   </Link>

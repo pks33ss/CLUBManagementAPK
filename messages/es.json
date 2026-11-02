@@ -77,6 +77,7 @@
   "clubs": "Mis Clubs",
   "admin": "Admin · Usuarios",
   "noClub": "Sin club",
+  "help": "Ayuda",
   "sidebar": {
     "menu": "Menú",
     "settings": "Configuración",
@@ -203,6 +204,56 @@
   "ADMIN_TEAM": "🛠️ Admin Equipo",
   "SUPER_ADMIN": "👑 Super Admin",
   "ADMIN_CLUB": "🛠️ Admin Club"
+},
+"Help": {
+  "title": "📚 Centro de Ayuda",
+  "subtitle": "Guía completa para sacar el máximo partido a JoinSport",
+  "sidebarTitle": "Temas de ayuda",
+  "noResults": "No se encontraron resultados",
+  "searchPlaceholder": "Buscar en la ayuda...",
+  "topics": {
+    "gettingStarted": "🚀 Primeros pasos",
+    "teams": "🛡️ Equipos y Clubes",
+    "members": "👥 Gestión de miembros",
+    "matches": "🏆 Partidos y estadísticas",
+    "training": "🏋️ Entrenamientos y asistencia",
+    "playbook": "📘 Playbook táctico",
+    "settings": "⚙️ Configuración"
+  },
+  "content": {
+    "gettingStarted": {
+      "title": "Primeros pasos",
+      "welcome": "Bienvenido a JoinSport. Aquí tienes lo básico para empezar.",
+      "step1": "1. Crea un club o únete a uno existente.",
+      "step2": "2. Crea un equipo dentro de tu club.",
+      "step3": "3. Añade jugadores a tu equipo.",
+      "step4": "4. Empieza a programar entrenamientos y partidos."
+    },
+    "teams": {
+      "title": "Equipos y Clubes",
+      "desc": "Cómo gestionar la estructura de tu entidad deportiva."
+    },
+    "members": {
+      "title": "Gestión de miembros",
+      "desc": "Aprende a invitar jugadores y asignar roles."
+    },
+    "matches": {
+      "title": "Partidos y estadísticas",
+      "desc": "Cómo crear partidos y anotar estadísticas en vivo."
+    },
+    "training": {
+      "title": "Entrenamientos y asistencia",
+      "desc": "Planifica sesiones y controla la asistencia."
+    },
+    "playbook": {
+      "title": "Playbook táctico",
+      "desc": "Diseña jugadas y táctica en la pizarra."
+    },
+    "settings": {
+      "title": "Configuración",
+      "desc": "Personaliza tu cuenta y tu experiencia en la app."
+    }
+  }
 },
   "Sessions": {
     "list": {

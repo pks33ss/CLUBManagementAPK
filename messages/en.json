@@ -77,6 +77,7 @@
   "clubs": "My Clubs",
   "admin": "Admin · Users",
   "noClub": "No club",
+  "help": "Help",
   "sidebar": {
     "menu": "Menu",
     "settings": "Settings",
@@ -666,6 +667,56 @@
     "errorUpdate": "Error updating team",
     "errorDelete": "Error deleting team"
   },
+  "Help": {
+  "title": "📚 Help Center",
+  "subtitle": "Complete guide to get the most out of JoinSport",
+  "sidebarTitle": "Help topics",
+  "noResults": "No results found",
+  "searchPlaceholder": "Search help...",
+  "topics": {
+    "gettingStarted": "🚀 Getting started",
+    "teams": "🛡️ Teams & Clubs",
+    "members": "👥 Member management",
+    "matches": "🏆 Matches & stats",
+    "training": "🏋️ Training & attendance",
+    "playbook": "📘 Tactical playbook",
+    "settings": "⚙️ Settings"
+  },
+  "content": {
+    "gettingStarted": {
+      "title": "Getting started",
+      "welcome": "Welcome to JoinSport. Here are the basics to get started.",
+      "step1": "1. Create a club or join an existing one.",
+      "step2": "2. Create a team within your club.",
+      "step3": "3. Add players to your team.",
+      "step4": "4. Start scheduling training sessions and matches."
+    },
+    "teams": {
+      "title": "Teams & Clubs",
+      "desc": "How to manage the structure of your sports entity."
+    },
+    "members": {
+      "title": "Member management",
+      "desc": "Learn how to invite players and assign roles."
+    },
+    "matches": {
+      "title": "Matches & stats",
+      "desc": "How to create matches and record live stats."
+    },
+    "training": {
+      "title": "Training & attendance",
+      "desc": "Plan sessions and track attendance."
+    },
+    "playbook": {
+      "title": "Tactical playbook",
+      "desc": "Design plays and tactics on the board."
+    },
+    "settings": {
+      "title": "Settings",
+      "desc": "Customize your account and app experience."
+    }
+  }
+},
   "Stats": {
     "title": "Stats for {team}",
     "subtitle": "Team performance summary and analysis",

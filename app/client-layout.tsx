@@ -439,7 +439,14 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
               <div className="mb-2 pb-2 border-b border-border-subtle">
                 <LanguageSelector mobile />
               </div>
-
+ <Link
+                href="/help"
+                onClick={() => setSidebarOpen(false)}
+                className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary"
+              >
+                <span className="text-lg">📚</span>
+                <span className="text-sm font-medium">{t('help')}</span>
+              </Link>
               <Link
                 href="/settings"
                 onClick={() => setSidebarOpen(false)}
