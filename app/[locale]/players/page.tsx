@@ -1,12 +1,16 @@
+// archivo: frontend-web/app/[locale]/players/page.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from '@/navigation';
-import { Link } from '@/navigation';
+import { useRouter } from '@/navigation'
+import { Link } from '@/navigation'
 import { getSportIcon } from '@/lib/sport'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
 import { clubsApi, type ClubPlayer } from '@/lib/api/clubs'
 import { Button, Card, CardBody, Badge, Input } from '@/components/ui'
+import { usePermissionsContext } from '@/lib/permissions/permissions-provider'
+import { Can } from '@/lib/permissions/can'
+import NoAccess from '@/components/permissions/NoAccess'
 
 type SortField = 'name' | 'team' | 'number'
 type SortOrder = 'asc' | 'desc'
@@ -16,8 +20,28 @@ export default function PlayersPage() {
   const router = useRouter()
   const { activeTeam, allTeams, loading: loadingTeams } = useActiveTeam()
 
+  const {
+    can,
+    loading: permissionsLoading,
+    error: permissionsError,
+  } = usePermissionsContext()
+
+  const permissionsReady = !permissionsLoading && !permissionsError
+
+  const clubId = activeTeam?.club?.id ?? null
+  const teamId = activeTeam?.id ?? null
+
+  // ===== Permisos derivados =====
+  // Guía Lote 9.3: click en jugador SOLO con player_profile:view
+  const canViewPlayers =
+    permissionsReady && can('player_profile', 'view', { clubId, teamId })
+  // Datos privados (username) siguen con user_data:view
+  const canViewUserData =
+    permissionsReady && can('user_data', 'view', { clubId, teamId })
+
   const [players, setPlayers] = useState<ClubPlayer[]>([])
   const [loadingPlayers, setLoadingPlayers] = useState(false)
+  const [errorStatus, setErrorStatus] = useState<number | null>(null)
 
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([])
@@ -53,22 +77,27 @@ export default function PlayersPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
-  // Cargar jugadores del club activo
+  // Cargar jugadores del club activo (gateado por player_profile:view)
   useEffect(() => {
+    if (!permissionsReady) return
     if (!activeTeam?.club?.id) {
       setPlayers([])
       return
     }
+    if (!canViewPlayers) {
+      setErrorStatus(403)
+      return
+    }
 
-    const clubId = activeTeam.club.id
+    const cId = activeTeam.club.id
 
     const fetchPlayers = async () => {
       setLoadingPlayers(true)
       try {
-        const data = await clubsApi.getPlayers(clubId)
+        const data = await clubsApi.getPlayers(cId)
         setPlayers(data)
-      } catch (err) {
-        console.error('Error cargando jugadores del club:', err)
+      } catch (err: any) {
+        setErrorStatus(err?.response?.status ?? null)
         setPlayers([])
       } finally {
         setLoadingPlayers(false)
@@ -76,18 +105,17 @@ export default function PlayersPage() {
     }
 
     fetchPlayers()
-  }, [activeTeam?.club?.id])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTeam?.club?.id, permissionsReady, canViewPlayers])
 
   // Filtros
   const filtered = players.filter((p) => {
-    // Filtro de texto
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase().trim().replace(/^@/, '')
       const haystack = `${p.name} ${p.lastName} ${p.username ?? ''}`.toLowerCase()
       if (!haystack.includes(q)) return false
     }
 
-    // Filtro por equipos seleccionados
     if (selectedTeamIds.length > 0) {
       const hasTeam = p.memberships.some((m) => selectedTeamIds.includes(m.teamId))
       if (!hasTeam) return false
@@ -172,11 +200,25 @@ export default function PlayersPage() {
   // RENDER
   // ============================================
 
-  if (loadingTeams) {
-    return <div className="text-center py-12 text-text-muted">Cargando...</div>
+  // 1) Permisos cargando
+  if (permissionsLoading) {
+    return <div className="text-center py-12 text-text-muted">Cargando permisos...</div>
   }
 
+  // 2) Error de permisos
+  if (permissionsError) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-danger">{permissionsError}</p>
+      </div>
+    )
+  }
+
+  // 3) Sin club activo
   if (!activeTeam?.club) {
+    if (loadingTeams) {
+      return <div className="text-center py-12 text-text-muted">Cargando...</div>
+    }
     return (
       <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
         <div className="text-6xl mb-4">🏃</div>
@@ -186,6 +228,11 @@ export default function PlayersPage() {
         </p>
       </div>
     )
+  }
+
+  // 4) Sin permiso → NoAccess
+  if (errorStatus === 403 || !canViewPlayers) {
+    return <NoAccess backHref="/home" backLabel="Volver al inicio" />
   }
 
   return (
@@ -198,9 +245,11 @@ export default function PlayersPage() {
             {activeTeam.club.name} · {filtered.length} jugadores
           </p>
         </div>
-        <Link href={`/teams/${activeTeam.id}/members`}>
-          <Button variant="secondary">Gestionar miembros</Button>
-        </Link>
+        <Can resource="member" action="view" clubId={clubId} teamId={teamId}>
+          <Link href={`/teams/${activeTeam.id}/members`}>
+            <Button variant="secondary">Gestionar miembros</Button>
+          </Link>
+        </Can>
       </div>
 
       {/* Filtros */}
@@ -390,27 +439,46 @@ export default function PlayersPage() {
                               </div>
                             )}
                             <div className="min-w-0">
-                              <Link
-                                href={player.username ? `/users/${player.username.replace('@', '')}` : '#'}
-                                className="font-medium text-text-primary hover:text-brand-primary transition truncate block"
-                              >
-                                {player.name} {player.lastName}
-                              </Link>
+                              {canViewPlayers ? (
+                                <Link
+                                  href={player.username ? `/users/${player.username.replace('@', '')}` : '#'}
+                                  className="font-medium text-text-primary hover:text-brand-primary transition truncate block"
+                                >
+                                  {player.name} {player.lastName}
+                                </Link>
+                              ) : (
+                                <span className="font-medium text-text-primary truncate block">
+                                  {player.name} {player.lastName}
+                                </span>
+                              )}
                             </div>
                           </div>
                         </td>
                         <td className="px-6 py-4 text-sm text-brand-primary">
-                          {player.username || '—'}
+                          {canViewUserData ? (player.username || '—') : '—'}
                         </td>
                         {groupBy !== 'team' && (
                           <td className="px-6 py-4 text-sm">
                             <div className="flex flex-wrap gap-1">
                               {player.memberships.map((m) => (
-                                <Link key={m.id} href={`/teams/${m.teamId}`}>
-                                  <Badge variant="brand">
-                                    {getSportIcon(m.teamSport)} {m.teamName}
-                                  </Badge>
-                                </Link>
+                                <Can
+                                  key={m.id}
+                                  resource="team"
+                                  action="view"
+                                  clubId={clubId}
+                                  teamId={m.teamId}
+                                  fallback={
+                                    <Badge variant="brand">
+                                      {getSportIcon(m.teamSport)} {m.teamName}
+                                    </Badge>
+                                  }
+                                >
+                                  <Link href={`/teams/${m.teamId}`}>
+                                    <Badge variant="brand">
+                                      {getSportIcon(m.teamSport)} {m.teamName}
+                                    </Badge>
+                                  </Link>
+                                </Can>
                               ))}
                             </div>
                           </td>

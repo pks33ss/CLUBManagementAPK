@@ -1,5 +1,4 @@
-﻿// frontend-web/app/[locale]/home/_components/WeeklyPlanCard.tsx
-
+﻿// archivo: frontend-web/app/[locale]/home/_components/WeeklyPlanCard.tsx
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
@@ -8,6 +7,8 @@ import { Link } from '@/navigation'
 import api from '@/lib/api'
 import { getSportIcon } from '@/lib/sport'
 import { Card, CardBody, Button } from '@/components/ui'
+import { usePermissionsContext } from '@/lib/permissions/permissions-provider'
+import { useActiveTeam } from '@/lib/ActiveTeamContext'
 
 interface TeamLite {
   id: string
@@ -105,6 +106,22 @@ export default function WeeklyPlanCard({ externalSelectedTeamIds }: Props) {
   const t = useTranslations('Dashboard')
   const tWeekdays = useTranslations('Common.weekdays')
   const locale = useLocale()
+
+  const { can } = usePermissionsContext()
+  const { activeTeam } = useActiveTeam()
+  const clubId = activeTeam?.club?.id ?? null
+  const teamId = activeTeam?.id ?? null
+
+  // Regla HOME (ajustada): "ver" NO habilita el click.
+  // Para clickear un entrenamiento: session:create || session:edit
+  // Para clickear un partido:        match:create   || match:edit
+  const canClickSession =
+    can('session', 'create', { clubId, teamId }) ||
+    can('session', 'edit', { clubId, teamId })
+
+  const canClickMatch =
+    can('match', 'create', { clubId, teamId }) ||
+    can('match', 'edit', { clubId, teamId })
 
   const DAYS = [
     tWeekdays('mon'), tWeekdays('tue'), tWeekdays('wed'),
@@ -217,7 +234,7 @@ export default function WeeklyPlanCard({ externalSelectedTeamIds }: Props) {
               {' · '}
               {totalEvents === 0
                 ? t('noEvents')
-                : `${visibleSessionCount} ${t('sessionsCount', { count: visibleSessionCount })} · ${visibleMatchCount} ${t('matchesCount', { count: visibleMatchCount })}`}
+                : `${t('sessionsCount', { count: visibleSessionCount })} · ${t('matchesCount', { count: visibleMatchCount })}`}
             </p>
           </div>
 
@@ -286,8 +303,9 @@ export default function WeeklyPlanCard({ externalSelectedTeamIds }: Props) {
                       const c = teamColor.get(s.teamId)
                       const startTime = fmtTime(s.date, locale)
                       const endTime = fmtEndTime(s.date, s.duration, locale)
-                      return (
-                        <Link key={`s-${s.id}`} href={`/sessions/${s.id}`} className={`block text-[11px] leading-tight px-1.5 py-1 rounded border ${c ? `${c.bg} ${c.border} ${c.text} hover:opacity-90` : 'bg-surface border-border-subtle text-text-secondary'}`} title={`${s.title} · ${startTime}–${endTime}${s.location ? ` · ${s.location}` : ''}`}>
+
+                      const content = (
+                        <>
                           <div className="flex items-center gap-1 mb-0.5">
                             <span className="text-[9px] font-mono shrink-0">{startTime}–{endTime}</span>
                             <span className="shrink-0">🏋️</span>
@@ -295,6 +313,23 @@ export default function WeeklyPlanCard({ externalSelectedTeamIds }: Props) {
                           <div className="truncate font-medium">{s.title}</div>
                           {s.location && <div className="truncate text-[9px] opacity-80">📍 {s.location}</div>}
                           {tTeam && <div className="truncate text-[9px] opacity-70">{tTeam.name}</div>}
+                        </>
+                      )
+
+                      const className = `block text-[11px] leading-tight px-1.5 py-1 rounded border ${c ? `${c.bg} ${c.border} ${c.text}` : 'bg-surface border-border-subtle text-text-secondary'} ${canClickSession ? 'hover:opacity-90' : 'cursor-default opacity-80'}`
+
+                      // Sin session:create ni session:edit → NO clickeable
+                      if (!canClickSession) {
+                        return (
+                          <div key={`s-${s.id}`} className={className} title={s.title}>
+                            {content}
+                          </div>
+                        )
+                      }
+
+                      return (
+                        <Link key={`s-${s.id}`} href={`/sessions/${s.id}`} className={className} title={`${s.title} · ${startTime}–${endTime}${s.location ? ` · ${s.location}` : ''}`}>
+                          {content}
                         </Link>
                       )
                     })}
@@ -302,8 +337,9 @@ export default function WeeklyPlanCard({ externalSelectedTeamIds }: Props) {
                       const tTeam = teamById.get(m.teamId)
                       const c = teamColor.get(m.teamId)
                       const finished = m.status === 'FINISHED'
-                      return (
-                        <Link key={`m-${m.id}`} href={`/matches/${m.id}`} className={`block text-[11px] leading-tight px-1.5 py-1 rounded border ${c ? `${c.bg} ${c.border} ${c.text} hover:opacity-90` : 'bg-surface border-border-subtle text-text-secondary'}`} title={`vs ${m.opponent} · ${fmtTime(m.date, locale)}${m.venue ? ` · ${m.venue}` : ''}`}>
+
+                      const content = (
+                        <>
                           <div className="flex items-center gap-1 mb-0.5">
                             <span className="text-[9px] font-mono shrink-0">{fmtTime(m.date, locale)}</span>
                             <span className="shrink-0">🏆</span>
@@ -312,6 +348,23 @@ export default function WeeklyPlanCard({ externalSelectedTeamIds }: Props) {
                           {finished && m.teamScore != null && m.opponentScore != null && <div className="truncate text-[9px] font-semibold">{m.teamScore}-{m.opponentScore}</div>}
                           {m.venue && <div className="truncate text-[9px] opacity-80">📍 {m.venue}</div>}
                           {tTeam && <div className="truncate text-[9px] opacity-70">{tTeam.name}</div>}
+                        </>
+                      )
+
+                      const className = `block text-[11px] leading-tight px-1.5 py-1 rounded border ${c ? `${c.bg} ${c.border} ${c.text}` : 'bg-surface border-border-subtle text-text-secondary'} ${canClickMatch ? 'hover:opacity-90' : 'cursor-default opacity-80'}`
+
+                      // Sin match:create ni match:edit → NO clickeable
+                      if (!canClickMatch) {
+                        return (
+                          <div key={`m-${m.id}`} className={className} title={`vs ${m.opponent}`}>
+                            {content}
+                          </div>
+                        )
+                      }
+
+                      return (
+                        <Link key={`m-${m.id}`} href={`/matches/${m.id}`} className={className} title={`vs ${m.opponent} · ${fmtTime(m.date, locale)}${m.venue ? ` · ${m.venue}` : ''}`}>
+                          {content}
                         </Link>
                       )
                     })}

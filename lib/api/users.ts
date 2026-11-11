@@ -26,6 +26,11 @@ export const usersApi = {
     return data
   },
 
+    async getById(id: string): Promise<UserPublic> {
+    const { data } = await api.get(`/users/by-id/${id}`)
+    return data
+  },
+
   // ✅ ACTUALIZADO — Fondos personalizados de la pizarra táctica (uno por modo)
   async updateTacticalBackground(payload: {
     urlHalf?: string | null
@@ -188,4 +193,25 @@ export const usersApi = {
   async deleteInjury(userId: string, injuryId: string): Promise<void> {
     await api.delete(`/users/${userId}/injuries/${injuryId}`)
   },
+  async getAll(params?: {
+    search?: string
+    sortBy?: string
+    sortOrder?: 'asc' | 'desc'
+    includeDeleted?: boolean
+  }): Promise<any[]> {
+    const qs = new URLSearchParams()
+    if (params?.search) qs.set('search', params.search)
+    if (params?.sortBy) qs.set('sortBy', params.sortBy)
+    if (params?.sortOrder) qs.set('sortOrder', params.sortOrder)
+    if (params?.includeDeleted) qs.set('includeDeleted', 'true')
+    const { data } = await api.get(`/users?${qs.toString()}`)
+    return data
+  },
+
+  async getMemberships(userId: string): Promise<any> {
+    const { data } = await api.get(`/users/${userId}/memberships`)
+    return data
+  },
+
+
 }

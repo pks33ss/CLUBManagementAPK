@@ -1,12 +1,21 @@
+// archivo: frontend-web/app/[locale]/calendar/page.tsx
+// Lote 9.2 — Gating del click por tipo de evento.
+// Lote 9.2.1 — Ajuste: "ver" NO habilita el click. Para clickear:
+//   - partido       → match:create || match:edit
+//   - entrenamiento → session:create || session:edit
+//   - "otro" evento → event:edit
+// La visibilidad del calendario sigue con event:view.
+
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { useRouter } from '@/navigation';
-import { Link } from '@/navigation';
+import { useRouter } from '@/navigation'
+import { Link } from '@/navigation'
 import { useTranslations, useLocale } from 'next-intl'
 import api from '@/lib/api'
 import { getSportIcon } from '@/lib/sport'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
+import { usePermissionsContext } from '@/lib/permissions/permissions-provider'
 import { Button, Card, CardBody, Badge, Input, Textarea, Select, Modal } from '@/components/ui'
 
 // ============================================
@@ -77,6 +86,39 @@ export default function CalendarPage() {
   const t = useTranslations('Calendar')
   const tCommon = useTranslations('Common')
 
+  const {
+    can,
+    loading: permissionsLoading,
+    error: permissionsError,
+  } = usePermissionsContext()
+
+  const permissionsReady = !permissionsLoading && !permissionsError
+  const clubId = activeTeam?.club?.id ?? null
+  const teamId = activeTeam?.id ?? null
+
+  // Visibilidad del calendario = event:view
+  const canViewEvents =
+    permissionsReady && can('event', 'view', { clubId, teamId })
+  const canCreateEvent =
+    permissionsReady && can('event', 'create', { clubId, teamId })
+  const canEditEvent =
+    permissionsReady && can('event', 'edit', { clubId, teamId })
+  const canDeleteEvent =
+    permissionsReady && can('event', 'delete', { clubId, teamId })
+
+  // Regla: "ver" NO habilita el click. Para clickear:
+  //   partido       → match:create || match:edit
+  //   entrenamiento → session:create || session:edit
+  const canClickMatch =
+    permissionsReady &&
+    (can('match', 'create', { clubId, teamId }) ||
+      can('match', 'edit', { clubId, teamId }))
+
+  const canClickSession =
+    permissionsReady &&
+    (can('session', 'create', { clubId, teamId }) ||
+      can('session', 'edit', { clubId, teamId }))
+
   const [selectedTeams, setSelectedTeams] = useState<string[]>([])
   const [showTeamSelector, setShowTeamSelector] = useState(false)
 
@@ -91,9 +133,8 @@ export default function CalendarPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date())
 
   const [showModal, setShowModal] = useState(false)
-  
   const [editingEventId, setEditingEventId] = useState<string | null>(null)
-  
+
   const [form, setForm] = useState({
     title: '',
     description: '',
@@ -112,7 +153,6 @@ export default function CalendarPage() {
     ? allTeams.filter((t) => t.club?.id === activeTeam.club?.id)
     : []
 
-  // Configuración de estilos (dentro del componente para acceder a 't')
   const EVENT_STYLES = {
     SESSION: {
       label: t('typeSession'),
@@ -137,7 +177,7 @@ export default function CalendarPage() {
     },
   } as const
 
-    const MONTHS = [
+  const MONTHS = [
     t('months.jan'), t('months.feb'), t('months.mar'), t('months.apr'),
     t('months.may'), t('months.jun'), t('months.jul'), t('months.aug'),
     t('months.sep'), t('months.oct'), t('months.nov'), t('months.dec'),
@@ -166,13 +206,21 @@ export default function CalendarPage() {
   }, [activeTeam])
 
   useEffect(() => {
+    if (!permissionsReady) return
+
     if (selectedTeams.length === 0) {
       setEvents([])
       return
     }
+
+    if (!canViewEvents) {
+      setEvents([])
+      return
+    }
+
     fetchEvents()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTeams, currentMonth])
+  }, [selectedTeams, currentMonth, permissionsReady, canViewEvents])
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -198,17 +246,16 @@ export default function CalendarPage() {
         to: to.toISOString(),
       })
       setEvents(res.data)
-    } catch (err) {
-      console.error(err)
+    } catch {
       setEvents([])
     } finally {
       setLoadingEvents(false)
     }
   }
 
-  const toggleTeam = (teamId: string) => {
+  const toggleTeam = (teamIdParam: string) => {
     setSelectedTeams((prev) =>
-      prev.includes(teamId) ? prev.filter((id) => id !== teamId) : [...prev, teamId]
+      prev.includes(teamIdParam) ? prev.filter((id) => id !== teamIdParam) : [...prev, teamIdParam]
     )
   }
 
@@ -243,6 +290,7 @@ export default function CalendarPage() {
   }
 
   const openCreateModal = (dateStr?: string) => {
+    if (!canCreateEvent) return
     const today = dateStr || toDateKey(new Date())
     setEditingEventId(null)
     setForm({
@@ -259,6 +307,7 @@ export default function CalendarPage() {
   }
 
   const openEditModal = (ev: CalendarEventItem) => {
+    if (!canEditEvent) return
     const start = splitISODate(ev.startDate)
     const end = ev.endDate ? splitISODate(ev.endDate) : start
 
@@ -273,7 +322,7 @@ export default function CalendarPage() {
       type: ev.eventType || 'OTHER',
       location: ev.location || '',
     })
-    
+
     setDetailEvent(null)
     setShowModal(true)
   }
@@ -281,6 +330,9 @@ export default function CalendarPage() {
   const submitEvent = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!activeTeam) return
+    if (editingEventId && !canEditEvent) return
+    if (!editingEventId && !canCreateEvent) return
+
     setSaving(true)
 
     try {
@@ -317,6 +369,7 @@ export default function CalendarPage() {
   }
 
   const deleteEvent = async (eventId: string, title: string) => {
+    if (!canDeleteEvent) return
     if (!confirm(t('confirmDelete', { title }))) return
     try {
       await api.delete(`/calendar/events/${eventId}`)
@@ -327,7 +380,23 @@ export default function CalendarPage() {
     }
   }
 
+  /**
+   * Click por tipo de evento.
+   * Regla actual: "ver" NO habilita el click.
+   *   MATCH   → match:create || match:edit
+   *   SESSION → session:create || session:edit
+   *   EVENT   → event:edit
+   * Si no hay permiso, no se hace nada.
+   */
   const handleEventClick = (ev: CalendarEventItem) => {
+    if (ev.type === 'MATCH') {
+      if (!canClickMatch) return
+    } else if (ev.type === 'SESSION') {
+      if (!canClickSession) return
+    } else {
+      if (!canEditEvent) return
+    }
+
     if (ev.link) {
       router.push(ev.link)
     } else {
@@ -373,6 +442,14 @@ export default function CalendarPage() {
 
   const showTeamBadge = selectedTeams.length > 1
 
+  if (permissionsLoading) {
+    return <div className="text-center py-12 text-text-muted">{tCommon('loading')}</div>
+  }
+
+  if (permissionsError) {
+    return <div className="text-center py-12 text-danger">{permissionsError}</div>
+  }
+
   if (loadingTeams) {
     return <div className="text-center py-12 text-text-muted">{tCommon('loading')}</div>
   }
@@ -391,6 +468,20 @@ export default function CalendarPage() {
     )
   }
 
+  if (!canViewEvents) {
+    return (
+      <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
+        <div className="text-6xl mb-4">🔒</div>
+        <h3 className="text-xl font-semibold text-text-primary mb-2">
+          Sin acceso
+        </h3>
+        <p className="text-text-secondary mb-6">
+          No tienes permisos para ver el calendario de este equipo.
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
@@ -400,9 +491,11 @@ export default function CalendarPage() {
             {activeTeam.name} · {activeTeam.club?.name}
           </p>
         </div>
-        <Button onClick={() => openCreateModal()} icon={<span className="text-xl">+</span>}>
-          {t('newEvent')}
-        </Button>
+        {canCreateEvent && (
+          <Button onClick={() => openCreateModal()} icon={<span className="text-xl">+</span>}>
+            {t('newEvent')}
+          </Button>
+        )}
       </div>
 
       <div className="team-selector-container relative mb-4 max-w-md">
@@ -539,7 +632,7 @@ export default function CalendarPage() {
           onPreviousMonth={goToPreviousMonth}
           onNextMonth={goToNextMonth}
           onToday={goToToday}
-          onDayClick={openCreateModal}
+          onDayClick={canCreateEvent ? openCreateModal : undefined}
           onEventClick={handleEventClick}
           locale={locale}
           t={t}
@@ -553,8 +646,11 @@ export default function CalendarPage() {
           events={filteredEvents}
           loading={loadingEvents}
           showTeamBadge={showTeamBadge}
-          onDelete={deleteEvent}
+          onDelete={canDeleteEvent ? deleteEvent : undefined}
           onEventClick={handleEventClick}
+          canEdit={canEditEvent}
+          canClickMatch={canClickMatch}
+          canClickSession={canClickSession}
           locale={locale}
           t={t}
           tCommon={tCommon}
@@ -734,22 +830,27 @@ export default function CalendarPage() {
               >
                 {tCommon('cancel')}
               </Button>
+
               {detailEvent.type === 'EVENT' && (
                 <>
-                  <Button
-                    variant="primary"
-                    onClick={() => openEditModal(detailEvent)}
-                    className="flex-1"
-                  >
-                    {t('editButton')}
-                  </Button>
-                  <Button
-                    variant="danger"
-                    onClick={() => deleteEvent(detailEvent.id, detailEvent.title)}
-                    className="flex-1"
-                  >
-                    {t('deleteButton')}
-                  </Button>
+                  {canEditEvent && (
+                    <Button
+                      variant="primary"
+                      onClick={() => openEditModal(detailEvent)}
+                      className="flex-1"
+                    >
+                      {t('editButton')}
+                    </Button>
+                  )}
+                  {canDeleteEvent && (
+                    <Button
+                      variant="danger"
+                      onClick={() => deleteEvent(detailEvent.id, detailEvent.title)}
+                      className="flex-1"
+                    >
+                      {t('deleteButton')}
+                    </Button>
+                  )}
                 </>
               )}
             </div>
@@ -841,10 +942,10 @@ function MonthView({
           return (
             <div
               key={dayKey}
-              className={`min-h-[110px] p-1.5 border-r border-b border-border-subtle transition hover:bg-surface-elevated/50 cursor-pointer ${
+              className={`min-h-[110px] p-1.5 border-r border-b border-border-subtle transition hover:bg-surface-elevated/50 ${onDayClick ? 'cursor-pointer' : ''} ${
                 isToday ? 'bg-brand-primary/5' : 'bg-surface'
               }`}
-              onClick={() => onDayClick(dayKey)}
+              onClick={onDayClick ? () => onDayClick(dayKey) : undefined}
             >
               <div
                 className={`text-xs font-semibold mb-1 ${
@@ -899,6 +1000,9 @@ function ListView({
   showTeamBadge,
   onDelete,
   onEventClick,
+  canEdit,
+  canClickMatch,
+  canClickSession,
   locale,
   t,
   tCommon,
@@ -957,6 +1061,15 @@ function ListView({
             <div className="divide-y divide-border-subtle">
               {grouped[dayKey].map((ev) => {
                 const style = EVENT_STYLES[ev.type]
+
+                // "ver" NO habilita el click. Solo create/edit por tipo.
+                const canOpen =
+                  ev.type === 'MATCH'
+                    ? canClickMatch
+                    : ev.type === 'SESSION'
+                      ? canClickSession
+                      : canEdit
+
                 return (
                   <div
                     key={ev.id}
@@ -984,7 +1097,7 @@ function ListView({
                       )}
                     </div>
                     <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                      {ev.link && (
+                      {ev.link && canOpen && (
                         <Link
                           href={ev.link}
                           className="text-xs bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary px-2 py-1 rounded transition"
@@ -992,7 +1105,7 @@ function ListView({
                           {t('view')} →
                         </Link>
                       )}
-                      {ev.type === 'EVENT' && (
+                      {ev.type === 'EVENT' && onDelete && (
                         <button
                           onClick={() => onDelete(ev.id, ev.title)}
                           className="text-xs bg-danger/10 hover:bg-danger/20 text-danger px-2 py-1 rounded transition"

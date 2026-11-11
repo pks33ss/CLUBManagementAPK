@@ -1,15 +1,4 @@
 // frontend-web/lib/permissions/permissions-provider.tsx
-// Lote 8.6 — Provider que carga la matriz del club activo y la expone
-// a toda la app vía Context.
-//
-// Cambios Lote 8.8:
-//   - La caché está atada al `userId`. Si el usuario cambia, se limpia.
-//   - Se expone `invalidate(clubId?)` para limpiar caché manualmente
-//     (por ejemplo, tras cambiar un rol).
-//   - Si una petición falla, NO se cachea nada (para permitir reintento).
-//   - Se expone `error` y `loading` en el contexto.
-//   - Soporta multi-club con `ensureClubLoaded(clubId)`.
-
 'use client'
 
 import {
@@ -25,9 +14,10 @@ import {
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
 import { permissionsApi } from './api'
 import type { EffectivePermissions } from './types'
-import type {
-  PermissionAction,
-  PermissionResource,
+import {
+  TEAM_SCOPED_RESOURCES,
+  type PermissionAction,
+  type PermissionResource,
 } from './constants'
 
 // ─────────────────────────────────────────────
@@ -35,40 +25,28 @@ import type {
 // ─────────────────────────────────────────────
 
 type CanOpts = {
-  /** Si se pasa, chequea contra ese club. Si no, contra el del activeTeam. */
   clubId?: string | null
-  /** Si se pasa, chequea también contra el set por equipo. */
   teamId?: string | null
 }
 
 interface PermissionsContextValue {
-  /** Club activo por defecto (el del activeTeam). */
   clubId: string | null
-  /** Permisos del club activo. */
   permissions: EffectivePermissions | null
-  /** Mapa completo de permisos por clubId (para multi-club). */
   permissionsByClub: Record<string, EffectivePermissions>
   loading: boolean
   error: string | null
-  /**
-   * Chequeo directo. Respeta `opts.clubId` si se pasa.
-   * Si el club pedido no está cargado, devuelve `false` (y dispara la carga
-   * en background, que se reflejará en el siguiente render).
-   */
   can: (
     resource: PermissionResource,
     action: PermissionAction,
     opts?: CanOpts,
   ) => boolean
-  /**
-   * Fuerza la carga de la matriz de un club concreto. Útil desde hooks
-   * cuando el club no es el del activeTeam.
-   */
   ensureClubLoaded: (clubId: string) => void
-  /** Recarga el club indicado (o el activo si no se pasa). */
   reload: (clubId?: string) => Promise<void>
-  /** Limpia la caché. Si no se pasa clubId, limpia todo. */
   invalidate: (clubId?: string) => void
+  clubRoleNames: string[]
+  teamRoles: Record<string, string[]>
+  getClubRoles: () => string[]
+  getRolesForTeam: (teamId?: string | null) => string[]
 }
 
 const PermissionsContext = createContext<PermissionsContextValue | null>(null)
@@ -78,14 +56,28 @@ const PermissionsContext = createContext<PermissionsContextValue | null>(null)
 // ─────────────────────────────────────────────
 
 interface CacheState {
-  /** userId al que pertenece esta caché. Si cambia, se descarta. */
   userId: string | null
   byClub: Record<string, EffectivePermissions>
 }
 
+const EMPTY_CLUB_ROLES: string[] = []
+const EMPTY_TEAM_ROLES: Record<string, string[]> = {}
+
+// ✅ Función de mapeo robusta: convierte 'report' a 'stats' 
+// y 'document' a 'library' (o viceversa) para que todo cuadre.
+const mapBackendKeyToFrontend = (key: string): string => {
+  const [resource, action] = key.split(':')
+  let frontendResource = resource
+  
+  if (resource === 'report' || resource === 'stats') frontendResource = 'stats'
+  else if (resource === 'user_private_data' || resource === 'user_data') frontendResource = 'user_data'
+  else if (resource === 'document' || resource === 'library') frontendResource = 'library'
+  
+  return `${frontendResource}:${action}`
+}
+
 export function PermissionsProvider({ children }: { children: ReactNode }) {
   const { userMe, activeTeam } = useActiveTeam()
-
   const userId = userMe?.id ?? null
 
   const defaultClubId = useMemo<string | null>(() => {
@@ -94,7 +86,6 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
     return first?.team?.club?.id ?? null
   }, [activeTeam, userMe])
 
-  // Caché atada al userId actual.
   const [cache, setCache] = useState<CacheState>({
     userId: null,
     byClub: {},
@@ -104,8 +95,6 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
 
   const inFlightRef = useRef<Set<string>>(new Set())
 
-  // Si el userId cambia (login, logout, cambio de cuenta),
-  // descartamos toda la caché anterior.
   useEffect(() => {
     setCache((prev) => {
       if (prev.userId === userId) return prev
@@ -116,37 +105,22 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
   const loadClub = useCallback(
     async (id: string) => {
       if (!id) return
-      if (inFlightRef.current.has(id)) {
-        console.log('[Provider] loadClub SKIP (in flight)', id)
-        return
-      }
-      // Solo saltamos si la caché pertenece al usuario actual y ya tiene
-      // el club cargado.
+      if (inFlightRef.current.has(id)) return
+      
       let alreadyCached = false
       setCache((prev) => {
-        alreadyCached =
-          prev.userId === userId && Boolean(prev.byClub[id])
+        alreadyCached = prev.userId === userId && Boolean(prev.byClub[id])
         return prev
       })
-      if (alreadyCached) {
-        console.log('[Provider] loadClub SKIP (ya cargado)', id)
-        return
-      }
+      if (alreadyCached) return
 
-      console.log('[Provider] loadClub fetching', id)
       inFlightRef.current.add(id)
       setLoading(true)
       setError(null)
       try {
         const data = await permissionsApi.myPermissions(id)
-        console.log(
-          '[Provider] loadClub OK',
-          id,
-          '| clubWide =',
-          data.clubWide,
-        )
+        // ✅ Guardamos los datos TAL CUAL vienen del backend
         setCache((prev) => {
-          // Si mientras cargábamos el usuario ha cambiado, descartamos.
           if (prev.userId !== userId) {
             return { userId, byClub: { [id]: data } }
           }
@@ -157,12 +131,8 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
         })
       } catch (err: any) {
         console.error('[Provider] loadClub ERROR', id, err)
-        const msg =
-          err?.response?.data?.message ??
-          err?.message ??
-          'Error cargando permisos'
+        const msg = err?.response?.data?.message ?? err?.message ?? 'Error cargando permisos'
         setError(Array.isArray(msg) ? msg.join(', ') : String(msg))
-        // No cacheamos nada en caso de error.
       } finally {
         inFlightRef.current.delete(id)
         setLoading(false)
@@ -187,6 +157,8 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
     [cache, userId, loadClub],
   )
 
+  const activeClubPerms = defaultClubId ? cache.byClub[defaultClubId] ?? null : null
+
   const can = useCallback(
     (
       resource: PermissionResource,
@@ -195,16 +167,52 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
     ): boolean => {
       const targetClub = opts?.clubId ?? defaultClubId
       if (!targetClub) return false
+
+      const isSuperAdmin = userMe?.role === 'SUPER_ADMIN'
+      if (isSuperAdmin) return true
+
+      const isClubAdmin = activeClubPerms?.clubRoleNames?.includes('ADMIN_CLUB') ?? false
+      if (isClubAdmin && targetClub === defaultClubId) return true
+
       const perms = cache.byClub[targetClub]
       if (!perms) return false
+
       const key = `${resource}:${action}`
+
+      // Función local para comprobar si una lista de permisos del backend contiene la key
+      const listHasKey = (list: string[]) => {
+        // Comprobación normal con mapeo (report -> stats, document -> library, etc.)
+        if (list.some((k) => mapBackendKeyToFrontend(k) === key)) return true
+        
+        // ✅ PARCHE DE COMPATIBILIDAD: 
+        // Si el frontend pide 'document', pero el backend tiene 'library' (o viceversa).
+        if (resource === 'document' || resource === 'library') {
+          const altResource = resource === 'document' ? 'library' : 'document'
+          const altKey = `${altResource}:${action}`
+          if (list.some((k) => mapBackendKeyToFrontend(k) === altKey)) return true
+        }
+        
+        return false
+      }
+
+      // 1. Si hay teamId, miramos en el equipo.
       if (opts?.teamId) {
         const teamSet = perms.perTeam[opts.teamId]
-        if (teamSet?.includes(key)) return true
+        if (teamSet && listHasKey(teamSet)) return true
       }
-      return perms.clubWide.includes(key)
+
+      // 2. Si no hay teamId, miramos en el equipo activo (fallback)
+      if (!opts?.teamId && activeTeam?.id) {
+        const teamSet = perms.perTeam[activeTeam.id]
+        if (teamSet && listHasKey(teamSet)) return true
+      }
+
+      // 3. Miramos en clubWide (a nivel de club)
+      if (listHasKey(perms.clubWide)) return true
+
+      return false
     },
-    [cache, defaultClubId],
+    [cache, defaultClubId, activeClubPerms, activeTeam?.id, userMe?.role],
   )
 
   const reload = useCallback(
@@ -232,11 +240,25 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
     })
   }, [])
 
+  const clubRoleNames: string[] = activeClubPerms?.clubRoleNames ?? EMPTY_CLUB_ROLES
+  const teamRoles: Record<string, string[]> = activeClubPerms?.teamRoles ?? EMPTY_TEAM_ROLES
+
+  const getClubRoles = useCallback((): string[] => {
+    return clubRoleNames
+  }, [clubRoleNames])
+
+  const getRolesForTeam = useCallback(
+    (teamId?: string | null): string[] => {
+      const target = teamId ?? activeTeam?.id ?? null
+      if (!target) return EMPTY_CLUB_ROLES
+      return teamRoles[target] ?? EMPTY_CLUB_ROLES
+    },
+    [teamRoles, activeTeam?.id],
+  )
+
   const value: PermissionsContextValue = {
     clubId: defaultClubId,
-    permissions: defaultClubId
-      ? cache.byClub[defaultClubId] ?? null
-      : null,
+    permissions: activeClubPerms,
     permissionsByClub: cache.byClub,
     loading,
     error,
@@ -244,6 +266,10 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
     ensureClubLoaded,
     reload,
     invalidate,
+    clubRoleNames,
+    teamRoles,
+    getClubRoles,
+    getRolesForTeam,
   }
 
   return (
@@ -253,16 +279,10 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
   )
 }
 
-// ─────────────────────────────────────────────
-// Hook de acceso al Context (uso interno)
-// ─────────────────────────────────────────────
-
 export function usePermissionsContext(): PermissionsContextValue {
   const ctx = useContext(PermissionsContext)
   if (!ctx) {
-    throw new Error(
-      'usePermissionsContext debe usarse dentro de PermissionsProvider',
-    )
+    throw new Error('usePermissionsContext debe usarse dentro de PermissionsProvider')
   }
   return ctx
 }

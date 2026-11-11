@@ -1,16 +1,16 @@
-// frontend-web/app/[locale]/teams/[id]/stats/page.tsx
-
+// archivo: frontend-web/app/[locale]/teams/[id]/stats/page.tsx
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Link } from '@/navigation';
+import { Link } from '@/navigation'
 import { useTranslations } from 'next-intl'
 import api from '@/lib/api'
 import { matchesApi } from '@/lib/api/matches'
 import { Card, CardBody, Button } from '@/components/ui'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
-import { usePermissions } from '@/lib/usePermissions'
+import { usePermissionsContext } from '@/lib/permissions/permissions-provider'
+import { Can } from '@/lib/permissions/can'
 import TeamStatsView from './_components/TeamStatsView'
 import TeamOpponentPlayersCard from './_components/TeamOpponentPlayersCard'
 import NewStatSessionModal from './_components/NewStatSessionModal'
@@ -59,8 +59,27 @@ export default function TeamStatsPage() {
   const t = useTranslations('Stats')
   const tCommon = useTranslations('Common')
 
-  const { allTeams } = useActiveTeam()
-  const perms = usePermissions(teamId)
+  const { allTeams, activeTeam } = useActiveTeam()
+
+  const {
+    can,
+    loading: permissionsLoading,
+    error: permissionsError,
+  } = usePermissionsContext()
+
+  const permissionsReady = !permissionsLoading && !permissionsError
+  const clubId = activeTeam?.club?.id ?? null
+
+  // Guía Lote 9.3
+  const canViewStats =
+    permissionsReady && can('stats', 'view', { clubId, teamId })
+  const canCreateStats =
+    permissionsReady && can('stats', 'create', { clubId, teamId })
+  const canEditStats =
+    permissionsReady && can('stats', 'edit', { clubId, teamId })
+
+  // ✅ Permitir entrar si tiene view, create o edit.
+  const canAccessPage = canViewStats || canCreateStats || canEditStats
 
   const [team, setTeam] = useState<TeamLite | null>(null)
   const [seasons, setSeasons] = useState<SeasonOption[]>([])
@@ -84,10 +103,18 @@ export default function TeamStatsPage() {
     teamIds: [teamId],
   }))
 
+  // Carga inicial — gateada por canAccessPage
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token) {
       router.push('/login')
+      return
+    }
+
+    if (!permissionsReady) return
+
+    if (!canAccessPage) {
+      setLoading(false)
       return
     }
 
@@ -130,7 +157,7 @@ export default function TeamStatsPage() {
     return () => {
       cancelled = true
     }
-  }, [teamId, router, t])
+  }, [teamId, router, t, permissionsReady, canAccessPage])
 
   const fetchMatches = useCallback(
     async (s: string) => {
@@ -161,12 +188,14 @@ export default function TeamStatsPage() {
   )
 
   useEffect(() => {
+    if (!canViewStats) return // Solo cargamos la vista agregada si tiene view
     if (mode === 'aggregate') {
       fetchMatches(season)
     }
-  }, [season, fetchMatches, mode])
+  }, [season, fetchMatches, mode, canViewStats])
 
   const loadSessions = useCallback(async () => {
+    if (!canViewStats) return // Solo cargamos sesiones si tiene view
     setLoadingSessions(true)
     setSessionsError(null)
     try {
@@ -180,7 +209,7 @@ export default function TeamStatsPage() {
     } finally {
       setLoadingSessions(false)
     }
-  }, [teamId, t])
+  }, [teamId, t, canViewStats])
 
   useEffect(() => {
     if (mode === 'session') {
@@ -215,12 +244,49 @@ export default function TeamStatsPage() {
   }
 
   const openSession = (sessionId: string) => {
+    if (!canViewStats) return
     setSelectedSessionId(sessionId)
   }
 
   const backToList = () => {
     setSelectedSessionId(null)
     loadSessions()
+  }
+
+  // ===== Estados de la página =====
+
+  if (permissionsLoading) {
+    return (
+      <div className="text-center py-12 text-text-muted">
+        {tCommon('loading')}
+      </div>
+    )
+  }
+
+  if (permissionsError) {
+    return (
+      <div className="text-center py-12 text-danger">{permissionsError}</div>
+    )
+  }
+
+  if (!canAccessPage) {
+    return (
+      <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
+        <div className="text-6xl mb-4">🔒</div>
+        <h3 className="text-xl font-semibold text-text-primary mb-2">
+          Sin acceso
+        </h3>
+        <p className="text-text-secondary mb-6">
+          No tienes permisos para ver o gestionar las estadísticas de este equipo.
+        </p>
+        <Link
+          href={`/teams/${teamId}`}
+          className="text-brand-primary hover:underline"
+        >
+          {t('backToTeam')}
+        </Link>
+      </div>
+    )
   }
 
   if (loading) {
@@ -271,57 +337,82 @@ export default function TeamStatsPage() {
               </p>
             </div>
             <div className="flex gap-2 flex-wrap">
-              {perms.canEdit && (
-                <>
-                  <Button
-                    size="sm"
-                    onClick={() => setShowNewSessionModal(true)}
-                  >
-                    {t('newSession')}
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    href={`/teams/${teamId}/stats/config`}
-                  >
-                    {t('config')}
-                  </Button>
-                </>
-              )}
+              {/* New session → stats:create */}
+              <Can resource="stats" action="create" clubId={clubId} teamId={teamId}>
+                <Button
+                  size="sm"
+                  onClick={() => setShowNewSessionModal(true)}
+                >
+                  {t('newSession')}
+                </Button>
+              </Can>
+              {/* Configure → stats:edit */}
+              <Can resource="stats" action="edit" clubId={clubId} teamId={teamId}>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  href={`/teams/${teamId}/stats/config`}
+                >
+                  {t('config')}
+                </Button>
+              </Can>
             </div>
           </div>
 
-          <div className="flex gap-2 mt-4 border-b border-border-subtle">
-            <button
-              type="button"
-              onClick={() => {
-                setMode('aggregate')
-                setSelectedSessionId(null)
-              }}
-              className={`px-4 py-2 text-sm font-medium transition -mb-px border-b-2 ${
-                mode === 'aggregate'
-                  ? 'border-brand-primary text-brand-primary'
-                  : 'border-transparent text-text-secondary hover:text-text-primary'
-              }`}
-            >
-              {t('viewAggregate')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('session')}
-              className={`px-4 py-2 text-sm font-medium transition -mb-px border-b-2 ${
-                mode === 'session'
-                  ? 'border-brand-primary text-brand-primary'
-                  : 'border-transparent text-text-secondary hover:text-text-primary'
-              }`}
-            >
-              {t('viewSessions')}
-            </button>
-          </div>
+          {/* Solo mostramos las pestañas si tiene permiso de ver */}
+          {canViewStats && (
+            <div className="flex gap-2 mt-4 border-b border-border-subtle">
+              <button
+                type="button"
+                onClick={() => {
+                  setMode('aggregate')
+                  setSelectedSessionId(null)
+                }}
+                className={`px-4 py-2 text-sm font-medium transition -mb-px border-b-2 ${
+                  mode === 'aggregate'
+                    ? 'border-brand-primary text-brand-primary'
+                    : 'border-transparent text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                {t('viewAggregate')}
+              </button>
+              <button
+                type="button"
+                onClick={() => setMode('session')}
+                className={`px-4 py-2 text-sm font-medium transition -mb-px border-b-2 ${
+                  mode === 'session'
+                    ? 'border-brand-primary text-brand-primary'
+                    : 'border-transparent text-text-secondary hover:text-text-primary'
+                }`}
+              >
+                {t('viewSessions')}
+              </button>
+            </div>
+          )}
         </CardBody>
       </Card>
 
-      {mode === 'aggregate' && (
+      {/* Si solo tiene create/edit (sin view), mostramos un aviso y el botón para crear */}
+      {!canViewStats && (canCreateStats || canEditStats) && (
+        <Card>
+          <CardBody className="text-center py-12">
+            <div className="text-5xl mb-4">📊</div>
+            <h3 className="text-lg font-semibold text-text-primary mb-2">
+              No tienes permiso para ver las estadísticas
+            </h3>
+            <p className="text-text-secondary mb-6">
+              Puedes crear o editar sesiones de estadísticas, pero necesitas el permiso de visualización para ver los resultados.
+            </p>
+            <Can resource="stats" action="create" clubId={clubId} teamId={teamId}>
+              <Button onClick={() => setShowNewSessionModal(true)}>
+                {t('newSession')}
+              </Button>
+            </Can>
+          </CardBody>
+        </Card>
+      )}
+
+      {canViewStats && mode === 'aggregate' && (
         <div className="space-y-6">
           <TeamStatsView
             teamId={teamId}
@@ -344,7 +435,7 @@ export default function TeamStatsPage() {
         </div>
       )}
 
-      {showSessionList && (
+      {canViewStats && showSessionList && (
         <Card>
           <CardBody>
             <h2 className="text-lg font-semibold text-text-primary mb-4">
@@ -363,11 +454,11 @@ export default function TeamStatsPage() {
                 <p className="text-text-muted mb-4">
                   {t('noSessions')}
                 </p>
-                {perms.canEdit && (
+                <Can resource="stats" action="create" clubId={clubId} teamId={teamId}>
                   <Button onClick={() => setShowNewSessionModal(true)}>
                     {t('createFirstSession')}
                   </Button>
-                )}
+                </Can>
               </div>
             ) : (
               <div className="space-y-1">
@@ -408,7 +499,7 @@ export default function TeamStatsPage() {
         </Card>
       )}
 
-      {showSessionDetail && (
+      {canViewStats && showSessionDetail && (
         <div className="space-y-3">
           <button
             type="button"
@@ -419,19 +510,23 @@ export default function TeamStatsPage() {
           </button>
           <StatSessionView
             sessionId={selectedSessionId!}
-            canEdit={!!perms.canEdit}
+            canEdit={canEditStats}
+            canCreate={canCreateStats}
             onDeleted={handleSessionDeleted}
           />
         </div>
       )}
 
-      {showNewSessionModal && (
-        <NewStatSessionModal
-          teamId={teamId}
-          onClose={() => setShowNewSessionModal(false)}
-          onCreated={handleNewSessionCreated}
-        />
-      )}
+      {/* Modal crear sesión — solo con stats:create (defensa) */}
+      <Can resource="stats" action="create" clubId={clubId} teamId={teamId}>
+        {showNewSessionModal && (
+          <NewStatSessionModal
+            teamId={teamId}
+            onClose={() => setShowNewSessionModal(false)}
+            onCreated={handleNewSessionCreated}
+          />
+        )}
+      </Can>
     </div>
   )
 }

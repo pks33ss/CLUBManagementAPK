@@ -113,7 +113,7 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
   // CARGA DE DATOS DEL USUARIO
   // ============================================
 
-  const loadUserData = async (): Promise<{ memberships: Membership[] }> => {
+    const loadUserData = async (): Promise<{ memberships: Membership[] }> => {
     try {
       const [me, myMemberships, myTutors, myPlayers] = await Promise.all([
         usersApi.getMe().catch(() => null),
@@ -123,15 +123,19 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
       ])
 
       setUserMe(me)
-      setMemberships(myMemberships)
+      
+      // ✅ Si findMine falla (403) pero getMe trae las memberships, usamos esas
+      const finalMemberships = myMemberships.length > 0 
+        ? myMemberships 
+        : (me?.memberships ?? [])
+      
+      setMemberships(finalMemberships)
       setTutors(myTutors)
       setPlayers(myPlayers)
 
-      return { memberships: myMemberships }
+      return { memberships: finalMemberships }
     } catch (err: any) {
-      if (err.response?.status !== 401) {
-        console.error('Error cargando datos del usuario:', err)
-      }
+      // ...
       return { memberships: [] }
     }
   }
@@ -218,17 +222,24 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
       foundActive = teams[0]
     }
 
-    if (foundActive) {
+        if (foundActive) {
       setActiveTeamState(foundActive)
       if (typeof window !== 'undefined') {
         localStorage.setItem('activeTeamId', foundActive.id)
       }
     } else {
-      // No hay ningún equipo válido: limpiamos.
-      setActiveTeamState(null)
-      activeTeamRef.current = null
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('activeTeamId')
+      // ✅ No borramos el activeTeamId si el usuario SÍ tiene memberships
+      // (aunque no hayamos encontrado el equipo en la lista, puede ser un fallo temporal).
+      // Solo lo borramos si el usuario no tiene NINGUNA membership.
+      if (relevant.length === 0) {
+        setActiveTeamState(null)
+        activeTeamRef.current = null
+        if (typeof window !== 'undefined') {
+          localStorage.removeItem('activeTeamId')
+        }
+      } else {
+        // Si tiene memberships pero no encontramos el equipo, respetamos el activeTeamId
+        console.warn('No se encontró el equipo activo, pero se mantiene el activeTeamId')
       }
     }
   }

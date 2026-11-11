@@ -23,6 +23,12 @@ export const permissionsApi = {
     return data
   },
 
+getClubTeams: async (clubId: string): Promise<{ id: string; name: string }[]> => {
+  const { data } = await api.get(`/teams/club/${clubId}`)   // ✅ RUTA CORRECTA
+  return data
+},
+
+
   getRole: async (clubId: string, roleId: string): Promise<Role> => {
     const { data } = await api.get(`/clubs/${clubId}/roles/${roleId}`)
     return data

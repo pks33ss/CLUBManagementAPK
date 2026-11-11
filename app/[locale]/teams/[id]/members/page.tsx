@@ -1,8 +1,8 @@
+// archivo: frontend-web/app/[locale]/teams/[id]/members/page.tsx
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-
-import { Link } from '@/navigation';
+import { Link } from '@/navigation'
 import { membershipsApi } from '@/lib/api/memberships'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
 import { Button } from '@/components/ui'
@@ -11,37 +11,50 @@ import PendingRequestsSection from './_components/PendingRequestsSection'
 import InviteMemberModal from './_components/InviteMemberModal'
 import type { MembershipWithUser } from '@/types/membership'
 import { useRouter, useParams, useSearchParams } from 'next/navigation'
-import { usePermissions } from '@/lib/usePermissions'
+import { usePermissionsContext } from '@/lib/permissions/permissions-provider'
 import { Can } from '@/lib/permissions/can'
+import NoAccess from '@/components/permissions/NoAccess'
 
 export default function TeamMembersPage() {
   const router = useRouter()
   const params = useParams()
   const teamId = params.id as string
-  const { userMe } = useActiveTeam()
+  const { userMe, activeTeam } = useActiveTeam()
+
+  const {
+    can,
+    loading: permissionsLoading,
+    error: permissionsError,
+  } = usePermissionsContext()
+
+  const clubId = activeTeam?.club?.id ?? null
+  const permissionsReady = !permissionsLoading && !permissionsError
 
   const [members, setMembers] = useState<MembershipWithUser[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [errorStatus, setErrorStatus] = useState<number | null>(null)
 
   const [showInviteModal, setShowInviteModal] = useState(false)
   const searchParams = useSearchParams()
   const action = searchParams.get('action')
 
-  // NOTA: usamos el hook viejo (por equipo) porque `MembersList` todavía
-  // necesita `addableRoles` / `removableRoles` / `canRemoveMemberWithRoles`.
-  // Los checks binarios (invitar, gestionar solicitudes) se migran a <Can>
-  // en este archivo. En un Lote 9, cuando el endpoint del club devuelva
-  // los roles por equipo, migraremos también `MembersList`.
-  const perms = usePermissions(teamId)
+  // ✅ Lote 4.H.5 — Miembro creado desde el modal de invitar
+  const [createdMember, setCreatedMember] = useState<{
+    id: string
+    userId: string
+    clubId: string
+    user: { name: string; lastName: string; email: string }
+  } | null>(null)
 
   const fetchMembers = useCallback(async () => {
     try {
       setError('')
+      setErrorStatus(null)
       const data = await membershipsApi.findByTeam(teamId)
       setMembers(data)
     } catch (err: any) {
-      console.error('Error:', err)
+      setErrorStatus(err.response?.status ?? null)
       setError(err.response?.data?.message || 'Error al cargar miembros')
     } finally {
       setLoading(false)
@@ -54,17 +67,74 @@ export default function TeamMembersPage() {
       router.push('/login')
       return
     }
-    fetchMembers()
-    if (action === 'invite') {
+
+    if (permissionsLoading) return
+    if (permissionsError) {
+      setError(permissionsError)
+      setLoading(false)
+      return
+    }
+
+    // ✅ FIX: El usuario puede entrar si tiene member:view O member:edit.
+    // Si solo tiene member:edit (ej. viene del botón "+ Add Player"), 
+    // le dejamos entrar y abrir el modal.
+    const canViewMembers = can('member', 'view', { clubId, teamId })
+    const canEditMembers = can('member', 'edit', { clubId, teamId })
+
+    if (!canViewMembers && !canEditMembers) {
+      setErrorStatus(403)
+      setError('No tienes acceso a los miembros de este equipo.')
+      setLoading(false)
+      return
+    }
+
+    // Intentamos cargar la lista (si tiene permiso de ver, el backend le dará los datos. 
+    // Si solo tiene edit, el backend podría dar 403 en la lista, pero le dejamos pasar al modal).
+    if (canViewMembers) {
+      fetchMembers()
+    } else {
+      setLoading(false) // No carga lista, pero permite abrir el modal
+    }
+
+    if (action === 'invite' && canEditMembers) {
       setShowInviteModal(true)
     }
-  }, [teamId, router, fetchMembers, action])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teamId, permissionsLoading, permissionsError, action, clubId])
 
   const activeMembers = members.filter((m) => m.status === 'ACTIVE')
   const pendingRequests = members.filter((m) => m.status === 'PENDING')
   const inactiveMembers = members.filter(
     (m) => m.status === 'INACTIVE' || m.status === 'LEFT',
   )
+
+  const handleCreated = (member: {
+    id: string
+    userId: string
+    clubId: string
+    user: { name: string; lastName: string; email: string }
+  }) => {
+    setCreatedMember(member)
+  }
+
+  if (permissionsLoading) {
+    return <div className="text-center py-12 text-text-muted">Cargando permisos...</div>
+  }
+
+  if (permissionsError) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-danger mb-4">{permissionsError}</p>
+        <Link href={`/teams/${teamId}`} className="text-brand-primary hover:underline">
+          ← Volver al equipo
+        </Link>
+      </div>
+    )
+  }
+
+  if (errorStatus === 403) {
+    return <NoAccess backHref={`/teams/${teamId}`} backLabel="Volver al equipo" />
+  }
 
   if (loading) {
     return <div className="text-center py-12 text-text-muted">Cargando miembros...</div>
@@ -74,10 +144,7 @@ export default function TeamMembersPage() {
     return (
       <div className="text-center py-12">
         <p className="text-danger mb-4">{error}</p>
-        <Link
-          href={`/teams/${teamId}`}
-          className="text-brand-primary hover:underline"
-        >
+        <Link href={`/teams/${teamId}`} className="text-brand-primary hover:underline">
           ← Volver al equipo
         </Link>
       </div>
@@ -102,9 +169,7 @@ export default function TeamMembersPage() {
           </p>
         </div>
 
-        {/* NUEVO: gating con <Can>. Oculta el botón si el usuario no tiene
-            `member:create` para este equipo. */}
-        <Can resource="member" action="create" teamId={teamId}>
+        <Can resource="member" action="edit" clubId={clubId} teamId={teamId}>
           <Button
             onClick={() => setShowInviteModal(true)}
             icon={<span className="text-xl">+</span>}
@@ -114,9 +179,7 @@ export default function TeamMembersPage() {
         </Can>
       </div>
 
-      {/* NUEVO: gating con <Can>. Aceptar/rechazar solicitudes es
-          `member:edit` para este equipo. */}
-      <Can resource="member" action="edit" teamId={teamId}>
+      <Can resource="member" action="edit" clubId={clubId} teamId={teamId}>
         {pendingRequests.length > 0 ? (
           <PendingRequestsSection
             requests={pendingRequests}
@@ -125,39 +188,48 @@ export default function TeamMembersPage() {
         ) : null}
       </Can>
 
-      <MembersList
-        members={activeMembers}
-        perms={perms}
-        currentUserId={userMe?.id || ''}
-        onUpdate={fetchMembers}
-        title="Miembros activos"
-      />
+      <Can resource="member" action="view" clubId={clubId} teamId={teamId}>
+        <MembersList
+          members={activeMembers}
+          currentUserId={userMe?.id || ''}
+          onUpdate={fetchMembers}
+          title="Miembros activos"
+          createdMember={createdMember}
+          onCreatedHandled={() => setCreatedMember(null)}
+        />
+      </Can>
 
       {inactiveMembers.length > 0 && (
-        <details className="mt-6">
-          <summary className="cursor-pointer text-sm text-text-muted hover:text-text-primary transition">
-            Ver miembros inactivos ({inactiveMembers.length})
-          </summary>
-          <div className="mt-4">
-            <MembersList
-              members={inactiveMembers}
-              perms={perms}
-              currentUserId={userMe?.id || ''}
-              onUpdate={fetchMembers}
-              title="Inactivos"
-              showRejoin
-            />
-          </div>
-        </details>
+        <Can resource="member" action="view" clubId={clubId} teamId={teamId}>
+          <details className="mt-6">
+            <summary className="cursor-pointer text-sm text-text-muted hover:text-text-primary transition">
+              Ver miembros inactivos ({inactiveMembers.length})
+            </summary>
+            <div className="mt-4">
+              <MembersList
+                members={inactiveMembers}
+                currentUserId={userMe?.id || ''}
+                onUpdate={fetchMembers}
+                title="Inactivos"
+                showRejoin
+              />
+            </div>
+          </details>
+        </Can>
       )}
 
-      {showInviteModal && (
-        <InviteMemberModal
-          teamId={teamId}
-          onClose={() => setShowInviteModal(false)}
-          onSuccess={fetchMembers}
-        />
-      )}
+      {/* Modal de invitar: member:edit */}
+      <Can resource="member" action="edit" clubId={clubId} teamId={teamId}>
+        {showInviteModal && (
+          <InviteMemberModal
+            teamId={teamId}
+            clubId={activeTeam?.club?.id || ''}
+            onClose={() => setShowInviteModal(false)}
+            onSuccess={fetchMembers}
+            onCreated={handleCreated}
+          />
+        )}
+      </Can>
     </div>
   )
 }

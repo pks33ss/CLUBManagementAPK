@@ -1,3 +1,4 @@
+// frontend-web/app/layout.tsx
 import './globals.css'
 
 export default function RootLayout({
@@ -5,5 +6,9 @@ export default function RootLayout({
 }: {
   children: React.ReactNode
 }) {
-  return children
+  return (
+    <html lang="es" suppressHydrationWarning>
+      <body>{children}</body>
+    </html>
+  )
 }

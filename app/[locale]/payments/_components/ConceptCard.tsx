@@ -1,6 +1,7 @@
+// frontend-web/app/[locale]/payments/_components/ConceptCard.tsx
 'use client'
 
-import { Link } from '@/navigation';
+import { Link } from '@/navigation'
 import { Badge } from '@/components/ui'
 import {
   type PaymentConceptListItem,
@@ -8,6 +9,8 @@ import {
   formatCurrency,
   formatDate,
 } from '@/lib/payments'
+import { useActiveTeam } from '@/lib/ActiveTeamContext'
+import { Can } from '@/lib/permissions/can'
 
 interface Props {
   concept: PaymentConceptListItem
@@ -15,6 +18,10 @@ interface Props {
 
 export function ConceptCard({ concept }: Props) {
   const { stats } = concept
+  const { activeTeam } = useActiveTeam()
+  const clubId = activeTeam?.club?.id ?? null
+  const teamId = activeTeam?.id ?? null
+
   const total = stats.totalAssignments || 1
   const paidPct = Math.round((stats.paidCount / total) * 100)
   const partialPct = Math.round((stats.partialCount / total) * 100)
@@ -22,21 +29,8 @@ export function ConceptCard({ concept }: Props) {
 
   const variant = conceptStatusVariant(stats)
 
-  // Color de la barra según estado dominante
-  const barColor =
-    variant === 'success'
-      ? 'bg-success'
-      : variant === 'danger'
-        ? 'bg-danger'
-        : variant === 'warning'
-          ? 'bg-warning'
-          : 'bg-brand-primary'
-
-  return (
-    <Link
-      href={`/payments/${concept.id}`}
-      className="block bg-surface-elevated rounded-lg border border-border-subtle hover:border-brand-primary/50 transition p-4"
-    >
+  const cardContent = (
+    <>
       {/* HEADER */}
       <div className="flex items-start justify-between gap-3 mb-2">
         <div className="min-w-0 flex-1">
@@ -119,6 +113,27 @@ export function ConceptCard({ concept }: Props) {
           📅 {formatDate(concept.dueDate)}
         </span>
       </div>
-    </Link>
+    </>
+  )
+
+  return (
+    <Can
+      resource="payment"
+      action="edit"
+      clubId={clubId}
+      teamId={teamId}
+      fallback={
+        <div className="block bg-surface-elevated rounded-lg border border-border-subtle p-4 opacity-70">
+          {cardContent}
+        </div>
+      }
+    >
+      <Link
+        href={`/payments/${concept.id}`}
+        className="block bg-surface-elevated rounded-lg border border-border-subtle hover:border-brand-primary/50 transition p-4"
+      >
+        {cardContent}
+      </Link>
+    </Can>
   )
 }

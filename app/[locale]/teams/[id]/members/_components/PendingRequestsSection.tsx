@@ -1,5 +1,3 @@
-// frontend-web/app/[locale]/teams/[id]/members/_components/PendingRequestsSection.tsx
-
 'use client'
 
 import { useState } from 'react'
@@ -7,6 +5,8 @@ import { useTranslations } from 'next-intl'
 import { membershipsApi } from '@/lib/api/memberships'
 import { Button, Card, CardBody, Badge } from '@/components/ui'
 import type { MembershipWithUser } from '@/types/membership'
+import { useActiveTeam } from '@/lib/ActiveTeamContext'
+import { Can } from '@/lib/permissions/can'
 
 interface Props {
   requests: MembershipWithUser[]
@@ -17,6 +17,10 @@ export default function PendingRequestsSection({ requests, onUpdate }: Props) {
   const t = useTranslations('Members.pending')
   const tRoles = useTranslations('Roles')
   const [processing, setProcessing] = useState<string | null>(null)
+
+  const { activeTeam } = useActiveTeam()
+  const clubId = activeTeam?.club?.id ?? null
+  const teamId = requests[0]?.teamId ?? activeTeam?.id ?? null
 
   const handleAccept = async (m: MembershipWithUser) => {
     setProcessing(m.id)
@@ -77,22 +81,26 @@ export default function PendingRequestsSection({ requests, onUpdate }: Props) {
               </div>
 
               <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  onClick={() => handleAccept(m)}
-                  disabled={processing === m.id}
-                  loading={processing === m.id}
-                >
-                  {t('accept')}
-                </Button>
-                <Button
-                  variant="danger"
-                  size="sm"
-                  onClick={() => handleReject(m)}
-                  disabled={processing === m.id}
-                >
-                  {t('reject')}
-                </Button>
+                <Can resource="member" action="edit" clubId={clubId} teamId={teamId}>
+                  <Button
+                    size="sm"
+                    onClick={() => handleAccept(m)}
+                    disabled={processing === m.id}
+                    loading={processing === m.id}
+                  >
+                    {t('accept')}
+                  </Button>
+                </Can>
+                <Can resource="member" action="delete" clubId={clubId} teamId={teamId}>
+                  <Button
+                    variant="danger"
+                    size="sm"
+                    onClick={() => handleReject(m)}
+                    disabled={processing === m.id}
+                  >
+                    {t('reject')}
+                  </Button>
+                </Can>
               </div>
             </div>
           ))}

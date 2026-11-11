@@ -1,3 +1,4 @@
+// archivo: frontend-web/app/[locale]/playbook/page.tsx
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
@@ -5,6 +6,8 @@ import { Link } from '@/navigation'
 import { useRouter } from '@/navigation'
 import { useTranslations, useFormatter } from 'next-intl'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
+import { usePermissionsContext } from '@/lib/permissions/permissions-provider'
+import { Can } from '@/lib/permissions/can'
 import { listPlaysByTeam, type PlaySummary } from '@/lib/playbook'
 import { filterPlaysByName } from '@/lib/playbookHelpers'
 import { getSportConfig } from '@/lib/sport'
@@ -16,13 +19,25 @@ export default function PlaybookPage() {
   const format = useFormatter()
 
   const { activeTeam, loading: loadingTeams } = useActiveTeam()
+  const {
+    can,
+    loading: permissionsLoading,
+    error: permissionsError,
+  } = usePermissionsContext()
+
+  const permissionsReady = !permissionsLoading && !permissionsError
+  const clubId = activeTeam?.club?.id ?? null
+  const teamId = activeTeam?.id ?? null
+
+  // Guía Lote 9.4 (Playbook = recurso backend `document`)
+  const canViewPlaybook =
+    permissionsReady && can('document', 'view', { clubId, teamId })
 
   const [plays, setPlays] = useState<PlaySummary[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [query, setQuery] = useState('')
 
-  // Cargar jugadas cuando cambia el equipo activo
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token) {
@@ -30,7 +45,15 @@ export default function PlaybookPage() {
       return
     }
 
+    if (!permissionsReady) return
+
     if (!activeTeam) {
+      setPlays([])
+      setLoading(false)
+      return
+    }
+
+    if (!canViewPlaybook) {
       setPlays([])
       setLoading(false)
       return
@@ -38,7 +61,7 @@ export default function PlaybookPage() {
 
     fetchPlays(activeTeam.id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTeam, router])
+  }, [activeTeam, router, permissionsReady, canViewPlaybook])
 
   const fetchPlays = async (teamId: string) => {
     setLoading(true)
@@ -47,7 +70,6 @@ export default function PlaybookPage() {
       const data = await listPlaysByTeam(teamId)
       setPlays(data)
     } catch (e: any) {
-      console.error('Error loading plays:', e)
       setError(e?.response?.data?.message || t('errorLoad'))
       setPlays([])
     } finally {
@@ -59,11 +81,22 @@ export default function PlaybookPage() {
 
   const sport = getSportConfig(activeTeam?.sport)
 
-  // ─── Estados de carga / sin equipo ───
+  // 1) Permisos cargando
+  if (permissionsLoading) {
+    return <div className="text-center py-12 text-text-muted">{t('loading')}</div>
+  }
+
+  // 2) Error cargando permisos
+  if (permissionsError) {
+    return <div className="text-center py-12 text-danger">{permissionsError}</div>
+  }
+
+  // 3) Cargando equipos o jugadas
   if (loadingTeams || loading) {
     return <div className="text-center py-12 text-text-muted">{t('loading')}</div>
   }
 
+  // 4) Sin equipo activo
   if (!activeTeam) {
     return (
       <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
@@ -73,6 +106,18 @@ export default function PlaybookPage() {
         </h3>
         <p className="text-text-secondary mb-6">
           {t('selectTeamDesc')}
+        </p>
+      </div>
+    )
+  }
+
+  // 5) Sin permiso → pantalla de acceso denegado
+  if (!canViewPlaybook) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-6xl mb-4">🔒</div>
+        <p className="text-text-secondary mb-6">
+          No tienes permisos para ver el playbook de este equipo.
         </p>
       </div>
     )
@@ -90,9 +135,11 @@ export default function PlaybookPage() {
             {activeTeam.name} · {activeTeam.club?.name}
           </p>
         </div>
-        <Button href="/playbook/new" icon={<span className="text-xl">+</span>}>
-          {t('newPlay')}
-        </Button>
+        <Can resource="document" action="create" clubId={clubId} teamId={teamId}>
+          <Button href="/playbook/new" icon={<span className="text-xl">+</span>}>
+            {t('newPlay')}
+          </Button>
+        </Can>
       </div>
 
       {/* BUSCADOR */}
@@ -135,9 +182,11 @@ export default function PlaybookPage() {
           <p className="text-text-secondary mb-6">
             {t('emptyDesc')}
           </p>
-          <Button href="/playbook/new" icon={<span className="text-xl">+</span>}>
-            {t('createFirst')}
-          </Button>
+          <Can resource="document" action="create" clubId={clubId} teamId={teamId}>
+            <Button href="/playbook/new" icon={<span className="text-xl">+</span>}>
+              {t('createFirst')}
+            </Button>
+          </Can>
         </div>
       )}
 
@@ -157,47 +206,63 @@ export default function PlaybookPage() {
       {/* LISTA */}
       {!error && filtered.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filtered.map((play) => (
-            <Link
-              key={play.id}
-              href={`/playbook/${play.id}`}
-              className="bg-surface rounded-xl shadow-md hover:shadow-lg transition p-5 border border-border-subtle hover:border-brand-primary/50 flex flex-col"
-            >
-              <div className="flex items-start justify-between gap-2 mb-2">
-                <h3 className="text-lg font-semibold text-text-primary line-clamp-2 flex-1">
-                  {play.name}
-                </h3>
-                <span className="text-2xl shrink-0">📘</span>
-              </div>
+          {filtered.map((play) => {
+            const cardContent = (
+              <>
+                <div className="flex items-start justify-between gap-2 mb-2">
+                  <h3 className="text-lg font-semibold text-text-primary line-clamp-2 flex-1">
+                    {play.name}
+                  </h3>
+                  <span className="text-2xl shrink-0">📘</span>
+                </div>
 
-              {play.description && (
-                <p className="text-sm text-text-secondary line-clamp-2 mb-3">
-                  {play.description}
-                </p>
-              )}
+                {play.description && (
+                  <p className="text-sm text-text-secondary line-clamp-2 mb-3">
+                    {play.description}
+                  </p>
+                )}
 
-              <div className="flex flex-wrap gap-2 mb-3">
-                <span className="bg-brand-primary/10 text-brand-primary text-xs px-2 py-1 rounded-full font-medium">
-                  {t('stepsCount', { count: play.stepsCount })}
-                </span>
-              </div>
+                <div className="flex flex-wrap gap-2 mb-3">
+                  <span className="bg-brand-primary/10 text-brand-primary text-xs px-2 py-1 rounded-full font-medium">
+                    {t('stepsCount', { count: play.stepsCount })}
+                  </span>
+                </div>
 
-              <div className="mt-auto pt-3 border-t border-border-subtle flex items-center justify-between gap-2 text-xs text-text-muted">
-                <span>
-                  {play.createdBy
-                    ? `${play.createdBy.name} ${play.createdBy.lastName}`
-                    : t('system')}
-                </span>
-                <span>
-                  {format.dateTime(new Date(play.createdAt), {
-                    day: '2-digit',
-                    month: 'short',
-                    year: 'numeric',
-                  })}
-                </span>
+                <div className="mt-auto pt-3 border-t border-border-subtle flex items-center justify-between gap-2 text-xs text-text-muted">
+                  <span>
+                    {play.createdBy
+                      ? `${play.createdBy.name} ${play.createdBy.lastName}`
+                      : t('system')}
+                  </span>
+                  <span>
+                    {format.dateTime(new Date(play.createdAt), {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                    })}
+                  </span>
+                </div>
+              </>
+            )
+
+            // Con document:view → Link; sin él → div no clickeable
+            return canViewPlaybook ? (
+              <Link
+                key={play.id}
+                href={`/playbook/${play.id}`}
+                className="bg-surface rounded-xl shadow-md hover:shadow-lg transition p-5 border border-border-subtle hover:border-brand-primary/50 flex flex-col"
+              >
+                {cardContent}
+              </Link>
+            ) : (
+              <div
+                key={play.id}
+                className="bg-surface rounded-xl shadow-md p-5 border border-border-subtle flex flex-col"
+              >
+                {cardContent}
               </div>
-            </Link>
-          ))}
+            )
+          })}
         </div>
       )}
     </div>

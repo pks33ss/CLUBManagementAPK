@@ -1,7 +1,8 @@
-﻿'use client'
+﻿// archivo: frontend-web/app/[locale]/home/page.tsx
+'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { useRouter } from '@/navigation';
+import { useRouter } from '@/navigation'
 import { useTranslations } from 'next-intl'
 import api from '@/lib/api'
 import { getSportIcon, getSportConfig } from '@/lib/sport'
@@ -9,6 +10,8 @@ import { useActiveTeam } from '@/lib/ActiveTeamContext'
 import { Button, Card, CardBody } from '@/components/ui'
 import { driver } from 'driver.js'
 import 'driver.js/dist/driver.css'
+import { usePermissionsContext } from '@/lib/permissions/permissions-provider'
+import { Can } from '@/lib/permissions/can'
 
 import TeamSelector from './_components/TeamSelector'
 import WeeklyPlanCard from './_components/WeeklyPlanCard'
@@ -28,18 +31,37 @@ interface DashboardData {
 
 export default function HomePage() {
   const router = useRouter()
-  const { activeTeam, allTeams, loading: loadingTeams, setActiveTeam } = useActiveTeam()
-  
+  const { activeTeam, allTeams, loading: loadingTeams, setActiveTeam, userMe } = useActiveTeam()
+
   const t = useTranslations('Dashboard')
   const tTour = useTranslations('Tour')
   const tCommon = useTranslations('Common')
+
+  const {
+    can,
+    loading: permissionsLoading,
+    error: permissionsError,
+  } = usePermissionsContext()
+
+  const permissionsReady = !permissionsLoading && !permissionsError
+
+  const clubId = activeTeam?.club?.id ?? null
+  const teamId = activeTeam?.id ?? null
+
+  // Gate del dashboard: solo pedimos datos si el usuario puede ver al menos
+  // uno de los recursos que el endpoint devuelve (attendance / match / stats).
+  const canViewDashboard =
+    permissionsReady &&
+    (can('attendance', 'view', { clubId, teamId }) ||
+      can('match', 'view', { clubId, teamId }) ||
+      can('stats', 'view', { clubId, teamId }))
 
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [data, setData] = useState<DashboardData | null>(null)
   const [loadingDashboard, setLoadingDashboard] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [errorStatus, setErrorStatus] = useState<number | null>(null)
 
-  // Estado local para los equipos seleccionados (por defecto, solo el activo)
   const [selectedTeamIds, setSelectedTeamIds] = useState<string[]>([])
 
   // Sincronizar el selector cuando cambie el equipo activo global
@@ -78,16 +100,29 @@ export default function HomePage() {
     }
   }, [currentUser, data, loadingDashboard, tTour])
 
-  // Fetch de datos (Multi-equipo o individual)
+  // Fetch de datos — gateado por canViewDashboard (attendance|match|stats:view)
   useEffect(() => {
+    if (!permissionsReady) return
+
     if (selectedTeamIds.length === 0) {
       setData(null)
+      setLoadingDashboard(false)
+      return
+    }
+
+    // Sin ninguno de los 3 recursos: no pedimos dashboard (evita 403 y filtración)
+    if (!canViewDashboard) {
+      setData(null)
+      setError(null)
+      setErrorStatus(null)
+      setLoadingDashboard(false)
       return
     }
 
     const fetchDashboard = async () => {
       setLoadingDashboard(true)
       setError(null)
+      setErrorStatus(null)
       try {
         let res
         if (selectedTeamIds.length === 1) {
@@ -98,6 +133,7 @@ export default function HomePage() {
         }
         setData(res.data)
       } catch (err: any) {
+        setErrorStatus(err.response?.status ?? null)
         if (err.response?.status === 403) setError(t('errorAccess'))
         else setError(t('errorLoad'))
         setData(null)
@@ -107,28 +143,69 @@ export default function HomePage() {
     }
 
     fetchDashboard()
-  }, [selectedTeamIds, t])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedTeamIds, permissionsReady, canViewDashboard, t])
 
-  // Filtrar equipos del mismo deporte
   const eligibleTeams = useMemo(() => {
     if (!activeTeam) return []
     return allTeams.filter((team) => team.sport === activeTeam.sport)
   }, [allTeams, activeTeam])
 
-  if (loadingTeams) return <div className="text-center py-8 text-text-muted">{tCommon('loading')}</div>
+  // ===== Estados de la página =====
 
-  if (allTeams.length === 0) {
+  if (permissionsLoading) {
+    return <div className="text-center py-8 text-text-muted">{tCommon('loading')}</div>
+  }
+
+  if (permissionsError) {
     return (
-      <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
-        <div className="text-6xl mb-4">🏆</div>
-        <h3 className="text-xl font-semibold text-text-primary">{t('noTeams')}</h3>
-        <p className="text-text-secondary mt-2 mb-6">{t('noTeamsSub')}</p>
-        <Button onClick={() => router.push('/dashboard')}>{t('goToClubs')}</Button>
+      <div className="text-center py-8">
+        <p className="text-danger">{permissionsError}</p>
       </div>
     )
   }
 
+  if (loadingTeams) return <div className="text-center py-8 text-text-muted">{tCommon('loading')}</div>
+
   if (!activeTeam) {
+    if (allTeams.length === 0) {
+      const clubs = (userMe as any)?.memberships?.map((m: any) => m.team?.club).filter(Boolean) ?? []
+      const hasClubs = clubs.length > 0
+      const singleClubId = clubs.length === 1 ? clubs[0].club.id : null
+
+      if (hasClubs) {
+        return (
+          <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
+            <div className="text-6xl mb-4">🏛️</div>
+            <h3 className="text-xl font-semibold text-text-primary">
+              {t('noTeams')}
+            </h3>
+            <p className="text-text-secondary mt-2 mb-6">
+              {t('noTeamsSub')}
+            </p>
+            <div className="flex gap-3 justify-center">
+              <Button
+                onClick={() =>
+                  router.push(singleClubId ? `/clubs/${singleClubId}` : '/clubs')
+                }
+              >
+                {singleClubId ? 'Ir a mi club' : t('goToClubs')}
+              </Button>
+            </div>
+          </div>
+        )
+      }
+
+      return (
+        <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
+          <div className="text-6xl mb-4">🏆</div>
+          <h3 className="text-xl font-semibold text-text-primary">{t('noTeams')}</h3>
+          <p className="text-text-secondary mt-2 mb-6">{t('noTeamsSub')}</p>
+          <Button onClick={() => router.push('/dashboard')}>{t('goToClubs')}</Button>
+        </div>
+      )
+    }
+
     return (
       <div className="space-y-6">
         <div className="text-center py-8">
@@ -172,30 +249,51 @@ export default function HomePage() {
             {sportConfig.icon} {t('resumen', { team: selectedTeamIds.length > 1 ? `${selectedTeamIds.length} equipos` : activeTeam.name })} · {activeTeam.club?.name}
           </p>
         </div>
-        
-        <TeamSelector 
-          teams={eligibleTeams} 
-          selectedTeamIds={selectedTeamIds} 
-          onChange={setSelectedTeamIds} 
+
+        <TeamSelector
+          teams={eligibleTeams}
+          selectedTeamIds={selectedTeamIds}
+          onChange={setSelectedTeamIds}
         />
       </div>
 
       {error && <div className="bg-danger/10 border border-danger/20 text-danger px-4 py-3 rounded-lg">{error}</div>}
 
+      {/* WeeklyPlanCard: SIN <Can> envolvente.
+          El propio componente decide si renderizar Links o divs en función de
+          session:view / match:view (ver WeeklyPlanCard.tsx). */}
       <div id="tour-weekly-plan">
         <WeeklyPlanCard externalSelectedTeamIds={selectedTeamIds} />
       </div>
 
-      {loadingDashboard && !data ? (
-        <div className="flex justify-center items-center h-40 text-text-muted">{t('loadingDashboard')}</div>
-      ) : (
-        data && (
-          <div id="tour-dashboard-cards" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            <AttendanceCard attendance={data.attendance} />
-            <TopPlayersCard players={data.topPlayers} metrics={data.topPlayersMetrics ?? []} defaultMetric={data.defaultTopPlayersMetric ?? 'matchesPlayed'} />
-            <PendingCallupsCard callups={data.pendingCallups} />
-            <MatchBalanceCard balance={data.matchBalance} />
-          </div>
+      {/* Dashboard: se muestra solo si canViewDashboard y hay data */}
+      {canViewDashboard && (
+        loadingDashboard && !data ? (
+          <div className="flex justify-center items-center h-40 text-text-muted">{t('loadingDashboard')}</div>
+        ) : (
+          data && (
+            <div id="tour-dashboard-cards" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Asistencia: attendance:view */}
+              <Can resource="attendance" action="view" clubId={clubId} teamId={teamId}>
+                <AttendanceCard attendance={data.attendance} />
+              </Can>
+
+              {/* Convocatorias: match:view */}
+              <Can resource="match" action="view" clubId={clubId} teamId={teamId}>
+                <PendingCallupsCard callups={data.pendingCallups} />
+              </Can>
+
+              {/* Estadísticas de jugadores: stats:view */}
+              <Can resource="stats" action="view" clubId={clubId} teamId={teamId}>
+                <TopPlayersCard players={data.topPlayers} metrics={data.topPlayersMetrics ?? []} defaultMetric={data.defaultTopPlayersMetric ?? 'matchesPlayed'} />
+              </Can>
+
+              {/* Balance de partidos: stats:view */}
+              <Can resource="stats" action="view" clubId={clubId} teamId={teamId}>
+                <MatchBalanceCard balance={data.matchBalance} />
+              </Can>
+            </div>
+          )
         )
       )}
     </div>

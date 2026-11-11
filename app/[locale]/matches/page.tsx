@@ -1,14 +1,16 @@
+// archivo: frontend-web/app/[locale]/matches/page.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from '@/navigation'
+import { useRouter, useParams } from 'next/navigation'
+import { useTranslations, useFormatter, useLocale } from 'next-intl'
 import { Link } from '@/navigation'
-import { useLocale, useTranslations } from 'next-intl'
 import api from '@/lib/api'
-import { getSportIcon } from '@/lib/sport'
-import { useActiveTeam } from '@/lib/ActiveTeamContext'
 import { Button, Card, CardBody, Badge } from '@/components/ui'
 import { formatMatchScore } from '@/lib/formatMatchScore'
+import { useActiveTeam } from '@/lib/ActiveTeamContext'
+import { usePermissionsContext } from '@/lib/permissions/permissions-provider'
+import { Can } from '@/lib/permissions/can'
 import {
   MatchSortKey,
   SORT_OPTIONS,
@@ -16,7 +18,7 @@ import {
   saveSort,
   sortMatches,
 } from '@/lib/matchSort'
-import CreateMatchModal from './_components/CreateMatchModal'
+import CreateMatchModal from '@/app/[locale]/matches/_components/CreateMatchModal'
 
 interface Match {
   id: string
@@ -27,18 +29,9 @@ interface Match {
   status: string
   venue: string
   competition: string
-  notes: string | null
+  notes: string
   teamScore: number | null
   opponentScore: number | null
-  team: {
-    id: string
-    name: string
-    sport?: string
-    club: {
-      id: string
-      name: string
-    }
-  }
   _count?: {
     callups: number
     playerStats: number
@@ -57,72 +50,47 @@ interface TeamStats {
   winRate: number
 }
 
-const round2 = (n: number) => Math.round(n * 100) / 100
-
-function aggregateStats(statsList: TeamStats[]): TeamStats | null {
-  if (statsList.length === 0) return null
-
-  const totalMatches = statsList.reduce((acc, s) => acc + s.totalMatches, 0)
-  const wins = statsList.reduce((acc, s) => acc + s.wins, 0)
-  const losses = statsList.reduce((acc, s) => acc + s.losses, 0)
-  const draws = statsList.reduce((acc, s) => acc + s.draws, 0)
-  const totalPoints = statsList.reduce((acc, s) => acc + s.totalPoints, 0)
-  const totalOpponentPoints = statsList.reduce(
-    (acc, s) => acc + s.totalOpponentPoints,
-    0,
-  )
-
-  return {
-    totalMatches,
-    wins,
-    losses,
-    draws,
-    totalPoints,
-    totalOpponentPoints,
-    avgPoints: totalMatches > 0 ? round2(totalPoints / totalMatches) : 0,
-    avgOpponentPoints:
-      totalMatches > 0 ? round2(totalOpponentPoints / totalMatches) : 0,
-    winRate: totalMatches > 0 ? round2((wins / totalMatches) * 100) : 0,
-  }
-}
-
-export default function AllMatches() {
-  const t = useTranslations('Matches')
-  const locale = useLocale()
+export default function TeamMatches() {
   const router = useRouter()
-  const { activeTeam, allTeams, loading: loadingTeams } = useActiveTeam()
+  const params = useParams()
+  
+  const { activeTeam, loading: loadingTeams } = useActiveTeam()
+  
+  // ✅ Clave: si no hay params.id (porque estamos en /matches), usamos el equipo activo.
+  const teamId = (params?.id as string) || activeTeam?.id
+
+  const t = useTranslations('Matches')
+  const tCommon = useTranslations('Common')
+  const format = useFormatter()
+  const locale = useLocale()
+
+  const {
+    can,
+    loading: permissionsLoading,
+    error: permissionsError,
+  } = usePermissionsContext()
+
+  const permissionsReady = !permissionsLoading && !permissionsError
+  const clubId = activeTeam?.club?.id ?? null
+
+  const canViewMatch =
+    permissionsReady && teamId && can('match', 'view', { clubId, teamId })
+  const canCreateMatch =
+    permissionsReady && teamId && can('match', 'create', { clubId, teamId })
+  const canViewStats =
+    permissionsReady && teamId && can('stats', 'view', { clubId, teamId })
 
   const [matches, setMatches] = useState<Match[]>([])
   const [teamStats, setTeamStats] = useState<TeamStats | null>(null)
+  const [team, setTeam] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
   const [filter, setFilter] = useState<'all' | 'scheduled' | 'finished'>('all')
   const [sortKey, setSortKey] = useState<MatchSortKey>('date-asc')
   const [showCreateModal, setShowCreateModal] = useState(false)
 
-  const [selectedTeams, setSelectedTeams] = useState<string[]>([])
-  const [showTeamSelector, setShowTeamSelector] = useState(false)
-
   useEffect(() => {
     setSortKey(getSavedSort())
-  }, [])
-
-  useEffect(() => {
-    if (activeTeam) {
-      setSelectedTeams([activeTeam.id])
-    } else {
-      setSelectedTeams([])
-    }
-  }, [activeTeam])
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      const target = e.target as HTMLElement
-      if (!target.closest('.team-selector-container')) {
-        setShowTeamSelector(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
   useEffect(() => {
@@ -132,95 +100,63 @@ export default function AllMatches() {
       return
     }
 
-    if (selectedTeams.length === 0) {
-      setMatches([])
-      setTeamStats(null)
+    if (!permissionsReady) return
+
+    // Si no hay teamId (ni por URL ni por activeTeam), no cargamos nada
+    if (!teamId) {
       setLoading(false)
       return
     }
 
-    fetchData(selectedTeams)
-  }, [selectedTeams, router])
+    if (!canViewMatch) {
+      setLoading(false)
+      return
+    }
 
-  const fetchData = async (teamIds: string[]) => {
-    setLoading(true)
+    fetchData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [teamId, permissionsReady, canViewMatch])
+
+  const fetchData = async () => {
     try {
-      const results = await Promise.all(
-        teamIds.map(async (id) => {
-          const [matchesRes, statsRes] = await Promise.all([
-            api.get(`/matches/team/${id}`),
-            api.get(`/matches/team/${id}/stats`),
-          ])
-          return {
-            matches: matchesRes.data as Match[],
-            stats: statsRes.data as TeamStats,
-          }
-        }),
-      )
+      const requests: Promise<any>[] = [
+        api.get(`/teams/${teamId}`),
+        api.get(`/matches/team/${teamId}`),
+      ]
+      if (canViewStats) {
+        requests.push(api.get(`/matches/team/${teamId}/stats`))
+      }
 
-      const mergedMatches = results.flatMap((r) => r.matches)
-      const mergedStats = aggregateStats(results.map((r) => r.stats))
-
-      setMatches(mergedMatches)
-      setTeamStats(mergedStats)
-    } catch (error) {
-      console.error('Error fetching matches:', error)
-      setMatches([])
-      setTeamStats(null)
+      const [teamRes, matchesRes, statsRes] = await Promise.all(requests)
+      setTeam(teamRes.data)
+      setMatches(matchesRes.data)
+      setTeamStats(statsRes?.data ?? null)
+    } catch (error: any) {
+      setError(error.response?.data?.message || t('errorLoad'))
     } finally {
       setLoading(false)
     }
   }
 
-  const toggleTeam = (teamId: string) => {
-    setSelectedTeams((prev) =>
-      prev.includes(teamId)
-        ? prev.filter((id) => id !== teamId)
-        : [...prev, teamId],
-    )
-  }
+  // ... (resto de helpers getTypeText, getLocationText, etc. se mantienen igual) ...
 
-  const selectAllTeams = () => {
-    setSelectedTeams(allTeams.map((t) => t.id))
-  }
-
-  const deselectAllTeams = () => {
-    setSelectedTeams([])
-  }
-
-  const getSelectedTeamsText = () => {
-    if (selectedTeams.length === 0) return t('teamsPlaceholder')
-    if (selectedTeams.length === allTeams.length) return t('allMyTeams')
-    if (selectedTeams.length === 1) {
-      const team = allTeams.find((t) => t.id === selectedTeams[0])
-      return team?.name || t('oneTeam')
-    }
-    return t('nTeamsSelected', { count: selectedTeams.length })
-  }
-
-  const showTeamBadge = selectedTeams.length > 1
-
-  const getTypeText = (type: string) => {
+  const getTypeText = (type: string): string => {
     switch (type) {
-      case 'LEAGUE':
-      case 'FRIENDLY':
-      case 'CUP':
-      case 'PLAYOFF':
-      case 'TOURNAMENT':
-        return t(`types.${type}`)
-      default:
-        return type
+      case 'LEAGUE': return t('types.LEAGUE')
+      case 'FRIENDLY': return t('types.FRIENDLY')
+      case 'CUP': return t('types.CUP')
+      case 'PLAYOFF': return t('types.PLAYOFF')
+      case 'TOURNAMENT': return t('types.TOURNAMENT')
+      default: return type
     }
   }
 
-  const getLocationText = (location: string) => {
+  const getLocationText = (location: string): string => {
     switch (location) {
-      case 'HOME':
-      case 'AWAY':
-      case 'NEUTRAL':
-        return t(`locations.${location}`)
-      default:
-        return location
+      case 'HOME': return t('locations.HOME')
+      case 'AWAY': return t('locations.AWAY')
+      case 'NEUTRAL': return t('locations.NEUTRAL')
+      default: return location
     }
   }
 
@@ -228,31 +164,23 @@ export default function AllMatches() {
     status: string,
   ): 'info' | 'warning' | 'success' | 'danger' | 'neutral' => {
     switch (status) {
-      case 'SCHEDULED':
-        return 'info'
-      case 'IN_PROGRESS':
-        return 'warning'
-      case 'FINISHED':
-        return 'success'
-      case 'CANCELLED':
-        return 'danger'
-      case 'POSTPONED':
-        return 'warning'
-      default:
-        return 'neutral'
+      case 'SCHEDULED': return 'info'
+      case 'IN_PROGRESS': return 'warning'
+      case 'FINISHED': return 'success'
+      case 'CANCELLED': return 'danger'
+      case 'POSTPONED': return 'warning'
+      default: return 'neutral'
     }
   }
 
-  const getStatusText = (status: string) => {
+  const getStatusText = (status: string): string => {
     switch (status) {
-      case 'SCHEDULED':
-      case 'IN_PROGRESS':
-      case 'FINISHED':
-      case 'CANCELLED':
-      case 'POSTPONED':
-        return t(`statuses.${status}`)
-      default:
-        return status
+      case 'SCHEDULED': return t('statuses.SCHEDULED')
+      case 'IN_PROGRESS': return t('statuses.IN_PROGRESS')
+      case 'FINISHED': return t('statuses.FINISHED')
+      case 'CANCELLED': return t('statuses.CANCELLED')
+      case 'POSTPONED': return t('statuses.POSTPONED')
+      default: return status
     }
   }
 
@@ -261,9 +189,7 @@ export default function AllMatches() {
       match.status !== 'FINISHED' ||
       match.teamScore === null ||
       match.opponentScore === null
-    ) {
-      return 'text-text-muted'
-    }
+    ) return 'text-text-muted'
     if (match.teamScore > match.opponentScore) return 'text-success'
     if (match.teamScore < match.opponentScore) return 'text-danger'
     return 'text-warning'
@@ -276,33 +202,28 @@ export default function AllMatches() {
       match.status !== 'FINISHED' ||
       match.teamScore === null ||
       match.opponentScore === null
-    ) {
-      return null
-    }
+    ) return null
     if (match.teamScore > match.opponentScore) return 'success'
     if (match.teamScore < match.opponentScore) return 'danger'
     return 'warning'
   }
 
-  const getResultText = (match: Match) => {
+  const getResultText = (match: Match): string | null => {
     if (
       match.status !== 'FINISHED' ||
       match.teamScore === null ||
       match.opponentScore === null
-    ) {
-      return null
-    }
+    ) return null
     if (match.teamScore > match.opponentScore) return t('results.win')
     if (match.teamScore < match.opponentScore) return t('results.loss')
     return t('results.draw')
   }
 
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString)
-    return date.toLocaleDateString(locale, {
-      day: '2-digit',
-      month: 'short',
+    return format.dateTime(new Date(dateString), {
       year: 'numeric',
+      month: 'short',
+      day: '2-digit',
       hour: '2-digit',
       minute: '2-digit',
     })
@@ -318,117 +239,97 @@ export default function AllMatches() {
 
   const sortedAndFiltered = sortMatches(filteredMatches, sortKey, locale)
 
-  if (loadingTeams || loading) {
-    return (
-      <div className="text-center py-12 text-text-muted">{t('loading')}</div>
-    )
+  if (permissionsLoading || loadingTeams) {
+    return <div className="text-center py-12 text-text-muted">{tCommon('loading')}</div>
   }
 
-  if (!activeTeam) {
+  if (permissionsError) {
+    return <div className="text-center py-12 text-danger">{permissionsError}</div>
+  }
+
+  // ✅ Estado vacío si no hay equipo seleccionado
+  if (!teamId) {
     return (
       <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
         <div className="text-6xl mb-4">🏆</div>
         <h3 className="text-xl font-semibold text-text-primary mb-2">
-          {t('selectTeamTitle')}
+          Selecciona un equipo
         </h3>
-        <p className="text-text-secondary mb-6">{t('selectTeamDesc')}</p>
+        <p className="text-text-secondary mb-6">
+          Elige un equipo desde el menú superior para ver sus partidos.
+        </p>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return <div className="text-center py-12 text-text-muted">{t('loading')}</div>
+  }
+
+  if (!canViewMatch) {
+    return (
+      <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
+        <div className="text-6xl mb-4">🔒</div>
+        <h3 className="text-xl font-semibold text-text-primary mb-2">Sin acceso</h3>
+        <p className="text-text-secondary mb-6">
+          No tienes permisos para ver los partidos de este equipo.
+        </p>
+        <Link
+          href={`/teams/${teamId}`}
+          className="text-brand-primary hover:underline"
+        >
+          {t('backToTeam')}
+        </Link>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-danger">{error}</p>
+        <Link
+          href={`/teams/${teamId}`}
+          className="text-brand-primary hover:underline mt-4 inline-block"
+        >
+          {t('backToTeam')}
+        </Link>
       </div>
     )
   }
 
   return (
     <div>
+      {/* Solo mostramos el enlace de volver si estamos en la ruta /teams/[id]/matches */}
+      {params?.id && (
+        <Link
+          href={`/teams/${teamId}`}
+          className="text-brand-primary hover:underline inline-block mb-6"
+        >
+          {t('backToTeam')}
+        </Link>
+      )}
+
       <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-text-primary">
-            {t('title')}
-          </h1>
+          <h1 className="text-2xl font-bold text-text-primary">{t('title')}</h1>
           <p className="text-text-secondary">
-            {activeTeam.name} · {activeTeam.club?.name}
+            {team?.name} • {team?.club?.name}
           </p>
         </div>
-        <Button
-          onClick={() => setShowCreateModal(true)}
-          icon={<span className="text-xl">+</span>}
-        >
-          {t('newMatch')}
-        </Button>
-      </div>
 
-      <div className="team-selector-container relative mb-6 max-w-md">
-        <label className="block text-sm font-medium text-text-secondary mb-1">
-          {t('teamsLabel')}
-        </label>
-        <button
-          type="button"
-          onClick={() => setShowTeamSelector(!showTeamSelector)}
-          className="w-full bg-surface-elevated border border-border-subtle rounded-lg px-4 py-2 text-left flex justify-between items-center hover:border-brand-primary/50 transition"
-        >
-          <span
-            className={
-              selectedTeams.length === 0
-                ? 'text-text-muted'
-                : 'text-text-primary'
-            }
+        <Can resource="match" action="create" clubId={clubId} teamId={teamId}>
+          <Button
+            onClick={() => setShowCreateModal(true)}
+            icon={<span className="text-xl">+</span>}
           >
-            {getSelectedTeamsText()}
-          </span>
-          <span className="text-text-muted">▼</span>
-        </button>
-
-        {showTeamSelector && (
-          <div className="absolute z-10 w-full mt-1 bg-surface border border-border-subtle rounded-lg shadow-lg max-h-80 overflow-auto">
-            <div className="p-2 border-b border-border-subtle flex gap-2">
-              <button
-                type="button"
-                onClick={selectAllTeams}
-                className="flex-1 text-xs bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 py-1.5 rounded transition"
-              >
-                {t('selectAll')}
-              </button>
-              <button
-                type="button"
-                onClick={deselectAllTeams}
-                className="flex-1 text-xs bg-surface-elevated text-text-secondary hover:bg-border-subtle py-1.5 rounded transition"
-              >
-                {t('selectNone')}
-              </button>
-            </div>
-
-            {allTeams.length === 0 ? (
-              <div className="p-4 text-sm text-text-muted text-center">
-                {t('noTeamsAssigned')}
-              </div>
-            ) : (
-              allTeams.map((team) => (
-                <label
-                  key={team.id}
-                  className="flex items-center gap-3 px-4 py-2.5 hover:bg-surface-elevated cursor-pointer transition"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedTeams.includes(team.id)}
-                    onChange={() => toggleTeam(team.id)}
-                    className="w-4 h-4 accent-brand-primary"
-                  />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-text-primary flex items-center gap-1">
-                      <span>{getSportIcon(team.sport)}</span>
-                      <span>{team.name}</span>
-                    </p>
-                    <p className="text-xs text-text-muted">
-                      {team.category || t('noCategory')}
-                      {team.club?.name ? ` · ${team.club.name}` : ''}
-                    </p>
-                  </div>
-                </label>
-              ))
-            )}
-          </div>
-        )}
+            {t('newMatch')}
+          </Button>
+        </Can>
       </div>
 
-      {teamStats && teamStats.totalMatches > 0 && (
+      {/* Estadísticas del equipo — stats:view */}
+      {canViewStats && teamStats && teamStats.totalMatches > 0 && (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
           <Card>
             <CardBody className="text-center p-4">
@@ -440,17 +341,13 @@ export default function AllMatches() {
           </Card>
           <Card>
             <CardBody className="text-center p-4">
-              <p className="text-3xl font-bold text-success">
-                {teamStats.wins}
-              </p>
+              <p className="text-3xl font-bold text-success">{teamStats.wins}</p>
               <p className="text-sm text-text-muted">{t('stats.wins')}</p>
             </CardBody>
           </Card>
           <Card>
             <CardBody className="text-center p-4">
-              <p className="text-3xl font-bold text-danger">
-                {teamStats.losses}
-              </p>
+              <p className="text-3xl font-bold text-danger">{teamStats.losses}</p>
               <p className="text-sm text-text-muted">{t('stats.losses')}</p>
             </CardBody>
           </Card>
@@ -467,9 +364,7 @@ export default function AllMatches() {
               <p className="text-3xl font-bold text-text-primary">
                 {teamStats.avgPoints}
               </p>
-              <p className="text-sm text-text-muted">
-                {t('stats.pointsPerMatch')}
-              </p>
+              <p className="text-sm text-text-muted">{t('stats.pointsPerMatch')}</p>
             </CardBody>
           </Card>
           <Card>
@@ -485,173 +380,174 @@ export default function AllMatches() {
         </div>
       )}
 
-      {matches.length > 0 && (
-        <Card className="mb-4">
-          <div className="p-4 flex flex-wrap items-center gap-3">
-            <span className="text-sm font-medium text-text-secondary">
-              {t('filter.label')}
-            </span>
-            <div className="flex gap-1 flex-wrap">
-              <Button
-                variant={filter === 'all' ? 'primary' : 'secondary'}
-                size="sm"
-                onClick={() => setFilter('all')}
-              >
-                {t('filter.all', { count: matches.length })}
-              </Button>
-              <Button
-                variant={filter === 'scheduled' ? 'primary' : 'secondary'}
-                size="sm"
-                onClick={() => setFilter('scheduled')}
-              >
-                {t('filter.scheduled')}
-              </Button>
-              <Button
-                variant={filter === 'finished' ? 'primary' : 'secondary'}
-                size="sm"
-                onClick={() => setFilter('finished')}
-              >
-                {t('filter.finished')}
-              </Button>
-            </div>
-
-            <div className="flex items-center gap-2 ml-auto">
-              <span className="text-sm font-medium text-text-secondary whitespace-nowrap">
-                {t('sort.label')}
-              </span>
-              <select
-                value={sortKey}
-                onChange={(e) => {
-                  const v = e.target.value as MatchSortKey
-                  setSortKey(v)
-                  saveSort(v)
-                }}
-                className="text-sm bg-surface-elevated border border-border-subtle text-text-primary rounded px-3 py-1.5 focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"
-              >
-                {SORT_OPTIONS.map((o) => (
-  <option key={o.value} value={o.value}>
-    {t(`sort.options.${o.value}`)}
-  </option>
-))}
-              </select>
-            </div>
+      {/* Filtros + Ordenación */}
+      <Card className="mb-4">
+        <CardBody className="flex flex-wrap items-center gap-3 p-4">
+          <span className="text-sm font-medium text-text-secondary">
+            {t('filter.label')}
+          </span>
+          <div className="flex gap-1 flex-wrap">
+            <Button
+              variant={filter === 'all' ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => setFilter('all')}
+            >
+              {t('filter.all', { count: matches.length })}
+            </Button>
+            <Button
+              variant={filter === 'scheduled' ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => setFilter('scheduled')}
+            >
+              {t('filter.scheduled')} (
+              {matches.filter(
+                (m) => m.status === 'SCHEDULED' || m.status === 'POSTPONED',
+              ).length}
+              )
+            </Button>
+            <Button
+              variant={filter === 'finished' ? 'primary' : 'secondary'}
+              size="sm"
+              onClick={() => setFilter('finished')}
+            >
+              {t('filter.finished')} (
+              {matches.filter((m) => m.status === 'FINISHED').length})
+            </Button>
           </div>
-        </Card>
-      )}
 
-      {selectedTeams.length === 0 ? (
-        <div className="text-center py-12 bg-surface rounded-xl shadow border border-border-subtle">
-          <div className="text-4xl mb-4">🔍</div>
-          <p className="text-text-secondary">{t('emptyNoSelection')}</p>
-        </div>
-      ) : sortedAndFiltered.length === 0 ? (
-        <div className="text-center py-12 bg-surface rounded-xl shadow border border-border-subtle">
-          <div className="text-4xl mb-4">🏆</div>
-          <p className="text-text-secondary">
-            {matches.length === 0
-              ? t('emptyNoMatches')
-              : t('emptyNoMatchesInFilter')}
-          </p>
-          <Button onClick={() => setShowCreateModal(true)} className="mt-4">
-            {t('createMatch')}
-          </Button>
-        </div>
+          <div className="flex items-center gap-2 ml-auto">
+            <span className="text-sm font-medium text-text-secondary whitespace-nowrap">
+              {t('sort.label')}
+            </span>
+            <select
+              value={sortKey}
+              onChange={(e) => {
+                const v = e.target.value as MatchSortKey
+                setSortKey(v)
+                saveSort(v)
+              }}
+              className="text-sm bg-surface-elevated border border-border-subtle text-text-primary rounded px-3 py-1.5 focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"
+            >
+              {SORT_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {t(o.labelKey as never)}
+                </option>
+              ))}
+            </select>
+          </div>
+        </CardBody>
+      </Card>
+
+      {/* Lista de partidos */}
+      {sortedAndFiltered.length === 0 ? (
+        <Card>
+          <CardBody className="text-center py-12">
+            <div className="text-4xl mb-4">🏆</div>
+            <p className="text-text-secondary">
+              {matches.length === 0
+                ? t('emptyNoMatches')
+                : t('emptyNoMatchesInFilter')}
+            </p>
+            <Can resource="match" action="create" clubId={clubId} teamId={teamId}>
+              <Button
+                onClick={() => setShowCreateModal(true)}
+                className="mt-4"
+              >
+                {t('createMatch')}
+              </Button>
+            </Can>
+          </CardBody>
+        </Card>
       ) : (
         <div className="space-y-3">
           {sortedAndFiltered.map((match) => {
             const resultVariant = getResultVariant(match)
             const score = formatMatchScore(match)
-            return (
-              <Card key={match.id} hover>
-                <Link href={`/matches/${match.id}`} className="block p-5">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2 flex-wrap">
-                        <Badge variant={getStatusVariant(match.status)}>
-                          {getStatusText(match.status)}
-                        </Badge>
-                        <Badge variant="neutral">
-                          {getTypeText(match.type)}
-                        </Badge>
-                        <Badge variant="neutral">
-                          {getLocationText(match.location)}
-                        </Badge>
-                        {showTeamBadge && (
-                          <Badge variant="brand">
-                            {getSportIcon(match.team?.sport)}{' '}
-                            {match.team?.name}
-                          </Badge>
-                        )}
-                      </div>
-                      <h3 className="text-lg font-bold text-text-primary">
-                        {match.opponent}
-                      </h3>
-                      <p className="text-sm text-text-secondary mt-1">
-                        📅 {formatDate(match.date)}
-                      </p>
-                      {(match.venue || match.competition) && (
-                        <p className="text-xs text-text-muted mt-1">
-                          {match.venue && `📍 ${match.venue}`}
-                          {match.venue && match.competition && ' • '}
-                          {match.competition && `🏆 ${match.competition}`}
-                        </p>
-                      )}
-                      {match.notes && (
-                        <p className="text-xs text-text-secondary mt-2 italic line-clamp-2">
-                          📝 {match.notes}
-                        </p>
-                      )}
-                    </div>
 
-                    <div className="flex flex-col items-center md:items-end gap-1">
-                      {match.status === 'FINISHED' && score.hasScore ? (
-                        <>
-                          <p
-                            className={`text-3xl font-bold ${getResultColor(match)}`}
-                          >
-                            {score.local} - {score.visitante}
-                          </p>
-                          {resultVariant && (
-                            <Badge variant={resultVariant}>
-                              {getResultText(match)}
-                            </Badge>
-                          )}
-                        </>
-                      ) : (
-                        <p className="text-sm text-text-muted">
-                          {t('noResult')}
-                        </p>
-                      )}
+            const cardInner = (
+              <div className="p-5">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-2 flex-wrap">
+                      <Badge variant={getStatusVariant(match.status)}>
+                        {getStatusText(match.status)}
+                      </Badge>
+                      <Badge variant="neutral">{getTypeText(match.type)}</Badge>
+                      <Badge variant="neutral">
+                        {getLocationText(match.location)}
+                      </Badge>
                     </div>
+                    <h3 className="text-lg font-bold text-text-primary">
+                      {match.opponent}
+                    </h3>
+                    <p className="text-sm text-text-secondary mt-1">
+                      📅 {formatDate(match.date)}
+                    </p>
+                    {(match.venue || match.competition) && (
+                      <p className="text-xs text-text-muted mt-1">
+                        {match.venue && `📍 ${match.venue}`}
+                        {match.venue && match.competition && ' • '}
+                        {match.competition && `🏆 ${match.competition}`}
+                      </p>
+                    )}
                   </div>
 
-                  {match._count && (
-                    <div className="flex gap-3 mt-3 pt-3 border-t border-border-subtle">
-                      <span className="text-xs text-text-muted">
-                        {t('callupsCount', { count: match._count.callups })}
-                      </span>
-                      <span className="text-xs text-text-muted">
-                        {t('statsCount', {
-                          count: match._count.playerStats,
-                        })}
-                      </span>
-                    </div>
-                  )}
+                  <div className="flex flex-col items-center md:items-end gap-1">
+                    {match.status === 'FINISHED' && score.hasScore ? (
+                      <>
+                        <p className={`text-3xl font-bold ${getResultColor(match)}`}>
+                          {score.local} - {score.visitante}
+                        </p>
+                        {resultVariant && (
+                          <Badge variant={resultVariant}>
+                            {getResultText(match)}
+                          </Badge>
+                        )}
+                      </>
+                    ) : (
+                      <p className="text-sm text-text-muted">{t('noResult')}</p>
+                    )}
+                  </div>
+                </div>
+
+                {match._count && (
+                  <div className="flex gap-3 mt-3 pt-3 border-t border-border-subtle">
+                    <span className="text-xs text-text-muted">
+                      {t('callupsCount', { count: match._count.callups })}
+                    </span>
+                    <span className="text-xs text-text-muted">
+                      {t('statsCount', { count: match._count.playerStats })}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )
+
+            return canViewMatch ? (
+              <Card key={match.id} hover>
+                <Link href={`/matches/${match.id}`} className="block">
+                  {cardInner}
                 </Link>
+              </Card>
+            ) : (
+              <Card key={match.id}>
+                {cardInner}
               </Card>
             )
           })}
         </div>
       )}
 
-      {showCreateModal && (
-        <CreateMatchModal
-          teamId={activeTeam.id}
-          teamSport={activeTeam.sport ?? undefined}
-          onClose={() => setShowCreateModal(false)}
-          onSuccess={() => fetchData(selectedTeams)}
-        />
-      )}
+      <Can resource="match" action="create" clubId={clubId} teamId={teamId}>
+        {showCreateModal && (
+          <CreateMatchModal
+            teamId={teamId}
+            teamSport={team?.sport}
+            onClose={() => setShowCreateModal(false)}
+            onSuccess={fetchData}
+          />
+        )}
+      </Can>
     </div>
   )
 }

@@ -10,6 +10,8 @@ import {
   categoryVariant,
   difficultyVariant,
 } from '@/lib/libraryLabels'
+import { useActiveTeam } from '@/lib/ActiveTeamContext'
+import { Can } from '@/lib/permissions/can'
 
 interface Props {
   exercise: LibraryExercise | null
@@ -19,6 +21,10 @@ interface Props {
 export function LibraryExerciseDetailModal({ exercise, onClose }: Props) {
   const t = useTranslations('Library')
   const { categoryLabel, difficultyLabel } = useLibraryLabels()
+  const { activeTeam } = useActiveTeam()
+
+  const clubId = activeTeam?.club?.id ?? null
+  const teamId = activeTeam?.id ?? null
 
   if (!exercise) return null
 
@@ -147,9 +153,13 @@ export function LibraryExerciseDetailModal({ exercise, onClose }: Props) {
           <Button variant="secondary" onClick={onClose} className="flex-1">
             {t('close')}
           </Button>
-          <Button href={`/library/${exercise.id}/edit`} className="flex-1">
-            {t('editButton')}
-          </Button>
+          
+          {/* ✅ El botón de editar solo se muestra si tiene library:edit */}
+          <Can resource="library" action="edit" clubId={clubId} teamId={teamId}>
+            <Button href={`/library/${exercise.id}/edit`} className="flex-1">
+              {t('editButton')}
+            </Button>
+          </Can>
         </div>
       </div>
     </Modal>

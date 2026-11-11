@@ -6,27 +6,31 @@ import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { usersApi } from '@/lib/api/users'
 import { invitationsApi } from '@/lib/api/invitations'
-import { Button, Input, Select, Modal } from '@/components/ui'
+import { Button, Input, Modal } from '@/components/ui'
 import type { UserPublic } from '@/types/user'
 import { membershipsApi } from '@/lib/api/memberships'
+import api from '@/lib/api'
 
 interface Props {
   teamId: string
+  clubId: string
   onClose: () => void
   onSuccess: () => Promise<void> | void
+  onCreated?: (member: {
+    id: string
+    userId: string
+    clubId: string
+    user: { name: string; lastName: string; email: string }
+  }) => void
 }
 
 type Mode = 'search' | 'create' | 'registered'
-type Role = 'PLAYER' | 'COACH' | 'ASSISTANT' | 'ADMIN_TEAM'
 
-const ALL_ROLES: Role[] = ['PLAYER', 'COACH', 'ASSISTANT', 'ADMIN_TEAM']
-
-export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props) {
+export default function InviteMemberModal({ teamId, clubId, onClose, onSuccess, onCreated }: Props) {
   const t = useTranslations('Members.invite')
   const tRoles = useTranslations('Roles')
   
-  const [mode, setMode] = useState<Mode>('search')
-  const [role, setRole] = useState<Role>('PLAYER')
+  const [mode, setMode] = useState<Mode>('create')
 
   // Search
   const [query, setQuery] = useState('')
@@ -44,7 +48,6 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
     jerseyNumber: '',
     position: '',
   })
-  const [sendInvitation, setSendInvitation] = useState(true)
 
   // Registered
   const [registeredQuery, setRegisteredQuery] = useState('')
@@ -85,9 +88,10 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
     setAdding(user.id)
     setError('')
     try {
+      // Para añadir existentes, usamos el endpoint de membership con un rol por defecto
       await membershipsApi.addMember(teamId, {
         userId: user.id,
-        role,
+        role: 'PLAYER', // Rol por defecto
       })
       await onSuccess()
       onClose()
@@ -105,7 +109,7 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
     try {
       const invitation = await invitationsApi.create({
         teamId,
-        role,
+        role: 'PLAYER',
         channel: 'LINK',
         userId: user.id,
       })
@@ -124,6 +128,7 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
     }
   }
 
+  // ✅ Crear nuevo usuario: usa el endpoint del club con roles
   const handleCreateNew = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!createForm.name || !createForm.lastName) {
@@ -134,30 +139,30 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
     setProcessing(true)
     setError('')
     try {
-      const result = await usersApi.createGhost({
+      const res = await api.post(`/teams/${teamId}/members`, {
         name: createForm.name,
         lastName: createForm.lastName,
-        teamId,
         email: createForm.email || undefined,
         phone: createForm.phone || undefined,
+        role: 'PLAYER',
         jerseyNumber: createForm.jerseyNumber
-          ? parseInt(createForm.jerseyNumber)
+          ? Number(createForm.jerseyNumber)
           : undefined,
         position: createForm.position || undefined,
-        role,
-        sendInvitation: !!createForm.email && sendInvitation,
+      })
+
+      // Notificar al padre para que abra el modal de roles
+      onCreated?.({
+        id: res.data.id,
+        userId: res.data.userId ?? res.data.user?.id ?? '',
+        clubId: res.data.clubId ?? clubId,
+        user: res.data.user,
       })
 
       await onSuccess()
       onClose()
-
-      if (result?.invitationSent) {
-        console.log('✅ Invitación enviada al nuevo miembro')
-      }
     } catch (err: any) {
-      console.error('Error:', err)
       const code = err.response?.data?.code
-
       if (code === 'USER_ALREADY_EXISTS_USE_EMAIL_INVITE') {
         setMode('registered')
         setRegisteredQuery(createForm.email)
@@ -187,7 +192,7 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
 
       const invitation = await invitationsApi.create({
         teamId,
-        role,
+        role: 'PLAYER',
         channel: 'LINK',
         userId: found.id,
         email: isEmail ? registeredQuery : undefined,
@@ -242,8 +247,7 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
       setError(t('errorNoLink'))
       return
     }
-    const roleLabel = tRoles(role)
-    const msg = t('whatsappMessage', { role: roleLabel, link: invitationLink })
+    const msg = `¡Hola! 👋 Te invito al equipo en JoinSport. Únete aquí: ${invitationLink}`
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
   }
 
@@ -253,19 +257,13 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
 
   if (invitationCode) {
     return (
-      <Modal
-        isOpen={true}
-        onClose={onClose}
-        title={t('successTitle')}
-        size="md"
-      >
+      <Modal isOpen={true} onClose={onClose} title={t('successTitle')} size="md">
         <div className="space-y-4">
           <div className="bg-success/10 border border-success/20 rounded-lg p-4 text-center">
             <div className="text-4xl mb-2">✅</div>
             <p className="text-success font-medium">{t('successHeading')}</p>
             <p className="text-xs text-text-muted mt-1">{t('successHint')}</p>
           </div>
-
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-1">
               {t('codeLabel')}
@@ -274,7 +272,6 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
               {invitationCode}
             </code>
           </div>
-
           {invitationLink && (
             <>
               <div>
@@ -289,7 +286,6 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
                   className="w-full bg-surface-elevated border border-border-subtle rounded-lg px-3 py-2 text-text-primary text-sm font-mono"
                 />
               </div>
-
               <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                 <Button variant="secondary" onClick={copyLink}>
                   {copied ? t('copied') : t('copyLink')}
@@ -299,13 +295,8 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
                   {t('emailButton')}
                 </Button>
               </div>
-
-              <div className="bg-brand-primary/10 border border-brand-primary/20 rounded-lg p-3 text-xs text-text-secondary">
-                {t('roleAssigned', { role: tRoles(role) })}
-              </div>
             </>
           )}
-
           <Button
             variant="secondary"
             onClick={async () => {
@@ -323,19 +314,6 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
 
   return (
     <Modal isOpen={true} onClose={onClose} title={t('title')} size="lg">
-      <Select
-        label={t('roleLabel')}
-        value={role}
-        onChange={(e) => setRole(e.target.value as Role)}
-        className="mb-4"
-      >
-        {ALL_ROLES.map((r) => (
-          <option key={r} value={r}>
-            {tRoles(r)}
-          </option>
-        ))}
-      </Select>
-
       <div className="flex mb-4 border-b border-border-subtle">
         <button
           onClick={() => setMode('search')}
@@ -371,15 +349,6 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
 
       {mode === 'search' && (
         <div className="space-y-4">
-          <div className="bg-surface-elevated border border-border-subtle rounded-lg p-3 text-xs text-text-muted space-y-1">
-            <p>
-              <strong className="text-text-primary">{t('addLabel')}</strong> {t('addDesc')}
-            </p>
-            <p>
-              <strong className="text-text-primary">{t('inviteLabel')}</strong> {t('inviteDesc')}
-            </p>
-          </div>
-
           <Input
             label={t('searchLabel')}
             type="text"
@@ -485,60 +454,6 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
             helperText={t('form.emailHelper')}
           />
 
-          {createForm.email && (
-            <label className="flex items-start gap-3 cursor-pointer bg-brand-primary/5 border border-brand-primary/20 rounded-lg p-3">
-              <input
-                type="checkbox"
-                checked={sendInvitation}
-                onChange={(e) => setSendInvitation(e.target.checked)}
-                className="mt-0.5 w-5 h-5 cursor-pointer accent-brand-primary"
-              />
-              <div className="text-sm">
-                <p className="font-medium text-text-primary">
-                  {t('form.sendInvite')}
-                </p>
-                <p className="text-xs text-text-muted mt-0.5">
-                  {t.rich('form.sendInviteHelper', {
-                    email: createForm.email,
-                    strong: (chunks) => <strong>{chunks}</strong>,
-                  })}
-                </p>
-              </div>
-            </label>
-          )}
-
-          <Input
-            label={t('form.phone')}
-            type="tel"
-            value={createForm.phone}
-            onChange={(e) =>
-              setCreateForm({ ...createForm, phone: e.target.value })
-            }
-            helperText={t('form.optional')}
-          />
-
-          <div className="grid grid-cols-2 gap-4">
-            <Input
-              label={t('form.jerseyNumber')}
-              type="number"
-              value={createForm.jerseyNumber}
-              onChange={(e) =>
-                setCreateForm({ ...createForm, jerseyNumber: e.target.value })
-              }
-              min="0"
-              max="99"
-            />
-            <Input
-              label={t('form.position')}
-              type="text"
-              value={createForm.position}
-              onChange={(e) =>
-                setCreateForm({ ...createForm, position: e.target.value })
-              }
-              placeholder={t('form.positionPlaceholder')}
-            />
-          </div>
-
           <div className="flex gap-3 pt-4">
             <Button
               type="button"
@@ -555,9 +470,7 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
               loading={processing}
               className="flex-1"
             >
-              {processing
-                ? t('creating')
-                : t('createButton', { role: tRoles(role).toLowerCase() })}
+              {processing ? t('creating') : 'Continuar y asignar roles →'}
             </Button>
           </div>
         </form>
@@ -565,10 +478,6 @@ export default function InviteMemberModal({ teamId, onClose, onSuccess }: Props)
 
       {mode === 'registered' && (
         <form onSubmit={handleInviteRegistered} className="space-y-4">
-          <div className="bg-surface-elevated border border-border-subtle rounded-lg p-3 text-xs text-text-muted space-y-1">
-            <p>{t('registeredInfo')}</p>
-          </div>
-
           <Input
             label={t('registeredLabel')}
             type="text"

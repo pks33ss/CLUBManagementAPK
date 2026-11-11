@@ -1,3 +1,4 @@
+// frontend-web/lib/api/clubs.ts
 import api from '@/lib/api'
 
 export interface ClubPlayerMembership {
@@ -46,12 +47,6 @@ export interface ClubDetail {
   }>
 }
 
-/**
- * Item de `GET /clubs` (listado de mis clubs).
- * El backend devuelve cada club con sus members (incluyendo `role`) y
- * sus teams resumidos. El email del user puede venir o no según el
- * scope del viewer (ver backend/src/common/access.ts).
- */
 export interface ClubListItem {
   id: string
   name: string
@@ -82,26 +77,45 @@ export interface ClubListItem {
   }>
 }
 
+// ✅ Unificamos los tipos (los dejamos con ? para que sean flexibles)
+export interface ClubMemberRoleRef {
+  id: string
+  roleRef: { id: string; name: string }
+  scope: 'ALL' | 'TEAMS'
+  teamScopes?: { teamId: string; team?: { id: string; name: string } }[]
+}
+
+export interface ClubMember {
+  id: string
+  userId: string
+  clubId: string
+  isActive: boolean
+  joinedAt: string
+  user: { id: string; name: string; lastName: string; email: string }
+  roleRef: { id: string; name: string } | null   // legacy (compat)
+  clubMemberRoles?: ClubMemberRoleRef[]          // nuevo
+}
+
 export const clubsApi = {
-  /**
-   * Jugadores del club (vista global).
-   */
   async getPlayers(clubId: string): Promise<ClubPlayer[]> {
     const { data } = await api.get(`/clubs/${clubId}/players`)
     return data
   },
-
-  /**
-   * Detalle del club (incluye members y colores).
-   */
+  async updateMemberRoles(
+    clubId: string,
+    memberId: string,
+    roles: string[],
+  ): Promise<ClubMember> {
+    const { data } = await api.put(
+      `/clubs/${clubId}/members/${memberId}/roles`,
+      { roles },
+    )
+    return data
+  },
   async getOne(clubId: string): Promise<ClubDetail> {
     const { data } = await api.get(`/clubs/${clubId}`)
     return data
   },
-
-  /**
-   * Actualizar datos del club (incluye colores).
-   */
   async update(
     clubId: string,
     payload: {
@@ -117,28 +131,14 @@ export const clubsApi = {
     const { data } = await api.put(`/clubs/${clubId}`, payload)
     return data
   },
-
-  /**
-   * Subir logo del club (base64).
-   */
   async uploadLogo(clubId: string, image: string): Promise<{ logo: string }> {
     const { data } = await api.post(`/clubs/${clubId}/upload-logo`, { image })
     return data
   },
-
-  /**
-   * Eliminar logo del club.
-   */
   async removeLogo(clubId: string): Promise<{ logo: null }> {
     const { data } = await api.delete(`/clubs/${clubId}/logo`)
     return data
   },
-
-  /**
-   * ✅ NUEVO — Listar mis clubs.
-   * Devuelve solo los clubs donde el user es miembro activo o tiene
-   * alguna membership de equipo. SUPER_ADMIN los ve todos.
-   */
   async getMine(): Promise<ClubListItem[]> {
     const { data } = await api.get('/clubs')
     return data

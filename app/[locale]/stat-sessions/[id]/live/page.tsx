@@ -190,12 +190,12 @@ export default function LiveSessionPage() {
     // ⚠️ AÑADIMOS EL TOKEN A LA URL
     const sseUrl = `${apiUrl}/stat-sessions/${sessionId}/live-stream?token=${token}`
 
-    console.log('🔌 Intentando conectar a SSE en:', sseUrl)
+  
 
     const es = new EventSource(sseUrl)
 
     es.onopen = () => {
-      console.log('✅ SSE conectado')
+      
       setIsSseConnected(true)
     }
 
@@ -215,7 +215,7 @@ export default function LiveSessionPage() {
     }
 
     return () => {
-      console.log('🔌 Cerrando conexión SSE')
+    
       es.close()
       setIsSseConnected(false)
     }

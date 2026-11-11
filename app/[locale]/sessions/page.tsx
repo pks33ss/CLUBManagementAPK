@@ -1,4 +1,8 @@
-// frontend-web/app/[locale]/sessions/page.tsx
+// archivo: frontend-web/app/[locale]/sessions/page.tsx
+// Lote 9.2 — Gating alineado a la guía:
+//   - Botón "+ New Session" → session:create (con doble lectura event:create legacy)
+//   - Click en entrenamiento → session:view (con doble lectura event:view legacy)
+// La doble lectura se mantiene hasta que todos los roles migren a session:*.
 
 'use client'
 
@@ -9,6 +13,7 @@ import { useTranslations, useLocale } from 'next-intl'
 import api from '@/lib/api'
 import { getSportConfig } from '@/lib/sport'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
+import { usePermissionsContext } from '@/lib/permissions/permissions-provider'
 import {
   summarizeAttendance,
   attendanceBadgeClass,
@@ -43,10 +48,34 @@ export default function SessionsPage() {
   const router = useRouter()
   const { activeTeam, loading: loadingTeams } = useActiveTeam()
 
+  const {
+    can,
+    loading: permissionsLoading,
+    error: permissionsError,
+  } = usePermissionsContext()
+
+  const permissionsReady = !permissionsLoading && !permissionsError
+  const clubId = activeTeam?.club?.id ?? null
+  const teamId = activeTeam?.id ?? null
+
+  // Doble lectura legacy: session:view || event:view
+  const canViewSessions =
+    permissionsReady &&
+    (can('session', 'view', { clubId, teamId }) ||
+      can('event', 'view', { clubId, teamId }))
+
+  // Doble lectura legacy: session:create || event:create
+  const canCreateSession =
+    permissionsReady &&
+    (can('session', 'create', { clubId, teamId }) ||
+      can('event', 'create', { clubId, teamId }))
+
   const [sessions, setSessions] = useState<Session[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    if (!permissionsReady) return
+
     const token = localStorage.getItem('token')
     if (!token) {
       router.push('/login')
@@ -59,16 +88,22 @@ export default function SessionsPage() {
       return
     }
 
-    fetchSessions(activeTeam.id)
-  }, [activeTeam, router])
+    if (!canViewSessions) {
+      setSessions([])
+      setLoading(false)
+      return
+    }
 
-  const fetchSessions = async (teamId: string) => {
+    fetchSessions(activeTeam.id)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTeam, router, permissionsReady, canViewSessions])
+
+  const fetchSessions = async (teamIdParam: string) => {
     setLoading(true)
     try {
-      const response = await api.get(`/sessions/team/${teamId}`)
+      const response = await api.get(`/sessions/team/${teamIdParam}`)
       setSessions(response.data)
-    } catch (error) {
-      console.error('Error fetching sessions:', error)
+    } catch {
       setSessions([])
     } finally {
       setLoading(false)
@@ -92,8 +127,16 @@ export default function SessionsPage() {
     return `${datePart} (${weekdayPart}), ${timePart}`
   }
 
+  if (permissionsLoading) {
+    return <div className="text-center py-12 text-text-muted">{tCommon('loading')}</div>
+  }
+
+  if (permissionsError) {
+    return <div className="text-center py-12 text-danger">{permissionsError}</div>
+  }
+
   if (loadingTeams || loading) {
-    return <div className="text-center py-12 text-text-muted">Loading sessions...</div>
+    return <div className="text-center py-12 text-text-muted">{tCommon('loading')}</div>
   }
 
   if (!activeTeam) {
@@ -110,6 +153,18 @@ export default function SessionsPage() {
     )
   }
 
+  if (!canViewSessions) {
+    return (
+      <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
+        <div className="text-6xl mb-4">🔒</div>
+        <h3 className="text-xl font-semibold text-text-primary mb-2">Sin acceso</h3>
+        <p className="text-text-secondary mb-6">
+          No tienes permisos para ver las sesiones de este equipo.
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div>
       <div className="flex justify-between items-center mb-6">
@@ -121,26 +176,29 @@ export default function SessionsPage() {
             {activeTeam.name} · {activeTeam.club?.name}
           </p>
         </div>
-        <Link
-          href="/sessions/new"
-          className="bg-brand-primary hover:bg-brand-primary-dark text-bg-base px-4 py-2 rounded-lg flex items-center gap-2 transition font-medium"
-        >
-          <span className="text-xl">+</span> {t('newSession')}
-        </Link>
+
+        {canCreateSession && (
+          <Link
+            href="/sessions/new"
+            className="bg-brand-primary hover:bg-brand-primary-dark text-bg-base px-4 py-2 rounded-lg flex items-center gap-2 transition font-medium"
+          >
+            <span className="text-xl">+</span> {t('newSession')}
+          </Link>
+        )}
       </div>
 
       {sessions.length === 0 ? (
         <div className="text-center py-12 bg-surface rounded-xl shadow border border-border-subtle">
           <div className="text-4xl mb-4">📋</div>
-          <p className="text-text-secondary">
-            {t('noSessions')}
-          </p>
-          <Link
-            href="/sessions/new"
-            className="mt-4 bg-brand-primary text-bg-base px-6 py-2 rounded-lg hover:bg-brand-primary-dark transition inline-block font-medium"
-          >
-            {t('createFirst')}
-          </Link>
+          <p className="text-text-secondary">{t('noSessions')}</p>
+          {canCreateSession && (
+            <Link
+              href="/sessions/new"
+              className="mt-4 bg-brand-primary text-bg-base px-6 py-2 rounded-lg hover:bg-brand-primary-dark transition inline-block font-medium"
+            >
+              {t('createFirst')}
+            </Link>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -149,42 +207,58 @@ export default function SessionsPage() {
             const sessionSport = getSportConfig(
               session.team?.sport ?? activeTeam?.sport,
             )
-            return (
+
+            const cardInner = (
+              <div>
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-xl">{sessionSport.icon}</span>
+                  <h3 className="text-lg font-semibold text-text-primary">
+                    {session.title}
+                  </h3>
+                </div>
+                <p className="text-sm text-text-secondary mt-1">
+                  {formatDate(session.date)}
+                </p>
+                <p className="text-sm text-text-secondary">
+                  ⏱️ {session.duration} {t('min')}
+                </p>
+                {session.location && (
+                  <p className="text-sm text-text-muted">📍 {session.location}</p>
+                )}
+                <div className="flex gap-2 mt-3 flex-wrap">
+                  <span className="bg-brand-primary/10 text-brand-primary text-xs px-2 py-1 rounded-full font-medium">
+                    🏋️ {t('exercisesCount', { count: session.exercises?.length || 0 })}
+                  </span>
+                  <span
+                    className={`${attendanceBadgeClass(
+                      attendanceSummary.rate,
+                    )} text-xs px-2 py-1 rounded-full`}
+                  >
+                    {attendanceBadgeLabel(attendanceSummary)}
+                  </span>
+                </div>
+              </div>
+            )
+
+            // Con session:view (o event:view legacy) → Link. Sin él → div no clickeable.
+            // (Aunque la página ya no se muestra sin canViewSessions, dejamos la
+            //  estructura preparada para el futuro cuando session:view y event:view
+            //  se separen de verdad.)
+            return canViewSessions ? (
               <Link
                 key={session.id}
                 href={`/sessions/${session.id}`}
                 className="bg-surface rounded-xl shadow-md hover:shadow-lg transition p-6 border border-border-subtle hover:border-brand-primary/50"
               >
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-xl">{sessionSport.icon}</span>
-                    <h3 className="text-lg font-semibold text-text-primary">
-                      {session.title}
-                    </h3>
-                  </div>
-                  <p className="text-sm text-text-secondary mt-1">
-                    {formatDate(session.date)}
-                  </p>
-                  <p className="text-sm text-text-secondary">
-                    ⏱️ {session.duration} {t('min')}
-                  </p>
-                  {session.location && (
-                    <p className="text-sm text-text-muted">📍 {session.location}</p>
-                  )}
-                  <div className="flex gap-2 mt-3 flex-wrap">
-                    <span className="bg-brand-primary/10 text-brand-primary text-xs px-2 py-1 rounded-full font-medium">
-                      🏋️ {t('exercisesCount', { count: session.exercises?.length || 0 })}
-                    </span>
-                    <span
-                      className={`${attendanceBadgeClass(
-                        attendanceSummary.rate,
-                      )} text-xs px-2 py-1 rounded-full`}
-                    >
-                      {attendanceBadgeLabel(attendanceSummary)}
-                    </span>
-                  </div>
-                </div>
+                {cardInner}
               </Link>
+            ) : (
+              <div
+                key={session.id}
+                className="bg-surface rounded-xl shadow-md p-6 border border-border-subtle"
+              >
+                {cardInner}
+              </div>
             )
           })}
         </div>

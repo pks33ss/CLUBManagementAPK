@@ -14,6 +14,7 @@ import {
   type EmailSettingsUser,
 } from '@/lib/adminEmailSettings'
 import { Button, Card, Badge, Input, Select, Modal } from '@/components/ui'
+import { usersApi } from '@/lib/api/users'
 
 interface User {
   id: string
@@ -61,6 +62,103 @@ export default function UsersManagement() {
   const [togglingIds, setTogglingIds] = useState<Set<string>>(new Set())
   const [bulkLoading, setBulkLoading] = useState(false)
 
+    const [search, setSearch] = useState('')
+  const [sortBy, setSortBy] = useState('name')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc')
+  const [viewMembershipsUser, setViewMembershipsUser] = useState<User | null>(null)
+  const [membershipsData, setMembershipsData] = useState<any>(null)
+  const [loadingMemberships, setLoadingMemberships] = useState(false)
+
+    const [editRolesData, setEditRolesData] = useState<{
+    clubId: string
+    memberId: string
+    memberName: string
+    currentRoles: any[]
+  } | null>(null)
+  const [availableRoles, setAvailableRoles] = useState<any[]>([])
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([])
+  const [roleScopes, setRoleScopes] = useState<Record<string, 'ALL' | 'TEAMS'>>({})
+  const [roleTeams, setRoleTeams] = useState<Record<string, string[]>>({})
+  const [savingRoles, setSavingRoles] = useState(false)
+  const [teams, setTeams] = useState<any[]>([])
+
+    const openEditRoles = async (club: any, memberId: string, memberName: string, currentRoles: any[]) => {
+    // Cargar roles del club
+    const rolesRes = await api.get(`/clubs/${club.id}/roles`)
+    const uniqueRoles = Array.from(new Map(rolesRes.data.map((r: any) => [r.name, r])).values())
+    setAvailableRoles(uniqueRoles)
+    
+    // Cargar equipos del club
+    const teamsRes = await api.get(`/teams/club/${club.id}`)
+    setTeams(teamsRes.data)
+    
+    // Inicializar estado
+    const initialRoles = currentRoles.map((r: any) => r.roleRef.name)
+    const initialScopes: Record<string, 'ALL' | 'TEAMS'> = {}
+    const initialTeams: Record<string, string[]> = {}
+    currentRoles.forEach((r: any) => {
+      initialScopes[r.roleRef.name] = r.scope
+      initialTeams[r.roleRef.name] = r.teamScopes?.map((ts: any) => ts.teamId) || []
+    })
+    
+    setSelectedRoles(initialRoles)
+    setRoleScopes(initialScopes)
+    setRoleTeams(initialTeams)
+    setEditRolesData({ clubId: club.id, memberId, memberName, currentRoles })
+  }
+
+  const saveRoles = async () => {
+    if (!editRolesData) return
+    setSavingRoles(true)
+    try {
+      const payloadRoles = selectedRoles.map(roleName => {
+        const scope = roleScopes[roleName] || 'ALL'
+        const teamIds = scope === 'TEAMS' ? (roleTeams[roleName] || []) : undefined
+        return { name: roleName, scope, teamIds }
+      })
+
+      await api.put(
+        `/clubs/${editRolesData.clubId}/members/${editRolesData.memberId}/roles`,
+        { roles: payloadRoles },
+      )
+      
+      // Refrescar el modal de pertenencias
+      if (viewMembershipsUser) {
+        const data = await usersApi.getMemberships(viewMembershipsUser.id)
+        setMembershipsData(data)
+      }
+      
+      setEditRolesData(null)
+    } catch (error: any) {
+      console.error('Error:', error)
+      alert(error.response?.data?.message || 'Error al guardar los roles')
+    } finally {
+      setSavingRoles(false)
+    }
+  }
+
+  useEffect(() => {
+    if (!currentUser || currentUser.role !== 'SUPER_ADMIN') return
+    const timer = setTimeout(() => {
+      fetchUsers()
+    }, 300) // Debounce de 300ms
+    return () => clearTimeout(timer)
+  }, [search, sortBy, sortOrder])
+
+  const openMembershipsModal = async (user: User) => {
+    setViewMembershipsUser(user)
+    setLoadingMemberships(true)
+    try {
+      const data = await usersApi.getMemberships(user.id)
+      setMembershipsData(data)
+    } catch (error: any) {
+      console.error('Error:', error)
+      alert('Error al cargar las pertenencias')
+    } finally {
+      setLoadingMemberships(false)
+    }
+  }
+
   useEffect(() => {
     const userStr = localStorage.getItem('user')
     if (!userStr) {
@@ -103,7 +201,12 @@ export default function UsersManagement() {
 
   const fetchUsers = async () => {
     try {
-      const response = await api.get('/users')
+      const params = new URLSearchParams()
+      if (search) params.set('search', search)
+      params.set('sortBy', sortBy)
+      params.set('sortOrder', sortOrder)
+      
+      const response = await api.get(`/users?${params.toString()}`)
       setUsers(response.data)
     } catch (error: any) {
       console.error('Error:', error)
@@ -357,6 +460,37 @@ export default function UsersManagement() {
       </Card>
 
       <Card>
+              <Card className="mb-4">
+        <div className="p-4 flex flex-wrap items-center gap-4">
+          <div className="flex-1 min-w-[200px]">
+            <Input
+              type="text"
+              placeholder="Buscar por nombre, email o @username..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-text-muted">Ordenar por:</span>
+            <select
+              value={`${sortBy}-${sortOrder}`}
+              onChange={(e) => {
+                const [newSortBy, newSortOrder] = e.target.value.split('-')
+                setSortBy(newSortBy)
+                setSortOrder(newSortOrder as 'asc' | 'desc')
+              }}
+              className="bg-surface border border-border-subtle rounded px-2 py-1.5 text-sm text-text-primary"
+            >
+              <option value="name-asc">Nombre (A-Z)</option>
+              <option value="name-desc">Nombre (Z-A)</option>
+              <option value="email-asc">Email (A-Z)</option>
+              <option value="email-desc">Email (Z-A)</option>
+              <option value="createdAt-desc">Más recientes</option>
+              <option value="createdAt-asc">Más antiguos</option>
+            </select>
+          </div>
+        </div>
+      </Card>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-surface-elevated">
@@ -428,6 +562,13 @@ export default function UsersManagement() {
                           <option value="SUPER_ADMIN">{t('roles.superAdminOption')}</option>
                           <option value="USER">{t('roles.userOption')}</option>
                         </select>
+                                                <button
+                          onClick={() => openMembershipsModal(user)}
+                          className="text-brand-primary hover:text-brand-primary/80 p-1"
+                          title="Ver pertenencias"
+                        >
+                          🌐
+                        </button>
                         <button
                           onClick={() => openResetPasswordModal(user)}
                           className="text-warning hover:text-warning/80 p-1"
@@ -655,6 +796,188 @@ export default function UsersManagement() {
             </>
           )
         })()}
+      </Modal>
+            <Modal
+        isOpen={!!viewMembershipsUser}
+        onClose={() => {
+          setViewMembershipsUser(null)
+          setMembershipsData(null)
+        }}
+        title={`Pertenencias de ${viewMembershipsUser?.name} ${viewMembershipsUser?.lastName}`}
+        size="md"
+      >
+        {loadingMemberships ? (
+          <div className="text-center py-8 text-text-muted">Cargando...</div>
+        ) : membershipsData ? (
+          <div className="space-y-6">
+            {/* Clubes */}
+            <div>
+              <h3 className="text-lg font-semibold text-text-primary mb-3">
+                🏛️ Clubes ({membershipsData.clubs?.length || 0})
+              </h3>
+              {membershipsData.clubs?.length === 0 ? (
+                <p className="text-sm text-text-muted italic">No pertenece a ningún club.</p>
+              ) : (
+                <div className="space-y-2">
+                                    {membershipsData.clubs.map((c: any) => (
+                    <div key={c.id} className="bg-surface-elevated p-3 rounded-lg border border-border-subtle">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-text-primary">{c.club.name}</p>
+                          <div className="flex gap-1 mt-1">
+                            {c.clubMemberRoles?.map((r: any) => (
+                              <Badge key={r.roleRef.name} variant="info">
+                                {r.roleRef.name}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => openEditRoles(c.club, c.id, `${viewMembershipsUser?.name} ${viewMembershipsUser?.lastName}`, c.clubMemberRoles)}
+                        >
+                          ✏️ Editar roles
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Equipos */}
+            <div>
+              <h3 className="text-lg font-semibold text-text-primary mb-3">
+                🏆 Equipos ({membershipsData.memberships?.length || 0})
+              </h3>
+              {membershipsData.memberships?.length === 0 ? (
+                <p className="text-sm text-text-muted italic">No pertenece a ningún equipo.</p>
+              ) : (
+                <div className="space-y-2">
+                                    {membershipsData.memberships.map((m: any) => (
+                    <div key={m.id} className="bg-surface-elevated p-3 rounded-lg border border-border-subtle">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-text-primary">{m.team.name}</p>
+                          <p className="text-xs text-text-muted">{m.team.club?.name}</p>
+                          <div className="flex gap-1 mt-1">
+                            {m.roles?.map((r: any) => (
+                              <Badge key={r.roleRef.name} variant="brand">
+                                {r.roleRef.name}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          onClick={() => openEditRoles(m.team.club, m.id, `${viewMembershipsUser?.name} ${viewMembershipsUser?.lastName}`, m.roles)}
+                        >
+                          ✏️ Editar roles
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <p className="text-text-muted">No hay datos.</p>
+        )}
+      </Modal>
+            {/* ✅ NUEVO — Modal para editar roles desde la vista de pertenencias */}
+      <Modal
+        isOpen={!!editRolesData}
+        onClose={() => setEditRolesData(null)}
+        title={`Editar roles de ${editRolesData?.memberName}`}
+        size="md"
+      >
+        {editRolesData && (
+          <>
+            <div className="space-y-2 mb-4 max-h-[60vh] overflow-y-auto pr-2">
+              {availableRoles.map((role) => {
+                const checked = selectedRoles.includes(role.name)
+                const currentScope = roleScopes[role.name] || 'ALL'
+                const currentTeamIds = roleTeams[role.name] || []
+                return (
+                  <div
+                    key={role.id}
+                    className={`p-3 border-2 rounded-lg transition ${checked ? 'border-brand-primary bg-brand-primary/5' : 'border-border-subtle'}`}
+                  >
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => {
+                          if (checked) {
+                            setSelectedRoles(prev => prev.filter(r => r !== role.name))
+                            setRoleScopes(prev => { const n = {...prev}; delete n[role.name]; return n })
+                            setRoleTeams(prev => { const n = {...prev}; delete n[role.name]; return n })
+                          } else {
+                            setSelectedRoles(prev => [...prev, role.name])
+                            setRoleScopes(prev => ({ ...prev, [role.name]: 'ALL' }))
+                            setRoleTeams(prev => ({ ...prev, [role.name]: [] }))
+                          }
+                        }}
+                        className="w-5 h-5 accent-brand-primary"
+                      />
+                      <span className="font-medium text-text-primary">{role.name}</span>
+                    </label>
+                    {checked && (
+                      <div className="mt-2 pl-8 space-y-2">
+                        <select
+                          value={currentScope}
+                          onChange={(e) => {
+                            const newScope = e.target.value as 'ALL' | 'TEAMS'
+                            setRoleScopes(prev => ({ ...prev, [role.name]: newScope }))
+                            if (newScope === 'ALL') setRoleTeams(prev => ({ ...prev, [role.name]: [] }))
+                          }}
+                          className="w-full text-xs bg-surface border border-border-subtle rounded px-2 py-1.5 text-text-primary"
+                        >
+                          <option value="ALL">🌍 Todo el club</option>
+                          <option value="TEAMS">🏆 Equipos específicos</option>
+                        </select>
+                        {currentScope === 'TEAMS' && (
+                          <div className="flex flex-wrap gap-2">
+                            {teams.map((team) => (
+                              <label key={team.id} className="flex items-center gap-2 text-xs bg-surface-elevated px-2 py-1 rounded border border-border-subtle cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={currentTeamIds.includes(team.id)}
+                                  onChange={() => {
+                                    setRoleTeams(prev => {
+                                      const current = prev[role.name] || []
+                                      const newList = current.includes(team.id)
+                                        ? current.filter(id => id !== team.id)
+                                        : [...current, team.id]
+                                      return { ...prev, [role.name]: newList }
+                                    })
+                                  }}
+                                  className="w-3.5 h-3.5 accent-brand-primary"
+                                />
+                                {team.name}
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+            <div className="flex gap-3 pt-4 border-t border-border-subtle">
+              <Button variant="secondary" onClick={() => setEditRolesData(null)} disabled={savingRoles} className="flex-1">
+                Cancelar
+              </Button>
+              <Button onClick={saveRoles} loading={savingRoles} className="flex-1">
+                {savingRoles ? 'Guardando...' : 'Guardar roles'}
+              </Button>
+            </div>
+          </>
+        )}
       </Modal>
     </div>
   )

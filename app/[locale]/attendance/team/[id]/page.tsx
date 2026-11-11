@@ -1,3 +1,4 @@
+// archivo: frontend-web/app/[locale]/teams/[id]/attendance/page.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -6,12 +7,30 @@ import { useRouter, Link } from '@/navigation'
 import { useTranslations } from 'next-intl'
 import api from '@/lib/api'
 import { Card, CardBody, Badge } from '@/components/ui'
+import { useActiveTeam } from '@/lib/ActiveTeamContext'
+import { usePermissionsContext } from '@/lib/permissions/permissions-provider'
 
 export default function TeamAttendanceReport() {
   const t = useTranslations('Attendance.report')
   const router = useRouter()
   const params = useParams()
   const teamId = params.id as string
+
+  const { activeTeam } = useActiveTeam()
+  const {
+    can,
+    loading: permissionsLoading,
+    error: permissionsError,
+  } = usePermissionsContext()
+
+  const permissionsReady = !permissionsLoading && !permissionsError
+  const clubId = activeTeam?.club?.id ?? null
+
+  // Guía Lote 9.4
+  const canViewAttendance =
+    permissionsReady && can('attendance', 'view', { clubId, teamId })
+  const canViewPlayerProfile =
+    permissionsReady && can('player_profile', 'view', { clubId, teamId })
 
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -22,19 +41,52 @@ export default function TeamAttendanceReport() {
       router.push('/login')
       return
     }
+
+    if (!permissionsReady) return
+
+    if (!canViewAttendance) {
+      setLoading(false)
+      return
+    }
+
     fetchStats()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teamId])
+  }, [teamId, permissionsReady, canViewAttendance])
 
   const fetchStats = async () => {
     try {
       const response = await api.get(`/attendance/team/${teamId}/stats`)
       setData(response.data)
-    } catch (error) {
-      console.error('Error:', error)
+    } catch {
+      setData(null)
     } finally {
       setLoading(false)
     }
+  }
+
+  // 1) Permisos cargando
+  if (permissionsLoading) {
+    return <div className="text-center py-12 text-text-muted">{t('loading')}</div>
+  }
+
+  // 2) Error cargando permisos
+  if (permissionsError) {
+    return <div className="text-center py-12 text-danger">{permissionsError}</div>
+  }
+
+  // 3) Sin permiso → pantalla de acceso denegado
+  if (!canViewAttendance) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-6xl mb-4">🔒</div>
+        <p className="text-text-secondary mb-6">
+          No tienes permisos para ver el reporte de asistencia de este equipo.
+        </p>
+        <Link href={`/teams/${teamId}`} className="text-brand-primary hover:underline">
+          {t('backToTeam')}
+        </Link>
+      </div>
+    )
   }
 
   if (loading) {
@@ -150,25 +202,32 @@ export default function TeamAttendanceReport() {
                     item.stats.attendanceRate >= 80 ? 'bg-success'
                     : item.stats.attendanceRate >= 50 ? 'bg-warning'
                     : 'bg-danger'
+
+                  const playerName = (
+                    <>
+                      {item.player.name} {item.player.lastName}
+                      {item.player.isGhost && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning font-bold uppercase">
+                          {t('ghostBadge')}
+                        </span>
+                      )}
+                    </>
+                  )
+
                   return (
                     <tr key={item.player.id} className="hover:bg-surface-elevated transition">
                       <td className="px-4 py-3 text-sm text-text-secondary">{item.player.number || '-'}</td>
                       <td className="px-4 py-3">
-                        {item.player.username ? (
+                        {canViewPlayerProfile && item.player.username ? (
                           <Link
                             href={`/users/${item.player.username.replace('@', '')}`}
                             className="font-medium text-text-primary hover:text-brand-primary transition flex items-center gap-2"
                           >
-                            {item.player.name} {item.player.lastName}
-                            {item.player.isGhost && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning font-bold uppercase">
-                                {t('ghostBadge')}
-                              </span>
-                            )}
+                            {playerName}
                           </Link>
                         ) : (
                           <span className="font-medium text-text-primary flex items-center gap-2">
-                            {item.player.name} {item.player.lastName}
+                            {playerName}
                           </span>
                         )}
                       </td>

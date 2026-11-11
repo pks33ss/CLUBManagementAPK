@@ -1,11 +1,13 @@
+// archivo: frontend-web/app/[locale]/teams/[id]/stats/config/page.tsx
 'use client'
 
 import { useEffect, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Link } from '@/navigation';
+import { Link } from '@/navigation'
 import api from '@/lib/api'
 import { Card, CardBody } from '@/components/ui'
-import { usePermissions } from '@/lib/usePermissions'
+import { useActiveTeam } from '@/lib/ActiveTeamContext'
+import { usePermissionsContext } from '@/lib/permissions/permissions-provider'
 import TeamStatsConfigEditor from './_components/TeamStatsConfigEditor'
 
 interface TeamLite {
@@ -19,7 +21,8 @@ export default function TeamStatsConfigPage() {
   const router = useRouter()
   const teamId = params.id as string
 
-  const perms = usePermissions(teamId)
+  const { activeTeam } = useActiveTeam()
+  const { loading: permissionsLoading } = usePermissionsContext()
 
   const [team, setTeam] = useState<TeamLite | null>(null)
   const [loading, setLoading] = useState(true)
@@ -32,14 +35,17 @@ export default function TeamStatsConfigPage() {
       return
     }
 
+    // Solo esperamos a que los permisos terminen de cargar para no hacer fetch antes de tiempo
+    if (permissionsLoading) return
+
     let cancelled = false
     setLoading(true)
 
+    // ✅ Pedimos el equipo. Si el backend da 200, es que tenemos acceso.
     api
       .get(`/teams/${teamId}`)
       .then((res) => {
-        if (cancelled) return
-        setTeam(res.data)
+        if (!cancelled) setTeam(res.data)
       })
       .catch((err) => {
         if (cancelled) return
@@ -48,9 +54,7 @@ export default function TeamStatsConfigPage() {
         } else if (err.response?.status === 404) {
           setError('Este equipo no existe.')
         } else {
-          setError(
-            err.response?.data?.message || 'Error al cargar el equipo',
-          )
+          setError(err.response?.data?.message || 'Error al cargar el equipo')
         }
       })
       .finally(() => {
@@ -60,9 +64,9 @@ export default function TeamStatsConfigPage() {
     return () => {
       cancelled = true
     }
-  }, [teamId, router])
+  }, [teamId, router, permissionsLoading])
 
-  if (loading || perms.loading) {
+  if (permissionsLoading || loading) {
     return (
       <div className="text-center py-12 text-text-muted">
         Cargando configuración...
@@ -76,26 +80,6 @@ export default function TeamStatsConfigPage() {
         <div className="text-6xl mb-4">❌</div>
         <h2 className="text-xl font-bold text-text-primary mb-2">Error</h2>
         <p className="text-text-secondary mb-6">{error}</p>
-        <Link
-          href={`/teams/${teamId}/stats`}
-          className="text-brand-primary hover:underline"
-        >
-          ← Volver a estadísticas
-        </Link>
-      </div>
-    )
-  }
-
-  if (!perms.canEdit) {
-    return (
-      <div className="text-center py-12">
-        <div className="text-6xl mb-4">🔒</div>
-        <h2 className="text-xl font-bold text-text-primary mb-2">
-          Acceso denegado
-        </h2>
-        <p className="text-text-secondary mb-6">
-          No tienes permisos para configurar la visibilidad de estadísticas.
-        </p>
         <Link
           href={`/teams/${teamId}/stats`}
           className="text-brand-primary hover:underline"
@@ -126,6 +110,7 @@ export default function TeamStatsConfigPage() {
         </CardBody>
       </Card>
 
+      {/* ✅ Renderizamos el editor directamente. El backend protegerá las llamadas. */}
       <TeamStatsConfigEditor
         teamId={teamId}
         teamName={team.name}

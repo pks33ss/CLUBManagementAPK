@@ -8,6 +8,7 @@ import api from '@/lib/api'
 import { SPORTS, getSportConfig, isSportInDevelopment } from '@/lib/sport'
 import type { Sport } from '@/lib/sport'
 import { Button, Card, CardBody, Badge, Input, Select, Modal } from '@/components/ui'
+import { useActiveTeam } from '@/lib/ActiveTeamContext'
 
 // Compone "2026-27" a partir de dos años.
 function composeSeason(start: number, end: number): string {
@@ -23,6 +24,8 @@ function TeamsContent() {
   const tCommon = useTranslations('Common')
   const tSports = useTranslations('Sports') 
 
+  const { refresh } = useActiveTeam()
+
   const [teams, setTeams] = useState<any[]>([])
   const [clubs, setClubs] = useState<any[]>([])
   const [selectedClub, setSelectedClub] = useState('')
@@ -36,6 +39,9 @@ function TeamsContent() {
     seasonEnd: '',
     clubId: '',
   })
+
+    const [creating, setCreating] = useState(false)
+    const { refresh: refreshActiveTeam } = useActiveTeam()
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -89,6 +95,8 @@ function TeamsContent() {
 
   const createTeam = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (creating) return // ✅ Evita doble ejecución
+
     if (!newTeam.clubId) {
       alert(t('selectClubFirst'))
       return
@@ -114,6 +122,7 @@ function TeamsContent() {
       return
     }
 
+    setCreating(true)
     try {
       const payload = {
         name: newTeam.name,
@@ -123,12 +132,18 @@ function TeamsContent() {
         clubId: newTeam.clubId,
       }
       await api.post('/teams', payload)
+      
+      // ✅ Refrescamos el contexto para que detecte el nuevo equipo
+      await refresh()
+      
       setShowModal(false)
       resetForm(selectedClub)
       fetchTeams(selectedClub)
     } catch (error: any) {
       console.error('Error:', error)
       alert(error.response?.data?.message || 'Error al crear el equipo')
+    } finally {
+      setCreating(false)
     }
   }
 
@@ -389,8 +404,13 @@ function TeamsContent() {
             >
               {tCommon('cancel')}
             </Button>
-            <Button type="submit" className="flex-1">
-              {t('createTeam')}
+                        <Button 
+              type="submit" 
+              className="flex-1" 
+              disabled={creating} 
+              loading={creating}
+            >
+              {creating ? tCommon('loading') : t('createTeam')}
             </Button>
           </div>
         </form>

@@ -1,3 +1,4 @@
+// frontend-web/app/[locale]/teams/[id]/stats/config/_components/TeamStatsConfigEditor.tsx
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
@@ -14,9 +15,7 @@ import StatsConfigMatrix from './StatsConfigMatrix'
 interface Props {
   teamId: string
   teamName: string
-  /** Callback opcional al guardar / resetear con éxito */
   onSaved?: () => void
-  /** Si es `true`, oculta el botón "Restaurar todo a visible" */
   hideReset?: boolean
 }
 
@@ -36,7 +35,8 @@ export default function TeamStatsConfigEditor({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Cargar config del equipo
+  // ✅ Cargamos la configuración DIRECTO. Sin provider, sin can().
+  // Si el backend nos da 403, mostramos el error. Si da 200, renderizamos.
   useEffect(() => {
     let cancelled = false
     setLoading(true)
@@ -51,9 +51,11 @@ export default function TeamStatsConfigEditor({
       })
       .catch((err) => {
         if (cancelled) return
-        setError(
-          err.response?.data?.message || 'Error al cargar la configuración',
-        )
+        if (err.response?.status === 403) {
+          setError('No tienes permisos para ver la configuración de estadísticas de este equipo.')
+        } else {
+          setError(err.response?.data?.message || 'Error al cargar la configuración')
+        }
       })
       .finally(() => {
         if (!cancelled) setLoading(false)
@@ -64,7 +66,6 @@ export default function TeamStatsConfigEditor({
     }
   }, [teamId])
 
-  // Detectar cambios pendientes
   const hasChanges = useMemo(() => {
     if (entries.length !== originalEntries.length) return true
     const origMap = new Map(
@@ -104,21 +105,14 @@ export default function TeamStatsConfigEditor({
       setOriginalEntries(res.entries)
       onSaved?.()
     } catch (err: any) {
-      alert(
-        err.response?.data?.message || 'Error al guardar la configuración',
-      )
+      alert(err.response?.data?.message || 'Error al guardar la configuración')
     } finally {
       setSaving(false)
     }
   }
 
   const handleReset = async () => {
-    if (
-      !confirm(
-        '¿Restaurar todas las métricas a visible para todos los roles? Esta acción no se puede deshacer.',
-      )
-    )
-      return
+    if (!confirm('¿Restaurar todas las métricas a visible para todos los roles?')) return
     setSaving(true)
     try {
       const res = await statsConfigApi.update(teamId, {
@@ -129,26 +123,20 @@ export default function TeamStatsConfigEditor({
       setOriginalEntries(res.entries)
       onSaved?.()
     } catch (err: any) {
-      alert(
-        err.response?.data?.message || 'Error al restaurar la configuración',
-      )
+      alert(err.response?.data?.message || 'Error al restaurar la configuración')
     } finally {
       setSaving(false)
     }
   }
 
   if (loading) {
-    return (
-      <div className="text-center py-12 text-text-muted">
-        Cargando configuración...
-      </div>
-    )
+    return <div className="text-center py-12 text-text-muted">Cargando configuración...</div>
   }
 
   if (error) {
     return (
       <div className="text-center py-12">
-        <div className="text-6xl mb-4">❌</div>
+        <div className="text-6xl mb-4">🔒</div>
         <h2 className="text-xl font-bold text-text-primary mb-2">Error</h2>
         <p className="text-text-secondary mb-6">{error}</p>
       </div>
@@ -157,7 +145,6 @@ export default function TeamStatsConfigEditor({
 
   return (
     <div className="space-y-6">
-      {/* Cabecera con acciones */}
       <Card>
         <CardBody>
           <div className="flex justify-between items-start flex-wrap gap-3">
@@ -169,27 +156,15 @@ export default function TeamStatsConfigEditor({
                 {teamName} · Elige qué métricas ve cada rol.
               </p>
             </div>
+
             <div className="flex gap-2 flex-wrap">
               {!hideReset && (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleReset}
-                  disabled={saving}
-                >
+                <Button variant="secondary" size="sm" onClick={handleReset} disabled={saving}>
                   ↺ Restaurar todo a visible
                 </Button>
               )}
-              <Button
-                size="sm"
-                onClick={handleSave}
-                disabled={saving || !hasChanges}
-              >
-                {saving
-                  ? 'Guardando...'
-                  : hasChanges
-                  ? '💾 Guardar cambios'
-                  : '💾 Sin cambios'}
+              <Button size="sm" onClick={handleSave} disabled={saving || !hasChanges}>
+                {saving ? 'Guardando...' : hasChanges ? '💾 Guardar cambios' : '💾 Sin cambios'}
               </Button>
             </div>
           </div>
@@ -202,7 +177,6 @@ export default function TeamStatsConfigEditor({
         </CardBody>
       </Card>
 
-      {/* Tabs de scope */}
       <div className="border-b border-border-subtle">
         <div className="flex gap-1 overflow-x-auto overflow-y-hidden scrollbar-menu">
           {VISIBLE_SCOPES.map((scope) => (

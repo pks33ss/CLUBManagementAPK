@@ -1,14 +1,17 @@
+// archivo: frontend-web/app/[locale]/teams/[id]/page.tsx
 'use client'
 
 import { useState, useEffect } from 'react'
 import { useRouter, useParams } from 'next/navigation'
-import { Link } from '@/navigation';
+import { Link } from '@/navigation'
 import { useTranslations } from 'next-intl'
 import api from '@/lib/api'
 import { getSportConfig, isSportInDevelopment } from '@/lib/sport'
 import { Button, Card, CardBody, Badge, Input, Select, Modal } from '@/components/ui'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
-import { usePermissions } from '@/lib/usePermissions'
+import { usePermissionsContext } from '@/lib/permissions/permissions-provider'
+import { Can } from '@/lib/permissions/can'
+import NoAccess from '@/components/permissions/NoAccess'
 import RequestJoinModal from './_components/RequestJoinModal'
 import AddSelfRoleModal from './_components/AddSelfRoleModal'
 
@@ -84,10 +87,26 @@ export default function TeamDetail() {
   const tSports = useTranslations('Sports')
 
   const { setActiveTeam, activeTeam } = useActiveTeam()
+  const {
+    can,
+    loading: permissionsLoading,
+    error: permissionsError,
+  } = usePermissionsContext()
+
+  const clubId = activeTeam?.club?.id ?? null
+  const teamIdForPerms = teamId
+
+  const permissionsReady = !permissionsLoading && !permissionsError
+  const canViewTeam = permissionsReady && can('team', 'view', { clubId, teamId: teamIdForPerms })
+
+  // Guía Lote 9.1: click en jugador SOLO con player_profile:view (sin OR con user_data)
+  const canViewPlayerProfile =
+    permissionsReady && can('player_profile', 'view', { clubId, teamId: teamIdForPerms })
 
   const [team, setTeam] = useState<TeamDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [errorStatus, setErrorStatus] = useState<number | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   const [showEditModal, setShowEditModal] = useState(false)
@@ -105,8 +124,7 @@ export default function TeamDetail() {
   const [showJoinModal, setShowJoinModal] = useState(false)
   const [showAddRoleModal, setShowAddRoleModal] = useState(false)
 
-  const perms = usePermissions(teamId)
-
+  // Cargar el equipo solo cuando sepamos que el usuario tiene team:view
   useEffect(() => {
     const userStr = localStorage.getItem('user')
     if (userStr) {
@@ -120,9 +138,24 @@ export default function TeamDetail() {
       router.push('/login')
       return
     }
+
+    if (permissionsLoading) return
+    if (permissionsError) {
+      setError(permissionsError)
+      setLoading(false)
+      return
+    }
+
+    if (!canViewTeam) {
+      setError('No tienes acceso a este equipo.')
+      setErrorStatus(403)
+      setLoading(false)
+      return
+    }
+
     fetchTeam()
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teamId])
+  }, [teamId, permissionsLoading, permissionsError, canViewTeam])
 
   const fetchTeam = async () => {
     try {
@@ -151,7 +184,7 @@ export default function TeamDetail() {
         })
       }
     } catch (error: any) {
-      console.error('Error:', error)
+      setErrorStatus(error.response?.status ?? null)
       if (error.response?.status === 403) {
         setError(t('errorAccess'))
       } else if (error.response?.status === 404) {
@@ -220,7 +253,6 @@ export default function TeamDetail() {
       fetchTeam()
       alert(t('updateSuccess'))
     } catch (error: any) {
-      console.error('Error:', error)
       alert(error.response?.data?.message || t('errorUpdate'))
     } finally {
       setUpdating(false)
@@ -233,7 +265,6 @@ export default function TeamDetail() {
       await api.delete(`/teams/${teamId}`)
       router.push('/teams')
     } catch (error: any) {
-      console.error('Error:', error)
       alert(error.response?.data?.message || t('errorDelete'))
     } finally {
       setDeleting(false)
@@ -241,20 +272,51 @@ export default function TeamDetail() {
     }
   }
 
+  // 1) Permisos cargando
+  if (permissionsLoading) {
+    return (
+      <div className="text-center py-12 text-text-muted">
+        {tCommon('loading')}
+      </div>
+    )
+  }
+
+  // 2) Error cargando permisos
+  if (permissionsError) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-6xl mb-4">⚠️</div>
+        <h2 className="text-xl font-bold text-text-primary mb-2">
+          {tCommon('error')}
+        </h2>
+        <p className="text-text-secondary max-w-md mx-auto mb-6">
+          {permissionsError}
+        </p>
+      </div>
+    )
+  }
+
+  // 3) Sin permiso para ver el equipo → NoAccess
+  if (errorStatus === 403) {
+    return <NoAccess backHref="/teams" backLabel={t('backToTeams')} />
+  }
+
+  // 4) Cargando el equipo
   if (loading) {
     return <div className="text-center py-12 text-text-muted">{t('loadingTeam')}</div>
   }
 
+  // 5) Error real o equipo no encontrado
   if (error || !team) {
     return (
       <div className="text-center py-12">
-        <div className="text-6xl mb-4">
-          {error?.includes('No tienes acceso') || error?.includes("don't have access") ? '🔒' : '❌'}
-        </div>
+        <div className="text-6xl mb-4">❌</div>
         <h2 className="text-xl font-bold text-text-primary mb-2">
-          {error?.includes('No tienes acceso') || error?.includes("don't have access") ? t('accessDenied') : tCommon('error')}
+          {tCommon('error')}
         </h2>
-        <p className="text-text-secondary max-w-md mx-auto mb-6">{error || t('teamNotFound')}</p>
+        <p className="text-text-secondary max-w-md mx-auto mb-6">
+          {error || t('teamNotFound')}
+        </p>
         <Button href="/teams">{t('backToTeams')}</Button>
       </div>
     )
@@ -266,11 +328,11 @@ export default function TeamDetail() {
   const players = team.memberships.filter((m) =>
     (m.roles ?? [m.role]).includes('PLAYER'),
   )
-  const coaches = team.memberships.filter((m) =>
-    (m.roles ?? [m.role]).some((r) =>
-      ['COACH', 'ASSISTANT', 'ADMIN_TEAM'].includes(r),
-    ),
-  )
+
+  const staffMembers = team.memberships.filter((m) => {
+    const roles = m.roles ?? []
+    return roles.some((r) => r !== 'PLAYER')
+  })
 
   const myMembership = team.myMembership ?? null
   const myRoles = myMembership?.roles ?? []
@@ -320,13 +382,13 @@ export default function TeamDetail() {
                 <Badge variant="warning">{t('pendingRequest')}</Badge>
               )}
 
-              {perms.canEdit && (
+              <Can resource="team" action="edit" clubId={clubId} teamId={teamIdForPerms}>
                 <Button size="sm" onClick={openEdit}>
                   {t('edit')}
                 </Button>
-              )}
+              </Can>
 
-              {perms.canDelete && (
+              <Can resource="team" action="delete" clubId={clubId} teamId={teamIdForPerms}>
                 <Button
                   size="sm"
                   variant="danger"
@@ -335,7 +397,7 @@ export default function TeamDetail() {
                 >
                   {deleting ? t('deleting') : t('delete')}
                 </Button>
-              )}
+              </Can>
             </div>
           </div>
         </CardBody>
@@ -347,7 +409,8 @@ export default function TeamDetail() {
             <h2 className="text-xl font-semibold text-text-primary">
               👥 {t('players')} ({players.length})
             </h2>
-            {perms.canManage && (
+            {/* Guía Lote 9.1: añadir jugador = member:edit */}
+            <Can resource="member" action="edit" clubId={clubId} teamId={teamIdForPerms}>
               <Button
                 size="sm"
                 href={`/teams/${teamId}/members?action=invite`}
@@ -355,7 +418,7 @@ export default function TeamDetail() {
               >
                 {t('addPlayer', { player: t('player') })}
               </Button>
-            )}
+            </Can>
           </div>
 
           {players.length === 0 ? (
@@ -372,30 +435,54 @@ export default function TeamDetail() {
                   key={m.id}
                   className="bg-surface-elevated hover:bg-brand-primary/5 rounded-lg p-4 transition border border-border-subtle hover:border-brand-primary/50 flex items-start justify-between gap-3"
                 >
-                  <Link
-                    href={m.user.username ? `/users/${m.user.username.replace('@', '')}` : '#'}
-                    className="flex items-center gap-3 flex-1 min-w-0"
-                  >
-                    <div className="bg-brand-primary/10 text-brand-primary w-10 h-10 rounded-full flex items-center justify-center font-bold shrink-0">
-                      {m.jerseyNumber ?? '?'}
+                  {canViewPlayerProfile ? (
+                    <Link
+                      href={m.user.username ? `/users/${m.user.username.replace('@', '')}` : '#'}
+                      className="flex items-center gap-3 flex-1 min-w-0"
+                    >
+                      <div className="bg-brand-primary/10 text-brand-primary w-10 h-10 rounded-full flex items-center justify-center font-bold shrink-0">
+                        {m.jerseyNumber ?? '?'}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-text-primary truncate">
+                          {m.user.name} {m.user.lastName}
+                        </p>
+                        <p className="text-sm text-text-secondary truncate">
+                          {m.position || t('noPosition')}
+                        </p>
+                      </div>
+                    </Link>
+                  ) : (
+                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                      <div className="bg-brand-primary/10 text-brand-primary w-10 h-10 rounded-full flex items-center justify-center font-bold shrink-0">
+                        {m.jerseyNumber ?? '?'}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-text-primary truncate">
+                          {m.user.name} {m.user.lastName}
+                        </p>
+                        <p className="text-sm text-text-secondary truncate">
+                          {m.position || t('noPosition')}
+                        </p>
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="font-medium text-text-primary truncate">
-                        {m.user.name} {m.user.lastName}
-                      </p>
-                      <p className="text-sm text-text-secondary truncate">
-                        {m.position || t('noPosition')}
-                      </p>
-                    </div>
-                  </Link>
+                  )}
 
-                  <Link
-                    href={`/teams/${teamId}/players/${m.user.id}/stats`}
-                    className="shrink-0 self-center text-xs font-medium px-2.5 py-1.5 rounded-md bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 transition whitespace-nowrap"
-                    title={t('viewStats')}
+                  <Can
+                    resource="stats"
+                    action="view"
+                    clubId={clubId}
+                    teamId={teamIdForPerms}
+                    fallback={null}
                   >
-                    {t('stats')}
-                  </Link>
+                    <Link
+                      href={`/teams/${teamId}/players/${m.user.id}/stats`}
+                      className="shrink-0 self-center text-xs font-medium px-2.5 py-1.5 rounded-md bg-brand-primary/10 text-brand-primary hover:bg-brand-primary/20 transition whitespace-nowrap"
+                      title={t('viewStats')}
+                    >
+                      {t('stats')}
+                    </Link>
+                  </Can>
                 </div>
               ))}
             </div>
@@ -407,35 +494,44 @@ export default function TeamDetail() {
         <CardBody>
           <div className="flex justify-between items-center mb-4 flex-wrap gap-3">
             <h2 className="text-xl font-semibold text-text-primary">
-              {t('coaches')} ({coaches.length})
+              {t('coaches')} ({staffMembers.length})
             </h2>
 
             <div className="flex flex-wrap gap-2">
               {isActiveMember && !hasAllRoles && (
-                <Button
-                  size="sm"
-                  variant="primary"
-                  onClick={() => setShowAddRoleModal(true)}
+                <Can
+                  resource="membership_role"
+                  action="edit"
+                  clubId={clubId}
+                  teamId={teamIdForPerms}
                 >
-                  {t('changeRole')}
-                </Button>
+                  <Button
+                    size="sm"
+                    variant="primary"
+                    onClick={() => setShowAddRoleModal(true)}
+                  >
+                    {t('changeRole')}
+                  </Button>
+                </Can>
               )}
 
-              <Button
-                size="sm"
-                variant="secondary"
-                href={`/teams/${teamId}/members`}
-              >
-                {t('members')}
-              </Button>
+              <Can resource="member" action="view" clubId={clubId} teamId={teamIdForPerms}>
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  href={`/teams/${teamId}/members`}
+                >
+                  {t('members')}
+                </Button>
+              </Can>
             </div>
           </div>
 
-          {coaches.length === 0 ? (
+          {staffMembers.length === 0 ? (
             <p className="text-text-muted text-center py-4">{t('noCoaches')}</p>
           ) : (
             <div className="space-y-2">
-              {coaches.map((m) => (
+              {staffMembers.map((m) => (
                 <div
                   key={m.id}
                   className="flex items-center justify-between bg-surface-elevated rounded-lg p-3 border border-border-subtle flex-wrap gap-2"
@@ -449,7 +545,7 @@ export default function TeamDetail() {
                     </p>
                   </div>
                   <div className="flex gap-1 flex-wrap">
-                    {(m.roles ?? [m.role]).map((r) => (
+                    {Array.from(new Set(m.roles ?? [m.role])).map((r) => (
                       <Badge key={r} variant="info">{r}</Badge>
                     ))}
                   </div>
@@ -460,117 +556,123 @@ export default function TeamDetail() {
         </CardBody>
       </Card>
 
-      <Modal
-        isOpen={showEditModal}
-        onClose={() => setShowEditModal(false)}
-        title={t('editTeamTitle')}
-        size="md"
-      >
-        <form onSubmit={updateTeam} className="space-y-4">
-          <Input
-            label={`${t('formName')} *`}
-            type="text"
-            value={editForm.name}
-            onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-            required
-          />
-          <Select
-            label={t('formCategory')}
-            value={editForm.category}
-            onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
-          >
-            <option value="">{t('selectCategory')}</option>
-            <option value="Senior">Senior</option>
-            <option value="Junior">Junior</option>
-            <option value="Infantil">Infantil</option>
-            <option value="Cadete">Cadete</option>
-            <option value="Alevín">Alevín</option>
-          </Select>
+      {/* Modal editar equipo — defensa en profundidad */}
+      <Can resource="team" action="edit" clubId={clubId} teamId={teamIdForPerms}>
+        <Modal
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          title={t('editTeamTitle')}
+          size="md"
+        >
+          <form onSubmit={updateTeam} className="space-y-4">
+            <Input
+              label={`${t('formName')} *`}
+              type="text"
+              value={editForm.name}
+              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+              required
+            />
+            <Select
+              label={t('formCategory')}
+              value={editForm.category}
+              onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
+            >
+              <option value="">{t('selectCategory')}</option>
+              <option value="Senior">Senior</option>
+              <option value="Junior">Junior</option>
+              <option value="Infantil">Infantil</option>
+              <option value="Cadete">Cadete</option>
+              <option value="Alevín">Alevín</option>
+            </Select>
 
-          <div>
-            <label className="block text-sm font-medium text-text-secondary mb-2">
-              {t('formSeason')}
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label={t('formSeasonStart')}
-                type="number"
-                value={editForm.seasonStart}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, seasonStart: e.target.value })
-                }
-                placeholder="2026"
-                min="2000"
-                max="2100"
-              />
-              <Input
-                label={t('formSeasonEnd')}
-                type="number"
-                value={editForm.seasonEnd}
-                onChange={(e) =>
-                  setEditForm({ ...editForm, seasonEnd: e.target.value })
-                }
-                placeholder="2027"
-                min="2000"
-                max="2100"
-              />
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-2">
+                {t('formSeason')}
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label={t('formSeasonStart')}
+                  type="number"
+                  value={editForm.seasonStart}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, seasonStart: e.target.value })
+                  }
+                  placeholder="2026"
+                  min="2000"
+                  max="2100"
+                />
+                <Input
+                  label={t('formSeasonEnd')}
+                  type="number"
+                  value={editForm.seasonEnd}
+                  onChange={(e) =>
+                    setEditForm({ ...editForm, seasonEnd: e.target.value })
+                  }
+                  placeholder="2027"
+                  min="2000"
+                  max="2100"
+                />
+              </div>
+              <p className="text-xs text-text-muted mt-1">
+                {t('formSeasonHint')}
+              </p>
             </div>
-            <p className="text-xs text-text-muted mt-1">
-              {t('formSeasonHint')}
-            </p>
-          </div>
 
-          <div className="flex gap-3 pt-2">
+            <div className="flex gap-3 pt-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setShowEditModal(false)}
+                disabled={updating}
+                className="flex-1"
+              >
+                {tCommon('cancel')}
+              </Button>
+              <Button
+                type="submit"
+                disabled={updating}
+                loading={updating}
+                className="flex-1"
+              >
+                {updating ? t('saving') : t('saveChanges')}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+      </Can>
+
+      {/* Modal eliminar equipo — defensa en profundidad */}
+      <Can resource="team" action="delete" clubId={clubId} teamId={teamIdForPerms}>
+        <Modal
+          isOpen={showDeleteModal}
+          onClose={() => setShowDeleteModal(false)}
+          title={t('deleteTeamTitle')}
+          size="sm"
+        >
+          <p className="text-text-secondary mb-6">
+            {t('deleteTeamConfirm', { name: team.name })}
+          </p>
+          <div className="flex gap-3">
             <Button
-              type="button"
               variant="secondary"
-              onClick={() => setShowEditModal(false)}
-              disabled={updating}
+              onClick={() => setShowDeleteModal(false)}
+              disabled={deleting}
               className="flex-1"
             >
               {tCommon('cancel')}
             </Button>
             <Button
-              type="submit"
-              disabled={updating}
-              loading={updating}
+              variant="danger"
+              onClick={deleteTeam}
+              disabled={deleting}
+              loading={deleting}
               className="flex-1"
             >
-              {updating ? t('saving') : t('saveChanges')}
+              {deleting ? t('deleting') : t('deleteYes')}
             </Button>
           </div>
-        </form>
-      </Modal>
-
-      <Modal
-        isOpen={showDeleteModal}
-        onClose={() => setShowDeleteModal(false)}
-        title={t('deleteTeamTitle')}
-        size="sm"
-      >
-        <p className="text-text-secondary mb-6">
-          {t('deleteTeamConfirm', { name: team.name })}
-        </p>
-        <div className="flex gap-3">
-          <Button
-            variant="secondary"
-            onClick={() => setShowDeleteModal(false)}
-            disabled={deleting}
-            className="flex-1"
-          >
-            {tCommon('cancel')}
-          </Button>
-          <Button
-            variant="danger"
-            onClick={deleteTeam}
-            disabled={deleting}
-            loading={deleting}
-            className="flex-1"
-          >
-            {deleting ? t('deleting') : t('deleteYes')}
-          </Button>
-        </div>
-      </Modal>
+        </Modal>
+      </Can>
 
       {showJoinModal && (
         <RequestJoinModal
@@ -581,15 +683,19 @@ export default function TeamDetail() {
         />
       )}
 
-      {showAddRoleModal && myMembership && (
-        <AddSelfRoleModal
-          membershipId={myMembership.id}
-          currentRoles={myRoles}
-          teamName={team.name}
-          onClose={() => setShowAddRoleModal(false)}
-          onSuccess={fetchTeam}
-        />
-      )}
+      {/* Modal cambiar rol — defensa en profundidad.
+          Guía Lote 9.1: EDITAR roles de equipo → membership_role:edit */}
+      <Can resource="membership_role" action="edit" clubId={clubId} teamId={teamIdForPerms}>
+        {showAddRoleModal && myMembership && (
+          <AddSelfRoleModal
+            membershipId={myMembership.id}
+            currentRoles={myRoles}
+            teamName={team.name}
+            onClose={() => setShowAddRoleModal(false)}
+            onSuccess={fetchTeam}
+          />
+        )}
+      </Can>
     </div>
   )
 }

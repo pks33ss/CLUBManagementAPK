@@ -1,6 +1,10 @@
 // frontend-web/lib/permissions/types.ts
 // Lote 8.5 — Tipos de la matriz de roles y permisos.
 // Reflejan lo que devuelven los endpoints de backend/src/permissions/*.
+//
+// Lote 4.F — Añadidos `clubRoleNames` y `teamRoles` a `EffectivePermissions`
+// (opcionales para no romper construcciones existentes). El provider los
+// rellena desde GET /clubs/:clubId/permissions/me y los expone en el contexto.
 
 import type {
   PermissionAction,
@@ -14,6 +18,7 @@ export interface RolePermissionEntry {
   resource: PermissionResource
   action: PermissionAction
   scope: string | null
+  teamId: string | null
   granted: boolean
 }
 
@@ -45,12 +50,17 @@ export interface EffectivePermissions {
     PermissionResource,
     Record<PermissionAction, boolean>
   >
+  /** Lote 4.F — Nombres de los roles del usuario a nivel club (scope=ALL). */
+  clubRoleNames?: string[]
+  /** Lote 4.F — Nombres de roles del usuario por teamId (scope=TEAMS). */
+  teamRoles?: Record<string, string[]>
 }
 
 export interface RoleInput {
   resource: PermissionResource
   action: PermissionAction
   scope?: string | null
+  teamId?: string | null
   granted: boolean
 }
 

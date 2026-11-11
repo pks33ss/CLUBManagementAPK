@@ -1,10 +1,11 @@
-// frontend-web/app/settings/permissions/roles/_components/RolesList.tsx
+// frontend-web/app/[locale]/settings/permissions/roles/_components/RolesList.tsx
 // Lote 8.5 — Lista de roles agrupada por scope (CLUB / TEAM).
+// Lote 7.4 — Añadida prop `canCreate` para ocultar el botón "+ Crear"
+// si el usuario no tiene `role_admin:create`.
 
 'use client'
 
 import type { Role } from '@/lib/permissions/types'
-
 import { roleLabel, roleSortIndex } from '@/lib/permissions/constants'
 
 interface Props {
@@ -16,6 +17,8 @@ interface Props {
   hasDirtyChanges: boolean
   /** Devuelve false si el usuario cancela el cambio. */
   onAttemptChangeAway: () => boolean
+  /** Si es `false`, se oculta el botón "+ Crear". Por defecto `true`. */
+  canCreate?: boolean
 }
 
 export default function RolesList({
@@ -26,25 +29,25 @@ export default function RolesList({
   onCreate,
   hasDirtyChanges,
   onAttemptChangeAway,
+  canCreate = true,
 }: Props) {
-  
-    const clubRoles = roles
-  .filter((r) => r.scope === 'CLUB')
-  .sort((a, b) => {
-    const ia = roleSortIndex(a)
-    const ib = roleSortIndex(b)
-    if (ia !== ib) return ia - ib
-    return roleLabel(a).localeCompare(roleLabel(b), 'es')
-  })
+  const clubRoles = roles
+    .filter((r) => r.scope === 'CLUB')
+    .sort((a, b) => {
+      const ia = roleSortIndex(a)
+      const ib = roleSortIndex(b)
+      if (ia !== ib) return ia - ib
+      return roleLabel(a).localeCompare(roleLabel(b), 'es')
+    })
 
-const teamRoles = roles
-  .filter((r) => r.scope === 'TEAM')
-  .sort((a, b) => {
-    const ia = roleSortIndex(a)
-    const ib = roleSortIndex(b)
-    if (ia !== ib) return ia - ib
-    return roleLabel(a).localeCompare(roleLabel(b), 'es')
-  })
+  const teamRoles = roles
+    .filter((r) => r.scope === 'TEAM')
+    .sort((a, b) => {
+      const ia = roleSortIndex(a)
+      const ib = roleSortIndex(b)
+      if (ia !== ib) return ia - ib
+      return roleLabel(a).localeCompare(roleLabel(b), 'es')
+    })
 
   const handleSelect = (roleId: string) => {
     if (roleId === selectedRoleId) return
@@ -63,19 +66,19 @@ const teamRoles = roles
   return (
     <aside className="bg-surface rounded-xl shadow border border-border-subtle overflow-hidden flex flex-col max-h-[calc(100vh-200px)] md:max-h-none">
       <div className="px-4 py-3 border-b border-border-subtle flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-text-primary">
-          Roles
-        </h2>
-        <button
-          type="button"
-          onClick={() => {
-            if (!onAttemptChangeAway()) return
-            onCreate()
-          }}
-          className="text-xs px-2 py-1 rounded-md bg-brand-primary text-white font-medium hover:opacity-90 transition"
-        >
-          + Crear
-        </button>
+        <h2 className="text-sm font-semibold text-text-primary">Roles</h2>
+        {canCreate && (
+          <button
+            type="button"
+            onClick={() => {
+              if (!onAttemptChangeAway()) return
+              onCreate()
+            }}
+            className="text-xs px-2 py-1 rounded-md bg-brand-primary text-white font-medium hover:opacity-90 transition"
+          >
+            + Crear
+          </button>
+        )}
       </div>
 
       <div className="overflow-y-auto flex-1">
@@ -140,7 +143,8 @@ function RoleItem({
   selected: boolean
   onSelect: (roleId: string) => void
 }) {
-  const isAdminClub = role.isSystem && role.name === 'ADMIN_CLUB' && role.scope === 'CLUB'
+  const isAdminClub =
+    role.isSystem && role.name === 'ADMIN_CLUB' && role.scope === 'CLUB'
 
   return (
     <li>
@@ -156,13 +160,13 @@ function RoleItem({
         <span className="text-xs">
           {role.scope === 'CLUB' ? '●' : '○'}
         </span>
-        <span className="flex-1 truncate">
-          {roleLabel(role)}
-        </span>
+        <span className="flex-1 truncate">{roleLabel(role)}</span>
         {role.isSystem && (
           <span
             className="text-[10px] text-text-muted"
-            title={isAdminClub ? 'Bypass total (no editable)' : 'Rol de sistema'}
+            title={
+              isAdminClub ? 'Bypass total (no editable)' : 'Rol de sistema'
+            }
           >
             {isAdminClub ? '👑' : '🔒'}
           </span>

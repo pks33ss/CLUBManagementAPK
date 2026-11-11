@@ -1,4 +1,4 @@
-import '../globals.css'
+// frontend-web/app/[locale]/layout.tsx
 import { Inter } from 'next/font/google'
 import type { Metadata, Viewport } from 'next'
 import { NextIntlClientProvider } from 'next-intl'
@@ -39,28 +39,20 @@ export default async function LocaleLayout({
   children: React.ReactNode
   params: Promise<{ locale: string }>
 }) {
-  // ✅ Esperamos a que se resuelva la promesa de params
   const { locale } = await params
-
   const messages = await getMessages()
 
   return (
-    <html lang={locale} className={inter.variable}>
-      <head>
-        <link rel="manifest" href="/manifest.json" />
-        <link rel="apple-touch-icon" href="/icon-192.png" />
-      </head>
-      <body>
-        <NextIntlClientProvider messages={messages}>
-          <Providers>
-            <ActiveTeamProvider>
-              <PermissionsProvider>
-                <ClientLayout>{children}</ClientLayout>
-              </PermissionsProvider>
-            </ActiveTeamProvider>
-          </Providers>
-        </NextIntlClientProvider>
-      </body>
-    </html>
+    <div className={`${inter.variable} font-sans`}>
+      <NextIntlClientProvider messages={messages}>
+        <Providers>
+          <ActiveTeamProvider>
+            <PermissionsProvider>
+              <ClientLayout>{children}</ClientLayout>
+            </PermissionsProvider>
+          </ActiveTeamProvider>
+        </Providers>
+      </NextIntlClientProvider>
+    </div>
   )
 }

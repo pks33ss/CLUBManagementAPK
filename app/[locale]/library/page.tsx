@@ -1,5 +1,4 @@
-// frontend-web/app/[locale]/library/page.tsx
-
+// archivo: frontend-web/app/[locale]/library/page.tsx
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
@@ -12,6 +11,9 @@ import {
   type LibraryExercise,
 } from '@/lib/library'
 import { Button, Card, CardBody, Badge, Input, Select } from '@/components/ui'
+import { useActiveTeam } from '@/lib/ActiveTeamContext'
+import { usePermissionsContext } from '@/lib/permissions/permissions-provider'
+import { Can } from '@/lib/permissions/can'
 import { LibraryExerciseDetailModal } from './_components/LibraryExerciseDetailModal'
 import {
   useLibraryLabels,
@@ -27,6 +29,21 @@ export default function LibraryPage() {
   const t = useTranslations('Library')
   const router = useRouter()
   const { categoryLabel, difficultyLabel } = useLibraryLabels()
+
+  const { activeTeam } = useActiveTeam()
+  const {
+    can,
+    loading: permissionsLoading,
+    error: permissionsError,
+  } = usePermissionsContext()
+
+  const permissionsReady = !permissionsLoading && !permissionsError
+  const clubId = activeTeam?.club?.id ?? null
+  const teamId = activeTeam?.id ?? null
+
+  // Guía Lote 9.4
+  const canViewLibrary =
+    permissionsReady && can('library', 'view', { clubId, teamId })
 
   const [exercises, setExercises] = useState<LibraryExercise[]>([])
   const [loading, setLoading] = useState(true)
@@ -51,8 +68,17 @@ export default function LibraryPage() {
       router.push('/login')
       return
     }
+
+    if (!permissionsReady) return
+
+    if (!canViewLibrary) {
+      setLoading(false)
+      return
+    }
+
     fetchExercises()
-  }, [router])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [router, permissionsReady, canViewLibrary])
 
   const fetchExercises = async () => {
     setLoading(true)
@@ -61,7 +87,6 @@ export default function LibraryPage() {
       const data = await listLibraryExercises()
       setExercises(data)
     } catch (e: any) {
-      console.error('Error cargando biblioteca:', e)
       setError(e?.response?.data?.message || t('errorLoad'))
     } finally {
       setLoading(false)
@@ -77,7 +102,6 @@ export default function LibraryPage() {
       await deleteLibraryExercise(exercise.id)
       setExercises((prev) => prev.filter((e) => e.id !== exercise.id))
     } catch (e: any) {
-      console.error('Error borrando ejercicio:', e)
       alert(e?.response?.data?.message || t('errorDelete'))
     } finally {
       setDeletingId(null)
@@ -170,6 +194,32 @@ export default function LibraryPage() {
     return entries
   }, [filtered, groupBy, categoryLabel, difficultyLabel, t])
 
+  // 1) Permisos cargando
+  if (permissionsLoading) {
+    return (
+      <div className="text-center py-12 text-text-muted">
+        {t('loadingLibrary')}
+      </div>
+    )
+  }
+
+  // 2) Error cargando permisos
+  if (permissionsError) {
+    return <div className="text-center py-12 text-danger">{permissionsError}</div>
+  }
+
+  // 3) Sin permiso → pantalla de acceso denegado
+  if (!canViewLibrary) {
+    return (
+      <div className="text-center py-12">
+        <div className="text-6xl mb-4">🔒</div>
+        <p className="text-text-secondary mb-6">
+          No tienes permisos para ver la biblioteca de ejercicios.
+        </p>
+      </div>
+    )
+  }
+
   if (loading) {
     return (
       <div className="text-center py-12 text-text-muted">
@@ -199,9 +249,11 @@ export default function LibraryPage() {
             {t('subtitle', { count: exercises.length, max: MAX_LIBRARY })}
           </p>
         </div>
-        <Button href="/library/new" icon={<span className="text-xl">+</span>}>
-          {t('newExercise')}
-        </Button>
+        <Can resource="library" action="create" clubId={clubId} teamId={teamId}>
+          <Button href="/library/new" icon={<span className="text-xl">+</span>}>
+            {t('newExercise')}
+          </Button>
+        </Can>
       </div>
 
       {/* FILTROS */}
@@ -297,9 +349,11 @@ export default function LibraryPage() {
             {t('emptyTitle')}
           </h3>
           <p className="text-text-secondary mb-6">{t('emptyDescription')}</p>
-          <Button href="/library/new" icon={<span className="text-xl">+</span>}>
-            {t('createFirst')}
-          </Button>
+          <Can resource="library" action="create" clubId={clubId} teamId={teamId}>
+            <Button href="/library/new" icon={<span className="text-xl">+</span>}>
+              {t('createFirst')}
+            </Button>
+          </Can>
         </div>
       )}
 
@@ -341,6 +395,8 @@ export default function LibraryPage() {
                   <ExerciseCard
                     key={exercise.id}
                     exercise={exercise}
+                    clubId={clubId}
+                    teamId={teamId}
                     onView={() => setDetailExercise(exercise)}
                     onDelete={() => handleDelete(exercise)}
                     deleting={deletingId === exercise.id}
@@ -362,11 +418,15 @@ export default function LibraryPage() {
 
 function ExerciseCard({
   exercise,
+  clubId,
+  teamId,
   onView,
   onDelete,
   deleting,
 }: {
   exercise: LibraryExercise
+  clubId: string | null
+  teamId: string | null
   onView: () => void
   onDelete: () => void
   deleting: boolean
@@ -438,30 +498,41 @@ function ExerciseCard({
             📎 {t('resourcesCount', { count: totalMedia })}
           </span>
           <div className="flex gap-1">
-            <button
-              type="button"
-              onClick={onView}
-              className="p-2 rounded-lg text-text-secondary hover:text-brand-primary hover:bg-brand-primary/10 transition"
-              title={t('viewDetail')}
-            >
-              👁️
-            </button>
-            <Link
-              href={`/library/${exercise.id}/edit`}
-              className="p-2 rounded-lg text-brand-primary hover:bg-brand-primary/10 transition"
-              title={t('edit')}
-            >
-              ✏️
-            </Link>
-            <button
-              type="button"
-              onClick={onDelete}
-              disabled={deleting}
-              className="p-2 rounded-lg text-danger/70 hover:text-danger hover:bg-danger/10 transition disabled:opacity-50"
-              title={t('delete')}
-            >
-              🗑️
-            </button>
+            {/* View details → library:view (defensa; la página ya está gateada) */}
+            <Can resource="library" action="view" clubId={clubId} teamId={teamId}>
+              <button
+                type="button"
+                onClick={onView}
+                className="p-2 rounded-lg text-text-secondary hover:text-brand-primary hover:bg-brand-primary/10 transition"
+                title={t('viewDetail')}
+              >
+                👁️
+              </button>
+            </Can>
+
+            {/* Edit → library:edit */}
+            <Can resource="library" action="edit" clubId={clubId} teamId={teamId}>
+              <Link
+                href={`/library/${exercise.id}/edit`}
+                className="p-2 rounded-lg text-brand-primary hover:bg-brand-primary/10 transition"
+                title={t('edit')}
+              >
+                ✏️
+              </Link>
+            </Can>
+
+            {/* Delete → library:delete */}
+            <Can resource="library" action="delete" clubId={clubId} teamId={teamId}>
+              <button
+                type="button"
+                onClick={onDelete}
+                disabled={deleting}
+                className="p-2 rounded-lg text-danger/70 hover:text-danger hover:bg-danger/10 transition disabled:opacity-50"
+                title={t('delete')}
+              >
+                🗑️
+              </button>
+            </Can>
           </div>
         </div>
       </div>

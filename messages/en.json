@@ -29,7 +29,9 @@
     "fri": "Fri",
     "sat": "Sat",
     "sun": "Sun"
-  }
+  },
+   "accessDenied": "Access denied",
+  "noPermission": "You don't have permission to view this section."
   },
   "Auth": {
     "login": "Log In",
@@ -153,12 +155,21 @@
     "last5": "Last 5:"
   },
   "Roles": {
-  "PLAYER": "🏃 Player",
-  "COACH": "🏆 Coach",
-  "ASSISTANT": "🤝 Assistant",
-  "ADMIN_TEAM": "🛠️ Team Admin",
-  "SUPER_ADMIN": "👑 Super Admin",
-  "ADMIN_CLUB": "🛠️ Club Admin"
+  "MEMBER": "Member",
+  "ADMIN_CLUB": "Club Admin",
+  "ADMIN_TEAM": "Team Admin",
+  "COACH": "Coach",
+  "ASSISTANT": "Assistant Coach",
+  "PLAYER": "Player",
+  "DELEGADO": "Team Delegate",
+  "FISIO": "Physio",
+  "ENTRENADOR_VISITANTE": "Visiting Coach",
+  "TESORERO": "Treasurer",
+  "SECRETARIO": "Secretary",
+  "COORDINADOR": "Coordinator",
+  "DIRECTOR_DEPORTIVO": "Sporting Director",
+  "OJEADOR": "Scout",
+  "unknown": "Unknown role"
 },
 "Members": {
   "invite": {
@@ -643,7 +654,7 @@
     "noPosition": "No position",
     "viewStats": "View individual stats",
     "stats": "📊 Stats",
-    "coaches": "👔 Coaches",
+    "coaches": "👔 Staff",
     "changeRole": "➕ Change my Role",
     "members": "👥 Members",
     "noCoaches": "No coaches assigned",
@@ -1265,6 +1276,7 @@
     "title": "📚 Exercise library",
     "subtitle": "Your personal collection · {count} / {max}",
     "newExercise": "New exercise",
+	"loading": "Loading...",
     "loadingLibrary": "Loading library...",
     "errorLoad": "Error loading library",
     "errorDelete": "Error deleting exercise",
@@ -1365,11 +1377,18 @@
       "nameRequired": "Name is required",
       "errorSave": "Error saving exercise"
     },
+	"edit": {
+    "loading": "Loading exercise...",
+    "title": "️✏️ Edit exercise",
+    "saveButton": "Save changes"
+			},
+	"edit": "Edit", 
     "editPage": {
       "loading": "Loading exercise...",
       "errorLoad": "Error loading exercise",
       "notFound": "Exercise not found",
-      "title": "✏️ Edit exercise"
+      "title": "✏️ Edit exercise",
+	  "saveButton": "Save changes"
     },
     "picker": {
       "title": "📚 Use exercise from library",
@@ -1584,12 +1603,16 @@
         "label": "Coach",
         "description": "Can manage their teams"
       },
+	  "noRolesAvailable": "No roles available to assign.",
+"mustHaveOne": "There must be at least one role. To remove all roles, remove the member from the club.",
+"active": "Active",
       "assistant": {
         "label": "Assistant",
         "description": "Can view and help"
       }
     },
     "cancel": "Cancel",
+	"active": "Active",
     "saving": "Saving...",
     "save": "Save Changes",
     "success": "✅ Role updated successfully",
@@ -1638,6 +1661,11 @@
     "newSeason": "New Plan",
     "emptyTitle": "No plans yet",
     "emptyDesc": "Create your first plan to get started",
+	"forbidden": {
+  "title": "Access denied",
+  "desc": "You don't have permission to view this team's planning. Contact a club administrator if you need access.",
+  "backHome": "Back to home"
+},
     "createFirst": "Create First Plan",
     "blocksCount": "{count, plural, one {📦 # block} other {📦 # blocks}}",
     "moveUp": "Move up",
@@ -2175,7 +2203,11 @@
       "rolesCardDescription": "Define what each club role can do on each resource (teams, members, payments, invitations…).",
       "statsCardTitle": "Statistics visibility",
       "statsCardDescription": "Configure which metrics each role can see in the active team (points, rebounds, assists…).",
-      "enter": "Enter →"
+      "enter": "Enter →",
+	  "library": "Library",
+"stats": "Statistics",
+"user_data": "User private data",
+"member": "Members"
     }
   },
   "MatchDetail": {
@@ -2658,7 +2690,7 @@
     "libraryShort": "📚 Lib.",
     "playbook": "📘 Playbook",
     "payments": "💰 Payments",
-    "myPayments": "💰 My payments"
+    "myPayments": "💰 Payments"
   },
     "Attendance": {
     "report": {

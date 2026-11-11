@@ -55,4 +55,5 @@ export interface MembershipUser {
 /** Membership con `user` incluido — solo en /teams/:id/members */
 export interface MembershipWithUser extends Membership {
   user: MembershipUser
+  clubRoles?: string[]
 }

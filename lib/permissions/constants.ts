@@ -4,21 +4,11 @@
 // Mantener sincronizado manualmente.
 
 export const PERMISSION_RESOURCES = [
-  'team',
-  'member',
-  'invitation',
-  'membership_role',
-  'payment',
-  'event',
-  'document',
-  'club_settings',
-  'club_branding',
-  'report',
-  'role_admin',
-  'player_profile',
-  'stats_config',
-  'user_private_data',
-  'ghost_edit',
+  'team', 'member', 'invitation', 'membership_role', 'payment',
+  'session', 'match', 'attendance', 'season', // ✅ Nuevos
+  'event', 'document', 'library',             // ✅ library
+  'club_settings', 'club_branding', 'stats', 'role_admin', 
+  'player_profile', 'stats_config', 'user_data', 'ghost_edit',
 ] as const
 
 export type PermissionResource = (typeof PERMISSION_RESOURCES)[number]
@@ -29,20 +19,25 @@ export type PermissionAction = (typeof PERMISSION_ACTIONS)[number]
 
 export const RESOURCE_LABELS_ES: Record<PermissionResource, string> = {
   team: 'Equipos',
-  member: 'Miembros',
+  member: 'Gestión de miembros',
   invitation: 'Invitaciones',
   membership_role: 'Roles de equipo',
   payment: 'Pagos',
-  event: 'Eventos',
-  document: 'Documentos',
+  session: 'Sesiones de entrenamiento',
+  match: 'Partidos',                   // ✅ NUEVO
+  event: 'Calendario',                  // ✅ CAMBIADO (antes "Eventos")
+  library: 'Biblioteca',
+  document: 'Playbook',
+  attendance: 'Asistencia',
+  season: 'Planificación',
   club_settings: 'Configuración del club',
   club_branding: 'Branding',
-  report: 'Reportes',
+  stats: 'Estadísticas',
   role_admin: 'Gestión de roles',
   player_profile: 'Perfiles de jugador',
   stats_config: 'Configuración de estadísticas',
-  user_private_data: 'Datos privados de usuarios',
-  ghost_edit: 'Edición de ghosts',
+  user_data: 'Datos privados de usuarios',
+  ghost_edit: 'Edición de miembros no registrados',
 }
 
 export const ACTION_LABELS_ES: Record<PermissionAction, string> = {
@@ -52,9 +47,6 @@ export const ACTION_LABELS_ES: Record<PermissionAction, string> = {
   delete: 'Eliminar',
 }
 
-/**
- * Acciones válidas por recurso. Si un recurso no aparece, se asumen las 4.
- */
 export const ACTIONS_BY_RESOURCE: Partial<
   Record<PermissionResource, readonly PermissionAction[]>
 > = {
@@ -62,10 +54,13 @@ export const ACTIONS_BY_RESOURCE: Partial<
   membership_role: ['view', 'create', 'delete'],
   club_settings: ['view', 'edit'],
   club_branding: ['view', 'edit'],
-  report: ['view'],
+  
+  // ✅ Ampliado: ahora permite Crear, Editar y Eliminar
+  stats: ['view', 'create', 'edit', 'delete'],
+  
   player_profile: ['view', 'edit'],
   stats_config: ['view', 'edit'],
-  user_private_data: ['view'],
+  user_data: ['view'],
   ghost_edit: ['edit'],
 }
 
@@ -78,7 +73,10 @@ export function actionsFor(
 export const DEFAULT_VIEWABLE_RESOURCES: readonly PermissionResource[] = [
   'team',
   'member',
+  'session', // ✅ NUEVO
+  'match',   // ✅ NUEVO
   'event',
+  'library',
   'document',
   'club_settings',
   'club_branding',
@@ -110,12 +108,7 @@ export const SYSTEM_TEAM_ROLES = [
   'ENTRENADOR_VISITANTE',
 ] as const
 
-/**
- * Etiquetas en castellano para los roles de sistema.
- * Para roles custom, se muestra `role.name` tal cual.
- */
 export const SYSTEM_ROLE_LABELS_ES: Record<string, string> = {
-  // CLUB
   ADMIN_CLUB: 'Administrador del club',
   COACH: 'Entrenador',
   ASSISTANT: 'Entrenador Ayudante',
@@ -125,7 +118,6 @@ export const SYSTEM_ROLE_LABELS_ES: Record<string, string> = {
   COORDINADOR: 'Coordinador',
   DIRECTOR_DEPORTIVO: 'Director deportivo',
   OJEADOR: 'Ojeador',
-  // TEAM
   PLAYER: 'Jugador',
   ADMIN_TEAM: 'Administrador de equipo',
   DELEGADO: 'Delegado',
@@ -140,10 +132,6 @@ export function roleLabel(role: { name: string; isSystem: boolean }): string {
   return role.name
 }
 
-/**
- * Orden canónico de los roles de sistema en la UI.
- * Los roles custom se colocan al final de su scope.
- */
 export const SYSTEM_ROLE_ORDER_CLUB: readonly string[] = [
   'ADMIN_CLUB',
   'DIRECTOR_DEPORTIVO',
@@ -166,11 +154,6 @@ export const SYSTEM_ROLE_ORDER_TEAM: readonly string[] = [
   'FISIO',
 ]
 
-/**
- * Índice de orden para un rol:
- *  - Si es de sistema → índice en SYSTEM_ROLE_ORDER_*
- *  - Si es custom → 1000 (van al final, ordenados alfabéticamente).
- */
 export function roleSortIndex(role: {
   scope: 'CLUB' | 'TEAM'
   name: string
@@ -184,3 +167,14 @@ export function roleSortIndex(role: {
   }
   return 1000
 }
+
+export const TEAM_SCOPED_RESOURCES: readonly PermissionResource[] = [
+  'session', // ✅ NUEVO
+  'match',   // ✅ NUEVO
+  'event',
+  'member',
+  'document',
+  'player_profile',
+  'stats_config',
+  'ghost_edit',
+]

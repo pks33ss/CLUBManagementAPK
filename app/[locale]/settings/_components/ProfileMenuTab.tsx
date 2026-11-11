@@ -10,20 +10,33 @@ import { useActiveTeam } from '@/lib/ActiveTeamContext'
 import { usePaymentsNav } from '@/lib/usePaymentsNav'
 import { Button, Card, CardBody } from '@/components/ui'
 import { getConfigurableTabs } from '@/lib/menuTabs'
+import { usePermissionsContext } from '@/lib/permissions/permissions-provider'
 
 export default function ProfileMenuTab() {
   const t = useTranslations('Settings.menuTab')
   const tMenu = useTranslations('MenuTabs')
   const { userMe, activeTeam, refreshUserData } = useActiveTeam()
   const { showStaff, showPlayer } = usePaymentsNav()
-
-  const configurable = getConfigurableTabs({ showStaff, showPlayer })
-  const teamId = activeTeam?.id ?? ''
+  
+  // ✅ Hook de permisos (dentro del componente)
+  const { can } = usePermissionsContext()
 
   const [hiddenTabs, setHiddenTabs] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+
+  // ✅ Valores derivados
+  const clubId = activeTeam?.club?.id ?? null
+  const teamId = activeTeam?.id ?? ''
+
+  // ✅ Configuración de las tabs visibles
+  const configurable = getConfigurableTabs({
+    showStaff,
+    showPlayer,
+    hasPermission: (resource, action) =>
+      can(resource, action, { clubId, teamId }),
+  })
 
   useEffect(() => {
     setHiddenTabs(userMe?.hiddenTabs ?? [])

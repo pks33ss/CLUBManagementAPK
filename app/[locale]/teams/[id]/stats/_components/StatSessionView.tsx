@@ -1,4 +1,4 @@
-// frontend-web/app/[locale]/teams/[id]/stats/_components/StatSessionView.tsx
+// archivo: frontend-web/app/[locale]/teams/[id]/stats/_components/StatSessionView.tsx
 
 'use client'
 
@@ -64,6 +64,7 @@ interface StatSessionDetail {
 interface Props {
   sessionId: string
   canEdit: boolean
+  canCreate: boolean // 👈 Nueva prop
   onDeleted: () => void
 }
 
@@ -95,10 +96,14 @@ type StatKey = (typeof STAT_KEYS)[number]['key']
 export default function StatSessionView({
   sessionId,
   canEdit,
+  canCreate,
   onDeleted,
 }: Props) {
   const t = useTranslations('Stats')
   const router = useRouter()
+
+  // ✅ Unimos ambos permisos: si puede crear o editar, puede gestionar la sesión.
+  const canManage = canEdit || canCreate
 
   const statFields = useMemo(
     () =>
@@ -142,7 +147,7 @@ export default function StatSessionView({
     key: StatKey,
     rawValue: string,
   ) => {
-    if (!canEdit) return
+    if (!canManage) return
     const numeric = rawValue === '' ? undefined : Number(rawValue)
     if (numeric !== undefined && Number.isNaN(numeric)) return
     if (
@@ -175,7 +180,7 @@ export default function StatSessionView({
   }
 
   const removePlayer = async (userId: string, name: string) => {
-    if (!canEdit) return
+    if (!canManage) return
     if (!confirm(t('sessionRemovePlayerConfirm', { name }))) return
     try {
       await api.delete(`/stat-sessions/${session!.id}/players/${userId}`)
@@ -222,6 +227,7 @@ export default function StatSessionView({
   }
 
   const deleteSession = async () => {
+    if (!canManage) return
     if (!confirm(t('sessionDeleteConfirm'))) return
     try {
       await api.delete(`/stat-sessions/${session!.id}`)
@@ -320,7 +326,7 @@ export default function StatSessionView({
             )}
           </div>
 
-          {canEdit && !session.closedAt && (
+          {canManage && !session.closedAt && (
             <div className="mt-4">
               <Button
                 onClick={() =>
@@ -349,7 +355,7 @@ export default function StatSessionView({
             <h3 className="text-lg font-semibold text-text-primary">
               {t('playersTitle', { count: players.length })}
             </h3>
-            {canEdit && (
+            {canManage && (
               <div className="flex gap-2">
                 <Button size="sm" onClick={openAddModal}>
                   {t('sessionAddPlayer')}
@@ -413,7 +419,7 @@ export default function StatSessionView({
                                   e.target.value,
                                 )
                               }
-                              disabled={!canEdit || isSaving}
+                              disabled={!canManage || isSaving}
                               className={`w-14 px-1 py-1 text-center text-xs bg-surface border rounded transition ${
                                 isSaving
                                   ? 'border-brand-primary opacity-50'
@@ -424,7 +430,7 @@ export default function StatSessionView({
                         )
                       })}
                       <td className="px-1 py-1 text-center">
-                        {canEdit && (
+                        {canManage && (
                           <button
                             type="button"
                             onClick={() =>

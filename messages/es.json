@@ -29,7 +29,9 @@
     "fri": "Vie",
     "sat": "Sáb",
     "sun": "Dom"
-  }
+  },
+    "accessDenied": "Acceso denegado",
+  "noPermission": "No tienes permisos para ver esta sección."
   },
   "Auth": {
     "login": "Iniciar Sesión",
@@ -198,12 +200,21 @@
     "seasonEndGreater": "El año de fin debe ser mayor que el año de inicio"
   },
   "Roles": {
-  "PLAYER": "🏃 Jugador",
-  "COACH": "🏆 Entrenador",
-  "ASSISTANT": "🤝 Asistente",
-  "ADMIN_TEAM": "🛠️ Admin Equipo",
-  "SUPER_ADMIN": "👑 Super Admin",
-  "ADMIN_CLUB": "🛠️ Admin Club"
+  "MEMBER": "Miembro",
+  "ADMIN_CLUB": "Administrador del club",
+  "ADMIN_TEAM": "Administrador de equipo",
+  "COACH": "Entrenador",
+  "ASSISTANT": "Entrenador ayudante",
+  "PLAYER": "Jugador",
+  "DELEGADO": "Delegado",
+  "FISIO": "Fisioterapeuta",
+  "ENTRENADOR_VISITANTE": "Entrenador visitante",
+  "TESORERO": "Tesorero",
+  "SECRETARIO": "Secretario",
+  "COORDINADOR": "Coordinador",
+  "DIRECTOR_DEPORTIVO": "Director deportivo",
+  "OJEADOR": "Ojeador",
+  "unknown": "Rol desconocido"
 },
 "Help": {
   "title": "📚 Centro de Ayuda",
@@ -1040,7 +1051,7 @@
     "noPosition": "Sin posición",
     "viewStats": "Ver estadísticas individuales",
     "stats": "📊 Stats",
-    "coaches": "👔 Entrenadores",
+    "coaches": "👔 Staff",
     "changeRole": "➕ Cambiar mi Rol",
     "members": "👥 Miembros",
     "noCoaches": "No hay entrenadores asignados",
@@ -1262,9 +1273,11 @@
   },
   "Library": {
   "title": "📚 Biblioteca de ejercicios",
+  
   "subtitle": "Tu colección personal · {count} / {max}",
   "newExercise": "Nuevo ejercicio",
   "loadingLibrary": "Cargando biblioteca...",
+  
   "errorLoad": "Error al cargar la biblioteca",
   "errorDelete": "Error al eliminar el ejercicio",
   "retry": "Reintentar",
@@ -1364,11 +1377,18 @@
     "nameRequired": "El nombre es obligatorio",
     "errorSave": "Error al guardar el ejercicio"
   },
+    "edit": {
+    "loading": "Cargando ejercicio...",
+    "title": "Editar ejercicio",
+    "saveButton": "Guardar cambios"
+  },
+  "edit": "Editar", 
   "editPage": {
     "loading": "Cargando ejercicio...",
     "errorLoad": "Error al cargar el ejercicio",
     "notFound": "Ejercicio no encontrado",
-    "title": "✏️ Editar ejercicio"
+    "title": "✏️ Editar ejercicio",
+	"saveButton": "Guardar cambios"
   },
   "picker": {
     "title": "📚 Usar ejercicio de la biblioteca",
@@ -1402,7 +1422,7 @@
   "libraryShort": "📚 Biblio.",
   "playbook": "📘 Playbook",
   "payments": "💰 Pagos",
-  "myPayments": "💰 Mis pagos"
+  "myPayments": "💰 Pagos"
 },
 "Players": {
   "stats": {
@@ -1601,6 +1621,9 @@
         "label": "Admin Club",
         "description": "Puede gestionar todo el club"
       },
+	  "noRolesAvailable": "No hay roles disponibles para asignar.",
+"mustHaveOne": "Debe haber al menos un rol. Para dejar sin roles, elimina al miembro del club.",
+"active": "Activo",
       "coach": {
         "label": "Entrenador",
         "description": "Puede gestionar sus equipos"
@@ -1612,6 +1635,7 @@
     },
     "cancel": "Cancelar",
     "saving": "Guardando...",
+	"active": "Activo",
     "save": "Guardar Cambios",
     "success": "✅ Rol actualizado correctamente",
     "error": "Error al actualizar el rol"
@@ -1662,6 +1686,11 @@
     "emptyDesc": "Crea tu primera planificación para empezar",
     "createFirst": "Crear Primera Planificación",
     "blocksCount": "{count, plural, one {📦 # bloque} other {📦 # bloques}}",
+	"forbidden": {
+  "title": "Acceso denegado",
+  "desc": "No tienes permiso para ver la planificación de este equipo. Contacta con un administrador del club si necesitas acceso.",
+  "backHome": "Volver al inicio"
+},
     "moveUp": "Mover arriba",
     "moveDown": "Mover abajo",
     "dates": {
@@ -2197,7 +2226,11 @@
   "rolesCardDescription": "Define qué puede hacer cada rol del club sobre cada recurso (equipos, miembros, pagos, invitaciones…).",
   "statsCardTitle": "Visibilidad de estadísticas",
   "statsCardDescription": "Configura qué métricas puede ver cada rol en el equipo activo (puntos, rebotes, asistencias…).",
-  "enter": "Entrar →"
+  "enter": "Entrar →",
+  "library": "Biblioteca",
+"stats": "Estadísticas",
+"user_data": "Datos privados de usuarios",
+"member": "Miembros"
 }
   
   

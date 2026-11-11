@@ -2,6 +2,11 @@
 // Lote 8.6 — Hooks de gating basados en el Context.
 // Lote 8.8 — Añadido manejo de error para no bloquear la UI
 //            cuando la matriz no se puede cargar.
+// Lote 1.6.2 — Fail-closed: si no hay `clubId` ni `teamId`, no hay chequeo.
+//              Antes, con `opts.clubId = null`, `can()` caía en `defaultClubId`
+//              y devolvía `true` aunque el consumidor no supiera el ámbito.
+//              Eso provocaba que `SeasonsPage` disparara el fetch antes de
+//              tener el `activeTeam` y generara un 403 en consola.
 
 'use client'
 
@@ -38,6 +43,7 @@ export function usePermission(
     usePermissionsContext()
 
   const targetClub = opts?.clubId
+  const targetTeam = opts?.teamId
 
   // Si nos piden un club concreto y no está cargado, lo pedimos.
   useEffect(() => {
@@ -45,6 +51,15 @@ export function usePermission(
       ensureClubLoaded(targetClub)
     }
   }, [targetClub, permissionsByClub, ensureClubLoaded])
+
+  // ✅ Lote 1.6.2 — Fail-closed: sin ámbito no hay permiso.
+  //    Si el consumidor no pasa `clubId` ni `teamId`, no podemos evaluar
+  //    el permiso con seguridad (antes se colaba `defaultClubId` por
+  //    dentro de `can()`, devolviendo `true` en un momento en que el
+  //    consumidor aún no tenía `activeTeam`). Denegamos.
+  if (!targetClub && !targetTeam) {
+    return opts?.fallback ?? false
+  }
 
   // Si estamos esperando el club, devolvemos el fallback.
   if (targetClub && !permissionsByClub[targetClub]) {

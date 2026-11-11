@@ -1,4 +1,4 @@
-// frontend-web/app/[locale]/attendance/overview/page.tsx
+// archivo: frontend-web/app/[locale]/attendance/overview/page.tsx
 
 'use client'
 
@@ -8,6 +8,7 @@ import { Link } from '@/navigation'
 import { useTranslations } from 'next-intl'
 import api from '@/lib/api'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
+import { usePermissionsContext } from '@/lib/permissions/permissions-provider'
 import { Card, CardBody, Badge } from '@/components/ui'
 
 interface PlayerStats {
@@ -50,6 +51,20 @@ export default function AttendanceOverview() {
   const router = useRouter()
   const { activeTeam, loading: loadingTeams } = useActiveTeam()
 
+  const {
+    can,
+    loading: permissionsLoading,
+    error: permissionsError,
+  } = usePermissionsContext()
+
+  const permissionsReady = !permissionsLoading && !permissionsError
+  const clubId = activeTeam?.club?.id ?? null
+  const teamId = activeTeam?.id ?? null
+
+  // Guía Lote 9.4: Click en jugadora → player_profile:view
+  const canViewPlayerProfile =
+    permissionsReady && can('player_profile', 'view', { clubId, teamId })
+
   const [teamStats, setTeamStats] = useState<TeamStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -61,6 +76,8 @@ export default function AttendanceOverview() {
       return
     }
 
+    if (!permissionsReady) return
+
     if (!activeTeam) {
       setTeamStats(null)
       setLoading(false)
@@ -69,7 +86,7 @@ export default function AttendanceOverview() {
 
     fetchTeamStats(activeTeam.id)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTeam, router])
+  }, [activeTeam, router, permissionsReady])
 
   const fetchTeamStats = async (teamId: string) => {
     setLoading(true)
@@ -78,7 +95,6 @@ export default function AttendanceOverview() {
       setTeamStats(response.data)
       setError('')
     } catch (error: any) {
-      console.error('Error:', error)
       setError(error.response?.data?.message || t('errorLoad'))
       setTeamStats(null)
     } finally {
@@ -98,8 +114,12 @@ export default function AttendanceOverview() {
     return 'danger'
   }
 
-  if (loadingTeams || loading) {
+  if (permissionsLoading || loadingTeams || loading) {
     return <div className="text-center py-12 text-text-muted">{t('loading')}</div>
+  }
+
+  if (permissionsError) {
+    return <div className="text-center py-12 text-danger">{permissionsError}</div>
   }
 
   if (!activeTeam) {
@@ -210,7 +230,7 @@ export default function AttendanceOverview() {
                       <tr key={item.player.id} className="hover:bg-surface-elevated transition">
                         <td className="px-4 py-3 text-sm text-text-secondary">{item.player.number || '-'}</td>
                         <td className="px-4 py-3">
-                          {item.player.username ? (
+                          {canViewPlayerProfile && item.player.username ? (
                             <Link
                               href={`/users/${item.player.username.replace('@', '')}`}
                               className="font-medium text-text-primary hover:text-brand-primary transition flex items-center gap-2"
@@ -225,6 +245,11 @@ export default function AttendanceOverview() {
                           ) : (
                             <span className="font-medium text-text-primary flex items-center gap-2">
                               {item.player.name} {item.player.lastName}
+                              {item.player.isGhost && (
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-warning/20 text-warning font-bold uppercase">
+                                  {t('ghostBadge')}
+                                </span>
+                              )}
                             </span>
                           )}
                         </td>

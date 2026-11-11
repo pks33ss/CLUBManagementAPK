@@ -99,7 +99,7 @@ export default function ProfileMembershipsTab({ memberships, onUpdate }: Props) 
 
             <div className="flex gap-2">
               <Link
-                href={`/teams/${m.teamId}`}
+                href={`/teams/${m.team?.id ?? m.teamId}`}
                 className="text-sm bg-surface-elevated hover:bg-border-subtle text-text-secondary px-3 py-2 rounded-lg transition"
               >
                 {t('viewTeam')}

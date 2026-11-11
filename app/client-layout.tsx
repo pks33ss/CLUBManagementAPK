@@ -11,6 +11,7 @@ import { Logo } from '@/components/ui/Logo'
 import { invitationsApi } from '@/lib/api/invitations'
 import { clubsApi, type ClubListItem } from '@/lib/api/clubs'
 import { getVisibleTabs } from '@/lib/menuTabs'
+import { usePermissionsContext } from '@/lib/permissions/permissions-provider'
 import RegisterServiceWorker from '@/components/RegisterServiceWorker'
 import InstallPrompt from '@/components/InstallPrompt'
 
@@ -19,9 +20,10 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const locale = useLocale()
   const t = useTranslations('Navbar')
-  const tMenu = useTranslations('MenuTabs')  
+  const tMenu = useTranslations('MenuTabs')
   const tSidebar = useTranslations('Navbar.sidebar')
   const tAuth = useTranslations('Auth')
+  const tRoles = useTranslations('Roles')
 
   const {
     activeTeam,
@@ -36,6 +38,9 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   } = useActiveTeam()
 
   const { showStaff, showPlayer } = usePaymentsNav()
+
+  // ✅ Matriz de permisos real (club + team del activeTeam) + roles crudos
+  const { can, clubRoleNames, getRolesForTeam } = usePermissionsContext()
 
   const [currentUser, setCurrentUser] = useState<any>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -91,13 +96,22 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     }
   }, [pathname])
 
-  const handleLogout = () => {
+    const handleLogout = () => {
     try {
+      // ✅ Guardamos el equipo activo antes de limpiar
+      const activeTeamId = localStorage.getItem('activeTeamId')
+      
+      // Limpiamos todo
       localStorage.clear()
+      
+      // ✅ Restauramos el equipo activo (para el próximo login)
+      if (activeTeamId) {
+        localStorage.setItem('activeTeamId', activeTeamId)
+      }
     } catch (e) {
       console.error('Error limpiando localStorage:', e)
     }
-    
+
     if (typeof window !== 'undefined') {
       window.location.href = `/${locale}/login`
     } else {
@@ -132,7 +146,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     }
   }
 
-  // ✅ Selector de idioma con texto (ES / EN) en lugar de banderas
+  // ✅ Selector de idioma con texto (ES / EN)
   const LanguageSelector = ({ mobile = false }: { mobile?: boolean }) => (
     <div className={`flex items-center gap-1 ${mobile ? 'p-2' : ''}`}>
       <button
@@ -160,7 +174,60 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
     </div>
   )
 
-  // Si es Login/Register, mostramos el selector flotante y los children
+  // ✅ Lote 4.F — Chips de roles del usuario (club + equipo activo).
+  //    - Club: estilo neutro.
+  //    - Equipo: estilo acento.
+  //    - Deduplicación visual: si un rol ya sale en el club, no se repite en equipo.
+  //    - Sufijo "(club)"/"(equipo)" solo en `title` (hover) → Opción B.
+  //    - Ocultos en <md para no romper el header.
+  const RoleChips = () => {
+    // ✅ Roles del equipo activo (puede estar vacío si no hay equipo)
+    const teamRolesForActive = activeTeam?.id
+      ? getRolesForTeam(activeTeam.id)
+      : []
+
+    // ✅ Si no hay roles de club NI roles de equipo, no pintamos nada
+    if (clubRoleNames.length === 0 && teamRolesForActive.length === 0) {
+      return null
+    }
+
+    // Deduplicamos los roles de equipo, quitando los que ya están en el club
+    const uniqueTeamRoles = teamRolesForActive.filter(
+      (r) => !clubRoleNames.includes(r)
+    )
+
+    const roleLabel = (name: string) => {
+      try {
+        return tRoles(name as any)
+      } catch {
+        return name
+      }
+    }
+
+    return (
+      <div className="hidden md:flex flex-wrap items-center gap-1 mt-0.5">
+        {clubRoleNames.map((r) => (
+          <span
+            key={`club-${r}`}
+            className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-surface-elevated text-text-secondary border border-border-subtle"
+            title={`${roleLabel(r)} · club`}
+          >
+            {roleLabel(r)}
+          </span>
+        ))}
+        {uniqueTeamRoles.map((r) => (
+          <span
+            key={`team-${r}`}
+            className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-brand-primary/15 text-brand-primary border border-brand-primary/30"
+            title={`${roleLabel(r)} · equipo`}
+          >
+            {roleLabel(r)}
+          </span>
+        ))}
+      </div>
+    )
+  }
+
   if (authRoutes.includes(pathname)) {
     return (
       <div className="relative min-h-screen">
@@ -173,7 +240,18 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
   }
 
   const teamId = activeTeam?.id ?? ''
-  const visibleTabs = getVisibleTabs(userMe?.hiddenTabs, { showStaff, showPlayer })
+  const clubId = activeTeam?.club?.id ?? null
+
+  // ✅ Filtramos tabs combinando reglas estáticas (staff/player, hiddenTabs)
+  //    con la matriz real de permisos del club/equipo activo.
+     const visibleTabs = getVisibleTabs(userMe?.hiddenTabs, {
+    showStaff,
+    showPlayer,
+    hasPermission: (resource, action) => {
+      // Ahora cada pestaña es independiente
+      return can(resource, action, { clubId, teamId: teamId || null });
+    },
+  })
 
   return (
     <div className="min-h-screen bg-bg-base">
@@ -223,22 +301,20 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
             </div>
 
             {/* CENTRO (solo desktop) */}
-            {activeTeam && (
-              <div className="hidden lg:flex items-center gap-1 flex-1 justify-start overflow-x-auto scrollbar-menu">
-                {visibleTabs.map((tab) => {
-                  const href = tab.href(teamId)
-                  return (
-                    <Link
-                      key={tab.id}
-                      href={href}
-                      className={linkClass(href, 'px-3 py-2 rounded-lg text-sm whitespace-nowrap shrink-0')}
-                    >
-                      {tMenu(tab.labelKey)}
-                    </Link>
-                  )
-                })}
-              </div>
-            )}
+            <div className="hidden lg:flex items-center gap-1 flex-1 justify-start overflow-x-auto scrollbar-menu">
+  {visibleTabs.map((tab) => {
+    const href = tab.href(teamId)
+    return (
+      <Link
+        key={tab.id}
+        href={href}
+        className={linkClass(href, 'px-3 py-2 rounded-lg text-sm whitespace-nowrap shrink-0')}
+      >
+        {tMenu(tab.labelKey)}
+      </Link>
+    )
+  })}
+</div>
 
             {/* DERECHA */}
             <div className="flex items-center gap-3 shrink-0">
@@ -254,8 +330,6 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                   </span>
                 </Link>
               )}
-
-             
 
               {currentUser && (
                 <Link
@@ -278,9 +352,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                     <p className="text-sm font-medium text-text-primary leading-tight">
                       {currentUser.name} {currentUser.lastName}
                     </p>
-                    <p className="text-xs text-text-muted leading-tight">
-                      {currentUser.role === 'SUPER_ADMIN' ? tSidebar('superAdmin') : tSidebar('user')}
-                    </p>
+                    <RoleChips />
                   </div>
                 </Link>
               )}
@@ -297,24 +369,22 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
       </nav>
 
       {/* BARRA DE SECCIONES MÓVIL */}
-      {activeTeam && (
-        <div className="lg:hidden bg-surface border-b border-border-subtle overflow-x-auto scrollbar-menu">
-          <div className="flex items-center gap-1 px-2 py-2">
-            {visibleTabs.map((tab) => {
-              const href = tab.href(teamId)
-              return (
-                <Link
-                  key={tab.id}
-                  href={href}
-                  className={linkClass(href, 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}
-                >
-                  {tMenu(tab.labelShortKey ?? tab.labelKey)}
-                </Link>
-              )
-            })}
-          </div>
-        </div>
-      )}
+      <div className="lg:hidden bg-surface border-b border-border-subtle overflow-x-auto scrollbar-menu">
+  <div className="flex items-center gap-1 px-2 py-2">
+    {visibleTabs.map((tab) => {
+      const href = tab.href(teamId)
+      return (
+        <Link
+          key={tab.id}
+          href={href}
+          className={linkClass(href, 'px-3 py-1.5 rounded-lg text-xs whitespace-nowrap shrink-0')}
+        >
+          {tMenu(tab.labelShortKey ?? tab.labelKey)}
+        </Link>
+      )
+    })}
+  </div>
+</div>
 
       {/* CONTENIDO */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">{children}</main>

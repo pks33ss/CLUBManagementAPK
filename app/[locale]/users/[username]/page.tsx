@@ -37,7 +37,7 @@ export default function UserProfilePage() {
   const [injuries, setInjuries] = useState<Injury[]>([])
   const [permissions, setPermissions] = useState<UserPermissions | null>(null)
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState('')
+  const [error, setError] = useState<string | null>('')
   const [editingGhostUser, setEditingGhostUser] = useState<MembershipWithUser | null>(null) // <-- NUEVO
 
   const tabs = useMemo(
@@ -50,25 +50,22 @@ export default function UserProfilePage() {
     [t],
   )
 
-  const fetchUser = useCallback(async () => {
-    setLoading(true)
-    setError('')
+   const fetchUser = useCallback(async () => {
     try {
-      const data = await usersApi.getByUsername(username)
-      setUser(data)
-
-      try {
-        const perms = await usersApi.getPermissions(data.id)
-        setPermissions(perms)
-      } catch {
-        setPermissions({
-          canViewProfile: false,
-          canEditProfile: false,
-          canViewEmail: false,
-          canManageMemberships: false,
-          manageableTeamIds: [],
-        })
+      setLoading(true)
+      setError(null)
+      
+      // Si el parámetro parece un CUID (empieza por 'c' y tiene ~25 caracteres), buscamos por ID.
+      const isCuid = /^c[a-z0-9]{20,30}$/i.test(username)
+      
+      let userData
+      if (isCuid) {
+        userData = await usersApi.getById(username)
+      } else {
+        userData = await usersApi.getByUsername(username)
       }
+      
+      setUser(userData)
     } catch (err: any) {
       console.error('Error:', err)
       if (err.response?.status === 404) {
@@ -107,6 +104,20 @@ export default function UserProfilePage() {
     }
     fetchUser()
   }, [fetchUser, router])
+
+  // ✅ AÑADIR ESTE NUEVO useEffect para cargar los permisos cuando el usuario esté listo
+  useEffect(() => {
+    if (!user) return
+    const fetchPermissions = async () => {
+      try {
+        const perms = await usersApi.getPermissions(user.id)
+        setPermissions(perms)
+      } catch (err) {
+        console.error('Error cargando permisos:', err)
+      }
+    }
+    fetchPermissions()
+  }, [user])
 
   useEffect(() => {
     fetchProfileData()

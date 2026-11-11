@@ -1,7 +1,6 @@
-// frontend-web/app/settings/permissions/roles/_components/RoleMatrix.tsx
-// Lote 8.5 — Matriz editable de un rol.
-// Filas = recursos, columnas = acciones (view/create/edit/delete).
-// Una celda con `undefined` significa "sin fila en la matriz" → deny.
+// frontend-web/app/[locale]/settings/permissions/roles/_components/RoleMatrix.tsx
+// Lote 8.5 + 4.M.5 — Matriz editable de un rol.
+// Lote 5.1 — Añadido popover informativo por recurso.
 
 'use client'
 
@@ -12,23 +11,29 @@ import {
   RESOURCE_LABELS_ES,
   ACTION_LABELS_ES,
   actionsFor,
-  type PermissionResource,
-  type PermissionAction,
 } from '@/lib/permissions/constants'
+import ResourceInfoPopover from '@/components/permissions/ResourceInfoPopover'
 
 interface Props {
   role: Role
   draft: Map<string, boolean>
   onToggle: (key: string) => void
+  keyOf: (p: {
+    resource: string
+    action: string
+    scope?: string | null
+    teamId?: string | null
+  }) => string
+  selectedTeamId: string | null
 }
 
-const keyOf = (
-  resource: PermissionResource,
-  action: PermissionAction,
-  scope: string | null = null,
-) => `${resource}|${action}|${scope ?? ''}`
-
-export default function RoleMatrix({ role, draft, onToggle }: Props) {
+export default function RoleMatrix({
+  role,
+  draft,
+  onToggle,
+  keyOf,
+  selectedTeamId,
+}: Props) {
   const isAdminClub =
     role.isSystem && role.name === 'ADMIN_CLUB' && role.scope === 'CLUB'
 
@@ -60,11 +65,19 @@ export default function RoleMatrix({ role, draft, onToggle }: Props) {
                   className="border-b border-border-subtle/50 last:border-0 hover:bg-white/[0.015]"
                 >
                   <td className="px-4 py-3 text-text-primary">
-                    {RESOURCE_LABELS_ES[resource]}
+                    <div className="flex items-center gap-1.5">
+                      <span>{RESOURCE_LABELS_ES[resource]}</span>
+                      <ResourceInfoPopover resource={resource} />
+                    </div>
                   </td>
                   {PERMISSION_ACTIONS.map((action) => {
                     const isActionValid = validActions.includes(action)
-                    const key = keyOf(resource, action)
+                    const key = keyOf({
+                      resource,
+                      action,
+                      scope: null,
+                      teamId: selectedTeamId,
+                    })
                     const checked = draft.get(key) === true
 
                     if (!isActionValid) {
@@ -79,10 +92,7 @@ export default function RoleMatrix({ role, draft, onToggle }: Props) {
                     }
 
                     return (
-                      <td
-                        key={action}
-                        className="text-center px-3 py-3"
-                      >
+                      <td key={action} className="text-center px-3 py-3">
                         <label className="inline-flex items-center justify-center cursor-pointer">
                           <input
                             type="checkbox"
