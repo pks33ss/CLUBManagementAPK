@@ -237,10 +237,32 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
         if (typeof window !== 'undefined') {
           localStorage.removeItem('activeTeamId')
         }
-      } else {
-        // Si tiene memberships pero no encontramos el equipo, respetamos el activeTeamId
-        console.warn('No se encontró el equipo activo, pero se mantiene el activeTeamId')
-      }
+      } 
+      if (foundActive) {
+  setActiveTeamState(foundActive)
+  activeTeamRef.current = foundActive
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('activeTeamId', foundActive.id)
+  }
+} else {
+  // ✅ NUEVO — El activeTeam actual ya no es visible (por cambio de licencia).
+  // Si hay cualquier equipo visible, elegimos el primero. Si no, null.
+  const current = activeTeamRef.current
+  const currentStillVisible =
+    current &&
+    (teams.some((t) => t.id === current.id) ||
+      favTeams.some((t) => t.id === current.id))
+
+  if (!currentStillVisible) {
+    const fallback = favTeams[0] ?? teams[0] ?? null
+    setActiveTeamState(fallback)
+    activeTeamRef.current = fallback
+    if (typeof window !== 'undefined') {
+      if (fallback) localStorage.setItem('activeTeamId', fallback.id)
+      else localStorage.removeItem('activeTeamId')
+    }
+  }
+}
     }
   }
 

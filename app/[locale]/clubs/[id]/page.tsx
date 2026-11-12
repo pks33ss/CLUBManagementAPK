@@ -22,7 +22,8 @@ import { usePermissionsContext } from '@/lib/permissions/permissions-provider'
 import NoAccess from '@/components/permissions/NoAccess'
 import LicenseSelector from '@/components/licenses/LicenseSelector'
 import LicenseBadge from '@/components/licenses/LicenseBadge'
-import type { LicenseType } from '@/types/license'
+import LicenseSportSelector from '@/components/licenses/LicenseSportSelector'
+import type { LicenseType, Sport } from '@/types/license'
 
 interface ClubDetail {
   id: string
@@ -32,8 +33,8 @@ interface ClubDetail {
   phone: string
   email: string
   logo: string
-  // ✅ NUEVO — licencia del club
   licenseType: LicenseType
+  licenseSport?: Sport | null
   members: {
     id: string
     userId: string
@@ -64,6 +65,7 @@ export default function ClubDetail() {
   const tRoles = useTranslations('Clubs.roles')
   const tCommon = useTranslations('Common')
   const tLicenses = useTranslations('Licenses')
+  const tSports = useTranslations('Sports')
 
   const {
     can,
@@ -73,7 +75,6 @@ export default function ClubDetail() {
 
   const permissionsReady = !permissionsLoading && !permissionsError
 
-  // Permisos derivados (solo se evalúan cuando ya están cargados)
   const canEditSettings = permissionsReady && can('club_settings', 'edit', { clubId })
   const canViewMembers = permissionsReady && can('member', 'view', { clubId })
   const canViewTeams = permissionsReady && can('team', 'view', { clubId })
@@ -114,7 +115,6 @@ export default function ClubDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Fetch del club: esperamos a que los permisos estén cargados
   useEffect(() => {
     if (!permissionsReady) return
     fetchClub()
@@ -132,7 +132,6 @@ export default function ClubDetail() {
         phone: response.data.phone || '',
         email: response.data.email || '',
       })
-      // userRole ya no se usa para gates; lo dejamos fuera.
     } catch (error: any) {
       console.error('Error:', error)
       setErrorStatus(error.response?.status ?? null)
@@ -181,20 +180,40 @@ export default function ClubDetail() {
     }
   }
 
-  // ✅ NUEVO — Cambio de licencia del club (solo SUPER_ADMIN)
-  const updateLicense = async (next: LicenseType) => {
-    const previous = club?.licenseType
+  // ✅ Cambio de licencia y/o deporte restringido del club (solo SUPER_ADMIN)
+  const updateLicense = async (
+    nextLicenseType: LicenseType,
+    nextLicenseSport?: Sport | null,
+  ) => {
+    const previousType = club?.licenseType
+    const previousSport = club?.licenseSport
 
-    // Actualización optimista
-    setClub((c) => (c ? { ...c, licenseType: next } : c))
+    setClub((c) =>
+      c
+        ? {
+            ...c,
+            licenseType: nextLicenseType,
+            licenseSport:
+              nextLicenseSport !== undefined ? nextLicenseSport : c.licenseSport,
+          }
+        : c,
+    )
 
     try {
-      await api.put(`/clubs/${clubId}`, { licenseType: next })
+      const body: any = { licenseType: nextLicenseType }
+      if (nextLicenseSport !== undefined) body.licenseSport = nextLicenseSport
+      await api.put(`/clubs/${clubId}`, body)
     } catch (error: any) {
       console.error('Error actualizando licencia:', error)
-      if (previous) {
-        setClub((c) => (c ? { ...c, licenseType: previous } : c))
-      }
+      setClub((c) =>
+        c
+          ? {
+              ...c,
+              licenseType: previousType ?? c.licenseType,
+              licenseSport: previousSport ?? c.licenseSport,
+            }
+          : c,
+      )
       alert(error.response?.data?.message || tLicenses('updateError'))
     }
   }
@@ -298,12 +317,8 @@ export default function ClubDetail() {
     }
   }
 
-  // ⚠️ DEUDA: no existe permiso `club:delete` ni `club_settings:delete`.
-  // Mientras no se cree, el borrado de club se mantiene restringido al rol
-  // SUPER_ADMIN (comprobado en backend) y aquí solo se usa para ocultar UI.
   const isSuperAdmin = currentUser?.role === 'SUPER_ADMIN'
 
-  // 1) Permisos cargando
   if (permissionsLoading) {
     return (
       <div className="text-center py-12 text-text-muted">
@@ -312,7 +327,6 @@ export default function ClubDetail() {
     )
   }
 
-  // 2) Error de permisos
   if (permissionsError) {
     return (
       <div className="text-center py-12">
@@ -327,19 +341,16 @@ export default function ClubDetail() {
     )
   }
 
-  // 3) Sin permiso → NoAccess
   if (errorStatus === 403) {
     return <NoAccess backHref="/dashboard" backLabel={t('backToDashboard')} />
   }
 
-  // 4) Cargando club
   if (loading) {
     return (
       <div className="text-center py-12 text-text-muted">{t('loadingClub')}</div>
     )
   }
 
-  // 5) Error real
   if (error || !club) {
     return (
       <div className="text-center py-12">
@@ -393,7 +404,7 @@ export default function ClubDetail() {
               </div>
             </div>
 
-            {/* ✅ NUEVO — Botones de acción + Licencia alineada a la derecha */}
+            {/* Botones + Licencia, alineados a la derecha */}
             <div className="flex flex-col items-end gap-4 flex-shrink-0">
               <div className="flex gap-2 flex-wrap justify-end">
                 <Can resource="club_settings" action="edit" clubId={clubId}>
@@ -401,14 +412,11 @@ export default function ClubDetail() {
                     {tCommon('edit')}
                   </Button>
                 </Can>
-
                 <Can resource="member" action="view" clubId={clubId}>
                   <Button size="sm" href={`/clubs/${clubId}/members`}>
                     {t('manageMembers')}
                   </Button>
                 </Can>
-
-                {/* DEUDA: pendiente permiso `club:delete` / `club_settings:delete`. */}
                 {isSuperAdmin && (
                   <Button
                     size="sm"
@@ -420,29 +428,56 @@ export default function ClubDetail() {
                 )}
               </div>
 
-              {/* Licencia: badge visible para todos, selector solo para SUPER_ADMIN */}
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <p className="text-[11px] font-medium uppercase tracking-wide text-text-muted mb-1">
-                    {tLicenses('label')}
-                  </p>
-                  <LicenseBadge value={club.licenseType} variant="solid" />
+              {/* Licencia + deporte restringido (BETA). Selector solo SUPER_ADMIN. */}
+              <div className="flex flex-col items-end gap-2">
+                <div className="flex items-center gap-3">
+                  <div className="text-right">
+                    <p className="text-[11px] font-medium uppercase tracking-wide text-text-muted mb-1">
+                      {tLicenses('label')}
+                    </p>
+                    <LicenseBadge value={club.licenseType} variant="solid" />
+                  </div>
+
+                  {isSuperAdmin && (
+                    <div className="w-[140px]">
+                      <LicenseSelector
+                        value={club.licenseType}
+                        onChange={(next) => updateLicense(next, undefined)}
+                        size="sm"
+                        id={`club-license-${club.id}`}
+                        label={null}
+                      />
+                    </div>
+                  )}
                 </div>
 
-                {isSuperAdmin && (
-                  <div className="w-[140px]">
-                    <LicenseSelector
-                      value={club.licenseType}
-                      onChange={updateLicense}
-                      size="sm"
-                      id={`club-license-${club.id}`}
-                      label={null}
-                    />
+                {club.licenseType === 'BETA' && (
+                  <div className="flex items-center gap-3 w-full justify-end">
+                    {isSuperAdmin ? (
+                      <div className="w-[200px]">
+                        <LicenseSportSelector
+                          value={club.licenseSport ?? null}
+                          onChange={(next) => updateLicense(club.licenseType, next)}
+                          size="sm"
+                          label={tLicenses('sportLabel')}
+                          hint={tLicenses('sportHint')}
+                          id={`club-license-sport-${club.id}`}
+                        />
+                      </div>
+                    ) : (
+                      <div className="text-right">
+                        <p className="text-[11px] font-medium uppercase tracking-wide text-text-muted mb-1">
+                          {tLicenses('sportLabel')}
+                        </p>
+                        <span className="text-xs text-text-secondary">
+                          {club.licenseSport ? tSports(club.licenseSport) : '—'}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
             </div>
-
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-border-subtle">

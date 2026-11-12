@@ -18,6 +18,7 @@ interface Props {
 export default function ProfileAccountTab({ userMe, onUpdate }: Props) {
   const t = useTranslations('Settings.account')
   const tLicenses = useTranslations('Licenses')
+  const tSports = useTranslations('Sports')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [saving, setSaving] = useState(false)
@@ -155,7 +156,6 @@ export default function ProfileAccountTab({ userMe, onUpdate }: Props) {
 
       <Card>
         <CardBody>
-          {/* ✅ NUEVO — Cabecera con título y badge a la derecha */}
           <div className="flex justify-between items-start mb-4 flex-wrap gap-2">
             <h2 className="text-lg font-semibold text-text-primary">
               {t('personalInfo')}
@@ -165,6 +165,16 @@ export default function ProfileAccountTab({ userMe, onUpdate }: Props) {
               <p className="text-[10px] text-text-muted">
                 {tLicenses('onlySuperAdmin')}
               </p>
+              {userMe.licenseType === 'BETA' && (
+                <p className="text-[10px] text-text-secondary">
+                  {tLicenses('sportLabel')}:{' '}
+                  <span className="font-semibold">
+                    {userMe.licenseSport
+                      ? tSports(userMe.licenseSport)
+                      : '—'}
+                  </span>
+                </p>
+              )}
             </div>
           </div>
 

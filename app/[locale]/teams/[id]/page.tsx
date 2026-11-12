@@ -17,7 +17,8 @@ import AddSelfRoleModal from './_components/AddSelfRoleModal'
 // ✅ NUEVO
 import LicenseSelector from '@/components/licenses/LicenseSelector'
 import LicenseBadge from '@/components/licenses/LicenseBadge'
-import type { LicenseType } from '@/types/license'
+import LicenseSportSelector from '@/components/licenses/LicenseSportSelector'
+import type { LicenseType, Sport } from '@/types/license'
 
 type MembershipRole = 'PLAYER' | 'COACH' | 'ASSISTANT' | 'ADMIN_TEAM'
 
@@ -53,6 +54,7 @@ interface TeamDetail {
   season: string
   // ✅ NUEVO
   licenseType: LicenseType
+  licenseSport?: Sport | null
   club: {
     id: string
     name: string
@@ -271,20 +273,40 @@ export default function TeamDetail() {
     }
   }
 
-  // ✅ NUEVO — Cambio de licencia del equipo (solo SUPER_ADMIN)
-  const updateLicense = async (next: LicenseType) => {
-    const previous = team?.licenseType
+  // ✅ Cambio de licencia y/o deporte restringido del equipo (solo SUPER_ADMIN)
+  const updateLicense = async (
+    nextLicenseType: LicenseType,
+    nextLicenseSport?: Sport | null,
+  ) => {
+    const previousType = team?.licenseType
+    const previousSport = team?.licenseSport
 
-    // Actualización optimista
-    setTeam((tm) => (tm ? { ...tm, licenseType: next } : tm))
+    setTeam((tm) =>
+      tm
+        ? {
+            ...tm,
+            licenseType: nextLicenseType,
+            licenseSport:
+              nextLicenseSport !== undefined ? nextLicenseSport : tm.licenseSport,
+          }
+        : tm,
+    )
 
     try {
-      await api.put(`/teams/${teamId}`, { licenseType: next })
+      const body: any = { licenseType: nextLicenseType }
+      if (nextLicenseSport !== undefined) body.licenseSport = nextLicenseSport
+      await api.put(`/teams/${teamId}`, body)
     } catch (error: any) {
       console.error('Error actualizando licencia:', error)
-      if (previous) {
-        setTeam((tm) => (tm ? { ...tm, licenseType: previous } : tm))
-      }
+      setTeam((tm) =>
+        tm
+          ? {
+              ...tm,
+              licenseType: previousType ?? tm.licenseType,
+              licenseSport: previousSport ?? tm.licenseSport,
+            }
+          : tm,
+      )
       alert(error.response?.data?.message || tLicenses('updateError'))
     }
   }
@@ -399,24 +421,52 @@ export default function TeamDetail() {
                 {t('club')}: {team.club?.name || t('noClub')}
               </p>
 
-              {/* ✅ NUEVO — Licencia: badge para todos, selector solo SUPER_ADMIN */}
-              <div className="mt-3 flex items-center gap-3 flex-wrap">
-                <div>
-                  <p className="text-[11px] font-medium uppercase tracking-wide text-text-muted mb-1">
-                    {tLicenses('label')}
-                  </p>
-                  <LicenseBadge value={team.licenseType} variant="solid" />
+              {/* Licencia + deporte restringido (BETA). Selector solo SUPER_ADMIN. */}
+              <div className="mt-3 flex flex-col gap-2">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <div>
+                    <p className="text-[11px] font-medium uppercase tracking-wide text-text-muted mb-1">
+                      {tLicenses('label')}
+                    </p>
+                    <LicenseBadge value={team.licenseType} variant="solid" />
+                  </div>
+
+                  {isSuperAdmin && (
+                    <div className="w-[140px]">
+                      <LicenseSelector
+                        value={team.licenseType}
+                        onChange={(next) => updateLicense(next, undefined)}
+                        size="sm"
+                        id={`team-license-${team.id}`}
+                        label={null}
+                      />
+                    </div>
+                  )}
                 </div>
 
-                {isSuperAdmin && (
-                  <div className="max-w-[200px]">
-                    <LicenseSelector
-                      value={team.licenseType}
-                      onChange={updateLicense}
-                      size="sm"
-                      id={`team-license-${team.id}`}
-                      label={null}
-                    />
+                {team.licenseType === 'BETA' && (
+                  <div className="flex items-center gap-3">
+                    {isSuperAdmin ? (
+                      <div className="w-[200px]">
+                        <LicenseSportSelector
+                          value={team.licenseSport ?? null}
+                          onChange={(next) => updateLicense(team.licenseType, next)}
+                          size="sm"
+                          label={tLicenses('sportLabel')}
+                          hint={tLicenses('sportHint')}
+                          id={`team-license-sport-${team.id}`}
+                        />
+                      </div>
+                    ) : (
+                      <div>
+                        <p className="text-[11px] font-medium uppercase tracking-wide text-text-muted mb-1">
+                          {tLicenses('sportLabel')}
+                        </p>
+                        <span className="text-xs text-text-secondary">
+                          {team.licenseSport ? tSports(team.licenseSport) : '—'}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

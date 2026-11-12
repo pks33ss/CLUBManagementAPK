@@ -1,11 +1,7 @@
 // frontend-web/types/license.ts
-//
-// Espejo del enum `LicenseType` definido en backend/prisma/schema.prisma.
-// Si añades un valor en Prisma, añádelo también aquí.
 
 export type LicenseType = 'BETA' | 'FREE' | 'BASIC' | 'PRO' | 'ENTERPRISE'
 
-/** Lista ordenada de licencias para pintar selectores. */
 export const LICENSE_TYPES: LicenseType[] = [
   'BETA',
   'FREE',
@@ -14,11 +10,6 @@ export const LICENSE_TYPES: LicenseType[] = [
   'ENTERPRISE',
 ]
 
-/**
- * Fallback de etiquetas por si en algún contexto (tests, scripts sueltos)
- * el componente se usa sin provider de next-intl. En la UI real siempre
- * se usan las traducciones de `messages/{locale}.json → Licenses.types`.
- */
 export const LICENSE_TYPE_LABELS_ES: Record<LicenseType, string> = {
   BETA: 'Beta',
   FREE: 'Gratis',
@@ -34,3 +25,21 @@ export const LICENSE_TYPE_LABELS_EN: Record<LicenseType, string> = {
   PRO: 'Pro',
   ENTERPRISE: 'Enterprise',
 }
+
+// ✅ NUEVO — Deporte restringido (solo aplica a licencia BETA)
+export type Sport =
+  | 'BASKETBALL'
+  | 'PADEL'
+  | 'FOOTBALL'
+  | 'HANDBALL'
+  | 'VOLLEYBALL'
+  | 'TENNIS'
+
+export const SPORTS: Sport[] = [
+  'BASKETBALL',
+  'PADEL',
+  'FOOTBALL',
+  'HANDBALL',
+  'VOLLEYBALL',
+  'TENNIS',
+]

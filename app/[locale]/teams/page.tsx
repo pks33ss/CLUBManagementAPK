@@ -9,6 +9,8 @@ import { SPORTS, getSportConfig, isSportInDevelopment } from '@/lib/sport'
 import type { Sport } from '@/lib/sport'
 import { Button, Card, CardBody, Badge, Input, Select, Modal } from '@/components/ui'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
+// ✅ NUEVO — para el banner
+import type { LicenseType, Sport as PrismaLicenseSport } from '@/types/license'
 
 // Compone "2026-27" a partir de dos años.
 function composeSeason(start: number, end: number): string {
@@ -24,7 +26,8 @@ function TeamsContent() {
   const tCommon = useTranslations('Common')
   const tSports = useTranslations('Sports') 
 
-  const { refresh } = useActiveTeam()
+  // ✅ NUEVO — userMe del contexto
+  const { refresh, userMe } = useActiveTeam()
 
   const [teams, setTeams] = useState<any[]>([])
   const [clubs, setClubs] = useState<any[]>([])
@@ -40,8 +43,14 @@ function TeamsContent() {
     clubId: '',
   })
 
-    const [creating, setCreating] = useState(false)
-    const { refresh: refreshActiveTeam } = useActiveTeam()
+  const [creating, setCreating] = useState(false)
+  const { refresh: refreshActiveTeam } = useActiveTeam()
+
+  // ✅ NUEVO — Deporte restringido por licencia BETA (solo informativo)
+  const licenseBannerSport: PrismaLicenseSport | null =
+    userMe?.licenseType === 'BETA' && userMe?.licenseSport
+      ? (userMe.licenseSport as PrismaLicenseSport)
+      : null
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -95,7 +104,7 @@ function TeamsContent() {
 
   const createTeam = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (creating) return // ✅ Evita doble ejecución
+    if (creating) return
 
     if (!newTeam.clubId) {
       alert(t('selectClubFirst'))
@@ -132,10 +141,7 @@ function TeamsContent() {
         clubId: newTeam.clubId,
       }
       await api.post('/teams', payload)
-      
-      // ✅ Refrescamos el contexto para que detecte el nuevo equipo
       await refresh()
-      
       setShowModal(false)
       resetForm(selectedClub)
       fetchTeams(selectedClub)
@@ -230,6 +236,18 @@ function TeamsContent() {
               </div>
             </CardBody>
           </Card>
+
+          {/* ✅ NUEVO — Banner informativo del filtro de licencia */}
+          {licenseBannerSport && (
+            <div className="mb-4 bg-brand-primary/10 border border-brand-primary/30 text-text-primary text-sm rounded-lg px-4 py-3 flex items-center gap-2">
+              <span className="text-lg">ℹ️</span>
+              <span>
+                {t('licenseFilterBanner', {
+                  sport: tSports(licenseBannerSport),
+                })}
+              </span>
+            </div>
+          )}
 
           {/* LISTA DE EQUIPOS */}
           {teams.length === 0 ? (
@@ -404,7 +422,7 @@ function TeamsContent() {
             >
               {tCommon('cancel')}
             </Button>
-                        <Button 
+            <Button 
               type="submit" 
               className="flex-1" 
               disabled={creating} 

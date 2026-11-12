@@ -1,5 +1,6 @@
 import type { Membership } from './membership'
 import type { TutorRelationship } from './tutor-relationship'
+import type { LicenseType, Sport } from './license'
 
 export interface UserBasic {
   id: string
@@ -57,7 +58,8 @@ export interface UserMe {
   avatar: string | null
   bio: string | null
   role: string
-   licenseType: 'BETA' | 'FREE' | 'BASIC' | 'PRO' | 'ENTERPRISE'
+  licenseType: LicenseType
+  licenseSport?: Sport | null
   isGhost: boolean
   createdAt: string
 

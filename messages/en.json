@@ -2698,6 +2698,8 @@
     "updating": "Updating...",
     "updated": "License updated",
     "updateError": "Could not update the license",
+	"sportLabel": "License sport",
+    "sportHint": "Applies only to Beta license",
     "types": {
       "BETA": "Beta",
       "FREE": "Free",

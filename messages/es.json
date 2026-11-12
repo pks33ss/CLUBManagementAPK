@@ -1430,6 +1430,8 @@
     "updating": "Actualizando...",
     "updated": "Licencia actualizada",
     "updateError": "No se pudo actualizar la licencia",
+	 "sportLabel": "Deporte de la licencia",
+    "sportHint": "Solo se aplica a la licencia Beta",
     "types": {
       "BETA": "Beta",
       "FREE": "Gratis",
