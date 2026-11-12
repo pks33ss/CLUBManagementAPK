@@ -1,3 +1,5 @@
+// frontend-web/lib/ActiveTeamContext.tsx
+
 'use client'
 
 import {
@@ -113,7 +115,7 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
   // CARGA DE DATOS DEL USUARIO
   // ============================================
 
-    const loadUserData = async (): Promise<{ memberships: Membership[] }> => {
+  const loadUserData = async (): Promise<{ memberships: Membership[] }> => {
     try {
       const [me, myMemberships, myTutors, myPlayers] = await Promise.all([
         usersApi.getMe().catch(() => null),
@@ -123,19 +125,17 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
       ])
 
       setUserMe(me)
-      
-      // ✅ Si findMine falla (403) pero getMe trae las memberships, usamos esas
-      const finalMemberships = myMemberships.length > 0 
-        ? myMemberships 
-        : (me?.memberships ?? [])
-      
+
+      // Si findMine falla (403) pero getMe trae las memberships, usamos esas
+      const finalMemberships =
+        myMemberships.length > 0 ? myMemberships : me?.memberships ?? []
+
       setMemberships(finalMemberships)
       setTutors(myTutors)
       setPlayers(myPlayers)
 
       return { memberships: finalMemberships }
-    } catch (err: any) {
-      // ...
+    } catch {
       return { memberships: [] }
     }
   }
@@ -193,7 +193,10 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
       setFavorites([])
     }
 
-    // Resolución del equipo activo.
+    // ─────────────────────────────────────────────
+    // Resolución del equipo activo
+    // ─────────────────────────────────────────────
+
     const savedActiveId =
       typeof window !== 'undefined'
         ? localStorage.getItem('activeTeamId')
@@ -206,12 +209,6 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
         favTeams.find((t) => t.id === savedActiveId) ||
         teams.find((t) => t.id === savedActiveId) ||
         null
-
-      // Si no está en nuestras listas pero es el que ya teníamos en memoria,
-      // lo respetamos (puede ser un equipo aún no cargado).
-      if (!foundActive && activeTeamRef.current?.id === savedActiveId) {
-        return
-      }
     }
 
     if (!foundActive && favTeams.length > 0) {
@@ -222,47 +219,45 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
       foundActive = teams[0]
     }
 
-        if (foundActive) {
-      setActiveTeamState(foundActive)
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('activeTeamId', foundActive.id)
-      }
-    } else {
-      // ✅ No borramos el activeTeamId si el usuario SÍ tiene memberships
-      // (aunque no hayamos encontrado el equipo en la lista, puede ser un fallo temporal).
-      // Solo lo borramos si el usuario no tiene NINGUNA membership.
-      if (relevant.length === 0) {
+    // Si el activeTeam actual ya no es visible (por cambio de licencia),
+    // lo sustituimos por foundActive (o lo vaciamos si no hay nada).
+    const current = activeTeamRef.current
+    const currentStillVisible = current
+      ? teams.some((t) => t.id === current.id) ||
+        favTeams.some((t) => t.id === current.id)
+      : false
+
+    if (current && !currentStillVisible) {
+      if (foundActive) {
+        setActiveTeamState(foundActive)
+        activeTeamRef.current = foundActive
+        if (typeof window !== 'undefined') {
+          localStorage.setItem('activeTeamId', foundActive.id)
+        }
+      } else {
         setActiveTeamState(null)
         activeTeamRef.current = null
         if (typeof window !== 'undefined') {
           localStorage.removeItem('activeTeamId')
         }
-      } 
-      if (foundActive) {
-  setActiveTeamState(foundActive)
-  activeTeamRef.current = foundActive
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('activeTeamId', foundActive.id)
-  }
-} else {
-  // ✅ NUEVO — El activeTeam actual ya no es visible (por cambio de licencia).
-  // Si hay cualquier equipo visible, elegimos el primero. Si no, null.
-  const current = activeTeamRef.current
-  const currentStillVisible =
-    current &&
-    (teams.some((t) => t.id === current.id) ||
-      favTeams.some((t) => t.id === current.id))
-
-  if (!currentStillVisible) {
-    const fallback = favTeams[0] ?? teams[0] ?? null
-    setActiveTeamState(fallback)
-    activeTeamRef.current = fallback
-    if (typeof window !== 'undefined') {
-      if (fallback) localStorage.setItem('activeTeamId', fallback.id)
-      else localStorage.removeItem('activeTeamId')
+      }
+      return
     }
-  }
-}
+
+    // Flujo normal: usar foundActive si lo hay.
+    if (foundActive) {
+      setActiveTeamState(foundActive)
+      activeTeamRef.current = foundActive
+      if (typeof window !== 'undefined') {
+        localStorage.setItem('activeTeamId', foundActive.id)
+      }
+    } else if (relevant.length === 0) {
+      // No tiene memberships → limpiar.
+      setActiveTeamState(null)
+      activeTeamRef.current = null
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('activeTeamId')
+      }
     }
   }
 
