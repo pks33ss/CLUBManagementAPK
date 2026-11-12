@@ -2692,6 +2692,20 @@
     "payments": "💰 Payments",
     "myPayments": "💰 Payments"
   },
+  "Licenses": {
+    "label": "License",
+    "onlySuperAdmin": "Only a super admin can change the license",
+    "updating": "Updating...",
+    "updated": "License updated",
+    "updateError": "Could not update the license",
+    "types": {
+      "BETA": "Beta",
+      "FREE": "Free",
+      "BASIC": "Basic",
+      "PRO": "Pro",
+      "ENTERPRISE": "Enterprise"
+    }
+  },
     "Attendance": {
     "report": {
       "loading": "Loading report...",

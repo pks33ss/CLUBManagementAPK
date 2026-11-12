@@ -15,6 +15,9 @@ import {
 } from '@/lib/adminEmailSettings'
 import { Button, Card, Badge, Input, Select, Modal } from '@/components/ui'
 import { usersApi } from '@/lib/api/users'
+import LicenseSelector from '@/components/licenses/LicenseSelector'
+import type { LicenseType } from '@/types/license'
+import LicenseBadge from '@/components/licenses/LicenseBadge'
 
 interface User {
   id: string
@@ -23,6 +26,8 @@ interface User {
   name: string
   lastName: string
   role: string
+  // ✅ NUEVO — licencia del usuario
+  licenseType: LicenseType
   createdAt: string
   clubs: { club: { id: string; name: string } }[]
   emailNotificationsEnabled?: boolean
@@ -31,6 +36,7 @@ interface User {
 
 export default function UsersManagement() {
   const t = useTranslations('AdminUsers')
+  const tLicenses = useTranslations('Licenses')
   const router = useRouter()
 
   const [users, setUsers] = useState<User[]>([])
@@ -308,6 +314,34 @@ export default function UsersManagement() {
     }
   }
 
+  // ✅ NUEVO — Cambio de licencia de un usuario (solo SUPER_ADMIN)
+  const updateLicense = async (userId: string, newLicense: LicenseType) => {
+    const previous = users.find((u) => u.id === userId)?.licenseType
+
+    // Actualización optimista
+    setUsers((prev) =>
+      prev.map((u) =>
+        u.id === userId ? { ...u, licenseType: newLicense } : u,
+      ),
+    )
+
+    try {
+      await api.put(`/users/${userId}/license`, { licenseType: newLicense })
+    } catch (error: any) {
+      console.error('Error actualizando licencia:', error)
+
+      // Rollback
+      if (previous) {
+        setUsers((prev) =>
+          prev.map((u) =>
+            u.id === userId ? { ...u, licenseType: previous } : u,
+          ),
+        )
+      }
+      alert(error.response?.data?.message || tLicenses('updateError'))
+    }
+  }
+
   const getConfirmText = (user: User): string => {
     return user.email ?? user.username ?? user.id.slice(-6)
   }
@@ -498,6 +532,8 @@ export default function UsersManagement() {
                 <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">{t('columns.user')}</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">{t('columns.email')}</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">{t('columns.role')}</th>
+                {/* ✅ NUEVO */}
+                <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">{tLicenses('label')}</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-text-muted uppercase">{t('columns.clubs')}</th>
                 <th className="px-6 py-3 text-center text-xs font-medium text-text-muted uppercase">{t('columns.emailToggle')}</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-text-muted uppercase">{t('columns.actions')}</th>
@@ -524,6 +560,19 @@ export default function UsersManagement() {
                         {getRoleText(user.role)}
                       </Badge>
                     </td>
+                    {/* ✅ NUEVO — Badge + selector de licencia */}
+<td className="px-6 py-4">
+  <div className="flex items-center gap-2">
+    <LicenseBadge value={user.licenseType} variant="outline" />
+    <LicenseSelector
+      value={user.licenseType}
+      onChange={(next) => updateLicense(user.id, next)}
+      size="sm"
+      label={null}
+      id={`license-${user.id}`}
+    />
+  </div>
+</td>
                     <td className="px-6 py-4 text-sm text-text-secondary">
                       {user.clubs && user.clubs.length > 0 ? (
                         <div className="space-y-1">

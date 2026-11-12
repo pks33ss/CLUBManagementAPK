@@ -1,3 +1,5 @@
+// frontend-web/app/[locale]/clubs/[id]/page.tsx
+
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
@@ -18,6 +20,9 @@ import { ClubRemindersSection } from './_components/ClubRemindersSection'
 import { Can } from '@/lib/permissions/can'
 import { usePermissionsContext } from '@/lib/permissions/permissions-provider'
 import NoAccess from '@/components/permissions/NoAccess'
+import LicenseSelector from '@/components/licenses/LicenseSelector'
+import LicenseBadge from '@/components/licenses/LicenseBadge'
+import type { LicenseType } from '@/types/license'
 
 interface ClubDetail {
   id: string
@@ -27,6 +32,8 @@ interface ClubDetail {
   phone: string
   email: string
   logo: string
+  // ✅ NUEVO — licencia del club
+  licenseType: LicenseType
   members: {
     id: string
     userId: string
@@ -56,6 +63,7 @@ export default function ClubDetail() {
   const t = useTranslations('Clubs.detail')
   const tRoles = useTranslations('Clubs.roles')
   const tCommon = useTranslations('Common')
+  const tLicenses = useTranslations('Licenses')
 
   const {
     can,
@@ -170,6 +178,24 @@ export default function ClubDetail() {
       alert(error.response?.data?.message || t('errorUpdate'))
     } finally {
       setUpdating(false)
+    }
+  }
+
+  // ✅ NUEVO — Cambio de licencia del club (solo SUPER_ADMIN)
+  const updateLicense = async (next: LicenseType) => {
+    const previous = club?.licenseType
+
+    // Actualización optimista
+    setClub((c) => (c ? { ...c, licenseType: next } : c))
+
+    try {
+      await api.put(`/clubs/${clubId}`, { licenseType: next })
+    } catch (error: any) {
+      console.error('Error actualizando licencia:', error)
+      if (previous) {
+        setClub((c) => (c ? { ...c, licenseType: previous } : c))
+      }
+      alert(error.response?.data?.message || tLicenses('updateError'))
     }
   }
 
@@ -367,31 +393,56 @@ export default function ClubDetail() {
               </div>
             </div>
 
-            <div className="flex gap-2 flex-shrink-0 flex-wrap">
-              <Can resource="club_settings" action="edit" clubId={clubId}>
-                <Button size="sm" onClick={openEditModal}>
-                  {tCommon('edit')}
-                </Button>
-              </Can>
+            {/* ✅ NUEVO — Botones de acción + Licencia alineada a la derecha */}
+            <div className="flex flex-col items-end gap-4 flex-shrink-0">
+              <div className="flex gap-2 flex-wrap justify-end">
+                <Can resource="club_settings" action="edit" clubId={clubId}>
+                  <Button size="sm" onClick={openEditModal}>
+                    {tCommon('edit')}
+                  </Button>
+                </Can>
 
-              <Can resource="member" action="view" clubId={clubId}>
-                <Button size="sm" href={`/clubs/${clubId}/members`}>
-                  {t('manageMembers')}
-                </Button>
-              </Can>
+                <Can resource="member" action="view" clubId={clubId}>
+                  <Button size="sm" href={`/clubs/${clubId}/members`}>
+                    {t('manageMembers')}
+                  </Button>
+                </Can>
 
-              {/* DEUDA: pendiente permiso `club:delete` / `club_settings:delete`.
-                  Mientras no exista, solo SUPER_ADMIN ve el botón. */}
-              {isSuperAdmin && (
-                <Button
-                  size="sm"
-                  variant="danger"
-                  onClick={() => setShowDeleteModal(true)}
-                >
-                  {tCommon('delete')}
-                </Button>
-              )}
+                {/* DEUDA: pendiente permiso `club:delete` / `club_settings:delete`. */}
+                {isSuperAdmin && (
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    onClick={() => setShowDeleteModal(true)}
+                  >
+                    {tCommon('delete')}
+                  </Button>
+                )}
+              </div>
+
+              {/* Licencia: badge visible para todos, selector solo para SUPER_ADMIN */}
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-text-muted mb-1">
+                    {tLicenses('label')}
+                  </p>
+                  <LicenseBadge value={club.licenseType} variant="solid" />
+                </div>
+
+                {isSuperAdmin && (
+                  <div className="w-[140px]">
+                    <LicenseSelector
+                      value={club.licenseType}
+                      onChange={updateLicense}
+                      size="sm"
+                      id={`club-license-${club.id}`}
+                      label={null}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
+
           </div>
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-6 pt-6 border-t border-border-subtle">
@@ -427,7 +478,6 @@ export default function ClubDetail() {
         </CardBody>
       </Card>
 
-      {/* Recordatorios del club: ver con club_settings:view, gestionar con club_settings:edit */}
       <Can resource="club_settings" action="view" clubId={clubId}>
         <ClubRemindersSection clubId={clubId} canManage={canManageReminders} />
       </Can>
@@ -517,7 +567,6 @@ export default function ClubDetail() {
         </CardBody>
       </Card>
 
-      {/* Modal editar club (club_settings:edit) */}
       <Can resource="club_settings" action="edit" clubId={clubId}>
         <Modal
           isOpen={showEditModal}
@@ -548,7 +597,6 @@ export default function ClubDetail() {
                 )}
               </div>
 
-              {/* Logo: club_branding:edit */}
               <Can resource="club_branding" action="edit" clubId={clubId}>
                 <div className="flex flex-col gap-2">
                   <input
@@ -685,7 +733,6 @@ export default function ClubDetail() {
         </Modal>
       </Can>
 
-      {/* Modal eliminar club — DEUDA: pendiente permiso club:delete */}
       {isSuperAdmin && (
         <Modal
           isOpen={showDeleteModal}

@@ -14,6 +14,10 @@ import { Can } from '@/lib/permissions/can'
 import NoAccess from '@/components/permissions/NoAccess'
 import RequestJoinModal from './_components/RequestJoinModal'
 import AddSelfRoleModal from './_components/AddSelfRoleModal'
+// ✅ NUEVO
+import LicenseSelector from '@/components/licenses/LicenseSelector'
+import LicenseBadge from '@/components/licenses/LicenseBadge'
+import type { LicenseType } from '@/types/license'
 
 type MembershipRole = 'PLAYER' | 'COACH' | 'ASSISTANT' | 'ADMIN_TEAM'
 
@@ -47,6 +51,8 @@ interface TeamDetail {
   sport: string
   category: string
   season: string
+  // ✅ NUEVO
+  licenseType: LicenseType
   club: {
     id: string
     name: string
@@ -85,6 +91,8 @@ export default function TeamDetail() {
   const t = useTranslations('TeamDetail')
   const tCommon = useTranslations('Common')
   const tSports = useTranslations('Sports')
+  // ✅ NUEVO
+  const tLicenses = useTranslations('Licenses')
 
   const { setActiveTeam, activeTeam } = useActiveTeam()
   const {
@@ -108,6 +116,8 @@ export default function TeamDetail() {
   const [error, setError] = useState('')
   const [errorStatus, setErrorStatus] = useState<number | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  // ✅ NUEVO — necesitamos el role para saber si el viewer es SUPER_ADMIN
+  const [currentUserRole, setCurrentUserRole] = useState<string | null>(null)
 
   const [showEditModal, setShowEditModal] = useState(false)
   const [editForm, setEditForm] = useState({
@@ -129,7 +139,9 @@ export default function TeamDetail() {
     const userStr = localStorage.getItem('user')
     if (userStr) {
       try {
-        setCurrentUserId(JSON.parse(userStr).id)
+        const u = JSON.parse(userStr)
+        setCurrentUserId(u.id)
+        setCurrentUserRole(u.role ?? null)
       } catch {}
     }
 
@@ -259,6 +271,24 @@ export default function TeamDetail() {
     }
   }
 
+  // ✅ NUEVO — Cambio de licencia del equipo (solo SUPER_ADMIN)
+  const updateLicense = async (next: LicenseType) => {
+    const previous = team?.licenseType
+
+    // Actualización optimista
+    setTeam((tm) => (tm ? { ...tm, licenseType: next } : tm))
+
+    try {
+      await api.put(`/teams/${teamId}`, { licenseType: next })
+    } catch (error: any) {
+      console.error('Error actualizando licencia:', error)
+      if (previous) {
+        setTeam((tm) => (tm ? { ...tm, licenseType: previous } : tm))
+      }
+      alert(error.response?.data?.message || tLicenses('updateError'))
+    }
+  }
+
   const deleteTeam = async () => {
     setDeleting(true)
     try {
@@ -341,6 +371,9 @@ export default function TeamDetail() {
   const hasAllRoles =
     isActiveMember && ALL_ROLES.every((r) => myRoles.includes(r))
 
+  // ✅ NUEVO
+  const isSuperAdmin = currentUserRole === 'SUPER_ADMIN'
+
   return (
     <div>
       <Link href="/teams" className="text-brand-primary hover:underline inline-block mb-6">
@@ -365,6 +398,28 @@ export default function TeamDetail() {
               <p className="text-sm text-text-muted mt-2">
                 {t('club')}: {team.club?.name || t('noClub')}
               </p>
+
+              {/* ✅ NUEVO — Licencia: badge para todos, selector solo SUPER_ADMIN */}
+              <div className="mt-3 flex items-center gap-3 flex-wrap">
+                <div>
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-text-muted mb-1">
+                    {tLicenses('label')}
+                  </p>
+                  <LicenseBadge value={team.licenseType} variant="solid" />
+                </div>
+
+                {isSuperAdmin && (
+                  <div className="max-w-[200px]">
+                    <LicenseSelector
+                      value={team.licenseType}
+                      onChange={updateLicense}
+                      size="sm"
+                      id={`team-license-${team.id}`}
+                      label={null}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="flex flex-wrap gap-2">

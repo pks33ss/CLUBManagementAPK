@@ -1424,6 +1424,20 @@
   "payments": "💰 Pagos",
   "myPayments": "💰 Pagos"
 },
+  "Licenses": {
+    "label": "Licencia",
+    "onlySuperAdmin": "Solo el super administrador puede cambiar la licencia",
+    "updating": "Actualizando...",
+    "updated": "Licencia actualizada",
+    "updateError": "No se pudo actualizar la licencia",
+    "types": {
+      "BETA": "Beta",
+      "FREE": "Gratis",
+      "BASIC": "Básica",
+      "PRO": "Pro",
+      "ENTERPRISE": "Enterprise"
+    }
+  },
 "Players": {
   "stats": {
     "loadingPage": "Cargando estadísticas del jugador...",

@@ -8,6 +8,7 @@ import api from '@/lib/api'
 import { usersApi } from '@/lib/api/users'
 import { Button, Card, CardBody, Input, Textarea } from '@/components/ui'
 import type { UserMe } from '@/types/user'
+import LicenseBadge from '@/components/licenses/LicenseBadge'
 
 interface Props {
   userMe: UserMe
@@ -16,6 +17,7 @@ interface Props {
 
 export default function ProfileAccountTab({ userMe, onUpdate }: Props) {
   const t = useTranslations('Settings.account')
+  const tLicenses = useTranslations('Licenses')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [saving, setSaving] = useState(false)
@@ -153,9 +155,18 @@ export default function ProfileAccountTab({ userMe, onUpdate }: Props) {
 
       <Card>
         <CardBody>
-          <h2 className="text-lg font-semibold text-text-primary mb-4">
-            {t('personalInfo')}
-          </h2>
+          {/* ✅ NUEVO — Cabecera con título y badge a la derecha */}
+          <div className="flex justify-between items-start mb-4 flex-wrap gap-2">
+            <h2 className="text-lg font-semibold text-text-primary">
+              {t('personalInfo')}
+            </h2>
+            <div className="flex flex-col items-end gap-1">
+              <LicenseBadge value={userMe.licenseType} variant="solid" size="md" />
+              <p className="text-[10px] text-text-muted">
+                {tLicenses('onlySuperAdmin')}
+              </p>
+            </div>
+          </div>
 
           <form onSubmit={saveProfile} className="space-y-4">
             <div className="flex items-center gap-6">

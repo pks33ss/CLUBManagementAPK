@@ -57,6 +57,7 @@ export interface UserMe {
   avatar: string | null
   bio: string | null
   role: string
+   licenseType: 'BETA' | 'FREE' | 'BASIC' | 'PRO' | 'ENTERPRISE'
   isGhost: boolean
   createdAt: string
 
