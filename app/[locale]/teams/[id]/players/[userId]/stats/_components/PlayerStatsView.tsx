@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { teamsApi } from '@/lib/api/teams'
 import type {
@@ -28,6 +28,7 @@ interface Props {
   teams: TeamOption[]
   onPlayerLoaded?: (player: { name: string; lastName: string }) => void
   onSeasonChange?: (seasonId: string) => void
+  onTeamsChange?: (teamIds: string[]) => void 
 }
 
 function isPadelResponse(
@@ -67,6 +68,7 @@ export default function PlayerStatsView({
   teams,
   onPlayerLoaded,
   onSeasonChange,
+  onTeamsChange,
 }: Props) {
   const t = useTranslations('Players.stats')
   const [filters, setFilters] = useState<StatsFiltersValue>(() => ({
@@ -80,10 +82,37 @@ export default function PlayerStatsView({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
+   useEffect(() => {
     setTrendMetricState(readStoredTrendMetric(teamId, playerUserId))
-    setFilters((f) => ({ ...f, teamIds: [teamId] }))
   }, [teamId, playerUserId])
+
+
+  const matchesTouchedRef = useRef(false)
+
+  // Autoseleccionar partidos cuando cambian
+  useEffect(() => {
+    if (matchesTouchedRef.current) return
+    if (!matches || matches.length === 0) return
+
+    setFilters((f) => {
+      const currentIds = new Set(f.matchIds)
+      const newIds = matches.map((m) => m.id)
+      const allAlreadySelected = newIds.every((id) => currentIds.has(id))
+      if (allAlreadySelected && f.matchIds.length > 0) return f
+      return { ...f, matchIds: newIds }
+    })
+  }, [matches])
+
+  const handleFiltersChange = (next: StatsFiltersValue) => {
+    if (
+      next.matchIds.length !== filters.matchIds.length ||
+      next.matchIds.some((id) => !filters.matchIds.includes(id))
+    ) {
+      matchesTouchedRef.current = true
+    }
+    setFilters(next)
+  }
+
 
   const setTrendMetric = (next: string) => {
     setTrendMetricState(next)
@@ -91,6 +120,11 @@ export default function PlayerStatsView({
       window.localStorage.setItem(storageKey(teamId, playerUserId), next)
     }
   }
+
+  useEffect(() => {
+    onTeamsChange?.(filters.teamIds)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.teamIds])
 
   useEffect(() => {
     onSeasonChange?.(filters.seasonId)
@@ -230,6 +264,7 @@ export default function PlayerStatsView({
         matches={matches}
         teams={teams}
         hidePlayerFilter
+        onChange={handleFiltersChange}
       />
       {content}
     </div>

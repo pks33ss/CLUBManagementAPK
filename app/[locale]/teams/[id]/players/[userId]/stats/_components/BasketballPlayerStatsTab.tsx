@@ -10,6 +10,7 @@ import type {
   PlayerByMatchBasketball,
 } from '@/lib/api/teams'
 import type { MatchResult } from '@/lib/api/matches'
+import { useState } from 'react'
 
 interface Props {
   data: BasketballPlayerStatsResponse
@@ -56,6 +57,8 @@ export default function BasketballPlayerStatsTab({
   const locale = useLocale()
   const { summary, byMatch, trend, player } = data
   const show = (key: string) => visibleMetrics.includes(key)
+
+const [groupBy, setGroupBy] = useState<'month' | 'match'>('month')
 
   const show2PMade = show('TWO_POINTERS_MADE')
   const show2PAttempted = show('TWO_POINTERS_ATTEMPTED')
@@ -259,22 +262,39 @@ export default function BasketballPlayerStatsTab({
         </CardBody>
       </Card>
 
-      {/* ── Trend ── */}
-      {trend.byMonth.length > 0 && (
+
+            {/* ── Trend ── */}
+      {(trend.byMonth.length > 0 || byMatch.length > 0) && (
         <Card>
           <CardBody>
             <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
               <h3 className="text-lg font-semibold text-text-primary">
                 {t('trendTitle')}
               </h3>
-              {trendOptions.length > 0 && (
-                <MetricSelect
-                  label={t('trendMetric')}
-                  options={trendOptions}
-                  value={trendMetric}
-                  onChange={onTrendMetricChange}
-                />
-              )}
+              
+              <div className="flex items-center gap-3">
+                {trendOptions.length > 0 && (
+                  <MetricSelect
+                    label={t('trendMetric')}
+                    options={trendOptions}
+                    value={trendMetric}
+                    onChange={onTrendMetricChange}
+                  />
+                )}
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-text-muted font-medium">
+                    {t('trendGroupBy', { defaultValue: 'Agrupar' })}
+                  </label>
+                  <select
+                    value={groupBy}
+                    onChange={(e) => setGroupBy(e.target.value as 'month' | 'match')}
+                    className="px-2 py-1 text-xs bg-surface-elevated border border-border-subtle text-text-primary rounded"
+                  >
+                    <option value="match">{t('trendGroupByMatch', { defaultValue: 'Por partido' })}</option>
+                    <option value="month">{t('trendGroupByMonth', { defaultValue: 'Por mes' })}</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
             {isTrendUnavailable ? (
@@ -282,20 +302,72 @@ export default function BasketballPlayerStatsTab({
                 {t('trendUnavailable')}
               </p>
             ) : (
-              <TrendChart
+                           <TrendChart
                 series={
-                  trend.series ??
-                  trend.byMonth.map((m) => ({
-                    month: m.month,
-                    value: m.winRate,
-                  }))
+                  groupBy === 'match'
+                    ? byMatch.map((m: any) => {
+                        const dateStr = new Date(m.date).toLocaleDateString()
+                        const isTraining = m.opponent === 'Entrenamiento' || m.isTraining
+                        
+                                                const parts = [dateStr]
+                        if (isTraining) {
+                          parts.push('🏋️ Entreno')
+                        } else {
+                          parts.push(`vs ${m.opponent}`)
+                          
+                          // 👇 AÑADIR UBICACIÓN
+                          const locStr =
+                            m.location === 'HOME'
+                              ? 'Casa'
+                              : m.location === 'AWAY'
+                              ? 'Fuera'
+                              : ''
+                          if (locStr) parts.push(locStr)
+                        }
+
+                        // 👇 Función para obtener el valor correcto según la métrica
+                                               const getMatchValue = () => {
+                          const pct = (made: number, attempted: number) => 
+                            attempted > 0 ? Math.round((made / attempted) * 1000) / 10 : 0
+
+                          switch (trendMetric) {
+                            case 'points': return m.points ?? 0
+                            case 'pointsPerMatch': return m.points ?? 0
+                            case 'playerPoints': return m.points ?? 0
+                            case 'playerPointsPerMatch': return m.points ?? 0
+                            case 'rebounds': return m.rebounds ?? 0
+                            case 'assists': return m.assists ?? 0
+                            case 'steals': return m.steals ?? 0
+                            case 'blocks': return m.blocks ?? 0
+                            case 'turnovers': return m.turnovers ?? 0
+                            case 'valuation': return m.valuation ?? 0
+                            case 'minutes': return m.minutes ?? 0
+                            case 'winRate': return m.result === 'WIN' ? 100 : m.result === 'DRAW' ? 50 : 0
+                            
+                            // 👇 Cálculo de porcentajes
+                            case 'ftPct': return pct(m.freeThrowsMade, m.freeThrowsAttempted)
+                            case 'fgPct': return pct(m.fieldGoalsMade, m.fieldGoalsAttempted)
+                            case 'tpPct': return pct(m.threePointersMade, m.threePointersAttempted)
+                            case 'twoPointersPct': return pct(m.twoPointersMade, m.twoPointersAttempted)
+                            
+                            default: return 0
+                          }
+                        }
+
+                        return { month: parts.join('\n'), value: getMatchValue() }
+                      })
+                    : (trend.series ??
+                        trend.byMonth.map((m) => ({
+                          month: m.month,
+                          value: m.winRate,
+                        })))
                 }
                 label={appliedTrend?.label ?? t('trendFallbackLabel')}
                 unit={appliedTrend?.unit ?? '%'}
                 isPercentage={appliedTrend?.unit === '%'}
               />
-            )}
-          </CardBody>
+                )}
+                </CardBody>
         </Card>
       )}
 

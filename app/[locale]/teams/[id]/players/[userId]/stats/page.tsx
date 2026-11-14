@@ -101,36 +101,46 @@ export default function PlayerStatsPage() {
   }, [teamId, userId, router, t])
 
   const fetchMatches = useCallback(
-    async (s: string) => {
+    async (s: string, teamIdsToFetch: string[]) => {
+      if (!teamIdsToFetch || teamIdsToFetch.length === 0) {
+        setMatches([])
+        return
+      }
       try {
-        const params = new URLSearchParams()
-        if (s) params.set('season', s)
-        const qs = params.toString()
+        const promises = teamIdsToFetch.map((tid) => {
+          const params = new URLSearchParams()
+          if (s) params.set('season', s)
+          const qs = params.toString()
+          return api.get(`/matches/team/${tid}${qs ? `?${qs}` : ''}`)
+        })
 
-        const { data } = await api.get(
-          `/matches/team/${teamId}${qs ? `?${qs}` : ''}`,
+        const responses = await Promise.all(promises)
+
+        const allFinished: MatchOption[] = responses
+          .flatMap((res) => res.data)
+          .filter((m: any) => m.status === 'FINISHED')
+          .map((m: any) => ({
+            id: m.id,
+            date: m.date,
+            opponent: m.opponent,
+          }))
+
+        // Evitar duplicados si un partido aparece en varios equipos (raro pero posible)
+        const uniqueMatches = Array.from(
+          new Map(allFinished.map((m) => [m.id, m])).values(),
         )
 
-        const finished: MatchOption[] = Array.isArray(data)
-          ? data
-              .filter((m: any) => m.status === 'FINISHED')
-              .map((m: any) => ({
-                id: m.id,
-                date: m.date,
-                opponent: m.opponent,
-              }))
-          : []
-        setMatches(finished)
+        setMatches(uniqueMatches)
       } catch {
         setMatches([])
       }
     },
-    [teamId],
+    [],
   )
 
   useEffect(() => {
-    fetchMatches(season)
-  }, [season, fetchMatches])
+      fetchMatches(season, [teamId])
+  }, [season, fetchMatches, teamId])
 
   const handlePlayerLoaded = useCallback(
     (p: { name: string; lastName: string }) => {
@@ -200,6 +210,10 @@ export default function PlayerStatsPage() {
         teams={allTeams}
         onPlayerLoaded={handlePlayerLoaded}
         onSeasonChange={setSeason}
+        onTeamsChange={(newTeamIds) => {
+    // Cuando cambien los equipos seleccionados, recargamos los partidos
+    fetchMatches(season, newTeamIds)
+  }}
       />
     </div>
   )

@@ -180,21 +180,37 @@ export default function PadelPlayerStatsTab({
       </Card>
 
       {/* ── Trend ── */}
-      {trend.byMonth.length > 0 && (
+      {(trend.byMonth.length > 0 || byMatch.length > 0) && (
         <Card>
           <CardBody>
             <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
               <h3 className="text-lg font-semibold text-text-primary">
                 {t('trendTitle')}
               </h3>
-              {trendOptions.length > 0 && (
-                <MetricSelect
-                  label={t('trendMetric')}
-                  options={trendOptions}
-                  value={trendMetric}
-                  onChange={onTrendMetricChange}
-                />
-              )}
+              
+              <div className="flex items-center gap-3">
+                {trendOptions.length > 0 && (
+                  <MetricSelect
+                    label={t('trendMetric')}
+                    options={trendOptions}
+                    value={trendMetric}
+                    onChange={onTrendMetricChange}
+                  />
+                )}
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-text-muted font-medium">
+                    {t('trendGroupBy', { defaultValue: 'Agrupar' })}
+                  </label>
+                  <select
+                    value={groupBy}
+                    onChange={(e) => setGroupBy(e.target.value as 'month' | 'match')}
+                    className="px-2 py-1 text-xs bg-surface-elevated border border-border-subtle text-text-primary rounded"
+                  >
+                    <option value="match">{t('trendGroupByMatch', { defaultValue: 'Por partido' })}</option>
+                    <option value="month">{t('trendGroupByMonth', { defaultValue: 'Por mes' })}</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
             {isTrendUnavailable ? (
@@ -202,13 +218,46 @@ export default function PadelPlayerStatsTab({
                 {t('trendUnavailable')}
               </p>
             ) : (
-              <TrendChart
+                            <TrendChart
                 series={
-                  trend.series ??
-                  trend.byMonth.map((m) => ({
-                    month: m.month,
-                    value: m.winRate,
-                  }))
+                  groupBy === 'match'
+                    ? byMatch.map((m: any) => {
+                        const dateStr = new Date(m.date).toLocaleDateString()
+                        const isTraining = m.opponent === 'Entrenamiento' || m.isTraining
+                        
+                              const parts = [dateStr, `vs ${m.opponent}`]
+      const locStr =
+        m.location === 'HOME'
+          ? 'Casa'
+          : m.location === 'AWAY'
+          ? 'Fuera'
+          : ''
+      if (locStr) parts.push(locStr)
+                        if (isTraining) {
+                          parts.push('🏋️ Entreno')
+                        } else {
+                          parts.push(`vs ${m.opponent}`)
+                        }
+
+                        // 👇 Función para obtener el valor correcto según la métrica
+                                                const getMatchValue = () => {
+                          switch (trendMetric) {
+                            case 'winRate': return m.result === 'WIN' ? 100 : m.result === 'DRAW' ? 50 : 0
+                            case 'sets': return m.setsWon ?? 0
+                            case 'games': return m.gamesWon ?? 0
+                            case 'subMatches': return m.subMatchesWon ?? 0
+                            // ...
+                            default: return 0
+                          }
+                        }
+
+                        return { month: parts.join('\n'), value: getMatchValue() }
+                      })
+                    : (trend.series ??
+                        trend.byMonth.map((m) => ({
+                          month: m.month,
+                          value: m.winRate,
+                        })))
                 }
                 label={appliedTrend?.label ?? t('trendFallbackLabel')}
                 unit={appliedTrend?.unit ?? '%'}
