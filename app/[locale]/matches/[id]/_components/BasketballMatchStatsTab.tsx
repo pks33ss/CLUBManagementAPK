@@ -532,7 +532,9 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
       freeThrowsAttempted: row.freeThrowsAttempted ?? 0,
     }
 
-    payload[field] = value
+    if (field in payload) {
+  payload[field as keyof typeof payload] = value
+}
 
     // 🛡️ PROTECCIÓN: Evitar que el backend lance error por datos inconsistentes
     if (field === 'twoPointersMade' && payload.twoPointersAttempted < value) {
