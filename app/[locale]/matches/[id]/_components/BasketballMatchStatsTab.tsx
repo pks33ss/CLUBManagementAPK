@@ -2,7 +2,7 @@
 
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import api from '@/lib/api'
 import {
@@ -274,6 +274,62 @@ function ResultBadge({ result }: { result: MatchResult }) {
   )
 }
 
+// 👇 COMPONENTE: Input que se guarda al perder el foco o pulsar Enter
+function EditableInput({
+  value,
+  onSave,
+  className,
+  min,
+  isNumber = true,
+}: {
+  value: number | string | null | undefined
+  onSave: (val: string) => void
+  className?: string
+  min?: number
+  isNumber?: boolean
+}) {
+  const [localVal, setLocalVal] = useState(
+    value === 0 ? '' : value?.toString() ?? ''
+  )
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    setLocalVal(value === 0 ? '' : value?.toString() ?? '')
+  }, [value])
+
+  // Fuerza el blur si se hace clic fuera
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (inputRef.current && !inputRef.current.contains(e.target as Node)) {
+        inputRef.current.blur()
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  return (
+    <input
+      ref={inputRef}
+      type={isNumber ? 'number' : 'text'}
+      inputMode={isNumber ? 'numeric' : undefined}
+      min={min}
+      value={localVal}
+      onChange={(e) => setLocalVal(e.target.value)}
+      onBlur={() => {
+        if (localVal !== value?.toString()) {
+          onSave(localVal)
+        }
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.currentTarget.blur()
+        }
+      }}
+      className={`w-full text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1 focus:border-brand-primary focus:outline-none transition ${className}`}
+    />
+  )
+}
 
 export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
   const t = useTranslations('MatchDetail.basketballStats')
@@ -282,10 +338,6 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
   const [stats, setStats] = useState<BasketballMatchStats | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-
-  const [editing, setEditing] = useState<string | null>(null)
-  const [form, setForm] = useState<PlayerStatsInput>(EMPTY_INPUT)
-  const [saving, setSaving] = useState(false)
 
   const [showAddModal, setShowAddModal] = useState(false)
   const [addTab, setAddTab] = useState<'team' | 'club'>('team')
@@ -410,66 +462,104 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
     }
   }
 
-  const startEdit = (row: RosterRow) => {
+  // 👇 Función para guardar minutos y segundos a la vez
+  const saveRowMinSec = async (userId: string, minutes: number, seconds: number) => {
     if (isClosed) return
-    if (row.hasStats) {
-      setForm({
-        minutes: row.minutes ?? 0,
-        seconds: row.seconds ?? 0,
-        rebounds: row.rebounds,
-        assists: row.assists,
-        steals: row.steals,
-        blocks: row.blocks,
-        turnovers: row.turnovers,
-        fouls: row.fouls,
-        blocksAgainst: row.blocksAgainst,
-        foulsDrawn: row.foulsDrawn,
-        plusMinus: row.plusMinus ?? 0,
-        twoPointersMade: row.twoPointersMade,
-        twoPointersAttempted: row.twoPointersAttempted,
-        threePointersMade: row.threePointersMade,
-        threePointersAttempted: row.threePointersAttempted,
-        freeThrowsMade: row.freeThrowsMade,
-        freeThrowsAttempted: row.freeThrowsAttempted,
-      })
-    } else {
-      setForm(EMPTY_INPUT)
+    const row = roster.find((r) => r.userId === userId)
+    if (!row) return
+
+    const payload = {
+      minutes,
+      seconds,
+      rebounds: row.rebounds ?? 0,
+      assists: row.assists ?? 0,
+      steals: row.steals ?? 0,
+      blocks: row.blocks ?? 0,
+      turnovers: row.turnovers ?? 0,
+      fouls: row.fouls ?? 0,
+      blocksAgainst: row.blocksAgainst ?? 0,
+      foulsDrawn: row.foulsDrawn ?? 0,
+      plusMinus: row.plusMinus ?? 0,
+      twoPointersMade: row.twoPointersMade ?? 0,
+      twoPointersAttempted: row.twoPointersAttempted ?? 0,
+      threePointersMade: row.threePointersMade ?? 0,
+      threePointersAttempted: row.threePointersAttempted ?? 0,
+      freeThrowsMade: row.freeThrowsMade ?? 0,
+      freeThrowsAttempted: row.freeThrowsAttempted ?? 0,
     }
-    setEditing(row.userId)
-  }
 
-  const handleSave = async (userId: string) => {
-    if (!stats || isClosed) return
-    setSaving(true)
     try {
-      const payload: PlayerStatsInput = {
-        minutes: form.minutes ?? 0,
-        seconds: form.seconds ?? 0,
-        rebounds: form.rebounds ?? 0,
-        assists: form.assists ?? 0,
-        steals: form.steals ?? 0,
-        blocks: form.blocks ?? 0,
-        turnovers: form.turnovers ?? 0,
-        fouls: form.fouls ?? 0,
-        blocksAgainst: form.blocksAgainst ?? 0,
-        foulsDrawn: form.foulsDrawn ?? 0,
-        plusMinus: form.plusMinus ?? 0,
-        twoPointersMade: form.twoPointersMade ?? 0,
-        twoPointersAttempted: form.twoPointersAttempted ?? 0,
-        threePointersMade: form.threePointersMade ?? 0,
-        threePointersAttempted: form.threePointersAttempted ?? 0,
-        freeThrowsMade: form.freeThrowsMade ?? 0,
-        freeThrowsAttempted: form.freeThrowsAttempted ?? 0,
-      }
       await matchesApi.upsertPlayerStats(match.id, userId, payload)
-
-      setEditing(null)
       await load()
       onUpdate()
     } catch (err: any) {
       alert(err.response?.data?.message || t('saveError'))
-    } finally {
-      setSaving(false)
+    }
+  }
+
+  // 👇 Función general para el resto de campos
+  const saveRowField = async (userId: string, field: keyof PlayerStatsInput, rawValue: string) => {
+    if (isClosed) return
+    let value: number = 0
+    if (field === 'minutes' || field === 'seconds') {
+      const parsed = parseMmSs(rawValue)
+      if (field === 'minutes') value = parsed.minutes
+      if (field === 'seconds') value = parsed.seconds
+    } else {
+      value = Number(rawValue) || 0
+    }
+
+    const row = roster.find((r) => r.userId === userId)
+    if (!row) return
+
+    const payload = {
+      minutes: row.minutes ?? 0,
+      seconds: row.seconds ?? 0,
+      rebounds: row.rebounds ?? 0,
+      assists: row.assists ?? 0,
+      steals: row.steals ?? 0,
+      blocks: row.blocks ?? 0,
+      turnovers: row.turnovers ?? 0,
+      fouls: row.fouls ?? 0,
+      blocksAgainst: row.blocksAgainst ?? 0,
+      foulsDrawn: row.foulsDrawn ?? 0,
+      plusMinus: row.plusMinus ?? 0,
+      twoPointersMade: row.twoPointersMade ?? 0,
+      twoPointersAttempted: row.twoPointersAttempted ?? 0,
+      threePointersMade: row.threePointersMade ?? 0,
+      threePointersAttempted: row.threePointersAttempted ?? 0,
+      freeThrowsMade: row.freeThrowsMade ?? 0,
+      freeThrowsAttempted: row.freeThrowsAttempted ?? 0,
+    }
+
+    payload[field] = value
+
+    // 🛡️ PROTECCIÓN: Evitar que el backend lance error por datos inconsistentes
+    if (field === 'twoPointersMade' && payload.twoPointersAttempted < value) {
+      payload.twoPointersAttempted = value
+    }
+    if (field === 'threePointersMade' && payload.threePointersAttempted < value) {
+      payload.threePointersAttempted = value
+    }
+    if (field === 'freeThrowsMade' && payload.freeThrowsAttempted < value) {
+      payload.freeThrowsAttempted = value
+    }
+    if (field === 'twoPointersAttempted' && value < payload.twoPointersMade) {
+      payload.twoPointersMade = value
+    }
+    if (field === 'threePointersAttempted' && value < payload.threePointersMade) {
+      payload.threePointersMade = value
+    }
+    if (field === 'freeThrowsAttempted' && value < payload.freeThrowsMade) {
+      payload.freeThrowsMade = value
+    }
+
+    try {
+      await matchesApi.upsertPlayerStats(match.id, userId, payload)
+      await load()
+      onUpdate()
+    } catch (err: any) {
+      alert(err.response?.data?.message || t('saveError'))
     }
   }
 
@@ -853,7 +943,7 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
   const globalScore = formatMatchScore({
     teamScore: stats.match.teamScore,
     opponentScore: stats.match.opponentScore,
-    location: stats.match.location,
+    location: match.location, // 👈 Usamos el prop, no stats.match
   })
 
   const includedIds = new Set(roster.map((r) => r.userId))
@@ -867,24 +957,6 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
       lastName: m.user.lastName,
       number: m.jerseyNumber,
     }))
-
-  const formDerived = deriveRowValues({
-    twoPointersMade: form.twoPointersMade ?? 0,
-    twoPointersAttempted: form.twoPointersAttempted ?? 0,
-    threePointersMade: form.threePointersMade ?? 0,
-    threePointersAttempted: form.threePointersAttempted ?? 0,
-    freeThrowsMade: form.freeThrowsMade ?? 0,
-    freeThrowsAttempted: form.freeThrowsAttempted ?? 0,
-  })
-
-  const oppFormDerived = deriveRowValues({
-    twoPointersMade: oppForm.twoPointersMade,
-    twoPointersAttempted: oppForm.twoPointersAttempted,
-    threePointersMade: oppForm.threePointersMade,
-    threePointersAttempted: oppForm.threePointersAttempted,
-    freeThrowsMade: oppForm.freeThrowsMade,
-    freeThrowsAttempted: oppForm.freeThrowsAttempted,
-  })
 
   return (
     <div className="space-y-6">
@@ -1002,7 +1074,9 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                     <th className="px-2 py-2 text-left text-[10px] font-medium text-text-muted uppercase">
                       {t('metrics.player')}
                     </th>
-                    {editing && !isClosed ? (
+                    
+                    {/* Si NO está cerrado, mostramos cabeceras de edición siempre */}
+                    {!isClosed ? (
                       <>
                         <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.min')}</th>
                         <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.reb')}</th>
@@ -1039,16 +1113,19 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                         {show('FT_PCT') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TL</th>)}
                         {show('FG_PCT') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TC</th>)}
                         {show('VALUATION') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.val')}</th>)}
-                        {!isClosed && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.action')}</th>}
                       </>
                     )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-subtle">
                   {roster.map((p) => {
-                    const isEditing = editing === p.userId && !isClosed
                     const dash = !p.hasStats
                     const v = (n: number | null | undefined) => dash ? '—' : n ?? '—'
+                    
+                    const localFgm = p.twoPointersMade + p.threePointersMade
+                    const localFga = p.twoPointersAttempted + p.threePointersAttempted
+                    const localPoints = (p.twoPointersMade * 2) + (p.threePointersMade * 3) + p.freeThrowsMade
+
                     return (
                       <tr key={p.userId} className="hover:bg-surface-elevated transition">
                         <td className="px-2 py-2 font-medium text-text-primary whitespace-nowrap">
@@ -1056,63 +1133,61 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                           {p.name} {p.lastName}
                           {!p.fromTeam && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-info/10 text-info">{t('guestBadge')}</span>}
                         </td>
-                        {isEditing ? (
+                        
+                        {/* FILA DE EDICIÓN DIRECTA (Si el partido no está cerrado) */}
+                        {!isClosed ? (
                           <>
                             <td className="px-1 py-1">
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                placeholder="mm:ss"
-                                defaultValue={fmtMinutes(form.minutes, form.seconds)}
-                                onBlur={(e) => {
-                                  const { minutes, seconds } = parseMmSs(e.target.value)
-                                  setForm((prev) => ({ ...prev, minutes, seconds }))
-                                  e.currentTarget.value = fmtMinutes(minutes, seconds)
+                              <EditableInput
+                                value={fmtMinutes(p.minutes, p.seconds)}
+                                onSave={(val) => {
+                                  const parsed = parseMmSs(val)
+                                  saveRowMinSec(p.userId, parsed.minutes, parsed.seconds)
                                 }}
-                                onKeyDown={(e) => { if (e.key === 'Enter') (e.currentTarget as HTMLInputElement).blur() }}
-                                className="w-16 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1"
+                                isNumber={false}
                               />
                             </td>
-                            {(['rebounds','assists','steals','blocks','blocksAgainst','turnovers','fouls','foulsDrawn','plusMinus'] as const).map((f) => (
-                              <td key={f} className="px-1 py-1">
-                                <input type="number" value={form[f] ?? 0} onChange={(e) => setForm({ ...form, [f]: Number(e.target.value) })} className="w-12 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
-                              </td>
-                            ))}
+                            <td className="px-1 py-1"><EditableInput value={p.rebounds} onSave={(val) => saveRowField(p.userId, 'rebounds', val)} min={0} /></td>
+                            <td className="px-1 py-1"><EditableInput value={p.assists} onSave={(val) => saveRowField(p.userId, 'assists', val)} min={0} /></td>
+                            <td className="px-1 py-1"><EditableInput value={p.steals} onSave={(val) => saveRowField(p.userId, 'steals', val)} min={0} /></td>
+                            <td className="px-1 py-1"><EditableInput value={p.blocks} onSave={(val) => saveRowField(p.userId, 'blocks', val)} min={0} /></td>
+                            <td className="px-1 py-1"><EditableInput value={p.blocksAgainst} onSave={(val) => saveRowField(p.userId, 'blocksAgainst', val)} min={0} /></td>
+                            <td className="px-1 py-1"><EditableInput value={p.turnovers} onSave={(val) => saveRowField(p.userId, 'turnovers', val)} min={0} /></td>
+                            <td className="px-1 py-1"><EditableInput value={p.fouls} onSave={(val) => saveRowField(p.userId, 'fouls', val)} min={0} /></td>
+                            <td className="px-1 py-1"><EditableInput value={p.foulsDrawn} onSave={(val) => saveRowField(p.userId, 'foulsDrawn', val)} min={0} /></td>
+                            <td className="px-1 py-1"><EditableInput value={p.plusMinus} onSave={(val) => saveRowField(p.userId, 'plusMinus', val)} /></td>
+                            
                             <td className="px-1 py-1">
                               <div className="flex items-center gap-0.5 justify-center">
-                                <input type="number" min="0" value={form.twoPointersMade ?? 0} onChange={(e) => setForm({ ...form, twoPointersMade: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-info/60 text-text-primary rounded px-1 py-1" />
+                                <EditableInput value={p.twoPointersMade} onSave={(val) => saveRowField(p.userId, 'twoPointersMade', val)} min={0} />
                                 <span className="text-text-muted text-[10px]">/</span>
-                                <input type="number" min="0" value={form.twoPointersAttempted ?? 0} onChange={(e) => setForm({ ...form, twoPointersAttempted: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-info/60 text-text-primary rounded px-1 py-1" />
+                                <EditableInput value={p.twoPointersAttempted} onSave={(val) => saveRowField(p.userId, 'twoPointersAttempted', val)} min={0} />
                               </div>
                             </td>
                             <td className="px-1 py-1">
                               <div className="flex items-center gap-0.5 justify-center">
-                                <input type="number" min="0" value={form.threePointersMade ?? 0} onChange={(e) => setForm({ ...form, threePointersMade: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
+                                <EditableInput value={p.threePointersMade} onSave={(val) => saveRowField(p.userId, 'threePointersMade', val)} min={0} />
                                 <span className="text-text-muted text-[10px]">/</span>
-                                <input type="number" min="0" value={form.threePointersAttempted ?? 0} onChange={(e) => setForm({ ...form, threePointersAttempted: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
+                                <EditableInput value={p.threePointersAttempted} onSave={(val) => saveRowField(p.userId, 'threePointersAttempted', val)} min={0} />
                               </div>
                             </td>
                             <td className="px-1 py-1">
                               <div className="flex items-center gap-0.5 justify-center">
-                                <input type="number" min="0" value={form.freeThrowsMade ?? 0} onChange={(e) => setForm({ ...form, freeThrowsMade: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
+                                <EditableInput value={p.freeThrowsMade} onSave={(val) => saveRowField(p.userId, 'freeThrowsMade', val)} min={0} />
                                 <span className="text-text-muted text-[10px]">/</span>
-                                <input type="number" min="0" value={form.freeThrowsAttempted ?? 0} onChange={(e) => setForm({ ...form, freeThrowsAttempted: Number(e.target.value) })} className="w-10 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />
+                                <EditableInput value={p.freeThrowsAttempted} onSave={(val) => saveRowField(p.userId, 'freeThrowsAttempted', val)} min={0} />
                               </div>
                             </td>
+                            
                             <td className="px-2 py-2 text-center text-brand-primary font-semibold whitespace-nowrap">
-                              {formDerived.fgm}/{formDerived.fga}
-                              <span className="text-text-muted text-[10px] ml-1">
-                                ({pct(formDerived.fgm, formDerived.fga)}%)
-                              </span>
+                              {localFgm}/{localFga}
                             </td>
                             <td className="px-2 py-2 text-center text-brand-primary font-bold">
-                              {formDerived.points}
+                              {localPoints}
                             </td>
+
                             <td className="px-2 py-2 text-center">
-                              <div className="flex gap-1 justify-center">
-                                <button onClick={() => handleSave(p.userId)} disabled={saving} className="text-xs bg-brand-primary hover:bg-brand-primary/90 text-bg-base px-2 py-1 rounded disabled:opacity-50">{saving ? '...' : '💾'}</button>
-                                <button onClick={() => setEditing(null)} disabled={saving} className="text-xs bg-surface-elevated hover:bg-border-subtle text-text-secondary px-2 py-1 rounded">✕</button>
-                              </div>
+                              <button onClick={() => handleExclude(p)} className="text-xs bg-danger/10 hover:bg-danger/20 text-danger px-2 py-1 rounded" title={t('excludeFromMatch')}>🚫</button>
                             </td>
                           </>
                         ) : (
@@ -1148,16 +1223,6 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                             {show('FT_PCT') && (<td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">{p.hasStats ? `${p.freeThrowsMade}/${p.freeThrowsAttempted} (${p.freeThrowPct}%)` : '—'}</td>)}
                             {show('FG_PCT') && (<td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">{p.hasStats ? `${p.fieldGoalsMade}/${p.fieldGoalsAttempted} (${p.fieldGoalPct}%)` : '—'}</td>)}
                             {show('VALUATION') && (<td className={`px-2 py-2 text-center font-semibold ${!p.hasStats ? 'text-text-muted' : p.valuation > 0 ? 'text-success' : p.valuation < 0 ? 'text-danger' : 'text-text-muted'}`}>{p.hasStats ? p.valuation : '—'}</td>)}
-                            {!isClosed && (
-                              <td className="px-2 py-2 text-center">
-                                <div className="flex gap-1 justify-center">
-                                  <button onClick={() => startEdit(p)} className="text-xs bg-brand-primary/10 hover:bg-brand-primary/20 text-brand-primary px-2 py-1 rounded" title={p.hasStats ? t('editStats') : t('addStats')}>
-                                    {p.hasStats ? '✏️' : '➕'}
-                                  </button>
-                                  <button onClick={() => handleExclude(p)} className="text-xs bg-danger/10 hover:bg-danger/20 text-danger px-2 py-1 rounded" title={t('excludeFromMatch')}>🚫</button>
-                                </div>
-                              </td>
-                            )}
                           </>
                         )}
                       </tr>
@@ -1169,34 +1234,67 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                     <td className="px-2 py-2 text-left text-text-primary">
                       <span className="text-[10px] uppercase tracking-wide text-brand-primary">{t('totals')}</span>
                     </td>
-                    {show('MINUTES') && (<td className="px-2 py-2 text-center text-text-primary">{fmtMinutes(totals.minutes, totals.seconds)}</td>)}
-                    {show('POINTS') && (<td className="px-2 py-2 text-center text-brand-primary font-bold">{totals.points}</td>)}
-                    {show('REBOUNDS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.rebounds}</td>)}
-                    {show('ASSISTS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.assists}</td>)}
-                    {show('STEALS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.steals}</td>)}
-                    {show('BLOCKS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.blocks}</td>)}
-                    {show('BLOCKS_AGAINST') && (<td className="px-2 py-2 text-center text-text-primary">{totals.blocksAgainst}</td>)}
-                    {show('TURNOVERS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.turnovers}</td>)}
-                    {show('FOULS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.fouls}</td>)}
-                    {show('FOULS_DRAWN') && (<td className="px-2 py-2 text-center text-text-primary">{totals.foulsDrawn}</td>)}
-                    {show('PLUS_MINUS') && (<td className={`px-2 py-2 text-center ${totals.plusMinus > 0 ? 'text-success' : totals.plusMinus < 0 ? 'text-danger' : 'text-text-muted'}`}>{fmtPlusMinus(totals.plusMinus)}</td>)}
-                    {show2P && (
-                      <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
-                        {show2PMade && show2PAttempted
-                          ? `${totals.twoPointersMade}/${totals.twoPointersAttempted} `
-                          : show2PMade
-                            ? `${totals.twoPointersMade} `
-                            : show2PAttempted
-                              ? `/${totals.twoPointersAttempted} `
-                              : ''}
-                        {show2PPct && `(${totals.twoPointersPct}%)`}
-                      </td>
+                    {/* Pies de tabla en función del modo */}
+                    {!isClosed ? (
+                      <>
+                        <td className="px-2 py-2 text-center text-text-primary">{fmtMinutes(totals.minutes, totals.seconds)}</td>
+                        <td className="px-2 py-2 text-center text-text-primary">{totals.rebounds}</td>
+                        <td className="px-2 py-2 text-center text-text-primary">{totals.assists}</td>
+                        <td className="px-2 py-2 text-center text-text-primary">{totals.steals}</td>
+                        <td className="px-2 py-2 text-center text-text-primary">{totals.blocks}</td>
+                        <td className="px-2 py-2 text-center text-text-primary">{totals.blocksAgainst}</td>
+                        <td className="px-2 py-2 text-center text-text-primary">{totals.turnovers}</td>
+                        <td className="px-2 py-2 text-center text-text-primary">{totals.fouls}</td>
+                        <td className="px-2 py-2 text-center text-text-primary">{totals.foulsDrawn}</td>
+                        <td className={`px-2 py-2 text-center ${totals.plusMinus > 0 ? 'text-success' : totals.plusMinus < 0 ? 'text-danger' : 'text-text-muted'}`}>{fmtPlusMinus(totals.plusMinus)}</td>
+                        <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
+                          {totals.twoPointersMade}/{totals.twoPointersAttempted}
+                        </td>
+                        <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
+                          {totals.threePointersMade}/{totals.threePointersAttempted}
+                        </td>
+                        <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
+                          {totals.freeThrowsMade}/{totals.freeThrowsAttempted}
+                        </td>
+                        <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
+                          {totals.fieldGoalsMade}/{totals.fieldGoalsAttempted}
+                        </td>
+                        <td className="px-2 py-2 text-center text-brand-primary font-bold">
+                          {totals.points}
+                        </td>
+                        <td className="px-2 py-2"></td>
+                      </>
+                    ) : (
+                      <>
+                        {show('MINUTES') && (<td className="px-2 py-2 text-center text-text-primary">{fmtMinutes(totals.minutes, totals.seconds)}</td>)}
+                        {show('POINTS') && (<td className="px-2 py-2 text-center text-brand-primary font-bold">{totals.points}</td>)}
+                        {show('REBOUNDS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.rebounds}</td>)}
+                        {show('ASSISTS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.assists}</td>)}
+                        {show('STEALS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.steals}</td>)}
+                        {show('BLOCKS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.blocks}</td>)}
+                        {show('BLOCKS_AGAINST') && (<td className="px-2 py-2 text-center text-text-primary">{totals.blocksAgainst}</td>)}
+                        {show('TURNOVERS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.turnovers}</td>)}
+                        {show('FOULS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.fouls}</td>)}
+                        {show('FOULS_DRAWN') && (<td className="px-2 py-2 text-center text-text-primary">{totals.foulsDrawn}</td>)}
+                        {show('PLUS_MINUS') && (<td className={`px-2 py-2 text-center ${totals.plusMinus > 0 ? 'text-success' : totals.plusMinus < 0 ? 'text-danger' : 'text-text-muted'}`}>{fmtPlusMinus(totals.plusMinus)}</td>)}
+                        {show2P && (
+                          <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
+                            {show2PMade && show2PAttempted
+                              ? `${totals.twoPointersMade}/${totals.twoPointersAttempted} `
+                              : show2PMade
+                                ? `${totals.twoPointersMade} `
+                                : show2PAttempted
+                                  ? `/${totals.twoPointersAttempted} `
+                                  : ''}
+                            {show2PPct && `(${totals.twoPointersPct}%)`}
+                          </td>
+                        )}
+                        {show('TP_PCT') && (<td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{totals.threePointersMade}/{totals.threePointersAttempted} ({totals.threePointPct}%)</td>)}
+                        {show('FT_PCT') && (<td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{totals.freeThrowsMade}/{totals.freeThrowsAttempted} ({totals.freeThrowPct}%)</td>)}
+                        {show('FG_PCT') && (<td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{totals.fieldGoalsMade}/{totals.fieldGoalsAttempted} ({totals.fieldGoalPct}%)</td>)}
+                        {show('VALUATION') && (<td className={`px-2 py-2 text-center font-bold ${totals.valuation > 0 ? 'text-success' : totals.valuation < 0 ? 'text-danger' : 'text-text-muted'}`}>{totals.valuation}</td>)}
+                      </>
                     )}
-                    {show('TP_PCT') && (<td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{totals.threePointersMade}/{totals.threePointersAttempted} ({totals.threePointPct}%)</td>)}
-                    {show('FT_PCT') && (<td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{totals.freeThrowsMade}/{totals.freeThrowsAttempted} ({totals.freeThrowPct}%)</td>)}
-                    {show('FG_PCT') && (<td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{totals.fieldGoalsMade}/{totals.fieldGoalsAttempted} ({totals.fieldGoalPct}%)</td>)}
-                    {show('VALUATION') && (<td className={`px-2 py-2 text-center font-bold ${totals.valuation > 0 ? 'text-success' : totals.valuation < 0 ? 'text-danger' : 'text-text-muted'}`}>{totals.valuation}</td>)}
-                    {!isClosed && <td className="px-2 py-2"></td>}
                   </tr>
                 </tfoot>
               </table>
@@ -1284,7 +1382,7 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                                 className="w-16 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1"
                               />
                             </td>
-                            <td className="px-2 py-2 text-center text-warning font-bold">{oppFormDerived.points}</td>
+                            <td className="px-2 py-2 text-center text-warning font-bold">{deriveRowValues(oppForm).points}</td>
                             {(['rebounds','reboundsOff','reboundsDef','assists','steals','blocks','turnovers','fouls'] as const).map((f) => (
                               <td key={f} className="px-1 py-1">
                                 <input type="number" value={oppForm[f] ?? 0} onChange={(e) => setOppForm({ ...oppForm, [f]: Number(e.target.value) })} className="w-12 text-center text-xs bg-surface border border-border-subtle text-text-primary rounded px-1 py-1" />

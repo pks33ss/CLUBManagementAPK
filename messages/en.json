@@ -684,57 +684,106 @@
   "sidebarTitle": "Help topics",
   "noResults": "No results found",
   "searchPlaceholder": "Search help...",
-  "topics": {
-    "gettingStarted": "🚀 Getting started",
-    "teams": "🛡️ Teams & Clubs",
-    "members": "👥 Member management",
-    "matches": "🏆 Matches & stats",
-    "training": "🏋️ Training & attendance",
-    "playbook": "📘 Tactical playbook",
-    "settings": "⚙️ Settings"
+"topics": {
+  "gettingStarted": "🚀 Getting started",
+  "teams": "🛡️ Teams & Clubs",
+  "members": "👥 Member management",
+  "matches": "🏆 Matches & stats",
+  "training": "🏋️ Training & attendance",
+  "playbook": "📘 Tactical playbook",
+  "settings": "⚙️ Settings",
+  "roles": "🔐 Roles & permissions"
+},
+"content": {
+  "roles": {
+	
+    "title": "Roles & Permissions Management",
+    "desc": "Learn how the role system works and how to assign permissions to your club members.",
+    "intro": "JoinSport uses a hierarchical role system to control who can do what inside a club or team. Each member can have one or more roles, and these determine their permissions.",
+    "hierarchyTitle": "🏛️ Role hierarchy",
+    "hierarchyDesc": "Roles are organized in levels. The higher the level, the more permissions over the club or team.",
+    "levels": {
+      "superAdmin": "👑 **Super Admin**: Full control over the entire application. Can manage users, clubs, teams and licenses. Does not belong to any specific club.",
+      "adminClub": "🛡️ **Club Admin (ADMIN_CLUB)**: Full control over a specific club. Can create and delete teams, manage members, assign roles and change club settings.",
+      "adminTeam": "🛠️ **Team Admin (ADMIN_TEAM)**: Manages a specific team. Can add or remove players, create training sessions, matches and manage the team's playbook.",
+      "coach": "🎓 **Coach (COACH)**: Can manage training sessions, matches, stats and playbook for the teams they're assigned to, but cannot manage the member roster.",
+      "assistant": "🤝 **Assistant (ASSISTANT)**: Can view and help with team tasks, but cannot modify the roster or delete important content.",
+      "player": "🏃 **Player (PLAYER)**: Can only view their team information, personal stats and confirm attendance to training sessions and matches."
+    },
+    "assignmentTitle": "📝 How to assign roles?",
+    "assignmentDesc": "Roles are assigned from the club or team management panel.",
+    "assignmentSteps": [
+      "**From the club:** Go to the club's 'Members' section and click 'Edit roles' next to the member. You can assign multiple roles and decide if they apply to the whole club or only to specific teams.",
+      "**From the team:** Go to the team's 'Members' section and click 'Roles' next to the member. Here you can assign specific roles for that team.",
+      "**Multiple roles:** A member can have several roles at once (e.g., COACH and PLAYER). Permissions are added up."
+    ],
+    "scopeTitle": "🌍 Role scope",
+    "scopeDesc": "When assigning a role from the club, you can choose between two scopes:",
+    "scopes": {
+      "all": "🌍 **Whole club**: The role applies to all teams in the club automatically. Useful for general administrators.",
+      "teams": "🏆 **Specific teams**: The role only applies to the teams you select. Useful for coaches who only manage one team."
+    },
+    "permissionsMatrixTitle": "⚙️ Permissions matrix",
+    "permissionsMatrixDesc": "Club admins can customize what each role can do in the club's permissions settings. Permissions are grouped by resources (teams, members, matches, payments, etc.) and actions (view, create, edit, delete).",
+    "permissionsTip": "💡 **Tip**: If you don't want to modify the matrix, system roles already come preconfigured with logical default permissions.",
+    "licenseTitle": "🎫 Licenses and roles",
+    "licenseDesc": "The license system (Beta, Free, Basic, Pro, Enterprise) combines with roles. A user with a Beta license also has a sport restriction: they can only view and manage teams of the assigned sport, regardless of their roles. SUPER_ADMIN is always exempt from this restriction."
   },
-  "content": {
-    "gettingStarted": {
-      "title": "Getting started",
-      "welcome": "Welcome to JoinSport. Here are the basics to get started.",
-      "step1": "1. Create a club or join an existing one.",
-      "step2": "2. Create a team within your club.",
-      "step3": "3. Add players to your team.",
-      "step4": "4. Start scheduling training sessions and matches."
-    },
-    "teams": {
-      "title": "Teams & Clubs",
-      "desc": "How to manage the structure of your sports entity."
-    },
-    "members": {
-      "title": "Member management",
-      "desc": "Learn how to invite players and assign roles."
-    },
-    "matches": {
-      "title": "Matches & stats",
-      "desc": "How to create matches and record live stats."
-    },
-    "training": {
-      "title": "Training & attendance",
-      "desc": "Plan sessions and track attendance."
-    },
-    "playbook": {
-      "title": "Tactical playbook",
-      "desc": "Design plays and tactics on the board."
-    },
-    "settings": {
-      "title": "Settings",
-      "desc": "Customize your account and app experience."
-    }
+  "gettingStarted": {
+    "title": "Getting started",
+    "welcome": "Welcome to JoinSport. Here are the basics to get started.",
+    "step1": "1. Create a club or join an existing one.",
+    "step2": "2. Create a team within your club.",
+    "step3": "3. Add players to your team.",
+    "step4": "4. Start scheduling training sessions and matches."
+  },
+  "teams": {
+    "title": "Teams & Clubs",
+    "desc": "How to manage the structure of your sports entity."
+  },
+  "members": {
+    "title": "Member management",
+    "desc": "Learn how to invite players and assign roles."
+  },
+  "matches": {
+    "title": "Matches & stats",
+    "desc": "How to create matches and record live stats."
+  },
+  "training": {
+    "title": "Training & attendance",
+    "desc": "Plan sessions and track attendance."
+  },
+  "playbook": {
+    "title": "Tactical playbook",
+    "desc": "Design plays and tactics on the board."
+  },
+  "settings": {
+    "title": "Settings",
+    "desc": "Customize your account and app experience."
   }
+
+}
 },
   "Stats": {
     "title": "Stats for {team}",
     "subtitle": "Team performance summary and analysis",
     "newSession": "New session",
     "config": "Configure",
+	"sessionSaveChanges": "Save changes",
     "viewAggregate": "Aggregate",
+	"viewAggregateMatches": "Matches Aggregate",
+    "viewAggregateTrainings": "Trainings Aggregate",
+    "trainingModeBanner": "You are viewing accumulated training data (without opponents).",
+    "includeInTeamStats": "Add to team aggregate",
+    "includeInTeamStatsHint": "If active, these stats will be added to the team's training aggregate.",
+    "reopenSession": "Reopen session",
+    "reopenSessionConfirm": "Are you sure you want to reopen this session? You will be able to edit the data again.",
+    "sessionReopened": "Session reopened successfully",
     "viewSessions": "Sessions",
+	      "trainingSessions": "Training sessions",
+      "allTrainingSessions": "All sessions",
+      "noTrainingSessions": "No sessions included in the training aggregate",
+	 
     "loadingStats": "Loading stats...",
     "errorAccess": "You don't have access to this team's stats",
     "errorNotFound": "Team not found",
@@ -908,6 +957,7 @@
       "season": "Season",
       "allSeasons": "All",
       "from": "From",
+	  "includeTrainingSessions": "Include trainings",
       "to": "To",
       "players": "Players",
       "allPlayers": "All",
@@ -2671,27 +2721,27 @@
       "saveOpponents": "Save {n} opponents"
     }
   },
-  "MenuTabs": {
-    "home": "🏠 Home",
-    "team": "🏆 Team",
-    "sessions": "🏋️ Training",
-    "sessionsShort": "🏋️ Train.",
-    "matches": "🏆 Matches",
-    "stats": "📊 Stats",
-    "statsShort": "📊 Stats",
-    "calendar": "📅 Calendar",
-    "calendarShort": "📅 Cal.",
-    "players": "👥 Players",
-    "attendance": "📊 Attendance",
-    "attendanceShort": "📊 Attend.",
-    "seasons": "📋 Planning",
-    "seasonsShort": "📋 Plan.",
-    "library": "📚 Library",
-    "libraryShort": "📚 Lib.",
-    "playbook": "📘 Playbook",
-    "payments": "💰 Payments",
-    "myPayments": "💰 Payments"
-  },
+"MenuTabs": {
+  "home": "🏠 Home",
+  "team": "🏆 Team",
+  "sessions": "🏋️ Training",
+  "sessionsShort": "🏋️ Train.",
+  "matches": "🏆 Matches",
+  "stats": "📊 Stats",
+  "statsShort": "📊 Stats",
+  "calendar": "📅 Calendar",
+  "calendarShort": "📅 Cal.",
+  "players": "👥 Players",
+  "attendance": "📊 Attendance",
+  "attendanceShort": "📊 Attend.",
+  "seasons": "📋 Planning",
+  "seasonsShort": "📋 Plan.",
+  "library": "📚 Library",
+  "libraryShort": "📚 Lib.",
+  "playbook": "📘 Playbook",
+  "payments": "💰 Payments",
+  "myPayments": "💰 Payments"
+},
   "Licenses": {
     "label": "License",
     "onlySuperAdmin": "Only a super admin can change the license",

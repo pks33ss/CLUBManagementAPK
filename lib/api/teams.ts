@@ -3,10 +3,6 @@
 import api from '@/lib/api'
 import type { SetResult, MatchResult } from './matches'
 
-// ============================================
-// TIPOS
-// ============================================
-
 export interface TeamStatsFilters {
   season?: string
   from?: string
@@ -16,6 +12,9 @@ export interface TeamStatsFilters {
   matchIds?: string[]
   teamIds?: string[]
   trendMetric?: string
+  includeTrainingSessions?: boolean
+  trainingSessionIds?: string[]
+  trainingSessionsMode?: 'only' | 'merge' // 👈 NUEVO
 }
 
 export interface PlayerStatsFilters {
@@ -27,8 +26,6 @@ export interface PlayerStatsFilters {
   trendMetric?: string
 }
 
-// ─────────── TREND (Fase 3.3) ───────────
-
 export interface TrendSeriesPoint {
   month: string
   value: number
@@ -39,8 +36,6 @@ export interface AvailableTrendMetric {
   label: string
   unit: string
 }
-
-// ─────────── EQUIPOS DEL JUGADOR (Fase 3.4.1) ───────────
 
 export interface PlayerTeamOption {
   id: string
@@ -56,7 +51,13 @@ export interface PlayerTeamOption {
   isFormer: boolean
 }
 
-// ─────────── PÁDEL ───────────
+export interface TrainingAggregateSession {
+  id: string
+  label: string
+  statDate: string
+  playerCount: number
+  closedAt: string | null
+}
 
 export interface PadelTeamStatsPlayer {
   userId: string
@@ -141,8 +142,6 @@ export interface PadelTeamStats {
   trend: PadelTeamStatsTrend
 }
 
-// ─────────── BALONCESTO ───────────
-
 export interface BasketballTeamStatsPlayer {
   userId: string
   name: string
@@ -168,7 +167,7 @@ export interface BasketballTeamStatsPlayer {
   plusMinus: number
   valuation: number
   valuationPerMatch: number
-    twoPointersMade: number;
+  twoPointersMade: number;
   twoPointersAttempted: number;
   twoPointersPct: number;
   fieldGoalsMade: number
@@ -193,7 +192,6 @@ export interface BasketballTeamStatsSummary {
   opponentPoints: number
   pointsPerMatch: number
   opponentPointsPerMatch: number
-  // NUEVO — Suma de puntos de los jugadores (desglose)
   playerPoints: number
   playerPointsPerMatch: number
   totalMinutes: number
@@ -214,9 +212,9 @@ export interface BasketballTeamStatsSummary {
   plusMinus: number
   valuation: number
   valuationPerMatch: number
-      twoPointersMade: number;
-    twoPointersAttempted: number;
-    twoPointersPct: number;
+  twoPointersMade: number;
+  twoPointersAttempted: number;
+  twoPointersPct: number;
   fieldGoalsMade: number
   fieldGoalsAttempted: number
   fieldGoalPct: number
@@ -252,7 +250,7 @@ export interface BasketballTeamStatsTrendLast10Match {
 
 export interface BasketballTeamStatsTrend {
   byMonth: BasketballTeamStatsTrendMonth[]
-   byMatch: Array<{
+  byMatch: Array<{
     matchId: string
     date: string
     opponent: string
@@ -291,8 +289,6 @@ export interface BasketballTeamStats {
   trend: BasketballTeamStatsTrend
 }
 
-// ─────────── RESPUESTA EQUIPO ───────────
-
 export interface TeamStatsResponse {
   team: {
     id: string
@@ -324,8 +320,6 @@ export interface TeamStatsResponse {
     | { type: string; data: unknown }
 }
 
-// ─────────── RESPUESTA JUGADOR (Fase 3.4) ───────────
-
 export interface PlayerByMatchBasketball {
   matchId: string
   date: string
@@ -350,7 +344,7 @@ export interface PlayerByMatchBasketball {
   foulsDrawn: number
   plusMinus: number | null
   valuation: number
-    twoPointersMade: number
+  twoPointersMade: number
   twoPointersAttempted: number
   twoPointersPct: number
   fieldGoalsMade: number
@@ -432,10 +426,6 @@ export type PlayerStatsResponse =
   | PadelPlayerStatsResponse
   | BasketballPlayerStatsResponse
 
-// ============================================
-// API
-// ============================================
-
 export const teamsApi = {
   async getStats(
     teamId: string,
@@ -446,7 +436,7 @@ export const teamsApi = {
     if (filters.from) params.set('from', filters.from)
     if (filters.to) params.set('to', filters.to)
     if (filters.playerId) params.set('playerId', filters.playerId)
-      if (filters.playerIds && filters.playerIds.length > 0) {
+    if (filters.playerIds && filters.playerIds.length > 0) {
       params.set('playerIds', filters.playerIds.join(','))
     }
     if (filters.matchIds && filters.matchIds.length > 0) {
@@ -458,10 +448,31 @@ export const teamsApi = {
     if (filters.trendMetric) {
       params.set('trendMetric', filters.trendMetric)
     }
+    if (filters.includeTrainingSessions) {
+      params.set('includeTrainingSessions', 'true')
+    }
+    if (
+      filters.trainingSessionIds &&
+      filters.trainingSessionIds.length > 0
+    ) {
+      params.set('trainingSessionIds', filters.trainingSessionIds.join(','))
+    }
+    if (filters.trainingSessionsMode) {
+      params.set('trainingSessionsMode', filters.trainingSessionsMode)
+    }
 
     const qs = params.toString()
     const { data } = await api.get(
       `/teams/${teamId}/stats${qs ? `?${qs}` : ''}`,
+    )
+    return data
+  },
+
+  async getTrainingAggregates(
+    teamId: string,
+  ): Promise<TrainingAggregateSession[]> {
+    const { data } = await api.get(
+      `/teams/${teamId}/stat-sessions/training-aggregates`,
     )
     return data
   },
@@ -504,13 +515,6 @@ export const teamsApi = {
     return data
   },
 
-  // ============================================
-  // IDENTIDAD VISUAL (colores + logo)
-  // ============================================
-
-  /**
-   * Actualizar datos del equipo (incluye colores y logo).
-   */
   async update(
     teamId: string,
     payload: {
@@ -526,17 +530,11 @@ export const teamsApi = {
     return data
   },
 
-  /**
-   * Subir logo del equipo (base64).
-   */
   async uploadLogo(teamId: string, image: string): Promise<{ logo: string }> {
     const { data } = await api.post(`/teams/${teamId}/upload-logo`, { image })
     return data
   },
 
-  /**
-   * Eliminar logo del equipo.
-   */
   async removeLogo(teamId: string): Promise<{ logo: null }> {
     const { data } = await api.delete(`/teams/${teamId}/logo`)
     return data

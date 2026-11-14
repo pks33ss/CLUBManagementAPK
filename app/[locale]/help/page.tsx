@@ -1,10 +1,12 @@
+// frontend-web/app/[locale]/help/page.tsx
+
 'use client'
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Card, CardBody } from '@/components/ui'
 
-type TopicKey = 'gettingStarted' | 'teams' | 'members' | 'matches' | 'training' | 'playbook' | 'settings'
+type TopicKey = 'gettingStarted' | 'teams' | 'members' | 'matches' | 'training' | 'playbook' | 'settings' | 'roles'
 
 const TOPICS: TopicKey[] = [
   'gettingStarted',
@@ -14,6 +16,7 @@ const TOPICS: TopicKey[] = [
   'training',
   'playbook',
   'settings',
+  'roles', // ✅ NUEVO
 ]
 
 export default function HelpPage() {
@@ -63,7 +66,7 @@ export default function HelpPage() {
                 {t(`content.${activeTopic}.title`)}
               </h2>
 
-              {/* Contenido específico por tema */}
+              {/* ── Getting Started ── */}
               {activeTopic === 'gettingStarted' && (
                 <div className="space-y-4 text-text-secondary">
                   <p>{t('content.gettingStarted.welcome')}</p>
@@ -76,10 +79,72 @@ export default function HelpPage() {
                 </div>
               )}
 
-              {activeTopic !== 'gettingStarted' && (
+              {/* ── Roles y Permisos (NUEVO) ── */}
+              {activeTopic === 'roles' && (
+                <div className="space-y-6 text-text-secondary">
+                  <p>{t('content.roles.intro')}</p>
+
+                  <div>
+                    <h3 className="text-lg font-semibold text-text-primary mb-2">
+                      {t('content.roles.hierarchyTitle')}
+                    </h3>
+                    <p className="mb-3">{t('content.roles.hierarchyDesc')}</p>
+                    <ul className="space-y-3">
+                      <li>{t('content.roles.levels.superAdmin')}</li>
+                      <li>{t('content.roles.levels.adminClub')}</li>
+                      <li>{t('content.roles.levels.adminTeam')}</li>
+                      <li>{t('content.roles.levels.coach')}</li>
+                      <li>{t('content.roles.levels.assistant')}</li>
+                      <li>{t('content.roles.levels.player')}</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-semibold text-text-primary mb-2">
+                      {t('content.roles.assignmentTitle')}
+                    </h3>
+                    <p className="mb-3">{t('content.roles.assignmentDesc')}</p>
+                    <ul className="list-disc list-inside space-y-2 pl-2">
+                      <li>{t('content.roles.assignmentSteps.0')}</li>
+                      <li>{t('content.roles.assignmentSteps.1')}</li>
+                      <li>{t('content.roles.assignmentSteps.2')}</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-semibold text-text-primary mb-2">
+                      {t('content.roles.scopeTitle')}
+                    </h3>
+                    <p className="mb-3">{t('content.roles.scopeDesc')}</p>
+                    <ul className="space-y-2">
+                      <li>{t('content.roles.scopes.all')}</li>
+                      <li>{t('content.roles.scopes.teams')}</li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h3 className="text-lg font-semibold text-text-primary mb-2">
+                      {t('content.roles.permissionsMatrixTitle')}
+                    </h3>
+                    <p className="mb-3">{t('content.roles.permissionsMatrixDesc')}</p>
+                    <p className="text-sm italic text-text-muted">
+                      {t('content.roles.permissionsTip')}
+                    </p>
+                  </div>
+
+                  <div className="bg-brand-primary/5 border border-brand-primary/20 rounded-lg p-4">
+                    <h3 className="text-lg font-semibold text-text-primary mb-2">
+                      {t('content.roles.licenseTitle')}
+                    </h3>
+                    <p>{t('content.roles.licenseDesc')}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* ── Resto de temas (pendientes de ampliar) ── */}
+              {activeTopic !== 'gettingStarted' && activeTopic !== 'roles' && (
                 <div className="text-text-secondary">
                   <p>{t(`content.${activeTopic}.desc`)}</p>
-                  {/* Aquí iremos añadiendo más detalles en el Lote 2 */}
                   <div className="mt-6 p-4 bg-surface-elevated rounded-lg border border-border-subtle text-sm italic text-text-muted">
                     Contenido ampliado próximamente...
                   </div>

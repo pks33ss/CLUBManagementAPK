@@ -1,5 +1,3 @@
-// frontend-web/components/StatsFilters.tsx
-
 'use client'
 
 import { useTranslations } from 'next-intl'
@@ -30,18 +28,25 @@ export interface TeamOption {
   name: string
   category: string | null
   sport: string
-  /** Marca equipos de los que el usuario ya no forma parte (solo vista jugador). */
   isFormer?: boolean
+}
+
+export interface TrainingSessionOption {
+  id: string
+  label: string
+  statDate: string
+  playerCount?: number
+  closedAt: string | null
 }
 
 export interface StatsFiltersValue {
   seasonId: string
   from: string
   to: string
-  /** Selección múltiple de jugadores. Array vacío = todos. */
   playerIds: string[]
   matchIds: string[]
   teamIds: string[]
+  trainingSessionIds: string[]
 }
 
 interface Props {
@@ -52,9 +57,12 @@ interface Props {
   loading?: boolean
   matches?: MatchOption[]
   teams?: TeamOption[]
-  /** El team activo (para excluirlo del selector, ya que siempre está incluido) */
+  trainingSessions?: TrainingSessionOption[]
+  isTrainingMode?: boolean
+  includeTrainingSessions?: boolean
+  onIncludeTrainingSessionsChange?: (next: boolean) => void
+  showTrainingSessionsToggle?: boolean
   activeTeamId?: string
-  /** Oculta el selector de "Jugador" (útil en la vista individual de jugador). */
   hidePlayerFilter?: boolean
 }
 
@@ -65,6 +73,7 @@ export const EMPTY_FILTERS: StatsFiltersValue = {
   playerIds: [],
   matchIds: [],
   teamIds: [],
+  trainingSessionIds: [],
 }
 
 export default function StatsFilters({
@@ -75,6 +84,11 @@ export default function StatsFilters({
   loading,
   matches,
   teams,
+  trainingSessions,
+  isTrainingMode = false,
+  includeTrainingSessions = false,
+  onIncludeTrainingSessionsChange,
+  showTrainingSessionsToggle = false,
   activeTeamId,
   hidePlayerFilter = false,
 }: Props) {
@@ -86,9 +100,12 @@ export default function StatsFilters({
     value.to !== '' ||
     value.playerIds.length > 0 ||
     value.matchIds.length > 0 ||
-    value.teamIds.length > 0
+    value.teamIds.length > 0 ||
+    value.trainingSessionIds.length > 0
 
-  const showMatches = matches && matches.length > 0
+  const showMatches = !isTrainingMode && matches && matches.length > 0
+  const showTrainingSessions =
+    isTrainingMode === true || includeTrainingSessions === true
   const showTeams = teams && teams.length > 0
 
   const playerOptions: MultiSelectOption[] = players.map((p) => ({
@@ -101,6 +118,20 @@ export default function StatsFilters({
         value: m.id,
         label: `${new Date(m.date).toLocaleDateString()} · vs ${m.opponent}`,
       }))
+    : []
+
+  const trainingSessionOptions: MultiSelectOption[] = showTrainingSessions
+    ? (trainingSessions ?? []).map((s) => {
+        const dateStr = new Date(s.statDate).toLocaleDateString()
+        const status = s.closedAt ? '✓' : '⚠'
+        const playersStr =
+          s.playerCount != null ? ` · ${s.playerCount} jug.` : ''
+        return {
+          value: s.id,
+          label: s.label,
+          sublabel: `${dateStr} ${status}${playersStr}`,
+        }
+      })
     : []
 
   const teamOptions: MultiSelectOption[] = showTeams
@@ -123,16 +154,32 @@ export default function StatsFilters({
           <h2 className="text-lg font-semibold text-text-primary">
             {t('title')}
           </h2>
-          {hasFilters && (
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => onChange(EMPTY_FILTERS)}
-              disabled={loading}
-            >
-              {t('clear')}
-            </Button>
-          )}
+          <div className="flex gap-2 flex-wrap">
+            {showTrainingSessionsToggle && (
+              <Button
+                size="sm"
+                variant={includeTrainingSessions ? 'primary' : 'secondary'}
+                onClick={() =>
+                  onIncludeTrainingSessionsChange?.(!includeTrainingSessions)
+                }
+                disabled={loading}
+              >
+                {includeTrainingSessions
+                  ? `✓ ${t('includeTrainingSessions')}`
+                  : t('includeTrainingSessions')}
+              </Button>
+            )}
+            {hasFilters && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => onChange(EMPTY_FILTERS)}
+                disabled={loading}
+              >
+                {t('clear')}
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
@@ -211,6 +258,26 @@ export default function StatsFilters({
                 placeholder={t('allMatches')}
                 disabled={loading}
                 emptyText={t('noFinishedMatches')}
+              />
+            </div>
+          )}
+
+          {showTrainingSessions && (
+            <div
+              className={
+                showTeams ? 'md:col-span-2' : 'md:col-span-2 lg:col-span-4'
+              }
+            >
+              <MultiSelect
+                label={t('trainingSessions')}
+                options={trainingSessionOptions}
+                value={value.trainingSessionIds}
+                onChange={(next) =>
+                  onChange({ ...value, trainingSessionIds: next })
+                }
+                placeholder={t('allTrainingSessions')}
+                disabled={loading}
+                emptyText={t('noTrainingSessions')}
               />
             </div>
           )}

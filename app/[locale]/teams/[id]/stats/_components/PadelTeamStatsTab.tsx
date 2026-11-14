@@ -22,12 +22,23 @@ interface Props {
   visibleMetrics: string[]
   availableTrendMetrics: AvailableTrendMetric[]
   trendMetric: string
-  onTrendMetricChange: (next: string) => void
+    onTrendMetricChange: (next: string) => void
+    isTrainingMode?: boolean
 }
 
-function ResultPill({ result }: { result: SetResult }) {
+function ResultPill({
+  result,
+  isTraining = false,
+}: {
+  result: SetResult
+  isTraining?: boolean
+}) {
   const base =
     'inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold'
+  if (isTraining)
+    return (
+      <span className={`${base} bg-brand-primary/20 text-brand-primary`}>T</span>
+    )
   if (result === 'WIN')
     return <span className={`${base} bg-success/20 text-success`}>W</span>
   if (result === 'LOSS')
@@ -46,6 +57,7 @@ export default function PadelTeamStatsTab({
   availableTrendMetrics,
   trendMetric,
   onTrendMetricChange,
+  isTrainingMode = false,
 }: Props) {
   const t = useTranslations('Stats')
   const { summary, players, trend } = data
@@ -255,8 +267,7 @@ export default function PadelTeamStatsTab({
         </Card>
       )}
 
-      {(trend.last10ByMatch.length > 0 ||
-        trend.last10BySubMatch.length > 0) && (
+      {!isTrainingMode && (trend.last10ByMatch.length > 0 || trend.last10BySubMatch.length > 0) && (
         <Card>
           <CardBody>
             <h3 className="text-lg font-semibold text-text-primary mb-4">
@@ -272,16 +283,21 @@ export default function PadelTeamStatsTab({
                   <p className="text-sm text-text-muted">{t('noData')}</p>
                 ) : (
                   <div className="flex flex-wrap gap-1.5">
-                    {trend.last10ByMatch.map((m) => (
-                      <div
-                        key={m.matchId}
-                        title={`${new Date(m.date).toLocaleDateString()} · vs ${
-                          m.opponent
-                        }`}
-                      >
-                        <ResultPill result={m.result} />
-                      </div>
-                    ))}
+                    {trend.last10ByMatch.map((m) => {
+  const isTraining = m.opponent === 'Entrenamiento'
+  return (
+    <div
+      key={m.matchId}
+      title={
+        isTraining
+          ? `Entrenamiento · ${new Date(m.date).toLocaleDateString()}`
+          : `${new Date(m.date).toLocaleDateString()} · vs ${m.opponent}`
+      }
+    >
+      <ResultPill result={m.result} isTraining={isTraining} />
+    </div>
+  )
+})}
                   </div>
                 )}
               </div>
@@ -294,16 +310,23 @@ export default function PadelTeamStatsTab({
                   <p className="text-sm text-text-muted">{t('noData')}</p>
                 ) : (
                   <div className="flex flex-wrap gap-1.5">
-                    {trend.last10BySubMatch.map((sm) => (
-                      <div
-                        key={sm.subMatchId}
-                        title={`${t('court')} ${sm.order} · vs ${
-                          sm.opponent
-                        } · ${new Date(sm.date).toLocaleDateString()}`}
-                      >
-                        <ResultPill result={sm.result} />
-                      </div>
-                    ))}
+                    {trend.last10BySubMatch.map((sm) => {
+  const isTraining = sm.opponent === 'Entrenamiento'
+  return (
+    <div
+      key={sm.subMatchId}
+      title={
+        isTraining
+          ? `Entrenamiento · ${new Date(sm.date).toLocaleDateString()}`
+          : `${t('court')} ${sm.order} · vs ${
+              sm.opponent
+            } · ${new Date(sm.date).toLocaleDateString()}`
+      }
+    >
+      <ResultPill result={sm.result} isTraining={isTraining} />
+    </div>
+  )
+})}
                   </div>
                 )}
               </div>

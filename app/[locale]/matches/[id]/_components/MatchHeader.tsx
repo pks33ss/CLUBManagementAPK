@@ -2,7 +2,7 @@
 
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import api from '@/lib/api'
 import { getSportIcon } from '@/lib/sport'
@@ -16,7 +16,7 @@ interface Props {
 }
 
 export default function MatchHeader({ match, onUpdate }: Props) {
-    const t = useTranslations('MatchDetail.header')
+  const t = useTranslations('MatchDetail.header')
   const tStatus = useTranslations('MatchDetail.status')
   const tType = useTranslations('MatchDetail.type')
   const tLocation = useTranslations('MatchDetail.status')
@@ -38,9 +38,10 @@ export default function MatchHeader({ match, onUpdate }: Props) {
     competition: match.competition || '',
   })
 
+  // Formulario pensado para LOCAL / VISITANTE
   const [resultForm, setResultForm] = useState({
-    teamScore: match.teamScore ?? 0,
-    opponentScore: match.opponentScore ?? 0,
+    localScore: 0,
+    visitanteScore: 0,
     manualWinner: (match as any).manualWinner || null,
   })
   const [saving, setSaving] = useState(false)
@@ -48,8 +49,23 @@ export default function MatchHeader({ match, onUpdate }: Props) {
   const [deleting, setDeleting] = useState(false)
 
   const isPadel = match.team?.sport === 'PADEL'
+  const isAway = match.location === 'AWAY'
+
+  // Sincronizar el formulario cuando se abre el modal
+  useEffect(() => {
+    if (showResultModal) {
+      const tScore = match.teamScore ?? 0
+      const oScore = match.opponentScore ?? 0
+      setResultForm({
+        localScore: isAway ? oScore : tScore,
+        visitanteScore: isAway ? tScore : oScore,
+        manualWinner: (match as any).manualWinner || null,
+      })
+    }
+  }, [showResultModal, match, isAway])
+
   const isTie =
-    Number(resultForm.teamScore) === Number(resultForm.opponentScore)
+    Number(resultForm.localScore) === Number(resultForm.visitanteScore)
 
   const getStatusVariant = (
     status: string,
@@ -115,9 +131,13 @@ export default function MatchHeader({ match, onUpdate }: Props) {
     e.preventDefault()
     setSaving(true)
     try {
+      // Convertir de vuelta a teamScore (nuestro equipo) / opponentScore (rival)
+      const tScore = isAway ? resultForm.visitanteScore : resultForm.localScore
+      const oScore = isAway ? resultForm.localScore : resultForm.visitanteScore
+
       await api.put(`/matches/${match.id}/result`, {
-        teamScore: Number(resultForm.teamScore),
-        opponentScore: Number(resultForm.opponentScore),
+        teamScore: Number(tScore),
+        opponentScore: Number(oScore),
         manualWinner: isPadel ? resultForm.manualWinner : null,
       })
       setShowResultModal(false)
@@ -357,15 +377,16 @@ export default function MatchHeader({ match, onUpdate }: Props) {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-text-secondary mb-1">
-                {match.team.name}
+                {/* Mostramos siempre Local a la izquierda */}
+                {isAway ? match.opponent : match.team.name}
               </label>
               <input
                 type="number"
-                value={resultForm.teamScore}
+                value={resultForm.localScore}
                 onChange={(e) =>
                   setResultForm({
                     ...resultForm,
-                    teamScore: Number(e.target.value),
+                    localScore: Number(e.target.value),
                   })
                 }
                 className="w-full px-4 py-3 text-center text-2xl font-bold bg-surface-elevated border-2 border-border-subtle text-text-primary rounded-lg focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"
@@ -375,15 +396,16 @@ export default function MatchHeader({ match, onUpdate }: Props) {
             </div>
             <div>
               <label className="block text-sm font-medium text-text-secondary mb-1">
-                {match.opponent}
+                {/* Mostramos siempre Visitante a la derecha */}
+                {isAway ? match.team.name : match.opponent}
               </label>
               <input
                 type="number"
-                value={resultForm.opponentScore}
+                value={resultForm.visitanteScore}
                 onChange={(e) =>
                   setResultForm({
                     ...resultForm,
-                    opponentScore: Number(e.target.value),
+                    visitanteScore: Number(e.target.value),
                   })
                 }
                 className="w-full px-4 py-3 text-center text-2xl font-bold bg-surface-elevated border-2 border-border-subtle text-text-primary rounded-lg focus:ring-2 focus:ring-brand-primary/50 focus:border-brand-primary transition"

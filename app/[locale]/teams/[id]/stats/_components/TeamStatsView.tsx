@@ -1,14 +1,13 @@
-// frontend-web/app/[locale]/teams/[id]/stats/_components/TeamStatsView.tsx
-
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import {
   teamsApi,
   type TeamStatsResponse,
   type PadelTeamStats,
   type BasketballTeamStats,
+  type TrainingAggregateSession,
 } from '@/lib/api/teams'
 import StatsFilters, {
   EMPTY_FILTERS,
@@ -22,6 +21,8 @@ import { Card, CardBody } from '@/components/ui'
 import PadelTeamStatsTab from './PadelTeamStatsTab'
 import BasketballTeamStatsTab from './BasketballTeamStatsTab'
 
+const NONE_ID = '__none__'
+
 interface Props {
   teamId: string
   teamSport: string
@@ -30,6 +31,7 @@ interface Props {
   teams: TeamOption[]
   onSeasonChange?: (seasonId: string) => void
   onFiltersChange?: (filters: StatsFiltersValue) => void
+  onAggregateModeChange?: (mode: 'matches' | 'trainings') => void
 }
 
 function isPadelStats(
@@ -61,6 +63,7 @@ export default function TeamStatsView({
   teams,
   onSeasonChange,
   onFiltersChange,
+  onAggregateModeChange,
 }: Props) {
   const t = useTranslations('Stats')
   const tSports = useTranslations('Sports')
@@ -69,6 +72,17 @@ export default function TeamStatsView({
     ...EMPTY_FILTERS,
     teamIds: [teamId],
   }))
+
+  const [aggregateMode, setAggregateMode] = useState<'matches' | 'trainings'>(
+    'matches',
+  )
+  const [includeTrainingsInMatches, setIncludeTrainingsInMatches] =
+    useState(false)
+
+  const [trainingSessions, setTrainingSessions] = useState<
+    TrainingAggregateSession[]
+  >([])
+
   const [trendMetric, setTrendMetricState] = useState<string>(() =>
     readStoredTrendMetric(teamId),
   )
@@ -76,9 +90,16 @@ export default function TeamStatsView({
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // Flags para saber si el usuario "ha tocado" el selector (para distinguir
+  // "no seleccionado = todos por defecto" de "no seleccionado = ninguno").
+  const matchesTouchedRef = useRef(false)
+  const trainingsTouchedRef = useRef(false)
+
   useEffect(() => {
     setTrendMetricState(readStoredTrendMetric(teamId))
     setFilters((f) => ({ ...f, teamIds: [teamId] }))
+    matchesTouchedRef.current = false
+    trainingsTouchedRef.current = false
   }, [teamId])
 
   const setTrendMetric = (next: string) => {
@@ -105,12 +126,111 @@ export default function TeamStatsView({
     filters.playerIds,
     filters.matchIds,
     filters.teamIds,
+    filters.trainingSessionIds,
   ])
 
+  useEffect(() => {
+    onAggregateModeChange?.(aggregateMode)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aggregateMode])
+
+  // ── Preselección de partidos al entrar (vacío = todos) ──
+  useEffect(() => {
+    if (aggregateMode !== 'matches') return
+    if (matchesTouchedRef.current) return
+    if (!matches || matches.length === 0) return
+    if (filters.matchIds.length > 0) return // ya hay algo
+    setFilters((f) => ({
+      ...f,
+      matchIds: matches.map((m) => m.id),
+    }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [matches, aggregateMode])
+
+  // ── Cargar sesiones del agregado de entrenamientos cuando haga falta ──
+  useEffect(() => {
+    const needTrainingSessions =
+      aggregateMode === 'trainings' || includeTrainingsInMatches
+    if (!needTrainingSessions) return
+    let cancelled = false
+    teamsApi
+      .getTrainingAggregates(teamId)
+      .then((sessions) => {
+        if (!cancelled) setTrainingSessions(sessions)
+      })
+      .catch(() => {
+        if (!cancelled) setTrainingSessions([])
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [teamId, aggregateMode, includeTrainingsInMatches])
+
+  // ── Preselección de sesiones al activar "Incluir entrenamientos" o entrar al tab de entrenamientos ──
+  useEffect(() => {
+    const needTrainingSessions =
+      aggregateMode === 'trainings' || includeTrainingsInMatches
+    if (!needTrainingSessions) return
+    if (trainingsTouchedRef.current) return
+    if (!trainingSessions || trainingSessions.length === 0) return
+    if (filters.trainingSessionIds.length > 0) return
+    setFilters((f) => ({
+      ...f,
+      trainingSessionIds: trainingSessions.map((s) => s.id),
+    }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trainingSessions, aggregateMode, includeTrainingsInMatches])
+
+  // ── Si el usuario desactiva "Incluir entrenamientos", limpiamos la selección ──
+  useEffect(() => {
+    if (
+      aggregateMode === 'matches' &&
+      !includeTrainingsInMatches &&
+      filters.trainingSessionIds.length > 0
+    ) {
+      setFilters((f) => ({ ...f, trainingSessionIds: [] }))
+      trainingsTouchedRef.current = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [includeTrainingsInMatches, aggregateMode])
+
+  // ── Fetch ──
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setError(null)
+
+    const includeTrainingSessions =
+      aggregateMode === 'trainings' || includeTrainingsInMatches
+    const trainingSessionsMode: 'only' | 'merge' | undefined =
+      aggregateMode === 'trainings'
+        ? 'only'
+        : includeTrainingsInMatches
+          ? 'merge'
+          : undefined
+
+    // IDs efectivos: si el usuario ha vaciado la selección pero antes
+    // estaba "todos por defecto", enviamos NONE_ID para forzar "ninguno".
+    const effectiveMatchIds = (() => {
+      if (aggregateMode !== 'matches') return undefined
+      if (filters.matchIds.length === 0 && matchesTouchedRef.current) {
+        return [NONE_ID]
+      }
+      return filters.matchIds.length > 0 ? filters.matchIds : undefined
+    })()
+
+    const effectiveTrainingSessionIds = (() => {
+      if (!includeTrainingSessions) return undefined
+      if (
+        filters.trainingSessionIds.length === 0 &&
+        trainingsTouchedRef.current
+      ) {
+        return [NONE_ID]
+      }
+      return filters.trainingSessionIds.length > 0
+        ? filters.trainingSessionIds
+        : undefined
+    })()
 
     teamsApi
       .getStats(teamId, {
@@ -119,9 +239,12 @@ export default function TeamStatsView({
         to: filters.to || undefined,
         playerIds:
           filters.playerIds.length > 0 ? filters.playerIds : undefined,
-        matchIds: filters.matchIds.length > 0 ? filters.matchIds : undefined,
+        matchIds: effectiveMatchIds,
         teamIds: filters.teamIds.length > 0 ? filters.teamIds : undefined,
         trendMetric: trendMetric || undefined,
+        includeTrainingSessions,
+        trainingSessionsMode,
+        trainingSessionIds: effectiveTrainingSessionIds,
       })
       .then((res) => {
         if (!cancelled) setData(res)
@@ -138,7 +261,7 @@ export default function TeamStatsView({
     return () => {
       cancelled = true
     }
-  }, [teamId, filters, trendMetric, t])
+  }, [teamId, filters, trendMetric, t, aggregateMode, includeTrainingsInMatches])
 
   const sportType = data?.sport?.type ?? teamSport
 
@@ -218,6 +341,7 @@ export default function TeamStatsView({
           availableTrendMetrics={availableTrendMetrics}
           trendMetric={trendMetric}
           onTrendMetricChange={setTrendMetric}
+          isTrainingMode={aggregateMode === 'trainings'}
         />
       )
     }
@@ -231,6 +355,7 @@ export default function TeamStatsView({
           availableTrendMetrics={availableTrendMetrics}
           trendMetric={trendMetric}
           onTrendMetricChange={setTrendMetric}
+          isTrainingMode={aggregateMode === 'trainings'}
         />
       )
     }
@@ -259,18 +384,72 @@ export default function TeamStatsView({
     teamId,
     t,
     tSports,
+    aggregateMode,
   ])
+
+  // ── Cambio de filtros con detección de "tocado por el usuario" ──
+  const handleFiltersChange = (next: StatsFiltersValue) => {
+    // Partidos
+    if (
+      next.matchIds.length !== filters.matchIds.length ||
+      next.matchIds.some((id) => !filters.matchIds.includes(id))
+    ) {
+      matchesTouchedRef.current = true
+    }
+    // Sesiones
+    if (
+      next.trainingSessionIds.length !== filters.trainingSessionIds.length ||
+      next.trainingSessionIds.some(
+        (id) => !filters.trainingSessionIds.includes(id),
+      )
+    ) {
+      trainingsTouchedRef.current = true
+    }
+    setFilters(next)
+  }
 
   return (
     <div className="space-y-6">
+      <div className="flex gap-2 border-b border-border-subtle">
+        <button
+          type="button"
+          onClick={() => setAggregateMode('matches')}
+          className={`px-4 py-2 text-sm font-medium transition -mb-px border-b-2 ${
+            aggregateMode === 'matches'
+              ? 'border-brand-primary text-brand-primary'
+              : 'border-transparent text-text-secondary hover:text-text-primary'
+          }`}
+        >
+          {t('viewAggregateMatches')}
+        </button>
+        <button
+          type="button"
+          onClick={() => setAggregateMode('trainings')}
+          className={`px-4 py-2 text-sm font-medium transition -mb-px border-b-2 ${
+            aggregateMode === 'trainings'
+              ? 'border-brand-primary text-brand-primary'
+              : 'border-transparent text-text-secondary hover:text-text-primary'
+          }`}
+        >
+          {t('viewAggregateTrainings')}
+        </button>
+      </div>
+
       <StatsFilters
         seasons={seasons}
         players={playerOptions}
         value={filters}
-        onChange={setFilters}
+        onChange={handleFiltersChange}
         loading={loading}
         matches={matches}
         teams={teams}
+        trainingSessions={trainingSessions}
+        isTrainingMode={aggregateMode === 'trainings'}
+        includeTrainingSessions={
+          aggregateMode === 'matches' && includeTrainingsInMatches
+        }
+        onIncludeTrainingSessionsChange={setIncludeTrainingsInMatches}
+        showTrainingSessionsToggle={aggregateMode === 'matches'}
       />
       {content}
     </div>

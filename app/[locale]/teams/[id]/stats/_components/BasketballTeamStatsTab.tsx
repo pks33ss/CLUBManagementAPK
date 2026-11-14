@@ -23,11 +23,22 @@ interface Props {
   availableTrendMetrics: AvailableTrendMetric[]
   trendMetric: string
   onTrendMetricChange: (next: string) => void
+  isTrainingMode?: boolean 
 }
 
-function ResultPill({ result }: { result: MatchResult }) {
+function ResultPill({
+  result,
+  isTraining = false,
+}: {
+  result: MatchResult
+  isTraining?: boolean
+}) {
   const base =
     'inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold'
+  if (isTraining)
+    return (
+      <span className={`${base} bg-brand-primary/20 text-brand-primary`}>T</span>
+    )
   if (result === 'WIN')
     return <span className={`${base} bg-success/20 text-success`}>W</span>
   if (result === 'LOSS')
@@ -38,7 +49,6 @@ function ResultPill({ result }: { result: MatchResult }) {
     <span className={`${base} bg-surface-elevated text-text-muted`}>—</span>
   )
 }
-
 function fmtPlusMinus(v: number): string {
   if (v > 0) return `+${v}`
   return `${v}`
@@ -54,6 +64,7 @@ export default function BasketballTeamStatsTab({
   availableTrendMetrics,
   trendMetric,
   onTrendMetricChange,
+  isTrainingMode = false, 
 }: Props) {
   const t = useTranslations('Stats')
   const { summary, players, trend } = data
@@ -190,19 +201,19 @@ export default function BasketballTeamStatsTab({
                   }
                 />
               )}
-              {show('OPPONENT_POINTS_PER_MATCH') && (
-                <StatBox
-                  label={t('labels.opponentPointsPerMatch')}
-                  value={`${summary.opponentPointsPerMatch ?? '—'}`}
-                  hint={
-                    show('OPPONENT_POINTS')
-                      ? t('labels.pointsTotal', {
-                          n: summary.opponentPoints,
-                        })
-                      : undefined
-                  }
-                />
-              )}
+             {!isTrainingMode && show('OPPONENT_POINTS_PER_MATCH') && (
+  <StatBox
+    label={t('labels.opponentPointsPerMatch')}
+    value={`${summary.opponentPointsPerMatch ?? '—'}`}
+    hint={
+      show('OPPONENT_POINTS')
+        ? t('labels.pointsTotal', {
+            n: summary.opponentPoints,
+          })
+        : undefined
+    }
+  />
+)}
               {show('MINUTES_PER_MATCH') && (
                 <StatBox
                   label={t('labels.minutesPerMatch')}
@@ -424,27 +435,32 @@ export default function BasketballTeamStatsTab({
       )}
 
       {/* ─── Últimos 10 ─── */}
-      {trend.last10ByMatch.length > 0 && (
+      {!isTrainingMode && trend.last10ByMatch.length > 0 && (
         <Card>
           <CardBody>
             <h3 className="text-lg font-semibold text-text-primary mb-4">
               {t('last10Title')}
             </h3>
             <div className="flex flex-wrap gap-1.5">
-              {trend.last10ByMatch.map((m) => (
-                <div
-                  key={m.matchId}
-                  title={`${new Date(m.date).toLocaleDateString()} · vs ${
-                    m.opponent
-                  }${
-                    m.teamScore != null
-                      ? ` · ${m.teamScore}-${m.opponentScore}`
-                      : ''
-                  }`}
-                >
-                  <ResultPill result={m.result} />
-                </div>
-              ))}
+{trend.last10ByMatch.map((m) => {
+  const isTraining = m.opponent === 'Entrenamiento'
+  return (
+    <div
+      key={m.matchId}
+      title={
+        isTraining
+          ? `Entrenamiento · ${new Date(m.date).toLocaleDateString()}`
+          : `${new Date(m.date).toLocaleDateString()} · vs ${m.opponent}${
+              m.teamScore != null
+                ? ` · ${m.teamScore}-${m.opponentScore}`
+                : ''
+            }`
+      }
+    >
+      <ResultPill result={m.result} isTraining={isTraining} />
+    </div>
+  )
+})}
             </div>
           </CardBody>
         </Card>

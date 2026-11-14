@@ -26,8 +26,6 @@ export default function NewStatSessionModal({
     statDate: new Date().toISOString().slice(0, 10),
     type: 'COMPETITION',
     opponent: '',
-    teamScore: '',
-    opponentScore: '',
   })
   const [creating, setCreating] = useState(false)
   const [errorMsg, setErrorMsg] = useState<string | null>(null)
@@ -46,9 +44,6 @@ export default function NewStatSessionModal({
         statDate: form.statDate,
       }
       if (form.opponent.trim()) payload.opponent = form.opponent.trim()
-      if (form.teamScore !== '') payload.teamScore = Number(form.teamScore)
-      if (form.opponentScore !== '')
-        payload.opponentScore = Number(form.opponentScore)
 
       const { data } = await api.post(
         `/teams/${teamId}/stat-sessions`,
@@ -107,27 +102,6 @@ export default function NewStatSessionModal({
           onChange={(e) => setForm({ ...form, opponent: e.target.value })}
           placeholder={t('sessionModalOpponentPlaceholder')}
         />
-
-        <div className="grid grid-cols-2 gap-3">
-          <Input
-            label={t('sessionModalTeamPts')}
-            type="number"
-            min="0"
-            value={form.teamScore}
-            onChange={(e) => setForm({ ...form, teamScore: e.target.value })}
-            placeholder="—"
-          />
-          <Input
-            label={t('sessionModalOpponentPts')}
-            type="number"
-            min="0"
-            value={form.opponentScore}
-            onChange={(e) =>
-              setForm({ ...form, opponentScore: e.target.value })
-            }
-            placeholder="—"
-          />
-        </div>
 
         {errorMsg && <p className="text-sm text-danger">{errorMsg}</p>}
 

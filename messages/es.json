@@ -222,49 +222,84 @@
   "sidebarTitle": "Temas de ayuda",
   "noResults": "No se encontraron resultados",
   "searchPlaceholder": "Buscar en la ayuda...",
-  "topics": {
-    "gettingStarted": "🚀 Primeros pasos",
-    "teams": "🛡️ Equipos y Clubes",
-    "members": "👥 Gestión de miembros",
-    "matches": "🏆 Partidos y estadísticas",
-    "training": "🏋️ Entrenamientos y asistencia",
-    "playbook": "📘 Playbook táctico",
-    "settings": "⚙️ Configuración"
+   "topics": {
+  "gettingStarted": "🚀 Primeros pasos",
+  "teams": "🛡️ Equipos y Clubes",
+  "members": "👥 Gestión de miembros",
+  "matches": "🏆 Partidos y estadísticas",
+  "training": "🏋️ Entrenamiento y asistencia",
+  "playbook": "📘 Playbook táctico",
+  "settings": "⚙️ Ajustes",
+  "roles": "🔐 Roles y permisos"
+   },
+"content": {
+  "roles": {
+    "title": "Gestión de Roles y Permisos",
+    "desc": "Aprende cómo funciona el sistema de roles y cómo asignar permisos a los miembros de tu club.",
+    "intro": "JoinSport utiliza un sistema de roles jerárquico para controlar quién puede hacer qué dentro de un club o equipo. Cada miembro puede tener uno o varios roles, y estos determinan sus permisos.",
+    "hierarchyTitle": "🏛️ Jerarquía de roles",
+    "hierarchyDesc": "Los roles están organizados en niveles. A mayor nivel, más permisos sobre el club o equipo.",
+    "levels": {
+      "superAdmin": "👑 **Super Administrador**: Control total sobre toda la aplicación. Puede gestionar usuarios, clubes, equipos y licencias. No pertenece a ningún club específico.",
+      "adminClub": "🛡️ **Administrador de Club (ADMIN_CLUB)**: Control total sobre un club concreto. Puede crear y borrar equipos, gestionar miembros, asignar roles y cambiar la configuración del club.",
+      "adminTeam": "🛠️ **Administrador de Equipo (ADMIN_TEAM)**: Gestiona un equipo específico. Puede añadir o quitar jugadores, crear entrenamientos, partidos y gestionar el playbook de su equipo.",
+      "coach": "🎓 **Entrenador (COACH)**: Puede gestionar los entrenamientos, partidos, estadísticas y playbook de los equipos donde está asignado, pero no puede gestionar la plantilla de miembros.",
+      "assistant": "🤝 **Asistente (ASSISTANT)**: Puede ver y ayudar en las tareas del equipo, pero no puede modificar la plantilla ni borrar contenido importante.",
+      "player": "🏃 **Jugador (PLAYER)**: Solo puede ver la información de su equipo, sus estadísticas personales y confirmar asistencia a entrenamientos y partidos."
+    },
+    "assignmentTitle": "📝 ¿Cómo asignar roles?",
+    "assignmentDesc": "Los roles se asignan desde el panel de gestión del club o del equipo.",
+    "assignmentSteps": [
+      "**Desde el club:** Ve a la sección 'Miembros' del club y haz clic en 'Editar roles' al lado del miembro. Puedes asignar múltiples roles y decidir si aplican a todo el club o solo a equipos específicos.",
+      "**Desde el equipo:** Ve a la sección 'Miembros' del equipo y haz clic en 'Roles' al lado del miembro. Aquí puedes asignar roles específicos para ese equipo.",
+      "**Múltiples roles:** Un miembro puede tener varios roles a la vez (por ejemplo, COACH y PLAYER). Los permisos se suman."
+    ],
+    "scopeTitle": "🌍 Ámbito de los roles",
+    "scopeDesc": "Al asignar un rol desde el club, puedes elegir entre dos ámbitos:",
+    "scopes": {
+      "all": "🌍 **Todo el club**: El rol se aplica a todos los equipos del club automáticamente. Es útil para administradores generales.",
+      "teams": "🏆 **Equipos específicos**: El rol solo se aplica a los equipos que selecciones. Es útil para entrenadores que solo gestionan un equipo."
+    },
+    "permissionsMatrixTitle": "⚙️ Matriz de permisos",
+    "permissionsMatrixDesc": "Los administradores del club pueden personalizar qué puede hacer cada rol en la configuración de permisos del club. Los permisos se agrupan por recursos (equipos, miembros, partidos, pagos, etc.) y acciones (ver, crear, editar, borrar).",
+    "permissionsTip": "💡 **Consejo**: Si no quieres modificar la matriz, los roles del sistema ya vienen preconfigurados con permisos lógicos por defecto.",
+    "licenseTitle": "🎫 Licencias y roles",
+    "licenseDesc": "El sistema de licencias (Beta, Free, Basic, Pro, Enterprise) se combina con los roles. Un usuario con licencia Beta tiene además una restricción de deporte: solo podrá ver y gestionar los equipos del deporte asignado, independientemente de sus roles. El SUPER_ADMIN siempre está exento de esta restricción."
   },
-  "content": {
     "gettingStarted": {
-      "title": "Primeros pasos",
-      "welcome": "Bienvenido a JoinSport. Aquí tienes lo básico para empezar.",
-      "step1": "1. Crea un club o únete a uno existente.",
-      "step2": "2. Crea un equipo dentro de tu club.",
-      "step3": "3. Añade jugadores a tu equipo.",
-      "step4": "4. Empieza a programar entrenamientos y partidos."
-    },
-    "teams": {
-      "title": "Equipos y Clubes",
-      "desc": "Cómo gestionar la estructura de tu entidad deportiva."
-    },
-    "members": {
-      "title": "Gestión de miembros",
-      "desc": "Aprende a invitar jugadores y asignar roles."
-    },
-    "matches": {
-      "title": "Partidos y estadísticas",
-      "desc": "Cómo crear partidos y anotar estadísticas en vivo."
-    },
-    "training": {
-      "title": "Entrenamientos y asistencia",
-      "desc": "Planifica sesiones y controla la asistencia."
-    },
-    "playbook": {
-      "title": "Playbook táctico",
-      "desc": "Diseña jugadas y táctica en la pizarra."
-    },
-    "settings": {
-      "title": "Configuración",
-      "desc": "Personaliza tu cuenta y tu experiencia en la app."
-    }
+    "title": "Primeros pasos",
+    "welcome": "Bienvenido a JoinSport. Aquí tienes lo básico para empezar.",
+    "step1": "1. Crea un club o únete a uno existente.",
+    "step2": "2. Crea un equipo dentro de tu club.",
+    "step3": "3. Añade jugadores a tu equipo.",
+    "step4": "4. Empieza a programar entrenamientos y partidos."
+  },
+  "teams": {
+    "title": "Equipos y Clubes",
+    "desc": "Cómo gestionar la estructura de tu entidad deportiva."
+  },
+  "members": {
+    "title": "Gestión de miembros",
+    "desc": "Aprende a invitar jugadores y asignar roles."
+  },
+  "matches": {
+    "title": "Partidos y estadísticas",
+    "desc": "Cómo crear partidos y registrar estadísticas en vivo."
+  },
+  "training": {
+    "title": "Entrenamiento y asistencia",
+    "desc": "Planifica sesiones y controla la asistencia."
+  },
+  "playbook": {
+    "title": "Playbook táctico",
+    "desc": "Diseña jugadas y tácticas en la pizarra."
+  },
+  "settings": {
+    "title": "Ajustes",
+    "desc": "Personaliza tu cuenta y la experiencia en la app."
   }
+}
+
 },
   "Sessions": {
     "list": {
@@ -1079,6 +1114,15 @@
     "title": "Estadísticas de {team}",
     "subtitle": "Resumen y análisis del rendimiento del equipo",
     "newSession": "Nueva sesión",
+	"sessionSaveChanges": "Guardar cambios",
+	"viewAggregateMatches": "Agregado Partidos",
+    "viewAggregateTrainings": "Agregado Entrenamientos",
+    "trainingModeBanner": "Estás viendo los datos acumulados de entrenamientos (sin rivales).",
+    "includeInTeamStats": "Añadir a agregados del equipo",
+    "includeInTeamStatsHint": "Si está activo, estas estadísticas se sumarán al agregado de entrenamientos del equipo.",
+    "reopenSession": "Reabrir sesión",
+    "reopenSessionConfirm": "¿Seguro que quieres reabrir esta sesión? Podrás volver a editar los datos.",
+    "sessionReopened": "Sesión reabierta correctamente",
     "config": "Configurar",
     "viewAggregate": "Agregado",
     "viewSessions": "Sesiones",
@@ -1251,13 +1295,17 @@
     "filters": {
       "title": "🔎 Filtros",
       "clear": "Limpiar filtros",
+	  "includeTrainingSessions": "Incluir entrenamientos",
       "season": "Temporada",
       "allSeasons": "Todas",
+	  "trainingSessions": "Sesiones de entrenamiento",
+      "allTrainingSessions": "Todas las sesiones",
+      "noTrainingSessions": "No hay sesiones incluidas en el agregado de entrenamientos",
       "from": "Desde",
       "to": "Hasta",
       "players": "Jugadores",
       "allPlayers": "Todos",
-      "noPlayersAvailable": "No hay jugadores disponibles",
+	  "noPlayersAvailable": "No hay jugadores disponibles",
       "teams": "Equipos",
       "selectAtLeastOneTeam": "Selecciona al menos un equipo",
       "noTeamsAvailable": "No hay equipos disponibles",
@@ -1403,23 +1451,23 @@
    }
 },
 
-  "MenuTabs": {
+"MenuTabs": {
   "home": "🏠 Inicio",
   "team": "🏆 Equipo",
-  "sessions": "🏋️ Entrenamientos",
-  "sessionsShort": "🏋️ Entren.",
+  "sessions": "🏋️ Entrenamiento",
+  "sessionsShort": "🏋️ Entr.",
   "matches": "🏆 Partidos",
   "stats": "📊 Estadísticas",
-  "statsShort": "📊 Estad.",
+  "statsShort": "📊 Stats",
   "calendar": "📅 Calendario",
-  "calendarShort": "📅 Calend.",
+  "calendarShort": "📅 Cal.",
   "players": "👥 Jugadores",
-  "attendance": "📊 Asistencias",
+  "attendance": "📊 Asistencia",
   "attendanceShort": "📊 Asist.",
   "seasons": "📋 Planificación",
-  "seasonsShort": "📋 Planif.",
+  "seasonsShort": "📋 Plan.",
   "library": "📚 Biblioteca",
-  "libraryShort": "📚 Biblio.",
+  "libraryShort": "📚 Bibl.",
   "playbook": "📘 Playbook",
   "payments": "💰 Pagos",
   "myPayments": "💰 Pagos"

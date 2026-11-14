@@ -1,4 +1,3 @@
-// archivo: frontend-web/app/[locale]/teams/[id]/stats/page.tsx
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -39,6 +38,8 @@ interface StatSessionSummary {
   teamScore: number | null
   opponentScore: number | null
   playerCount: number
+  includeInTeamStats: boolean // 👈 NUEVO
+  closedAt: string | null // 👈 NUEVO
   createdAt: string
   match: {
     id: string
@@ -93,6 +94,11 @@ export default function TeamStatsPage() {
     null,
   )
   const [showNewSessionModal, setShowNewSessionModal] = useState(false)
+
+  // 👇 NUEVO: modo del agregado (partidos / entrenamientos)
+  const [aggregateMode, setAggregateMode] = useState<'matches' | 'trainings'>(
+    'matches',
+  )
 
   const [sessions, setSessions] = useState<StatSessionSummary[] | null>(null)
   const [loadingSessions, setLoadingSessions] = useState(false)
@@ -422,16 +428,19 @@ export default function TeamStatsPage() {
             teams={teamOptions}
             onSeasonChange={setSeason}
             onFiltersChange={setStatsFilters}
+            onAggregateModeChange={setAggregateMode} // 👈 NUEVO
           />
-          <TeamOpponentPlayersCard
-            teamId={teamId}
-            filters={{
-              season: statsFilters.seasonId,
-              from: statsFilters.from,
-              to: statsFilters.to,
-              matchIds: statsFilters.matchIds,
-            }}
-          />
+          {aggregateMode === 'matches' && ( // 👈 NUEVO
+            <TeamOpponentPlayersCard
+              teamId={teamId}
+              filters={{
+                season: statsFilters.seasonId,
+                from: statsFilters.from,
+                to: statsFilters.to,
+                matchIds: statsFilters.matchIds,
+              }}
+            />
+          )}
         </div>
       )}
 
@@ -462,37 +471,64 @@ export default function TeamStatsPage() {
               </div>
             ) : (
               <div className="space-y-1">
-                {sessions.map((s) => (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={() => openSession(s.id)}
-                    className="w-full text-left p-3 rounded-lg border border-border-subtle hover:border-brand-primary transition flex items-center gap-3"
-                  >
-                    <div className="text-2xl">{s.match ? '🔗' : '📋'}</div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-text-primary truncate">
-                        {s.label}
-                      </p>
-                      <p className="text-xs text-text-muted truncate">
-                        {new Date(s.statDate).toLocaleDateString()} ·{' '}
-                        {t('playersCount', { count: s.playerCount })}
-                      </p>
-                      {s.match && (
-                        <p className="text-[10px] text-brand-primary mt-0.5">
-                          {t('linkedToMatch', { opponent: s.match.opponent, date: new Date(s.match.date).toLocaleDateString() })}
-                        </p>
-                      )}
-                    </div>
-                    <div className="text-right text-xs text-text-muted whitespace-nowrap">
-                      {s.teamScore != null && s.opponentScore != null && (
-                        <span className="font-mono">
-                          {s.teamScore}–{s.opponentScore}
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                ))}
+             {sessions.map((s) => {
+  const isTrainingIncluded =
+    s.type === 'TRAINING' && s.includeInTeamStats
+  const isClosed = !!s.closedAt
+  const isUsedInMatch = !!s.match
+
+  return (
+    <button
+      key={s.id}
+      type="button"
+      onClick={() => openSession(s.id)}
+      className="w-full text-left p-3 rounded-lg border border-border-subtle hover:border-brand-primary transition flex items-center gap-3"
+    >
+      <div className="text-2xl">{s.match ? '🔗' : '📋'}</div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-sm font-medium text-text-primary truncate">
+            {s.label}
+          </p>
+          {isTrainingIncluded && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-brand-primary/15 text-brand-primary border border-brand-primary/30">
+              🟢 En entrenamientos
+            </span>
+          )}
+          {isUsedInMatch && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30">
+              🔵 Usada en partido
+            </span>
+          )}
+          {!isClosed && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-warning/15 text-warning border border-warning/30">
+              🟡 Pendiente de cerrar
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-text-muted truncate mt-0.5">
+          {new Date(s.statDate).toLocaleDateString()} ·{' '}
+          {t('playersCount', { count: s.playerCount })}
+        </p>
+        {s.match && (
+          <p className="text-[10px] text-brand-primary mt-0.5">
+            {t('linkedToMatch', {
+              opponent: s.match.opponent,
+              date: new Date(s.match.date).toLocaleDateString(),
+            })}
+          </p>
+        )}
+      </div>
+      <div className="text-right text-xs text-text-muted whitespace-nowrap">
+        {s.teamScore != null && s.opponentScore != null && (
+          <span className="font-mono">
+            {s.teamScore}–{s.opponentScore}
+          </span>
+        )}
+      </div>
+    </button>
+  )
+})}
               </div>
             )}
           </CardBody>
