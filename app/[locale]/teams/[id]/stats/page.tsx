@@ -166,39 +166,48 @@ export default function TeamStatsPage() {
   }, [teamId, router, t, permissionsReady, canAccessPage])
 
   const fetchMatches = useCallback(
-    async (s: string) => {
+    async (s: string, teamIdsToFetch: string[]) => {
+      if (!teamIdsToFetch || teamIdsToFetch.length === 0) {
+        setMatches([])
+        return
+      }
       try {
-        const params = new URLSearchParams()
-        if (s) params.set('season', s)
-        const qs = params.toString()
-
-        const { data } = await api.get(
-          `/matches/team/${teamId}${qs ? `?${qs}` : ''}`,
-        )
-
-        const finished: MatchOption[] = Array.isArray(data)
-          ? data
-              .filter((m: any) => m.status === 'FINISHED')
-              .map((m: any) => ({
-                id: m.id,
-                date: m.date,
-                opponent: m.opponent,
-              }))
-          : []
-        setMatches(finished)
+        // Hacemos una petición por cada equipo y juntamos los partidos
+        const promises = teamIdsToFetch.map((tid) => {
+          const params = new URLSearchParams()
+          if (s) params.set('season', s)
+          const qs = params.toString()
+          return api.get(`/matches/team/${tid}${qs ? `?${qs}` : ''}`)
+        })
+        
+        const responses = await Promise.all(promises)
+        
+        const allFinished: MatchOption[] = responses
+          .flatMap((res) => res.data)
+          .filter((m: any) => m.status === 'FINISHED')
+          .map((m: any) => ({
+            id: m.id,
+            date: m.date,
+            opponent: m.opponent,
+          }))
+          
+        setMatches(allFinished)
       } catch {
         setMatches([])
       }
     },
-    [teamId],
+    [],
   )
 
   useEffect(() => {
-    if (!canViewStats) return // Solo cargamos la vista agregada si tiene view
+    if (!canViewStats) return
     if (mode === 'aggregate') {
-      fetchMatches(season)
+      // Asumimos que statsFilters.teamIds tiene los equipos seleccionados
+      // o si no, usamos [teamId] por defecto
+      const activeIds = statsFilters.teamIds.length > 0 ? statsFilters.teamIds : [teamId]
+      fetchMatches(season, activeIds)
     }
-  }, [season, fetchMatches, mode, canViewStats])
+  }, [season, fetchMatches, mode, canViewStats, statsFilters.teamIds, teamId])
 
   const loadSessions = useCallback(async () => {
     if (!canViewStats) return // Solo cargamos sesiones si tiene view

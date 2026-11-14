@@ -408,12 +408,35 @@ export default function BasketballTeamStatsTab({
                   }
                 }
 
+                
                 const seriesData =
                   groupBy === 'match'
-                    ? (trend.byMatch ?? []).map((m) => ({
-                        month: new Date(m.date).toISOString().slice(0, 10),
-                        value: applyFromMatch(m),
-                      }))
+                    ? (trend.byMatch ?? []).map((m: any) => {
+                        const dateStr = new Date(m.date).toLocaleDateString()
+                        const isTraining =
+                          m.opponent === 'Entrenamiento' || m.isTraining
+
+                        // Obtenemos la ubicación (Casa / Fuera)
+                        const locStr =
+                          m.location === 'HOME'
+                            ? 'Casa'
+                            : m.location === 'AWAY'
+                            ? 'Fuera'
+                            : ''
+
+                        const parts = [dateStr]
+                        if (isTraining) {
+                          parts.push('🏋️ Entrenamiento')
+                        } else {
+                          parts.push(`vs ${m.opponent}`)
+                          if (locStr) parts.push(locStr)
+                        }
+
+                        return {
+                          month: parts.join('\n'), // \n para saltos de línea
+                          value: applyFromMatch(m),
+                        }
+                      })
                     : (trend.series ??
                         trend.byMonth.map((m) => ({
                           month: m.month,

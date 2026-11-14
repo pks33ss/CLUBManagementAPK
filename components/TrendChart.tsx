@@ -24,6 +24,30 @@ interface Props {
   isPercentage?: boolean
 }
 
+// 👇 NUEVO COMPONENTE para pintar múltiples líneas en el eje X
+const CustomTick = (props: any) => {
+  const { x, y, payload } = props
+  const lines = String(payload.value).split('\n')
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      {lines.map((line: string, index: number) => (
+        <text
+          key={index}
+          x={0}
+          y={index * 14}
+          dy={12}
+          textAnchor="middle"
+          fill="#888"
+          fontSize={11}
+        >
+          {line}
+        </text>
+      ))}
+    </g>
+  )
+}
+
 export default function TrendChart({
   series,
   label,
@@ -55,14 +79,20 @@ export default function TrendChart({
       <ResponsiveContainer width="100%" height="100%">
         <LineChart
           data={series}
-          margin={{ top: 5, right: 10, left: -20, bottom: 0 }}
+          // Aumentamos el margen inferior para dejar espacio a las líneas del eje X
+          margin={{ top: 5, right: 10, left: -20, bottom: 20 }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="#2a2a2a" />
           <XAxis
             dataKey="month"
             stroke="#888"
-            fontSize={12}
-            tickFormatter={(m) => String(m).slice(2)}
+            fontSize={11}
+            tickLine={false}
+            axisLine={false}
+            tick={<CustomTick />} // 👈 Usamos el custom tick
+            height={60}           // 👈 Damos altura para las 3 líneas
+            interval="preserveStartEnd" // Evita que se solapen si hay muchos
+            // tickFormatter={(m) => String(m).slice(2)} // 👈 ELIMINADO
           />
           <YAxis
             stroke="#888"
@@ -78,7 +108,8 @@ export default function TrendChart({
               fontSize: 12,
             }}
             formatter={formatter as any}
-            labelFormatter={(l) => t('monthTooltip', { month: String(l) })}
+            // En el tooltip, cambiamos los saltos de línea por comas para que no quede feo
+            labelFormatter={(l) => String(l).replace(/\n/g, ' · ')}
           />
           <Line
             type="monotone"

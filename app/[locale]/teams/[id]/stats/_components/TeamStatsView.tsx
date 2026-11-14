@@ -97,8 +97,7 @@ export default function TeamStatsView({
 
   useEffect(() => {
     setTrendMetricState(readStoredTrendMetric(teamId))
-    setFilters((f) => ({ ...f, teamIds: [teamId] }))
-    matchesTouchedRef.current = false
+       matchesTouchedRef.current = false
     trainingsTouchedRef.current = false
   }, [teamId])
 
@@ -135,15 +134,21 @@ export default function TeamStatsView({
   }, [aggregateMode])
 
   // ── Preselección de partidos al entrar (vacío = todos) ──
-  useEffect(() => {
+    useEffect(() => {
     if (aggregateMode !== 'matches') return
     if (matchesTouchedRef.current) return
     if (!matches || matches.length === 0) return
-    if (filters.matchIds.length > 0) return // ya hay algo
-    setFilters((f) => ({
-      ...f,
-      matchIds: matches.map((m) => m.id),
-    }))
+     setFilters((f) => {
+      const currentIds = new Set(f.matchIds)
+      const newIds = matches.map((m) => m.id)
+      
+      // Si la selección actual ya contiene todos los partidos, no hacemos nada.
+      const allAlreadySelected = newIds.every((id) => currentIds.has(id))
+      if (allAlreadySelected && f.matchIds.length > 0) return f
+
+      // Si no, seleccionamos todos (los que había + los nuevos)
+      return { ...f, matchIds: newIds }
+    })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matches, aggregateMode])
 
@@ -388,22 +393,33 @@ export default function TeamStatsView({
   ])
 
   // ── Cambio de filtros con detección de "tocado por el usuario" ──
-  const handleFiltersChange = (next: StatsFiltersValue) => {
-    // Partidos
-    if (
-      next.matchIds.length !== filters.matchIds.length ||
-      next.matchIds.some((id) => !filters.matchIds.includes(id))
-    ) {
-      matchesTouchedRef.current = true
-    }
-    // Sesiones
-    if (
-      next.trainingSessionIds.length !== filters.trainingSessionIds.length ||
-      next.trainingSessionIds.some(
-        (id) => !filters.trainingSessionIds.includes(id),
-      )
-    ) {
-      trainingsTouchedRef.current = true
+   const handleFiltersChange = (next: StatsFiltersValue) => {
+    // Si cambia la selección de EQUIPOS, reseteamos los "touched" para que
+    // los partidos del nuevo equipo se autoseleccionen.
+    const teamsChanged = 
+      next.teamIds.length !== filters.teamIds.length ||
+      next.teamIds.some((id) => !filters.teamIds.includes(id))
+
+    if (teamsChanged) {
+      matchesTouchedRef.current = false
+      trainingsTouchedRef.current = false
+    } else {
+      // Partidos
+      if (
+        next.matchIds.length !== filters.matchIds.length ||
+        next.matchIds.some((id) => !filters.matchIds.includes(id))
+      ) {
+        matchesTouchedRef.current = true
+      }
+      // Sesiones
+      if (
+        next.trainingSessionIds.length !== filters.trainingSessionIds.length ||
+        next.trainingSessionIds.some(
+          (id) => !filters.trainingSessionIds.includes(id),
+        )
+      ) {
+        trainingsTouchedRef.current = true
+      }
     }
     setFilters(next)
   }
