@@ -490,8 +490,15 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
 
     try {
       await matchesApi.upsertPlayerStats(match.id, userId, payload)
-      await load()
-      onUpdate()
+    setStats((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          players: prev.players.map((p) =>
+            p.userId === userId ? { ...p, ...payload } : p
+          ),
+        }
+      })
     } catch (err: any) {
       alert(err.response?.data?.message || t('saveError'))
     }
@@ -558,8 +565,15 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
 
     try {
       await matchesApi.upsertPlayerStats(match.id, userId, payload)
-      await load()
-      onUpdate()
+      setStats((prev) => {
+        if (!prev) return prev
+        return {
+          ...prev,
+          players: prev.players.map((p) =>
+            p.userId === userId ? { ...p, ...payload } : p
+          ),
+        }
+      })
     } catch (err: any) {
       alert(err.response?.data?.message || t('saveError'))
     }

@@ -32,8 +32,9 @@ interface Match {
   notes: string
   teamScore: number | null
   opponentScore: number | null
+  callups?: any[] // 👈 AÑADIR
   _count?: {
-    callups: number
+    callups: number // 👈 AÑADIR
     playerStats: number
   }
 }
@@ -513,16 +514,15 @@ export default function TeamMatches() {
                 {match._count && (
                   <div className="flex gap-3 mt-3 pt-3 border-t border-border-subtle">
                     <span className="text-xs text-text-muted">
-                      {t('callupsCount', { count: match._count.callups })}
+                      {t('callupsCount', { count: match._count?.callups ?? 0 })}
                     </span>
                     <span className="text-xs text-text-muted">
                       {t('statsCount', { count: match._count.playerStats })}
                     </span>
                   </div>
                 )}
-              </div>
+ </div>
             )
-
             return canViewMatch ? (
               <Card key={match.id} hover>
                 <Link href={`/matches/${match.id}`} className="block">
@@ -536,9 +536,10 @@ export default function TeamMatches() {
             )
           })}
         </div>
-      )}
-
+        )}
       <Can resource="match" action="create" clubId={clubId} teamId={teamId}>
+
+
         {showCreateModal && (
           <CreateMatchModal
             teamId={teamId}
