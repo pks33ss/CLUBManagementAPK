@@ -259,7 +259,6 @@ export default function PlayerStatsView({
         seasons={seasons}
         players={[]}
         value={filters}
-        onChange={setFilters}
         loading={loading}
         matches={matches}
         teams={teams}

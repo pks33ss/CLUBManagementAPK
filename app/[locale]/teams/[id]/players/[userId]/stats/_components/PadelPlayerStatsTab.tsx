@@ -11,6 +11,7 @@ import type {
   PlayerByMatchPadel,
 } from '@/lib/api/teams'
 import type { SetResult } from '@/lib/api/matches'
+import { useState } from 'react'
 
 interface Props {
   data: PadelPlayerStatsResponse
@@ -60,6 +61,7 @@ export default function PadelPlayerStatsTab({
   onTrendMetricChange,
 }: Props) {
   const t = useTranslations('Players.stats')
+  const [groupBy, setGroupBy] = useState<'month' | 'match'>('month')
   const format = useFormatter()
 
   const { summary, byMatch, trend, player } = data
