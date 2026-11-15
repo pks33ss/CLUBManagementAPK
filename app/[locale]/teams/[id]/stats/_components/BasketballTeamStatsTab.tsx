@@ -393,6 +393,14 @@ export default function BasketballTeamStatsTab({
                     case 'tpPct': return m.threePointPct ?? 0
                     case 'ftPct': return m.freeThrowPct ?? 0
                     case 'twoPointersPct': return m.twoPointersPct ?? 0
+                                        case 'twoPointersMade': return m.twoPointersMade ?? 0
+                    case 'twoPointersAttempted': return m.twoPointersAttempted ?? 0
+                    case 'threePointersMade': return m.threePointersMade ?? 0
+                    case 'threePointersAttempted': return m.threePointersAttempted ?? 0
+                    case 'fgMade': return m.fieldGoalsMade ?? 0
+                    case 'fgAttempted': return m.fieldGoalsAttempted ?? 0
+                    case 'tpMade': return m.threePointersMade ?? 0
+                    case 'tpAttempted': return m.threePointersAttempted ?? 0
                     default: return m.winRate ?? 0
                   }
                 }
@@ -404,6 +412,14 @@ export default function BasketballTeamStatsTab({
                     case 'pointsPerMatch': return m.pointsPerMatch ?? 0
                     case 'opponentPoints': return m.opponentPoints ?? 0
                     case 'opponentPointsPerMatch': return m.opponentPointsPerMatch ?? 0
+                                        case 'twoPointersMade': return m.twoPointersMade ?? 0
+                    case 'twoPointersAttempted': return m.twoPointersAttempted ?? 0
+                    case 'threePointersMade': return m.threePointersMade ?? 0
+                    case 'threePointersAttempted': return m.threePointersAttempted ?? 0
+                    case 'fgMade': return m.fieldGoalsMade ?? 0
+                    case 'fgAttempted': return m.fieldGoalsAttempted ?? 0
+                    case 'tpMade': return m.threePointersMade ?? 0
+                    case 'tpAttempted': return m.threePointersAttempted ?? 0
                     default: return m.winRate ?? 0
                   }
                 }
@@ -424,7 +440,7 @@ export default function BasketballTeamStatsTab({
                             ? 'Fuera'
                             : ''
 
-                        const parts = [dateStr]
+                                                const parts = [dateStr]
                         if (isTraining) {
                           parts.push('🏋️ Entrenamiento')
                         } else {
@@ -432,9 +448,13 @@ export default function BasketballTeamStatsTab({
                           if (locStr) parts.push(locStr)
                         }
 
+                      // 👇 Añadimos el valor de la métrica al texto (sin unidades)
+                        const val = applyFromMatch(m)
+                        parts.push(`${val}`)
+
                         return {
                           month: parts.join('\n'), // \n para saltos de línea
-                          value: applyFromMatch(m),
+                          value: val,
                         }
                       })
                     : (trend.series ??

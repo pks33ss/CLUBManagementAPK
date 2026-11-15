@@ -69,11 +69,14 @@ export default function TrendChart({
     )
   }
 
-  const formatter = (value: unknown) => {
+    const formatter = (value: unknown) => {
     const n = value as number
-    return unit ? [`${n}${unit === '%' ? '%' : ` ${unit}`}`, label] : [n, label]
+    // Si la unidad es '%', mantenemos el '%'. Si es otra (t2, t3, pts, etc.), lo quitamos.
+    if (unit === '%') {
+      return [`${n}%`, label]
+    }
+    return [n, label]
   }
-
   return (
     <div style={{ width: '100%', height }}>
       <ResponsiveContainer width="100%" height="100%">

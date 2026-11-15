@@ -350,11 +350,21 @@ const [groupBy, setGroupBy] = useState<'month' | 'match'>('month')
                             case 'tpPct': return pct(m.threePointersMade, m.threePointersAttempted)
                             case 'twoPointersPct': return pct(m.twoPointersMade, m.twoPointersAttempted)
                             
+                                                        case 'twoPointersMade': return m.twoPointersMade ?? 0
+                            case 'twoPointersAttempted': return m.twoPointersAttempted ?? 0
+                            case 'threePointersMade': return m.threePointersMade ?? 0
+                            case 'threePointersAttempted': return m.threePointersAttempted ?? 0
+                            case 'fgMade': return m.fieldGoalsMade ?? 0
+                            case 'fgAttempted': return m.fieldGoalsAttempted ?? 0
+                            case 'tpMade': return m.threePointersMade ?? 0
+                            case 'tpAttempted': return m.threePointersAttempted ?? 0
                             default: return 0
                           }
                         }
 
-                        return { month: parts.join('\n'), value: getMatchValue() }
+                                                                        const val = getMatchValue()
+                        parts.push(`${val}`)
+                        return { month: parts.join('\n'), value: val }
                       })
                     : (trend.series ??
                         trend.byMonth.map((m) => ({
