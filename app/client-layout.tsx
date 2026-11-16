@@ -14,6 +14,7 @@ import { getVisibleTabs } from '@/lib/menuTabs'
 import { usePermissionsContext } from '@/lib/permissions/permissions-provider'
 import RegisterServiceWorker from '@/components/RegisterServiceWorker'
 import InstallPrompt from '@/components/InstallPrompt'
+import CookieBanner from '@/components/CookieBanner'
 
 export function ClientLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
@@ -235,6 +236,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
           <LanguageSelector />
         </div>
         {children}
+        <CookieBanner />   
       </div>
     )
   }
@@ -397,8 +399,8 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
         <>
           <div className="fixed inset-0 bg-black/70 z-40" onClick={() => setSidebarOpen(false)} />
 
-          <div className="fixed top-0 left-0 h-full w-80 max-w-[85vw] bg-surface shadow-2xl z-50 flex flex-col border-r border-border-subtle">
-            <div className="p-4 border-b border-border-subtle flex items-center justify-between">
+             <div className="fixed top-0 left-0 h-full w-80 max-w-[85vw] bg-surface shadow-2xl z-50 flex flex-col border-r border-border-subtle">
+              <div className="p-4 border-b border-border-subtle flex items-center justify-between">
               <div className="flex items-center">
                 <Logo variant="mark" height={40} />
               </div>
@@ -509,7 +511,7 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
               <div className="mb-2 pb-2 border-b border-border-subtle">
                 <LanguageSelector mobile />
               </div>
- <Link
+                 <Link
                 href="/help"
                 onClick={() => setSidebarOpen(false)}
                 className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary"
@@ -525,6 +527,37 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                 <span className="text-lg">⚙️</span>
                 <span className="text-sm font-medium">{t('settings')}</span>
               </Link>
+
+              {/* ── Lote 1C — Enlaces legales (visibles para todos) ── */}
+<div className="pt-3 mt-1 border-t border-border-subtle">
+  <p className="text-[10px] uppercase font-semibold text-text-muted mb-2 px-2">
+    {t('legal')}
+  </p>
+  <Link
+    href="/legal/aviso-legal"
+    onClick={() => setSidebarOpen(false)}
+    className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary"
+  >
+    <span className="text-lg">⚖️</span>
+    <span className="text-sm font-medium">{t('legalNotice')}</span>
+  </Link>
+  <Link
+    href="/legal/privacidad"
+    onClick={() => setSidebarOpen(false)}
+    className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary"
+  >
+    <span className="text-lg">🔒</span>
+    <span className="text-sm font-medium">{t('privacyPolicy')}</span>
+  </Link>
+  <Link
+    href="/legal/cookies"
+    onClick={() => setSidebarOpen(false)}
+    className="flex items-center gap-3 p-2 rounded-lg hover:bg-surface-elevated transition text-text-secondary hover:text-text-primary"
+  >
+    <span className="text-lg">🍪</span>
+    <span className="text-sm font-medium">{t('cookiePolicy')}</span>
+  </Link>
+</div>
 
               {(currentUser?.role === 'SUPER_ADMIN' || isAnyClubAdmin) && (
                 <>
@@ -547,6 +580,16 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
                       <span className="text-sm font-medium">{t('admin')}</span>
                     </Link>
                   )}
+                  {currentUser?.role === 'SUPER_ADMIN' && (
+  <Link
+    href="/admin/legal"
+    onClick={() => setSidebarOpen(false)}
+    className="flex items-center gap-3 p-2 rounded-lg hover:bg-brand-primary/10 transition text-brand-primary"
+  >
+    <span className="text-lg">⚖️</span>
+    <span className="text-sm font-medium">{t('legalConfig')}</span>
+  </Link>
+)}
                 </>
               )}
 
@@ -585,6 +628,9 @@ export function ClientLayout({ children }: { children: React.ReactNode }) {
           </div>
         </>
       )}
+
+      {/* Lote 3B — Banner de cookies */}
+      <CookieBanner />
     </div>
   )
 }

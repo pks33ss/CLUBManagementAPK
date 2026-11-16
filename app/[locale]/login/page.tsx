@@ -9,6 +9,7 @@ import api from '@/lib/api'
 import { Button, Input } from '@/components/ui'
 import { Logo } from '@/components/ui/Logo'
 import { useLocale } from 'next-intl'
+import LegalFooter from '@/components/LegalFooter'
 
 const GoogleLoginButton = dynamic(
   () => import('@/components/GoogleLoginButton'),
@@ -57,12 +58,10 @@ function LoginContent() {
     localStorage.clear()
 
     try {
-      // 1. Registrar el evento de demo abierta (público, sin token)
       api.post('/analytics/demo-open').catch((err) => {
         console.warn('No se pudo registrar la apertura de demo', err)
       })
 
-      // 2. Login de demo
       const response = await api.post('/auth/login', {
         email: 'demo@joinsportapp.com',
         password: 'demo123',
@@ -118,7 +117,7 @@ function LoginContent() {
   }
 
   return (
-    <div className="min-h-screen bg-bg-base flex items-center justify-center p-4">
+    <div className="min-h-screen bg-bg-base flex flex-col items-center justify-center p-4">
       <div className="bg-surface border border-border-subtle rounded-2xl shadow-2xl w-full max-w-md p-8">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-6">
@@ -211,6 +210,9 @@ function LoginContent() {
           </p>
         </div>
       </div>
+
+      {/* Lote 5 — Enlaces legales */}
+      <LegalFooter className="mt-6" />
     </div>
   )
 }

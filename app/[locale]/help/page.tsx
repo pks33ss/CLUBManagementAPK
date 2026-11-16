@@ -6,7 +6,16 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Card, CardBody } from '@/components/ui'
 
-type TopicKey = 'gettingStarted' | 'teams' | 'members' | 'matches' | 'training' | 'playbook' | 'settings' | 'roles'
+type TopicKey =
+  | 'gettingStarted'
+  | 'teams'
+  | 'members'
+  | 'matches'
+  | 'training'
+  | 'stats'
+  | 'playbook'
+  | 'settings'
+  | 'roles'
 
 const TOPICS: TopicKey[] = [
   'gettingStarted',
@@ -14,9 +23,10 @@ const TOPICS: TopicKey[] = [
   'members',
   'matches',
   'training',
+  'stats',
   'playbook',
   'settings',
-  'roles', // ✅ NUEVO
+  'roles',
 ]
 
 export default function HelpPage() {
@@ -79,7 +89,7 @@ export default function HelpPage() {
                 </div>
               )}
 
-              {/* ── Roles y Permisos (NUEVO) ── */}
+              {/* ── Roles y Permisos ── */}
               {activeTopic === 'roles' && (
                 <div className="space-y-6 text-text-secondary">
                   <p>{t('content.roles.intro')}</p>
@@ -141,15 +151,91 @@ export default function HelpPage() {
                 </div>
               )}
 
-              {/* ── Resto de temas (pendientes de ampliar) ── */}
-              {activeTopic !== 'gettingStarted' && activeTopic !== 'roles' && (
-                <div className="text-text-secondary">
-                  <p>{t(`content.${activeTopic}.desc`)}</p>
-                  <div className="mt-6 p-4 bg-surface-elevated rounded-lg border border-border-subtle text-sm italic text-text-muted">
-                    Contenido ampliado próximamente...
+              {/* ── Estadísticas (NUEVO) ── */}
+              {activeTopic === 'stats' && (
+                <div className="space-y-6 text-text-secondary">
+                  <p>{t('content.stats.intro')}</p>
+
+                  {/* 1. Crear una sesión de estadísticas */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-text-primary mb-2">
+                      {t('content.stats.createTitle')}
+                    </h3>
+                    <p className="mb-2">{t('content.stats.createDesc')}</p>
+                    <ul className="list-disc list-inside space-y-1 pl-2">
+                      <li>{t('content.stats.createStep1')}</li>
+                      <li>{t('content.stats.createStep2')}</li>
+                      <li>{t('content.stats.createStep3')}</li>
+                      <li>{t('content.stats.createStep4')}</li>
+                    </ul>
+                  </div>
+
+                  {/* 2. Editar la sesión y sus tiros */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-text-primary mb-2">
+                      {t('content.stats.editTitle')}
+                    </h3>
+                    <p className="mb-2">{t('content.stats.editDesc')}</p>
+                    <ul className="list-disc list-inside space-y-1 pl-2">
+                      <li>{t('content.stats.editStep1')}</li>
+                      <li>{t('content.stats.editStep2')}</li>
+                      <li>{t('content.stats.editStep3')}</li>
+                      <li>{t('content.stats.editStep4')}</li>
+                    </ul>
+                  </div>
+
+                  {/* 3. Incluir en el agregado de entrenamientos */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-text-primary mb-2">
+                      {t('content.stats.trainingAggregateTitle')}
+                    </h3>
+                    <p className="mb-2">{t('content.stats.trainingAggregateDesc')}</p>
+                    <ul className="list-disc list-inside space-y-1 pl-2">
+                      <li>{t('content.stats.trainingAggregateStep1')}</li>
+                      <li>{t('content.stats.trainingAggregateStep2')}</li>
+                      <li>{t('content.stats.trainingAggregateStep3')}</li>
+                    </ul>
+                  </div>
+
+                  {/* 4. Usar entrenamientos en las estadísticas de partidos */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-text-primary mb-2">
+                      {t('content.stats.matchesAggregateTitle')}
+                    </h3>
+                    <p className="mb-2">{t('content.stats.matchesAggregateDesc')}</p>
+                    <ul className="list-disc list-inside space-y-1 pl-2">
+                      <li>{t('content.stats.matchesAggregateStep1')}</li>
+                      <li>{t('content.stats.matchesAggregateStep2')}</li>
+                      <li>{t('content.stats.matchesAggregateStep3')}</li>
+                    </ul>
+                  </div>
+
+                  {/* 5. Filtros y gráfico de evolución */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-text-primary mb-2">
+                      {t('content.stats.filtersTitle')}
+                    </h3>
+                    <p className="mb-2">{t('content.stats.filtersDesc')}</p>
+                    <ul className="list-disc list-inside space-y-1 pl-2">
+                      <li>{t('content.stats.filtersStep1')}</li>
+                      <li>{t('content.stats.filtersStep2')}</li>
+                      <li>{t('content.stats.filtersStep3')}</li>
+                    </ul>
                   </div>
                 </div>
               )}
+
+              {/* ── Resto de temas ── */}
+              {activeTopic !== 'gettingStarted' &&
+                activeTopic !== 'roles' &&
+                activeTopic !== 'stats' && (
+                  <div className="text-text-secondary">
+                    <p>{t(`content.${activeTopic}.desc`)}</p>
+                    <div className="mt-6 p-4 bg-surface-elevated rounded-lg border border-border-subtle text-sm italic text-text-muted">
+                      Contenido ampliado próximamente...
+                    </div>
+                  </div>
+                )}
             </CardBody>
           </Card>
         </div>

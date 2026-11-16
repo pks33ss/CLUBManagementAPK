@@ -8,6 +8,7 @@ import dynamic from 'next/dynamic'
 import api from '@/lib/api'
 import { Button, Input } from '@/components/ui'
 import { Logo } from '@/components/ui/Logo'
+import LegalFooter from '@/components/LegalFooter'
 
 const GoogleLoginButton = dynamic(
   () => import('@/components/GoogleLoginButton'),
@@ -36,9 +37,10 @@ function RegisterContent() {
   const invitationCode = searchParams.get('invitation')
   const redirectUrl = searchParams.get('redirect')
   const locale = useLocale()
-  
+
   const t = useTranslations('Auth')
   const tCommon = useTranslations('Common')
+  const tLegal = useTranslations('Legal.register')
 
   const [formData, setFormData] = useState({
     name: '',
@@ -46,6 +48,7 @@ function RegisterContent() {
     email: '',
     password: '',
   })
+  const [acceptedLegal, setAcceptedLegal] = useState(false)
   const [invitation, setInvitation] = useState<InvitationInfo | null>(null)
   const [loadingInvitation, setLoadingInvitation] = useState(false)
   const [invitationError, setInvitationError] = useState('')
@@ -82,6 +85,12 @@ function RegisterContent() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!acceptedLegal) {
+      setError(tLegal('mustAccept'))
+      return
+    }
+
     setLoading(true)
     setError('')
 
@@ -91,12 +100,12 @@ function RegisterContent() {
         invitationCode: invitationCode || undefined,
       })
       setSuccess(true)
-      
+
       setTimeout(() => {
         const finalUrl = redirectUrl ? decodeURIComponent(redirectUrl) : '/login'
         router.push(finalUrl)
       }, 1500)
-      
+
     } catch (err: any) {
       console.error('Error:', err)
       setError(
@@ -111,6 +120,12 @@ function RegisterContent() {
   const handleGoogleSuccess = async (credentialResponse: any) => {
     if (!credentialResponse?.credential) {
       setError(t('googleTokenError'))
+      return
+    }
+
+    // En Google register también exigimos aceptar legal
+    if (!acceptedLegal) {
+      setError(tLegal('mustAccept'))
       return
     }
 
@@ -141,7 +156,7 @@ function RegisterContent() {
   }
 
   return (
-    <div className="min-h-screen bg-bg-base flex items-center justify-center p-4">
+    <div className="min-h-screen bg-bg-base flex flex-col items-center justify-center p-4">
       <div className="bg-surface border border-border-subtle rounded-2xl shadow-2xl w-full max-w-md p-8">
         <div className="text-center mb-8">
           <div className="flex justify-center mb-6">
@@ -248,8 +263,38 @@ function RegisterContent() {
                 autoComplete="new-password"
                 required
                 minLength={6}
-                helperText={t('passwordMinChars')} 
+                helperText={t('passwordMinChars')}
               />
+
+              {/* Lote 5 — Checkbox de aceptación legal obligatorio */}
+              <label className="flex items-start gap-2 text-xs text-text-secondary cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={acceptedLegal}
+                  onChange={(e) => setAcceptedLegal(e.target.checked)}
+                  className="mt-0.5"
+                  required
+                />
+                <span>
+                  {tLegal('acceptPrefix')}{' '}
+                  <Link
+                    href="/legal/privacidad"
+                    target="_blank"
+                    className="text-brand-primary hover:underline font-medium"
+                  >
+                    {tLegal('privacy')}
+                  </Link>{' '}
+                  {tLegal('and')}{' '}
+                  <Link
+                    href="/legal/aviso-legal"
+                    target="_blank"
+                    className="text-brand-primary hover:underline font-medium"
+                  >
+                    {tLegal('legalNotice')}
+                  </Link>
+                  .
+                </span>
+              </label>
 
               {error && (
                 <div className="bg-danger/10 text-danger border border-danger/20 p-3 rounded-lg text-sm">
@@ -259,7 +304,7 @@ function RegisterContent() {
 
               <Button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !acceptedLegal}
                 loading={loading}
                 className="w-full"
                 size="lg"
@@ -304,6 +349,9 @@ function RegisterContent() {
           </p>
         </div>
       </div>
+
+      {/* Lote 5 — Enlaces legales */}
+      <LegalFooter className="mt-6" />
     </div>
   )
 }

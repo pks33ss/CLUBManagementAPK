@@ -76,8 +76,13 @@
   "teams": "Teams",
   "matches": "Matches",
   "settings": "Settings",
+  "legal": "Legal",
+"legalNotice": "Legal Notice",
+"privacyPolicy": "Privacy Policy",
+"cookiePolicy": "Cookie Policy",
   "clubs": "My Clubs",
   "admin": "Admin · Users",
+  "legalConfig": "Legal Settings",
   "noClub": "No club",
   "help": "Help",
   "sidebar": {
@@ -171,6 +176,338 @@
   "OJEADOR": "Scout",
   "unknown": "Unknown role"
 },
+"Legal": {
+  "backToApp": "Back to app",
+  "lastUpdated": "Last updated: {date}",
+  "otherPages": "Other legal pages:",
+  "configWarning": "The tax information on this page is not yet complete. The administrator must fill it in Settings → Legal.",
+  "pages": {
+    "avisoLegal": "Legal Notice",
+    "privacidad": "Privacy Policy",
+    "cookies": "Cookie Policy"
+  },
+  "common": {
+    "loading": "Loading...",
+    "error": "Could not load the document. Please try again later.",
+    "locale": "en"
+  },
+  "register": {
+  "acceptPrefix": "I have read and accept the",
+  "privacy": "Privacy Policy",
+  "and": "and the",
+  "legalNotice": "Legal Notice",
+  "mustAccept": "You must accept the Privacy Policy and the Legal Notice to register."
+},
+  "AvisoLegal": {
+    "title": "Legal Notice",
+    "intro": "In compliance with Article 10 of Law 34/2002, of July 11, on Information Society Services and Electronic Commerce (LSSI-CE), the identifying details of the owner of this website are provided below.",
+    "sections": {
+      "owner": "1. Owner identification",
+      "purpose": "2. Purpose",
+      "terms": "3. Terms of use",
+      "ip": "4. Intellectual and industrial property",
+      "data": "5. Personal data protection",
+      "cookies": "6. Cookies",
+      "liability": "7. Liability",
+      "links": "8. External links",
+      "modifications": "9. Modifications",
+      "law": "10. Applicable law and jurisdiction"
+    },
+    "fields": {
+      "razonSocial": "Company name",
+      "nif": "Tax ID (NIF / CIF)",
+      "direccion": "Address",
+      "email": "Contact email",
+      "telefono": "Phone",
+      "dominio": "Website",
+      "actividad": "Activity",
+      "registroMercantil": "Registry data"
+    },
+    "purpose": {
+      "text": "JoinSport is a sports management platform that allows clubs, coaches, and players to organize teams, plan training sessions, manage statistics, and coordinate competitions. Accessing this website grants the status of user and implies full and unreserved acceptance of all provisions included in this Legal Notice."
+    },
+    "terms": {
+      "intro": "Access to and use of this website is governed by these conditions. Using the site grants the status of user and implies acceptance of these conditions.",
+      "requirements": {
+        "title": "3.1. Requirements for use",
+        "text": "To register and use the services, you must be at least 14 years old and provide truthful information. Minors under 14 must have the consent of their parents or legal guardians."
+      },
+      "obligations": {
+        "title": "3.2. User obligations",
+        "text": "The user agrees to make proper use of the content and services, refraining from: (a) carrying out illegal activities or activities contrary to good faith and public order; (b) disseminating racist, xenophobic, pornographic content or content that violates fundamental rights; (c) introducing viruses or any code capable of causing damage; (d) attempting to access other users' accounts."
+      },
+      "prohibitions": {
+        "title": "3.3. Prohibitions",
+        "text": "Use of the site for unauthorized commercial purposes, mass data extraction (scraping) without express permission, and impersonation of other users or the site owner is prohibited."
+      }
+    },
+    "ip": {
+      "text": "All content on the website (texts, images, logos, software, databases, graphic design, and source code) is the property of the owner or of third parties who have authorized its use and is protected by intellectual and industrial property laws. Reproduction, distribution, or transformation without express authorization is prohibited."
+    },
+    "data": {
+      "text": "The processing of personal data that the user provides when registering or using the services is governed by Regulation (EU) 2016/679 (GDPR) and Organic Law 3/2018 (LOPDGDD). The owner informs that the data will be processed for the purpose of managing the relationship with the user, providing the contracted services, and complying with legal obligations. The user may exercise their rights of access, rectification, erasure, objection, restriction, and portability by contacting the email indicated in section 1.",
+      "link": "View full Privacy Policy →"
+    },
+    "cookies": {
+      "text": "This website uses its own and third-party cookies to improve the user experience, analyze traffic, and personalize content. The user can configure their browser to reject the use of cookies, although this may affect the operation of the site. For more information, see the Cookie Policy.",
+      "link": "View full Cookie Policy →"
+    },
+    "liability": {
+      "text": "The owner is not responsible for damages of any nature that may arise from the use of the website, the unavailability of the service, data loss, or the presence of viruses or other harmful elements. Nor is it responsible for the content of third-party sites that may be accessed through links from this site."
+    },
+    "links": {
+      "text": "The website may contain links to third-party pages. The owner assumes no responsibility for the content, information, or services that appear on such sites, which are beyond its control."
+    },
+    "modifications": {
+      "text": "The owner reserves the right to modify, at any time and without prior notice, the presentation, configuration, and content of this Legal Notice, as well as the terms of use. Modifications will take effect upon their publication on the website."
+    },
+    "law": {
+      "text": "The relationship between the owner and the user will be governed by current Spanish law, with the Courts and Tribunals of Seville (Spain) being competent to resolve any controversy, unless applicable law provides otherwise in consumer matters."
+    }
+  },
+  "Privacidad": {
+  "title": "Privacy Policy",
+  "intro": "This Privacy Policy governs the processing of personal data by JoinSport in the provision of its services, in compliance with Regulation (EU) 2016/679 (GDPR) and Organic Law 3/2018 (LOPDGDD).",
+  "sections": {
+    "owner": "1. Data controller",
+    "data": "2. Personal data we process",
+    "purposes": "3. Purposes and legal bases",
+    "minors": "4. Minors and health data",
+    "recipients": "5. Recipients and data processors",
+    "transfers": "6. International data transfers",
+    "retention": "7. Retention periods",
+    "rights": "8. Data subject rights",
+    "complaint": "9. Complaint to the supervisory authority",
+    "security": "10. Data security",
+    "cookies": "11. Cookies",
+    "changes": "12. Changes to this policy"
+  },
+  "fields": {
+    "razonSocial": "Company name",
+    "nif": "Tax ID (NIF / CIF)",
+    "direccion": "Address",
+    "email": "Privacy contact email",
+    "telefono": "Phone",
+    "registroMercantil": "Registry data"
+  },
+  "owner": {
+    "dpo": "The appointment of a Data Protection Officer (DPO) is not mandatory for JoinSport's activity. However, any data protection inquiry can be addressed to the email indicated in this section."
+  },
+  "data": {
+    "intro": "In order to provide our services, we process the following categories of personal data:",
+    "categories": {
+      "title": "Data categories",
+      "identification": "**Identification data:** name, surname, username, date of birth, ID (optional), photo/avatar.",
+      "contact": "**Contact data:** email address, phone number, postal address (optional).",
+      "sport": "**Sports data:** club, team, category, jersey number, position, game statistics, training and match attendance.",
+      "health": "**Health data:** allergies, injuries, medical insurance and emergency contacts (entered by the club or coach).",
+      "tutors": "**Legal guardian data:** name, phone, relationship with the minor and pickup authorization.",
+      "usage": "**Usage data:** IP address, device type, browser, pages visited, access date and time."
+    }
+  },
+  "purposes": {
+    "intro": "We process your personal data for the following purposes and legal bases:",
+    "service": {
+      "title": "3.1. Provision of the service",
+      "text": "Management of the account, clubs, teams, training sessions, matches, statistics, playbook, payments and internal communications. **Legal basis:** performance of a contract (Art. 6.1.b GDPR)."
+    },
+    "health": {
+      "title": "3.2. Health data",
+      "text": "Management of allergies, injuries and emergency contacts to ensure athlete safety. **Legal basis:** explicit consent of the data subject or their legal guardian (Art. 9.2.a GDPR)."
+    },
+    "communications": {
+      "title": "3.3. Communications",
+      "text": "Sending invitations, payment reminders, club notifications and transactional emails. **Legal basis:** performance of the contract and legitimate interest (Art. 6.1.b and 6.1.f GDPR)."
+    },
+    "legal": {
+      "title": "3.4. Legal obligations",
+      "text": "Compliance with tax, accounting and fraud prevention obligations. **Legal basis:** legal obligation (Art. 6.1.c GDPR)."
+    }
+  },
+  "minors": {
+    "text": "JoinSport is intended for **users over 14 years of age**. Registration of minors under 14 requires the express consent of their parents or legal guardians, in accordance with Article 7 of the LOPDGDD.",
+    "tutorConsent": "When a club or coach enters personal data of a minor (including health data), **they declare under their responsibility** that they have the express authorization of the parents or legal guardians for such processing, or that they act under the existing sports or educational relationship.",
+    "coachDeclaration": "JoinSport acts as a data processor for the data entered by the club, limited to storing the information and providing the technical service. The club is responsible for obtaining the legal guardian's consent."
+  },
+  "recipients": {
+    "intro": "To provide the service, JoinSport shares data with the following providers, all of them under data processing agreements pursuant to Art. 28 GDPR:",
+    "providers": {
+      "neon": "**Neon (Neon Inc., USA):** PostgreSQL database where data is stored.",
+      "render": "**Render (Render Services, Inc., USA):** backend infrastructure.",
+      "vercel": "**Vercel (Vercel Inc., USA):** frontend hosting and access logs.",
+      "resend": "**Resend (Resend, Inc., USA):** transactional email delivery.",
+      "cloudinary": "**Cloudinary (Cloudinary Ltd., USA):** image storage and optimization (avatars, logos, boards).",
+      "google": "**Google (Google LLC, USA):** Google OAuth login."
+    },
+    "publicBodies": "We may also disclose data to Public Administrations, judges and courts when there is a legal obligation or it is necessary for the defense of our rights."
+  },
+  "transfers": {
+    "text": "Some of our providers are located in the United States, which implies an **international data transfer** under Articles 44 et seq. of the GDPR.",
+    "scc": "Such transfers are covered by the **Standard Contractual Clauses (SCC)** approved by the European Commission or by the **Data Privacy Framework (DPF)** where the provider is adhered. You can request more information by writing to the email indicated in section 1."
+  },
+  "retention": {
+    "text": "Data will be kept for as long as the contractual or sports relationship with the club or user is maintained. Once terminated, it will be kept **for one (1) year** to address possible legal liabilities, and then deleted or anonymized.",
+    "deletion": "Health data will be kept only while the athlete is active in the club, unless the law requires a longer period."
+  },
+  "rights": {
+    "intro": "You may exercise the following rights at any time:",
+    "list": {
+      "access": "**Access:** know what data of yours we process.",
+      "rectification": "**Rectification:** correct inaccurate or incomplete data.",
+      "erasure": "**Erasure:** request deletion of your data.",
+      "opposition": "**Objection:** object to certain processing.",
+      "restriction": "**Restriction:** request that we restrict processing.",
+      "portability": "**Portability:** receive your data in a structured format.",
+      "withdraw": "**Withdraw consent** at any time, without affecting the lawfulness of prior processing."
+    },
+    "howTo": "To exercise these rights, send an email to"
+  },
+  "complaint": {
+    "text": "If you consider that we have not properly addressed your rights, you may file a complaint with the **Spanish Data Protection Agency (AEPD)** , the competent supervisory authority in Spain:"
+  },
+  "security": {
+    "text": "JoinSport applies appropriate technical and organizational measures to ensure the security of personal data, including encryption in transit (HTTPS), role-based access control, hashed passwords, periodic backups and audit logging of access to sensitive data."
+  },
+  "cookies": {
+    "text": "JoinSport uses its own and third-party cookies for site operation, authentication and traffic analysis. You can consult the details and configure your preferences in the Cookie Policy.",
+    "link": "View Cookie Policy →"
+  },
+  "changes": {
+    "text": "JoinSport reserves the right to modify this Privacy Policy to adapt it to legislative or jurisprudential developments. Modifications will be published on this page and will take effect upon publication."
+  }
+},
+"Cookies": {
+  "title": "Cookie Policy",
+  "intro": "This Cookie Policy explains what cookies are, what types JoinSport uses, for what purpose, and how you can manage or disable them.",
+  "sections": {
+    "what": "1. What are cookies?",
+    "types": "2. Types of cookies under the law",
+    "used": "3. Cookies we use",
+    "legal": "4. Legal basis for their use",
+    "manage": "5. How to manage or disable cookies",
+    "changes": "6. Changes to this policy",
+    "contact": "7. Contact"
+  },
+  "what": {
+    "text": "Cookies are small text files that websites store on your device (computer, mobile or tablet) when you visit them. They help the site remember information about your visit, such as your preferred language or whether you are logged in. Data stored in the browser's `localStorage`, which we use for the same technical purpose, is also considered cookies for the purposes of this policy."
+  },
+  "types": {
+    "intro": "Under Spanish law (Art. 22.2 LSSI-CE) and European law (ePrivacy Directive), cookies are classified as:",
+    "technical": "**Technical cookies (necessary):** enable the basic functioning of the site, such as keeping you logged in or remembering your language. **They do not require prior consent.**",
+    "analytics": "**Analytics cookies:** allow us to measure traffic and analyze user behavior to improve the service. **They require prior consent.**",
+    "advertising": "**Advertising cookies:** allow showing personalized ads based on your browsing habits. **They require prior consent.**"
+  },
+  "used": {
+    "intro": "JoinSport **only uses technical cookies and local storage** strictly necessary for the operation of the service. **We do not use analytics, advertising or profiling cookies.**",
+    "technicalTitle": "3.1. Own technical cookies",
+    "technicalText": "These are used directly by JoinSport for the platform to work. They are not shared with third parties.",
+    "thirdPartyTitle": "3.2. Third-party cookies",
+    "thirdPartyText": "JoinSport **does not use third-party cookies** for advertising or analysis. However, if in the future we integrate services that require them (for example, Google Analytics), we will update this policy and request your prior consent before activating them. Google OAuth logins manage their own cookies from `accounts.google.com`, outside JoinSport's control, and are governed by Google's privacy policy."
+  },
+  "table": {
+    "name": "Name",
+    "purpose": "Purpose",
+    "duration": "Duration",
+    "provider": "Owner",
+    "rows": {
+      "token": "Authenticated user session token.",
+      "refreshToken": "Token to renew the session without logging in again.",
+      "user": "Basic user data on the client (name, role).",
+      "activeTeamId": "Remembers the last active team selected.",
+      "locale": "User's preferred language (es/en).",
+      "consent": "Cookie banner consent record."
+    },
+    "durations": {
+      "session": "Session",
+      "week": "7 days",
+      "persistent": "Persistent",
+      "year": "1 year"
+    }
+  },
+  "legal": {
+    "text": "**Technical cookies** are exempt from the prior consent requirement under Article 22.2 of the LSSI-CE, which exempts cookies strictly necessary for the provision of a service expressly requested by the user. Since we do not use analytics or advertising cookies, JoinSport **does not require prior consent** for the use of cookies. However, we show an informative banner for transparency and to allow you to expressly accept our policy."
+  },
+  "manage": {
+    "intro": "You can allow, block or delete cookies installed on your device by configuring your browser options. Below are links to the instructions for the most common browsers:",
+    "chrome": "**Google Chrome:** Settings → Privacy and security → Cookies and other site data.",
+    "firefox": "**Mozilla Firefox:** Preferences → Privacy & Security → Cookies and Site Data.",
+    "safari": "**Safari:** Preferences → Privacy → Manage Website Data.",
+    "edge": "**Microsoft Edge:** Settings → Cookies and site permissions.",
+    "warning": "⚠️ **Important notice:** if you block or delete technical cookies, you may not be able to log in or use some JoinSport features."
+  },
+  "changes": {
+    "text": "JoinSport reserves the right to modify this Cookie Policy to adapt it to legislative or technical developments. Modifications will be published on this page and will take effect upon publication. If in the future we introduce analytics or advertising cookies, we will request your prior consent."
+  },
+  "contact": {
+    "text": "If you have any questions about this Cookie Policy, you can contact us at:",
+    "domain": "Website"
+  }
+}
+},
+"Admin": {
+  "LegalConfig": {
+    "title": "Legal Settings",
+    "subtitle": "This data will appear in the Legal Notice, Privacy Policy and Cookie Policy. Only the super admin can edit it.",
+    "checkingAccess": "Checking access...",
+    "loading": "Loading settings...",
+    "errorLoad": "Error loading legal settings",
+    "retry": "Retry",
+    "notConfiguredWarning": "You haven't completed the legal settings yet. Fill in at least Company Name, Tax ID and Address so the Legal Notice is valid under Spanish LSSI-CE.",
+    "save": "Save changes",
+    "saving": "Saving...",
+    "saveSuccess": "✅ Legal settings saved successfully",
+    "errorSave": "Error saving legal settings",
+    "sections": {
+      "fiscal": "🏢 Tax identification",
+      "address": "📍 Registered address",
+      "contact": "📧 Contact & domain",
+      "registry": "📋 Commercial Registry (optional)"
+    },
+    "fields": {
+      "razonSocial": "Company name / Owner name",
+      "nif": "Tax ID (NIF / CIF)",
+      "actividad": "Activity / Corporate purpose",
+      "direccion": "Address",
+      "ciudad": "City",
+      "codigoPostal": "Postal code",
+      "pais": "Country",
+      "telefono": "Phone",
+      "emailContacto": "General contact email",
+      "emailPrivacidad": "Privacy / GDPR email",
+      "emailCookies": "Cookies email",
+      "dominio": "Website domain",
+      "registroMercantil": "Commercial Registry data"
+    },
+    "hints": {
+      "razonSocial": "Legal name of the company or self-employed person. E.g.: JoinSport S.L.",
+      "nif": "Tax identification number. E.g.: B12345678",
+      "actividad": "Short activity description. E.g.: Sports management SaaS platform",
+      "direccion": "Street, number, floor, door. E.g.: 1 Example Street, 2A",
+      "emailContacto": "Public contact email. E.g.: info@joinsportapp.com",
+      "emailPrivacidad": "Email to exercise GDPR rights. If empty, contact email will be used.",
+      "emailCookies": "Email for cookie inquiries. If empty, contact email will be used.",
+      "dominio": "Main domain. E.g.: joinsportapp.com",
+      "registroMercantil": "Only if you are a company. E.g.: Commercial Registry of Seville, Volume 1234, Folio 56, Sheet SE-78901"
+    },
+    "placeholders": {
+      "razonSocial": "JoinSport S.L.",
+      "nif": "B12345678",
+      "actividad": "Sports management SaaS platform",
+      "direccion": "1 Example Street, 2A",
+      "ciudad": "Seville",
+      "codigoPostal": "41001",
+      "pais": "Spain",
+      "telefono": "+34 600 000 000",
+      "emailContacto": "info@joinsportapp.com",
+      "emailPrivacidad": "privacy@joinsportapp.com",
+      "emailCookies": "cookies@joinsportapp.com",
+      "dominio": "joinsportapp.com",
+      "registroMercantil": "Commercial Registry of Seville, Volume 1234, Folio 56, Sheet SE-78901"
+    }
+  }
+},
+
+
 "Members": {
   "invite": {
     "title": "Invite member to team",
@@ -690,6 +1027,7 @@
   "members": "👥 Member management",
   "matches": "🏆 Matches & stats",
   "training": "🏋️ Training & attendance",
+  "stats": "📊 Stats and sessions",
   "playbook": "📘 Tactical playbook",
   "settings": "⚙️ Settings",
   "roles": "🔐 Roles & permissions"
@@ -760,7 +1098,38 @@
   "settings": {
     "title": "Settings",
     "desc": "Customize your account and app experience."
-  }
+  },
+  "stats": {
+      "title": "📊 Stats and sessions",
+      "intro": "In this section you'll learn how to create stats sessions, include them in training aggregates or use them in match stats.",
+      "createTitle": "📝 Create a stats session",
+      "createDesc": "Stats sessions let you record data from a match or a training.",
+      "createStep1": "Go to the team's **Stats** tab and click **New session**.",
+      "createStep2": "Fill in the name, date, session type (competition, friendly, training or other) and optionally the opponent.",
+      "createStep3": "When created, the player table will be empty. Click **Add player** to include the participants.",
+      "createStep4": "Fill in the 2-point, 3-point and free-throw attempts and makes. Points are calculated automatically.",
+      "editTitle": "✏️ Edit a session",
+      "editDesc": "You can change the name, date and player data at any time.",
+      "editStep1": "Click on the session from the **Sessions** tab.",
+      "editStep2": "Change the name or date and click **Save changes**.",
+      "editStep3": "Click any cell in the table to edit shots, rebounds, assists, etc. Changes are saved when leaving the field or pressing **Enter**.",
+      "editStep4": "If the session is closed, click **Reopen session** to edit it again.",
+      "trainingAggregateTitle": "🏋️ Include in training aggregate",
+      "trainingAggregateDesc": "You can mark a training-type session so its data is added to the team's training aggregate.",
+      "trainingAggregateStep1": "Open the session and turn on **Add to team aggregates**.",
+      "trainingAggregateStep2": "Go to **Stats → Training Aggregate** to see the combined data from all marked sessions.",
+      "trainingAggregateStep3": "You can filter by specific sessions in the **Training sessions** selector.",
+      "matchesAggregateTitle": "🏆 Use training in match stats",
+      "matchesAggregateDesc": "If you want to add training data to match stats, turn on the toggle in the **Match Aggregate** tab.",
+      "matchesAggregateStep1": "Go to **Stats → Match Aggregate** and turn on **Include trainings**.",
+      "matchesAggregateStep2": "A selector with the marked training sessions will appear. Select the ones you want to add.",
+      "matchesAggregateStep3": "Totals and charts will update with the selected match + training data.",
+      "filtersTitle": "🔎 Filters and trend chart",
+      "filtersDesc": "Filters let you narrow down the data you see in stats.",
+      "filtersStep1": "In **Match Aggregate**, matches are pre-selected by default. If you deselect all, the view empties.",
+      "filtersStep2": "In **Training Aggregate**, the selector shows only the sessions marked with the toggle.",
+      "filtersStep3": "In the **Trend** (evolution chart) you can group by match or by month and choose the metric (points, rebounds, FT%, 2P, 3P, etc.). The X axis shows the date, the opponent, the location (Home/Away) and the metric value."
+    }
 
 }
 },
@@ -2909,5 +3278,25 @@
     "Ala-Pívot": "Power Forward",
     "Pívot": "Center",
     "Sin posición": "No position"
+  },
+  "Cookies": {
+  "ariaLabel": "Cookie notice",
+  "title": "🍪 We use cookies",
+  "description": "We use technical cookies necessary for the app to work. We do not use analytics or advertising cookies.",
+  "moreInfo": "More information",
+  "buttons": {
+    "accept": "Accept all",
+    "reject": "Reject",
+    "configure": "Configure"
+  },
+  "config": {
+    "technical": "Technical cookies (necessary)",
+    "technicalHint": "Essential for the app. Cannot be disabled.",
+    "analytics": "Analytics cookies",
+    "analyticsHint": "We do not currently use analytics cookies.",
+    "advertising": "Advertising cookies",
+    "advertisingHint": "We do not currently use advertising cookies.",
+    "note": "JoinSport only uses technical cookies. This panel is informative."
   }
+}
 }
