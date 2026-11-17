@@ -667,7 +667,8 @@
       "filtersStep1": "En **Agregado Partidos**, los partidos vienen preseleccionados por defecto. Si desmarcas todos, la vista se vacía.",
       "filtersStep2": "En **Agregado Entrenamientos**, el selector muestra solo las sesiones marcadas con el toggle.",
       "filtersStep3": "En el **Trend** (gráfico de evolución) puedes agrupar por partido o por mes, y elegir la métrica (puntos, rebotes, % TL, T2, T3, etc.). El eje X muestra la fecha, el rival, la ubicación (Casa/Fuera) y el valor de la métrica."
-    }
+ 
+   }
 }
 
 },
@@ -1485,6 +1486,9 @@
     "subtitle": "Resumen y análisis del rendimiento del equipo",
     "newSession": "Nueva sesión",
 	"sessionSaveChanges": "Guardar cambios",
+	    "closeSessionButton": "Cerrar sesión",
+    "closeSessionConfirm": "¿Seguro que quieres cerrar esta sesión? Ya no podrás editarla hasta que la reabras.",
+    "reopenSessionConfirm": "¿Seguro que quieres reabrir esta sesión?"  ,
 	"viewAggregateMatches": "Agregado Partidos",
     "viewAggregateTrainings": "Agregado Entrenamientos",
     "trainingModeBanner": "Estás viendo los datos acumulados de entrenamientos (sin rivales).",

@@ -3,7 +3,7 @@
 // El hub en sí NO se gatea internamente (ya lo hace `settings/page.tsx` con
 // `<Can role_admin:view>`). Aquí gateamos cada tarjeta con su permiso real:
 //   - "Roles" → role_admin:view
-//   - "Stats" → stats_config:view
+//   - "Stats" → DESACTIVADO (ver comentario abajo)
 // Si el usuario no tiene ninguno de los dos, se muestra un mensaje en lugar
 // de un grid vacío.
 
@@ -63,7 +63,11 @@ export default function PermissionsHubPage() {
   // Permisos derivados para las tarjetas del hub
   const clubId = activeClub?.id ?? null
   const canViewRoles = permissionsReady && can('role_admin', 'view', { clubId })
-  const canViewStatsConfig = permissionsReady && can('stats_config', 'view', { clubId })
+  // ⚠️ DESACTIVADO: la configuración de visibilidad por roles ya no se usa.
+  // La configuración de columnas ahora es por usuario y se hace desde los
+  // engranajes ⚙️ de cada tabla. Mantenemos la página por si se reactiva
+  // en el futuro, pero ocultamos la tarjeta del hub.
+  const canViewStatsConfig = false
   const hasAnyCard = canViewRoles || canViewStatsConfig
 
   // 1) Permisos cargando
@@ -148,23 +152,7 @@ export default function PermissionsHubPage() {
             </Link>
           </Can>
 
-          <Can resource="stats_config" action="view" clubId={clubId}>
-            <Link
-              href="/settings/permissions/stats"
-              className="group bg-surface rounded-xl shadow border border-border-subtle hover:border-brand-primary transition p-6 flex flex-col"
-            >
-              <div className="text-4xl mb-3">📊</div>
-              <h2 className="text-lg font-semibold text-text-primary mb-2 group-hover:text-brand-primary transition">
-                {t('statsCardTitle')}
-              </h2>
-              <p className="text-sm text-text-secondary flex-1 mb-4">
-                {t('statsCardDescription')}
-              </p>
-              <div className="text-sm font-medium text-brand-primary">
-                {t('enter')}
-              </div>
-            </Link>
-          </Can>
+          {/* ⚠️ Tarjeta "Stats" desactivada — ver comentario en canViewStatsConfig */}
         </div>
       )}
     </div>

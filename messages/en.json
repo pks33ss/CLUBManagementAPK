@@ -1175,6 +1175,9 @@
     "playersTitle": "👥 Players ({count})",
     "totals": "TOTALS",
     "open": "Open",
+	    "closeSessionButton": "Close session",
+    "closeSessionConfirm": "Are you sure you want to close this session? You won't be able to edit it until you reopen it.",
+    "reopenSessionConfirm": "Are you sure you want to reopen this session?",
 
     "labels": {
       "matches": "Matches",

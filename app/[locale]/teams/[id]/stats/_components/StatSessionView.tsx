@@ -1,3 +1,5 @@
+// frontend-web/app/[locale]/teams/[id]/stats/_components/StatSessionView.tsx
+
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
@@ -6,6 +8,8 @@ import { useTranslations } from 'next-intl'
 import api from '@/lib/api'
 import { Button, Card, CardBody, Input, Modal } from '@/components/ui'
 import { getSportIcon } from '@/lib/sport'
+import ColumnSettingsModal from '@/components/ColumnSettingsModal'
+import { useColumnPreferences, type ColumnDef } from '@/lib/hooks/useColumnPreferences'
 
 interface SessionPlayerStats {
   id: string
@@ -118,12 +122,31 @@ export default function StatSessionView({
   const [selectedCandidates, setSelectedCandidates] = useState<string[]>([])
   const [updatingFlag, setUpdatingFlag] = useState(false)
   const [reopening, setReopening] = useState(false)
+  const [closing, setClosing] = useState(false)
   const [editLabel, setEditLabel] = useState('')
   const [editDate, setEditDate] = useState('')
   const [isSavingHeader, setIsSavingHeader] = useState(false)
+  const [showColumnSettings, setShowColumnSettings] = useState(false)
 
   // Estado para manejar la edición sin perder el foco
   const [editingValues, setEditingValues] = useState<Record<string, string>>({})
+
+  // ── CONFIGURACIÓN DE COLUMNAS ──
+  const availableColumns: ColumnDef[] = useMemo(() => {
+    const cols: ColumnDef[] = [
+      { key: 'PLAYER', label: t('metrics.player'), isRequired: true },
+    ]
+    STAT_KEYS.forEach((f) => {
+      cols.push({ key: f.key, label: t(f.labelKey as any) })
+    })
+    cols.push({ key: 'TWO_P', label: '2P' })
+    cols.push({ key: 'THREE_P', label: '3P' })
+    cols.push({ key: 'FT', label: 'TL' })
+    cols.push({ key: 'PTS', label: 'PTS' })
+    return cols
+  }, [t])
+
+  const { hiddenColumns, toggleColumn, resetColumns, isVisible } = useColumnPreferences(`stat-session-${sessionId}-players`, availableColumns)
 
   const load = async () => {
     setLoading(true)
@@ -276,7 +299,6 @@ export default function StatSessionView({
     }
   }
 
-
   const toggleIncludeInStats = async () => {
     if (!canManage || !session) return
     setUpdatingFlag(true)
@@ -304,6 +326,24 @@ export default function StatSessionView({
       alert(err.response?.data?.message || t('sessionSaveError'))
     } finally {
       setReopening(false)
+    }
+  }
+
+   const closeSession = async () => {
+    if (!canManage || !session) return
+    if (!confirm(t('closeSessionConfirm'))) return
+    setClosing(true)
+    try {
+      // El backend usa `reopen: false` para cerrar (o `reopen: true` para reabrir)
+      await api.patch(`/stat-sessions/${session.id}`, {
+  reopen: false,
+  closedAt: new Date().toISOString(),
+})
+      await load()
+    } catch (err: any) {
+      alert(err.response?.data?.message || t('sessionSaveError'))
+    } finally {
+      setClosing(false)
     }
   }
 
@@ -414,14 +454,22 @@ export default function StatSessionView({
           )}
 
           {canManage && !session.closedAt && (
-            <div className="mt-4">
+            <div className="mt-4 flex flex-col sm:flex-row gap-2">
               <Button
                 onClick={() =>
                   router.push(`/stat-sessions/${session.id}/live`)
                 }
-                className="w-full !bg-danger hover:!bg-danger/90 !text-bg-base text-base py-3 font-semibold"
+                className="flex-1 !bg-danger hover:!bg-danger/90 !text-bg-base text-base py-3 font-semibold"
               >
                 {t('sessionLiveButton')}
+              </Button>
+              <Button
+                onClick={closeSession}
+                loading={closing}
+                variant="secondary"
+                className="!text-warning !border-warning/30 hover:!bg-warning/10 py-3 font-semibold"
+              >
+               {t('closeSessionButton')}
               </Button>
             </div>
           )}
@@ -454,21 +502,46 @@ export default function StatSessionView({
             <h3 className="text-lg font-semibold text-text-primary">
               {t('playersTitle', { count: players.length })}
             </h3>
-            {canManage && (
-              <div className="flex gap-2">
-                <Button size="sm" onClick={openAddModal}>
-                  {t('sessionAddPlayer')}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={deleteSession}
-                  className="!text-danger"
-                >
-                  {t('sessionDeleteButton')}
-                </Button>
-              </div>
-            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setShowColumnSettings(true)}
+                className="text-text-muted hover:text-brand-primary transition p-1 rounded hover:bg-surface-elevated"
+                title="Configurar columnas"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"/>
+                  <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/>
+                  <path d="M12 2v2"/>
+                  <path d="M12 22v-2"/>
+                  <path d="m17 20.66-1-1.73"/>
+                  <path d="M11 10.27 7 3.34"/>
+                  <path d="m20.66 17-1.73-1"/>
+                  <path d="m3.34 7 1.73 1"/>
+                  <path d="M14 12h8"/>
+                  <path d="M2 12h2"/>
+                  <path d="m20.66 7-1.73 1"/>
+                  <path d="m3.34 17 1.73-1"/>
+                  <path d="m17 3.34-1 1.73"/>
+                  <path d="m11 13.73-4 6.93"/>
+                </svg>
+              </button>
+              {canManage && (
+                <>
+                  <Button size="sm" onClick={openAddModal}>
+                    {t('sessionAddPlayer')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={deleteSession}
+                    className="!text-danger"
+                  >
+                    {t('sessionDeleteButton')}
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
 
           {players.length === 0 ? (
@@ -480,31 +553,39 @@ export default function StatSessionView({
               <table className="w-full text-xs">
                 <thead className="bg-surface-elevated">
                   <tr>
-                    <th className="px-2 py-2 text-left text-[10px] font-medium text-text-muted uppercase">
-                      {t('metrics.player')}
-                    </th>
-                    {/* Columnas de minutos y varios */}
+                    <th className="px-2 py-2 text-left text-[10px] font-medium text-text-muted uppercase sticky left-0 bg-surface-elevated z-10">
+  {t('metrics.player')}
+</th>
                     {statFields.map((f) => (
-                      <th
-                        key={f.key}
-                        className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase"
-                      >
-                        {f.label}
-                      </th>
+                      isVisible(f.key) && (
+                        <th
+                          key={f.key}
+                          className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase"
+                        >
+                          {f.label}
+                        </th>
+                      )
                     ))}
-                    {/* Tiros */}
-                    <th className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase">
-                      2P
-                    </th>
-                    <th className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase">
-                      3P
-                    </th>
-                    <th className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase">
-                      TL
-                    </th>
-                    <th className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase">
-                      PTS
-                    </th>
+                    {isVisible('TWO_P') && (
+                      <th className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase">
+                        2P
+                      </th>
+                    )}
+                    {isVisible('THREE_P') && (
+                      <th className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase">
+                        3P
+                      </th>
+                    )}
+                    {isVisible('FT') && (
+                      <th className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase">
+                        TL
+                      </th>
+                    )}
+                    {isVisible('PTS') && (
+                      <th className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase">
+                        PTS
+                      </th>
+                    )}
                     <th className="px-2 py-2 w-8"></th>
                   </tr>
                 </thead>
@@ -512,12 +593,12 @@ export default function StatSessionView({
                                  <tbody className="divide-y divide-border-subtle">
                   {players.map((p) => (
                     <tr key={p.userId} className="hover:bg-surface-elevated group transition-colors">
-                      <td className="px-2 py-1.5 font-medium text-text-primary whitespace-nowrap text-sm">
-                        {p.user.name} {p.user.lastName}
-                      </td>
+                      <td className="px-2 py-1.5 font-medium text-text-primary whitespace-nowrap text-sm sticky left-0 bg-bg-base group-hover:bg-surface-elevated z-10 transition-colors">
+  {p.user.name} {p.user.lastName}
+</td>
                       
-                      {/* Campos generales */}
                       {statFields.map((f) => {
+                        if (!isVisible(f.key)) return null
                         const cellKey = `${p.userId}-${f.key}`
                         const originalValue = (p as any)[f.key]
                         const displayValue = editingValues[cellKey] !== undefined
@@ -537,19 +618,15 @@ export default function StatSessionView({
                               }}
                               onBlur={(e) => {
                                 const val = e.target.value
-                                setEditingValues(prev => {
-                                  const next = { ...prev }
-                                  delete next[cellKey]
-                                  return next
-                                })
+                                
                                 if (val !== String(originalValue === 0 ? '' : originalValue ?? '')) {
                                   savePlayerField(p.userId, f.key, val)
                                 }
                               }}
-                              disabled={!canManage || isSaving}
+                               disabled={!canManage}
                               placeholder="0"
                               className={`w-10 px-1 py-1 text-center text-sm bg-surface border rounded-md transition 
-                                ${isSaving ? 'border-brand-primary opacity-50' : 'border-border-subtle focus:border-brand-primary focus:outline-none'}
+                                ${isSaving ? 'border-brand-primary' : 'border-border-subtle focus:border-brand-primary focus:outline-none'}
                                 group-hover:border-text-muted/30
                               `}
                             />
@@ -557,123 +634,126 @@ export default function StatSessionView({
                         )
                       })}
 
-                      {/* 2P */}
-                      <td className="px-1 py-1 text-center whitespace-nowrap">
-                        <div className="inline-flex items-center gap-1 bg-surface border border-border-subtle rounded-md px-1.5 py-1 group-hover:border-text-muted/30 focus-within:border-brand-primary focus-within:ring-1 focus-within:ring-brand-primary transition-all">
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            value={editingValues[`${p.userId}-twoPointersMade`] !== undefined ? editingValues[`${p.userId}-twoPointersMade`] : (p.twoPointersMade === 0 ? '' : p.twoPointersMade ?? '')}
-                            onChange={(e) => setEditingValues(prev => ({ ...prev, [`${p.userId}-twoPointersMade`]: e.target.value }))}
-                            onBlur={(e) => {
-                              const val = e.target.value
-                              setEditingValues(prev => { const next = { ...prev }; delete next[`${p.userId}-twoPointersMade`]; return next; })
-                              savePlayerField(p.userId, 'twoPointersMade', val)
-                            }}
-                            disabled={!canManage || savingPlayer === `${p.userId}-twoPointersMade`}
-                            className="w-7 px-0 py-0 text-center text-sm bg-transparent focus:outline-none placeholder:text-text-muted/40"
-                            placeholder="0"
-                          />
-                          <span className="text-text-muted/40 text-[10px]">/</span>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            value={editingValues[`${p.userId}-twoPointersAttempted`] !== undefined ? editingValues[`${p.userId}-twoPointersAttempted`] : (p.twoPointersAttempted === 0 ? '' : p.twoPointersAttempted ?? '')}
-                            onChange={(e) => setEditingValues(prev => ({ ...prev, [`${p.userId}-twoPointersAttempted`]: e.target.value }))}
-                            onBlur={(e) => {
-                              const val = e.target.value
-                              setEditingValues(prev => { const next = { ...prev }; delete next[`${p.userId}-twoPointersAttempted`]; return next; })
-                              savePlayerField(p.userId, 'twoPointersAttempted', val)
-                            }}
-                            disabled={!canManage || savingPlayer === `${p.userId}-twoPointersAttempted`}
-                            className="w-7 px-0 py-0 text-center text-sm bg-transparent focus:outline-none placeholder:text-text-muted/40"
-                            placeholder="0"
-                          />
-                        </div>
-                      </td>
+                      {isVisible('TWO_P') && (
+                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                          <div className="inline-flex items-center gap-1 bg-surface border border-border-subtle rounded-md px-1.5 py-1 group-hover:border-text-muted/30 focus-within:border-brand-primary focus-within:ring-1 focus-within:ring-brand-primary transition-all">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              value={editingValues[`${p.userId}-twoPointersMade`] !== undefined ? editingValues[`${p.userId}-twoPointersMade`] : (p.twoPointersMade === 0 ? '' : p.twoPointersMade ?? '')}
+                              onChange={(e) => setEditingValues(prev => ({ ...prev, [`${p.userId}-twoPointersMade`]: e.target.value }))}
+                              onBlur={(e) => {
+                                const val = e.target.value
+                                setEditingValues(prev => { const next = { ...prev }; delete next[`${p.userId}-twoPointersMade`]; return next; })
+                                savePlayerField(p.userId, 'twoPointersMade', val)
+                              }}
+                              disabled={!canManage}
+                              className="w-7 px-0 py-0 text-center text-sm bg-transparent focus:outline-none placeholder:text-text-muted/40"
+                              placeholder="0"
+                            />
+                            <span className="text-text-muted/40 text-[10px]">/</span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              value={editingValues[`${p.userId}-twoPointersAttempted`] !== undefined ? editingValues[`${p.userId}-twoPointersAttempted`] : (p.twoPointersAttempted === 0 ? '' : p.twoPointersAttempted ?? '')}
+                              onChange={(e) => setEditingValues(prev => ({ ...prev, [`${p.userId}-twoPointersAttempted`]: e.target.value }))}
+                              onBlur={(e) => {
+                                const val = e.target.value
+                                setEditingValues(prev => { const next = { ...prev }; delete next[`${p.userId}-twoPointersAttempted`]; return next; })
+                                savePlayerField(p.userId, 'twoPointersAttempted', val)
+                              }}
+                              disabled={!canManage}
+                              className="w-7 px-0 py-0 text-center text-sm bg-transparent focus:outline-none placeholder:text-text-muted/40"
+                              placeholder="0"
+                            />
+                          </div>
+                        </td>
+                      )}
 
-                      {/* 3P */}
-                      <td className="px-1 py-1 text-center whitespace-nowrap">
-                        <div className="inline-flex items-center gap-1 bg-surface border border-border-subtle rounded-md px-1.5 py-1 group-hover:border-text-muted/30 focus-within:border-brand-primary focus-within:ring-1 focus-within:ring-brand-primary transition-all">
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            value={editingValues[`${p.userId}-threePointersMade`] !== undefined ? editingValues[`${p.userId}-threePointersMade`] : (p.threePointersMade === 0 ? '' : p.threePointersMade ?? '')}
-                            onChange={(e) => setEditingValues(prev => ({ ...prev, [`${p.userId}-threePointersMade`]: e.target.value }))}
-                            onBlur={(e) => {
-                              const val = e.target.value
-                              setEditingValues(prev => { const next = { ...prev }; delete next[`${p.userId}-threePointersMade`]; return next; })
-                              savePlayerField(p.userId, 'threePointersMade', val)
-                            }}
-                            disabled={!canManage || savingPlayer === `${p.userId}-threePointersMade`}
-                            className="w-7 px-0 py-0 text-center text-sm bg-transparent focus:outline-none placeholder:text-text-muted/40"
-                            placeholder="0"
-                          />
-                          <span className="text-text-muted/40 text-[10px]">/</span>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            value={editingValues[`${p.userId}-threePointersAttempted`] !== undefined ? editingValues[`${p.userId}-threePointersAttempted`] : (p.threePointersAttempted === 0 ? '' : p.threePointersAttempted ?? '')}
-                            onChange={(e) => setEditingValues(prev => ({ ...prev, [`${p.userId}-threePointersAttempted`]: e.target.value }))}
-                            onBlur={(e) => {
-                              const val = e.target.value
-                              setEditingValues(prev => { const next = { ...prev }; delete next[`${p.userId}-threePointersAttempted`]; return next; })
-                              savePlayerField(p.userId, 'threePointersAttempted', val)
-                            }}
-                            disabled={!canManage || savingPlayer === `${p.userId}-threePointersAttempted`}
-                            className="w-7 px-0 py-0 text-center text-sm bg-transparent focus:outline-none placeholder:text-text-muted/40"
-                            placeholder="0"
-                          />
-                        </div>
-                      </td>
+                      {isVisible('THREE_P') && (
+                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                          <div className="inline-flex items-center gap-1 bg-surface border border-border-subtle rounded-md px-1.5 py-1 group-hover:border-text-muted/30 focus-within:border-brand-primary focus-within:ring-1 focus-within:ring-brand-primary transition-all">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              value={editingValues[`${p.userId}-threePointersMade`] !== undefined ? editingValues[`${p.userId}-threePointersMade`] : (p.threePointersMade === 0 ? '' : p.threePointersMade ?? '')}
+                              onChange={(e) => setEditingValues(prev => ({ ...prev, [`${p.userId}-threePointersMade`]: e.target.value }))}
+                              onBlur={(e) => {
+                                const val = e.target.value
+                                setEditingValues(prev => { const next = { ...prev }; delete next[`${p.userId}-threePointersMade`]; return next; })
+                                savePlayerField(p.userId, 'threePointersMade', val)
+                              }}
+                              disabled={!canManage}
+                              className="w-7 px-0 py-0 text-center text-sm bg-transparent focus:outline-none placeholder:text-text-muted/40"
+                              placeholder="0"
+                            />
+                            <span className="text-text-muted/40 text-[10px]">/</span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              value={editingValues[`${p.userId}-threePointersAttempted`] !== undefined ? editingValues[`${p.userId}-threePointersAttempted`] : (p.threePointersAttempted === 0 ? '' : p.threePointersAttempted ?? '')}
+                              onChange={(e) => setEditingValues(prev => ({ ...prev, [`${p.userId}-threePointersAttempted`]: e.target.value }))}
+                              onBlur={(e) => {
+                                const val = e.target.value
+                                setEditingValues(prev => { const next = { ...prev }; delete next[`${p.userId}-threePointersAttempted`]; return next; })
+                                savePlayerField(p.userId, 'threePointersAttempted', val)
+                              }}
+                              disabled={!canManage}
+                              className="w-7 px-0 py-0 text-center text-sm bg-transparent focus:outline-none placeholder:text-text-muted/40"
+                              placeholder="0"
+                            />
+                          </div>
+                        </td>
+                      )}
 
-                      {/* TL */}
-                      <td className="px-1 py-1 text-center whitespace-nowrap">
-                        <div className="inline-flex items-center gap-1 bg-surface border border-border-subtle rounded-md px-1.5 py-1 group-hover:border-text-muted/30 focus-within:border-brand-primary focus-within:ring-1 focus-within:ring-brand-primary transition-all">
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            value={editingValues[`${p.userId}-freeThrowsMade`] !== undefined ? editingValues[`${p.userId}-freeThrowsMade`] : (p.freeThrowsMade === 0 ? '' : p.freeThrowsMade ?? '')}
-                            onChange={(e) => setEditingValues(prev => ({ ...prev, [`${p.userId}-freeThrowsMade`]: e.target.value }))}
-                            onBlur={(e) => {
-                              const val = e.target.value
-                              setEditingValues(prev => { const next = { ...prev }; delete next[`${p.userId}-freeThrowsMade`]; return next; })
-                              savePlayerField(p.userId, 'freeThrowsMade', val)
-                            }}
-                            disabled={!canManage || savingPlayer === `${p.userId}-freeThrowsMade`}
-                            className="w-7 px-0 py-0 text-center text-sm bg-transparent focus:outline-none placeholder:text-text-muted/40"
-                            placeholder="0"
-                          />
-                          <span className="text-text-muted/40 text-[10px]">/</span>
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            value={editingValues[`${p.userId}-freeThrowsAttempted`] !== undefined ? editingValues[`${p.userId}-freeThrowsAttempted`] : (p.freeThrowsAttempted === 0 ? '' : p.freeThrowsAttempted ?? '')}
-                            onChange={(e) => setEditingValues(prev => ({ ...prev, [`${p.userId}-freeThrowsAttempted`]: e.target.value }))}
-                            onBlur={(e) => {
-                              const val = e.target.value
-                              setEditingValues(prev => { const next = { ...prev }; delete next[`${p.userId}-freeThrowsAttempted`]; return next; })
-                              savePlayerField(p.userId, 'freeThrowsAttempted', val)
-                            }}
-                            disabled={!canManage || savingPlayer === `${p.userId}-freeThrowsAttempted`}
-                            className="w-7 px-0 py-0 text-center text-sm bg-transparent focus:outline-none placeholder:text-text-muted/40"
-                            placeholder="0"
-                          />
-                        </div>
-                      </td>
+                      {isVisible('FT') && (
+                        <td className="px-1 py-1 text-center whitespace-nowrap">
+                          <div className="inline-flex items-center gap-1 bg-surface border border-border-subtle rounded-md px-1.5 py-1 group-hover:border-text-muted/30 focus-within:border-brand-primary focus-within:ring-1 focus-within:ring-brand-primary transition-all">
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              value={editingValues[`${p.userId}-freeThrowsMade`] !== undefined ? editingValues[`${p.userId}-freeThrowsMade`] : (p.freeThrowsMade === 0 ? '' : p.freeThrowsMade ?? '')}
+                              onChange={(e) => setEditingValues(prev => ({ ...prev, [`${p.userId}-freeThrowsMade`]: e.target.value }))}
+                              onBlur={(e) => {
+                                const val = e.target.value
+                                setEditingValues(prev => { const next = { ...prev }; delete next[`${p.userId}-freeThrowsMade`]; return next; })
+                                savePlayerField(p.userId, 'freeThrowsMade', val)
+                              }}
+                              disabled={!canManage}
+                              className="w-7 px-0 py-0 text-center text-sm bg-transparent focus:outline-none placeholder:text-text-muted/40"
+                              placeholder="0"
+                            />
+                            <span className="text-text-muted/40 text-[10px]">/</span>
+                            <input
+                              type="text"
+                              inputMode="numeric"
+                              pattern="[0-9]*"
+                              value={editingValues[`${p.userId}-freeThrowsAttempted`] !== undefined ? editingValues[`${p.userId}-freeThrowsAttempted`] : (p.freeThrowsAttempted === 0 ? '' : p.freeThrowsAttempted ?? '')}
+                              onChange={(e) => setEditingValues(prev => ({ ...prev, [`${p.userId}-freeThrowsAttempted`]: e.target.value }))}
+                              onBlur={(e) => {
+                                const val = e.target.value
+                                setEditingValues(prev => { const next = { ...prev }; delete next[`${p.userId}-freeThrowsAttempted`]; return next; })
+                                savePlayerField(p.userId, 'freeThrowsAttempted', val)
+                              }}
+                             disabled={!canManage}
+                              className="w-7 px-0 py-0 text-center text-sm bg-transparent focus:outline-none placeholder:text-text-muted/40"
+                              placeholder="0"
+                            />
+                          </div>
+                        </td>
+                      )}
 
-                      {/* PTS (calculados) */}
-                      <td className="px-2 py-1.5 text-center font-bold text-brand-primary text-sm">
-                        {((p.twoPointersMade || 0) * 2) + ((p.threePointersMade || 0) * 3) + (p.freeThrowsMade || 0)}
-                      </td>
+                      {isVisible('PTS') && (
+                        <td className="px-2 py-1.5 text-center font-bold text-brand-primary text-sm">
+                          {((p.twoPointersMade || 0) * 2) + ((p.threePointersMade || 0) * 3) + (p.freeThrowsMade || 0)}
+                        </td>
+                      )}
 
-                      {/* Botón eliminar */}
                       <td className="px-1 py-1 text-center">
                         {canManage && (
                           <button
@@ -793,6 +873,16 @@ export default function StatSessionView({
           </>
         )}
       </Modal>
+
+      <ColumnSettingsModal
+        isOpen={showColumnSettings}
+        onClose={() => setShowColumnSettings(false)}
+        columns={availableColumns}
+        hiddenColumns={hiddenColumns}
+        onToggle={toggleColumn}
+        onReset={resetColumns}
+        title="Configurar columnas de la sesión"
+      />
     </div>
   )
 }

@@ -4,7 +4,7 @@ import type { Membership, MembershipWithUser } from '@/types/membership'
 export const membershipsApi = {
   async findMine(): Promise<Membership[]> {
     const { data } = await api.get('/users/me/memberships')
-    return data
+    return data.memberships ?? []
   },
 
   async findByTeam(teamId: string): Promise<MembershipWithUser[]> {

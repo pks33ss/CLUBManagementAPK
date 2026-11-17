@@ -1,39 +1,15 @@
-// archivo: frontend-web/app/[locale]/settings/permissions/stats/page.tsx
-// Lote 9.3 — Alineado con la guía: el botón "Configure" de la página de
-// estadísticas exige `stats:edit`, así que esta página acepta `stats:view`
-// o `stats:edit` para entrar.
+// frontend-web/app/[locale]/settings/permissions/stats/page.tsx
+// ⚠️ DESACTIVADA: la configuración de visibilidad por roles ya no se usa.
+// La configuración de columnas ahora es por usuario (engranajes ⚙️ en cada
+// tabla). Esta página se mantiene accesible por URL directa pero muestra un
+// aviso informativo en vez del editor.
 
 'use client'
 
 import { useRouter } from '@/navigation'
-import { useActiveTeam } from '@/lib/ActiveTeamContext'
-import { usePermissionsContext } from '@/lib/permissions/permissions-provider'
-import { Can } from '@/lib/permissions/can'
-import TeamStatsConfigEditor from '@/app/[locale]/teams/[id]/stats/config/_components/TeamStatsConfigEditor'
 
 export default function StatsVisibilityPage() {
   const router = useRouter()
-  const { activeTeam, loading: loadingTeams } = useActiveTeam()
-
-  const {
-    can,
-    loading: permissionsLoading,
-    error: permissionsError,
-  } = usePermissionsContext()
-
-  const permissionsReady = !permissionsLoading && !permissionsError
-
-  const clubId = activeTeam?.club?.id ?? null
-  const teamId = activeTeam?.id ?? null
-
-  // ✅ Usamos 'stats' (no 'stats_config')
-  const canViewStats =
-    permissionsReady && can('stats', 'view', { clubId, teamId })
-  const canEditStats =
-    permissionsReady && can('stats', 'edit', { clubId, teamId })
-
-  // Permitimos entrar si tiene view O edit
-  const canAccessPage = canViewStats || canEditStats
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -55,80 +31,36 @@ export default function StatsVisibilityPage() {
         </button>
       </div>
 
-      {/* Contenido */}
-
-      {/* 1) Sin equipo activo */}
-      {!activeTeam && !loadingTeams && (
-        <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
-          <div className="text-6xl mb-4">🔐</div>
-          <h3 className="text-xl font-semibold text-text-primary mb-2">
-            No hay equipo activo
-          </h3>
-          <p className="text-text-secondary">
-            Selecciona un equipo desde el menú superior para ver sus
-            permisos.
-          </p>
+      {/* Aviso: configuración deshabilitada */}
+      <div className="bg-info/10 border border-info/30 rounded-xl p-6 text-center">
+        <div className="text-5xl mb-4">⚙️</div>
+        <h2 className="text-xl font-semibold text-text-primary mb-2">
+          Configuración de columnas por usuario
+        </h2>
+        <p className="text-text-secondary text-sm max-w-2xl mx-auto mb-6">
+          La configuración de visibilidad por roles ya no se utiliza.
+          Ahora cada usuario puede elegir qué columnas quiere ver en cada
+          tabla de estadísticas, pulsando el icono{' '}
+          <span className="inline-block bg-surface-elevated border border-border-subtle rounded px-1.5 py-0.5 text-xs">
+            ⚙️
+          </span>{' '}
+          en la esquina superior derecha de la tabla.
+        </p>
+        <div className="flex gap-3 justify-center flex-wrap">
+          <button
+            onClick={() => router.push('/settings/permissions')}
+            className="px-4 py-2 text-sm bg-surface border border-border-subtle rounded-lg text-text-primary hover:bg-surface-elevated transition"
+          >
+            ← Volver a Permisos
+          </button>
+          <button
+            onClick={() => router.push('/teams')}
+            className="px-4 py-2 text-sm bg-brand-primary text-bg-base rounded-lg hover:bg-brand-primary/90 transition"
+          >
+            Ir a mis equipos
+          </button>
         </div>
-      )}
-
-      {/* 2) Permisos cargando */}
-      {activeTeam && (permissionsLoading || loadingTeams) && (
-        <div className="text-center py-12 text-text-muted">
-          Cargando permisos...
-        </div>
-      )}
-
-      {/* 3) Error de permisos */}
-      {activeTeam && !permissionsLoading && permissionsError && (
-        <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
-          <div className="text-6xl mb-4">⚠️</div>
-          <h3 className="text-xl font-semibold text-text-primary mb-2">
-            Error al cargar permisos
-          </h3>
-          <p className="text-text-secondary">{permissionsError}</p>
-        </div>
-      )}
-
-      {/* 4) Sin permiso de vista → mensaje inline */}
-      {activeTeam && permissionsReady && !canAccessPage && (
-        <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
-          <div className="text-6xl mb-4">🔒</div>
-          <h3 className="text-xl font-semibold text-text-primary mb-2">
-            Sin permisos
-          </h3>
-          <p className="text-text-secondary">
-            No tienes permisos para configurar la visibilidad de estadísticas
-            de este equipo.
-          </p>
-        </div>
-      )}
-
-      {/* 5) Editor: solo con stats:edit */}
-      {activeTeam && permissionsReady && canAccessPage && (
-        <Can
-          resource="stats"
-          action="edit"
-          clubId={clubId}
-          teamId={teamId}
-          fallback={
-            <div className="text-center py-16 bg-surface rounded-xl shadow border border-border-subtle">
-              <div className="text-6xl mb-4">👁️</div>
-              <h3 className="text-xl font-semibold text-text-primary mb-2">
-                Solo lectura
-              </h3>
-              <p className="text-text-secondary">
-                Puedes ver esta sección, pero no tienes permisos para editar
-                la visibilidad de estadísticas.
-              </p>
-            </div>
-          }
-        >
-          <TeamStatsConfigEditor
-            teamId={activeTeam.id}
-            teamName={activeTeam.name}
-          />
-        </Can>
-      )}
+      </div>
     </div>
   )
 }

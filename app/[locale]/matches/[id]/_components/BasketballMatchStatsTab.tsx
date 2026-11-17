@@ -15,6 +15,8 @@ import {
 import { formatMatchScore } from '@/lib/formatMatchScore'
 import type { MatchDetail } from '../page'
 import { Button, Card, CardBody, Modal, Input } from '@/components/ui'
+import ColumnSettingsModal from '@/components/ColumnSettingsModal'
+import { useColumnPreferences, type ColumnDef } from '@/lib/hooks/useColumnPreferences'
 
 interface Props {
   match: MatchDetail
@@ -366,6 +368,10 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
   const [selectedImportId, setSelectedImportId] = useState<string | null>(null)
   const [importing, setImporting] = useState(false)
   const [confirmOverwrite, setConfirmOverwrite] = useState(false)
+
+  // ── CONFIGURACIÓN DE COLUMNAS (solo en modo cerrado) ──
+  const [showColumnSettingsTeam, setShowColumnSettingsTeam] = useState(false)
+  const [showColumnSettingsOpponent, setShowColumnSettingsOpponent] = useState(false)
 
   const MAX_OPPONENTS = 15
   const remainingSlots = MAX_OPPONENTS - opponents.length
@@ -928,6 +934,51 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
     }
   }, [opponents])
 
+  // ── CONFIGURACIÓN DE COLUMNAS PARA NUESTRO EQUIPO (modo cerrado) ──
+  const teamColumns: ColumnDef[] = useMemo(() => {
+    const cols: ColumnDef[] = [
+      { key: 'PLAYER', label: t('metrics.player'), isRequired: true },
+      { key: 'MIN', label: t('metrics.min') },
+      { key: 'PTS', label: t('metrics.pts') },
+      { key: 'REB', label: t('metrics.reb') },
+      { key: 'AST', label: t('metrics.ast') },
+      { key: 'ROB', label: t('metrics.rob') },
+      { key: 'TAP', label: t('metrics.tap') },
+      { key: 'TAP_AGAINST', label: t('metrics.tapAgainst') },
+      { key: 'PER', label: t('metrics.per') },
+      { key: 'FAL', label: t('metrics.fal') },
+      { key: 'FR', label: t('metrics.fr') },
+      { key: 'PLUS_MINUS', label: t('metrics.plusMinus') },
+      { key: 'TWO_P', label: '2P' },
+      { key: 'THREE_P', label: '3P' },
+      { key: 'FT', label: 'TL' },
+      { key: 'TC', label: 'TC' },
+      { key: 'VAL', label: t('metrics.val') },
+    ]
+    return cols
+  }, [t])
+
+  // ── CONFIGURACIÓN DE COLUMNAS PARA RIVALES ──
+  const opponentColumns: ColumnDef[] = useMemo(() => [
+    { key: 'PLAYER', label: t('metrics.player'), isRequired: true },
+    { key: 'MIN', label: t('metrics.min') },
+    { key: 'PTS', label: t('metrics.pts') },
+    { key: 'REB', label: t('metrics.reb') },
+    { key: 'REB_OFF', label: t('metrics.rebOff') },
+    { key: 'REB_DEF', label: t('metrics.rebDef') },
+    { key: 'AST', label: t('metrics.ast') },
+    { key: 'ROB', label: t('metrics.rob') },
+    { key: 'TAP', label: t('metrics.tap') },
+    { key: 'PER', label: t('metrics.per') },
+    { key: 'FAL', label: t('metrics.fal') },
+    { key: 'TWO_P', label: '2P' },
+    { key: 'THREE_P', label: '3P' },
+    { key: 'FT', label: 'TL' },
+  ], [t])
+
+  const teamPrefs = useColumnPreferences('match-stats-team', teamColumns)
+  const opponentPrefs = useColumnPreferences('match-stats-opponent', opponentColumns)
+
   if (loading) {
     return (
       <Card>
@@ -1060,22 +1111,49 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
             <h3 className="text-lg font-semibold text-text-primary">
               {t('teamPlayersTitle', { count: roster.length })}
             </h3>
-            {!isClosed && (
-              <div className="flex flex-wrap gap-2">
-                {excludedRows.length > 0 && (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => setShowExcludedModal(true)}
-                  >
-                    {t('excludedButton', { n: excludedRows.length })}
+            <div className="flex flex-wrap gap-2 items-center">
+              {isClosed && (
+                <button
+                  type="button"
+                  onClick={() => setShowColumnSettingsTeam(true)}
+                  className="text-text-muted hover:text-brand-primary transition p-1 rounded hover:bg-surface-elevated"
+                  title="Configurar columnas"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"/>
+                    <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/>
+                    <path d="M12 2v2"/>
+                    <path d="M12 22v-2"/>
+                    <path d="m17 20.66-1-1.73"/>
+                    <path d="M11 10.27 7 3.34"/>
+                    <path d="m20.66 17-1.73-1"/>
+                    <path d="m3.34 7 1.73 1"/>
+                    <path d="M14 12h8"/>
+                    <path d="M2 12h2"/>
+                    <path d="m20.66 7-1.73 1"/>
+                    <path d="m3.34 17 1.73-1"/>
+                    <path d="m17 3.34-1 1.73"/>
+                    <path d="m11 13.73-4 6.93"/>
+                  </svg>
+                </button>
+              )}
+              {!isClosed && (
+                <>
+                  {excludedRows.length > 0 && (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => setShowExcludedModal(true)}
+                    >
+                      {t('excludedButton', { n: excludedRows.length })}
+                    </Button>
+                  )}
+                  <Button size="sm" onClick={() => setShowAddModal(true)}>
+                    {t('addPlayer')}
                   </Button>
-                )}
-                <Button size="sm" onClick={() => setShowAddModal(true)}>
-                  {t('addPlayer')}
-                </Button>
-              </div>
-            )}
+                </>
+              )}
+            </div>
           </div>
 
           {roster.length === 0 ? (
@@ -1091,7 +1169,6 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                       {t('metrics.player')}
                     </th>
                     
-                    {/* Si NO está cerrado, mostramos cabeceras de edición siempre */}
                     {!isClosed ? (
                       <>
                         <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.min')}</th>
@@ -1113,22 +1190,22 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                       </>
                     ) : (
                       <>
-                        {show('MINUTES') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.min')}</th>)}
-                        {show('POINTS') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.pts')}</th>)}
-                        {show('REBOUNDS') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.reb')}</th>)}
-                        {show('ASSISTS') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.ast')}</th>)}
-                        {show('STEALS') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.rob')}</th>)}
-                        {show('BLOCKS') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.tap')}</th>)}
-                        {show('BLOCKS_AGAINST') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.tapAgainst')}</th>)}
-                        {show('TURNOVERS') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.per')}</th>)}
-                        {show('FOULS') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.fal')}</th>)}
-                        {show('FOULS_DRAWN') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.fr')}</th>)}
-                        {show('PLUS_MINUS') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.plusMinus')}</th>)}
-                        {show2P && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">2P</th>)}
-                        {show('TP_PCT') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">3P</th>)}
-                        {show('FT_PCT') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TL</th>)}
-                        {show('FG_PCT') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TC</th>)}
-                        {show('VALUATION') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.val')}</th>)}
+                        {teamPrefs.isVisible('MIN') && show('MINUTES') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.min')}</th>)}
+                        {teamPrefs.isVisible('PTS') && show('POINTS') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.pts')}</th>)}
+                        {teamPrefs.isVisible('REB') && show('REBOUNDS') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.reb')}</th>)}
+                        {teamPrefs.isVisible('AST') && show('ASSISTS') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.ast')}</th>)}
+                        {teamPrefs.isVisible('ROB') && show('STEALS') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.rob')}</th>)}
+                        {teamPrefs.isVisible('TAP') && show('BLOCKS') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.tap')}</th>)}
+                        {teamPrefs.isVisible('TAP_AGAINST') && show('BLOCKS_AGAINST') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.tapAgainst')}</th>)}
+                        {teamPrefs.isVisible('PER') && show('TURNOVERS') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.per')}</th>)}
+                        {teamPrefs.isVisible('FAL') && show('FOULS') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.fal')}</th>)}
+                        {teamPrefs.isVisible('FR') && show('FOULS_DRAWN') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.fr')}</th>)}
+                        {teamPrefs.isVisible('PLUS_MINUS') && show('PLUS_MINUS') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.plusMinus')}</th>)}
+                        {teamPrefs.isVisible('TWO_P') && show2P && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">2P</th>)}
+                        {teamPrefs.isVisible('THREE_P') && show('TP_PCT') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">3P</th>)}
+                        {teamPrefs.isVisible('FT') && show('FT_PCT') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TL</th>)}
+                        {teamPrefs.isVisible('TC') && show('FG_PCT') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TC</th>)}
+                        {teamPrefs.isVisible('VAL') && show('VALUATION') && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.val')}</th>)}
                       </>
                     )}
                   </tr>
@@ -1150,7 +1227,6 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                           {!p.fromTeam && <span className="ml-2 text-[10px] px-1.5 py-0.5 rounded-full bg-info/10 text-info">{t('guestBadge')}</span>}
                         </td>
                         
-                        {/* FILA DE EDICIÓN DIRECTA (Si el partido no está cerrado) */}
                         {!isClosed ? (
                           <>
                             <td className="px-1 py-1">
@@ -1208,18 +1284,18 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                           </>
                         ) : (
                           <>
-                            {show('MINUTES') && (<td className="px-2 py-2 text-center text-text-secondary">{p.hasStats ? fmtMinutes(p.minutes, p.seconds) : '—'}</td>)}
-                            {show('POINTS') && (<td className="px-2 py-2 text-center font-semibold text-text-primary">{v(p.points)}</td>)}
-                            {show('REBOUNDS') && (<td className="px-2 py-2 text-center text-text-secondary">{v(p.rebounds)}</td>)}
-                            {show('ASSISTS') && (<td className="px-2 py-2 text-center text-text-secondary">{v(p.assists)}</td>)}
-                            {show('STEALS') && (<td className="px-2 py-2 text-center text-text-secondary">{v(p.steals)}</td>)}
-                            {show('BLOCKS') && (<td className="px-2 py-2 text-center text-text-secondary">{v(p.blocks)}</td>)}
-                            {show('BLOCKS_AGAINST') && (<td className="px-2 py-2 text-center text-text-secondary">{v(p.blocksAgainst)}</td>)}
-                            {show('TURNOVERS') && (<td className="px-2 py-2 text-center text-text-secondary">{v(p.turnovers)}</td>)}
-                            {show('FOULS') && (<td className="px-2 py-2 text-center text-text-secondary">{v(p.fouls)}</td>)}
-                            {show('FOULS_DRAWN') && (<td className="px-2 py-2 text-center text-text-secondary">{v(p.foulsDrawn)}</td>)}
-                            {show('PLUS_MINUS') && (<td className={`px-2 py-2 text-center font-medium ${!p.hasStats ? 'text-text-muted' : (p.plusMinus ?? 0) > 0 ? 'text-success' : (p.plusMinus ?? 0) < 0 ? 'text-danger' : 'text-text-muted'}`}>{p.hasStats ? fmtPlusMinus(p.plusMinus) : '—'}</td>)}
-                            {show2P && (
+                            {teamPrefs.isVisible('MIN') && show('MINUTES') && (<td className="px-2 py-2 text-center text-text-secondary">{p.hasStats ? fmtMinutes(p.minutes, p.seconds) : '—'}</td>)}
+                            {teamPrefs.isVisible('PTS') && show('POINTS') && (<td className="px-2 py-2 text-center font-semibold text-text-primary">{v(p.points)}</td>)}
+                            {teamPrefs.isVisible('REB') && show('REBOUNDS') && (<td className="px-2 py-2 text-center text-text-secondary">{v(p.rebounds)}</td>)}
+                            {teamPrefs.isVisible('AST') && show('ASSISTS') && (<td className="px-2 py-2 text-center text-text-secondary">{v(p.assists)}</td>)}
+                            {teamPrefs.isVisible('ROB') && show('STEALS') && (<td className="px-2 py-2 text-center text-text-secondary">{v(p.steals)}</td>)}
+                            {teamPrefs.isVisible('TAP') && show('BLOCKS') && (<td className="px-2 py-2 text-center text-text-secondary">{v(p.blocks)}</td>)}
+                            {teamPrefs.isVisible('TAP_AGAINST') && show('BLOCKS_AGAINST') && (<td className="px-2 py-2 text-center text-text-secondary">{v(p.blocksAgainst)}</td>)}
+                            {teamPrefs.isVisible('PER') && show('TURNOVERS') && (<td className="px-2 py-2 text-center text-text-secondary">{v(p.turnovers)}</td>)}
+                            {teamPrefs.isVisible('FAL') && show('FOULS') && (<td className="px-2 py-2 text-center text-text-secondary">{v(p.fouls)}</td>)}
+                            {teamPrefs.isVisible('FR') && show('FOULS_DRAWN') && (<td className="px-2 py-2 text-center text-text-secondary">{v(p.foulsDrawn)}</td>)}
+                            {teamPrefs.isVisible('PLUS_MINUS') && show('PLUS_MINUS') && (<td className={`px-2 py-2 text-center font-medium ${!p.hasStats ? 'text-text-muted' : (p.plusMinus ?? 0) > 0 ? 'text-success' : (p.plusMinus ?? 0) < 0 ? 'text-danger' : 'text-text-muted'}`}>{p.hasStats ? fmtPlusMinus(p.plusMinus) : '—'}</td>)}
+                            {teamPrefs.isVisible('TWO_P') && show2P && (
                               <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
                                 {p.hasStats ? (
                                   <>
@@ -1235,10 +1311,10 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                                 ) : '—'}
                               </td>
                             )}
-                            {show('TP_PCT') && (<td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">{p.hasStats ? `${p.threePointersMade}/${p.threePointersAttempted} (${p.threePointPct}%)` : '—'}</td>)}
-                            {show('FT_PCT') && (<td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">{p.hasStats ? `${p.freeThrowsMade}/${p.freeThrowsAttempted} (${p.freeThrowPct}%)` : '—'}</td>)}
-                            {show('FG_PCT') && (<td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">{p.hasStats ? `${p.fieldGoalsMade}/${p.fieldGoalsAttempted} (${p.fieldGoalPct}%)` : '—'}</td>)}
-                            {show('VALUATION') && (<td className={`px-2 py-2 text-center font-semibold ${!p.hasStats ? 'text-text-muted' : p.valuation > 0 ? 'text-success' : p.valuation < 0 ? 'text-danger' : 'text-text-muted'}`}>{p.hasStats ? p.valuation : '—'}</td>)}
+                            {teamPrefs.isVisible('THREE_P') && show('TP_PCT') && (<td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">{p.hasStats ? `${p.threePointersMade}/${p.threePointersAttempted} (${p.threePointPct}%)` : '—'}</td>)}
+                            {teamPrefs.isVisible('FT') && show('FT_PCT') && (<td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">{p.hasStats ? `${p.freeThrowsMade}/${p.freeThrowsAttempted} (${p.freeThrowPct}%)` : '—'}</td>)}
+                            {teamPrefs.isVisible('TC') && show('FG_PCT') && (<td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">{p.hasStats ? `${p.fieldGoalsMade}/${p.fieldGoalsAttempted} (${p.fieldGoalPct}%)` : '—'}</td>)}
+                            {teamPrefs.isVisible('VAL') && show('VALUATION') && (<td className={`px-2 py-2 text-center font-semibold ${!p.hasStats ? 'text-text-muted' : p.valuation > 0 ? 'text-success' : p.valuation < 0 ? 'text-danger' : 'text-text-muted'}`}>{p.hasStats ? p.valuation : '—'}</td>)}
                           </>
                         )}
                       </tr>
@@ -1250,7 +1326,6 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                     <td className="px-2 py-2 text-left text-text-primary">
                       <span className="text-[10px] uppercase tracking-wide text-brand-primary">{t('totals')}</span>
                     </td>
-                    {/* Pies de tabla en función del modo */}
                     {!isClosed ? (
                       <>
                         <td className="px-2 py-2 text-center text-text-primary">{fmtMinutes(totals.minutes, totals.seconds)}</td>
@@ -1282,18 +1357,18 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                       </>
                     ) : (
                       <>
-                        {show('MINUTES') && (<td className="px-2 py-2 text-center text-text-primary">{fmtMinutes(totals.minutes, totals.seconds)}</td>)}
-                        {show('POINTS') && (<td className="px-2 py-2 text-center text-brand-primary font-bold">{totals.points}</td>)}
-                        {show('REBOUNDS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.rebounds}</td>)}
-                        {show('ASSISTS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.assists}</td>)}
-                        {show('STEALS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.steals}</td>)}
-                        {show('BLOCKS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.blocks}</td>)}
-                        {show('BLOCKS_AGAINST') && (<td className="px-2 py-2 text-center text-text-primary">{totals.blocksAgainst}</td>)}
-                        {show('TURNOVERS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.turnovers}</td>)}
-                        {show('FOULS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.fouls}</td>)}
-                        {show('FOULS_DRAWN') && (<td className="px-2 py-2 text-center text-text-primary">{totals.foulsDrawn}</td>)}
-                        {show('PLUS_MINUS') && (<td className={`px-2 py-2 text-center ${totals.plusMinus > 0 ? 'text-success' : totals.plusMinus < 0 ? 'text-danger' : 'text-text-muted'}`}>{fmtPlusMinus(totals.plusMinus)}</td>)}
-                        {show2P && (
+                        {teamPrefs.isVisible('MIN') && show('MINUTES') && (<td className="px-2 py-2 text-center text-text-primary">{fmtMinutes(totals.minutes, totals.seconds)}</td>)}
+                        {teamPrefs.isVisible('PTS') && show('POINTS') && (<td className="px-2 py-2 text-center text-brand-primary font-bold">{totals.points}</td>)}
+                        {teamPrefs.isVisible('REB') && show('REBOUNDS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.rebounds}</td>)}
+                        {teamPrefs.isVisible('AST') && show('ASSISTS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.assists}</td>)}
+                        {teamPrefs.isVisible('ROB') && show('STEALS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.steals}</td>)}
+                        {teamPrefs.isVisible('TAP') && show('BLOCKS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.blocks}</td>)}
+                        {teamPrefs.isVisible('TAP_AGAINST') && show('BLOCKS_AGAINST') && (<td className="px-2 py-2 text-center text-text-primary">{totals.blocksAgainst}</td>)}
+                        {teamPrefs.isVisible('PER') && show('TURNOVERS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.turnovers}</td>)}
+                        {teamPrefs.isVisible('FAL') && show('FOULS') && (<td className="px-2 py-2 text-center text-text-primary">{totals.fouls}</td>)}
+                        {teamPrefs.isVisible('FR') && show('FOULS_DRAWN') && (<td className="px-2 py-2 text-center text-text-primary">{totals.foulsDrawn}</td>)}
+                        {teamPrefs.isVisible('PLUS_MINUS') && show('PLUS_MINUS') && (<td className={`px-2 py-2 text-center ${totals.plusMinus > 0 ? 'text-success' : totals.plusMinus < 0 ? 'text-danger' : 'text-text-muted'}`}>{fmtPlusMinus(totals.plusMinus)}</td>)}
+                        {teamPrefs.isVisible('TWO_P') && show2P && (
                           <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
                             {show2PMade && show2PAttempted
                               ? `${totals.twoPointersMade}/${totals.twoPointersAttempted} `
@@ -1305,10 +1380,10 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                             {show2PPct && `(${totals.twoPointersPct}%)`}
                           </td>
                         )}
-                        {show('TP_PCT') && (<td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{totals.threePointersMade}/{totals.threePointersAttempted} ({totals.threePointPct}%)</td>)}
-                        {show('FT_PCT') && (<td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{totals.freeThrowsMade}/{totals.freeThrowsAttempted} ({totals.freeThrowPct}%)</td>)}
-                        {show('FG_PCT') && (<td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{totals.fieldGoalsMade}/{totals.fieldGoalsAttempted} ({totals.fieldGoalPct}%)</td>)}
-                        {show('VALUATION') && (<td className={`px-2 py-2 text-center font-bold ${totals.valuation > 0 ? 'text-success' : totals.valuation < 0 ? 'text-danger' : 'text-text-muted'}`}>{totals.valuation}</td>)}
+                        {teamPrefs.isVisible('THREE_P') && show('TP_PCT') && (<td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{totals.threePointersMade}/{totals.threePointersAttempted} ({totals.threePointPct}%)</td>)}
+                        {teamPrefs.isVisible('FT') && show('FT_PCT') && (<td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{totals.freeThrowsMade}/{totals.freeThrowsAttempted} ({totals.freeThrowPct}%)</td>)}
+                        {teamPrefs.isVisible('TC') && show('FG_PCT') && (<td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{totals.fieldGoalsMade}/{totals.fieldGoalsAttempted} ({totals.fieldGoalPct}%)</td>)}
+                        {teamPrefs.isVisible('VAL') && show('VALUATION') && (<td className={`px-2 py-2 text-center font-bold ${totals.valuation > 0 ? 'text-success' : totals.valuation < 0 ? 'text-danger' : 'text-text-muted'}`}>{totals.valuation}</td>)}
                       </>
                     )}
                   </tr>
@@ -1326,26 +1401,53 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
             <h3 className="text-lg font-semibold text-text-primary">
               {t('opponentTitle', { count: opponents.length })}
             </h3>
-            {!isClosed && (
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => setShowAddOpponentModal(true)}
-                  disabled={remainingSlots <= 0}
-                  title={remainingSlots <= 0 ? t('maxOpponentsReached') : undefined}
+            <div className="flex flex-wrap gap-2 items-center">
+              {isClosed && (
+                <button
+                  type="button"
+                  onClick={() => setShowColumnSettingsOpponent(true)}
+                  className="text-text-muted hover:text-brand-primary transition p-1 rounded hover:bg-surface-elevated"
+                  title="Configurar columnas"
                 >
-                  {t('addOpponentsButton')}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => setShowImportModal(true)}
-                >
-                  {t('importOpponentButton')}
-                </Button>
-              </div>
-            )}
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"/>
+                    <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/>
+                    <path d="M12 2v2"/>
+                    <path d="M12 22v-2"/>
+                    <path d="m17 20.66-1-1.73"/>
+                    <path d="M11 10.27 7 3.34"/>
+                    <path d="m20.66 17-1.73-1"/>
+                    <path d="m3.34 7 1.73 1"/>
+                    <path d="M14 12h8"/>
+                    <path d="M2 12h2"/>
+                    <path d="m20.66 7-1.73 1"/>
+                    <path d="m3.34 17 1.73-1"/>
+                    <path d="m17 3.34-1 1.73"/>
+                    <path d="m11 13.73-4 6.93"/>
+                  </svg>
+                </button>
+              )}
+              {!isClosed && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setShowAddOpponentModal(true)}
+                    disabled={remainingSlots <= 0}
+                    title={remainingSlots <= 0 ? t('maxOpponentsReached') : undefined}
+                  >
+                    {t('addOpponentsButton')}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => setShowImportModal(true)}
+                  >
+                    {t('importOpponentButton')}
+                  </Button>
+                </>
+              )}
+            </div>
           </div>
 
           {opponents.length === 0 ? (
@@ -1358,20 +1460,40 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                 <thead className="bg-surface-elevated">
                   <tr>
                     <th className="px-2 py-2 text-left text-[10px] font-medium text-text-muted uppercase">{t('metrics.player')}</th>
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.min')}</th>
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.pts')}</th>
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.reb')}</th>
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.rebOff')}</th>
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.rebDef')}</th>
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.ast')}</th>
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.rob')}</th>
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.tap')}</th>
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.per')}</th>
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.fal')}</th>
-                    {show2P && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">2P</th>)}
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">3P</th>
-                    <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TL</th>
-                    {!isClosed && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.action')}</th>}
+                    {isClosed ? (
+                      <>
+                        {opponentPrefs.isVisible('MIN') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.min')}</th>}
+                        {opponentPrefs.isVisible('PTS') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.pts')}</th>}
+                        {opponentPrefs.isVisible('REB') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.reb')}</th>}
+                        {opponentPrefs.isVisible('REB_OFF') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.rebOff')}</th>}
+                        {opponentPrefs.isVisible('REB_DEF') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.rebDef')}</th>}
+                        {opponentPrefs.isVisible('AST') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.ast')}</th>}
+                        {opponentPrefs.isVisible('ROB') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.rob')}</th>}
+                        {opponentPrefs.isVisible('TAP') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.tap')}</th>}
+                        {opponentPrefs.isVisible('PER') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.per')}</th>}
+                        {opponentPrefs.isVisible('FAL') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.fal')}</th>}
+                        {opponentPrefs.isVisible('TWO_P') && show2P && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">2P</th>)}
+                        {opponentPrefs.isVisible('THREE_P') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">3P</th>}
+                        {opponentPrefs.isVisible('FT') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TL</th>}
+                      </>
+                    ) : (
+                      <>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.min')}</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.pts')}</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.reb')}</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.rebOff')}</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.rebDef')}</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.ast')}</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.rob')}</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.tap')}</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.per')}</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.fal')}</th>
+                        {show2P && (<th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">2P</th>)}
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">3P</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">TL</th>
+                        <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.action')}</th>
+                      </>
+                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border-subtle">
@@ -1434,49 +1556,90 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                           </>
                         ) : (
                           <>
-                            <td className="px-2 py-2 text-center text-text-secondary">{fmtMinutes(s?.minutes, s?.seconds)}</td>
-                            <td className="px-2 py-2 text-center font-semibold text-text-primary">{s?.points ?? 0}</td>
-                            <td className="px-2 py-2 text-center text-text-secondary">{s?.rebounds ?? 0}</td>
-                            <td className="px-2 py-2 text-center text-text-secondary">{s?.reboundsOff ?? 0}</td>
-                            <td className="px-2 py-2 text-center text-text-secondary">{s?.reboundsDef ?? 0}</td>
-                            <td className="px-2 py-2 text-center text-text-secondary">{s?.assists ?? 0}</td>
-                            <td className="px-2 py-2 text-center text-text-secondary">{s?.steals ?? 0}</td>
-                            <td className="px-2 py-2 text-center text-text-secondary">{s?.blocks ?? 0}</td>
-                            <td className="px-2 py-2 text-center text-text-secondary">{s?.turnovers ?? 0}</td>
-                            <td className="px-2 py-2 text-center text-text-secondary">{s?.fouls ?? 0}</td>
-                            {show2P && (
-                              <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
-                                {s ? (
-                                  <>
-                                    {show2PMade && show2PAttempted
-                                      ? `${s.twoPointersMade}/${s.twoPointersAttempted} `
-                                      : show2PMade
-                                        ? `${s.twoPointersMade} `
-                                        : show2PAttempted
-                                          ? `/${s.twoPointersAttempted} `
-                                          : ''}
-                                    {show2PPct && `(${pct(s.twoPointersMade, s.twoPointersAttempted)}%)`}
-                                  </>
-                                ) : '—'}
-                              </td>
-                            )}
-                            <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
-                              {s ? `${s.threePointersMade}/${s.threePointersAttempted} (${pct(s.threePointersMade, s.threePointersAttempted)}%)` : '—'}
-                            </td>
-                            <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
-                              {s ? `${s.freeThrowsMade}/${s.freeThrowsAttempted} (${pct(s.freeThrowsMade, s.freeThrowsAttempted)}%)` : '—'}
-                            </td>
-                            {!isClosed && (
-                              <td className="px-2 py-2 text-center">
-                                <div className="flex gap-1 justify-center">
-                                  <button onClick={() => startEditOpponent(op)} className="text-xs bg-warning/10 hover:bg-warning/20 text-warning px-2 py-1 rounded" title={t('editOpponentStats')}>
-                                    {s ? '✏️' : '➕'}
-                                  </button>
-                                  <button onClick={() => handleRemoveOpponent(op)} className="text-xs bg-danger/10 hover:bg-danger/20 text-danger px-2 py-1 rounded" title={t('removeOpponent')}>
-                                    🗑️
-                                  </button>
-                                </div>
-                              </td>
+                            {!isClosed ? (
+                              <>
+                                <td className="px-2 py-2 text-center text-text-secondary">{fmtMinutes(s?.minutes, s?.seconds)}</td>
+                                <td className="px-2 py-2 text-center font-semibold text-text-primary">{s?.points ?? 0}</td>
+                                <td className="px-2 py-2 text-center text-text-secondary">{s?.rebounds ?? 0}</td>
+                                <td className="px-2 py-2 text-center text-text-secondary">{s?.reboundsOff ?? 0}</td>
+                                <td className="px-2 py-2 text-center text-text-secondary">{s?.reboundsDef ?? 0}</td>
+                                <td className="px-2 py-2 text-center text-text-secondary">{s?.assists ?? 0}</td>
+                                <td className="px-2 py-2 text-center text-text-secondary">{s?.steals ?? 0}</td>
+                                <td className="px-2 py-2 text-center text-text-secondary">{s?.blocks ?? 0}</td>
+                                <td className="px-2 py-2 text-center text-text-secondary">{s?.turnovers ?? 0}</td>
+                                <td className="px-2 py-2 text-center text-text-secondary">{s?.fouls ?? 0}</td>
+                                {show2P && (
+                                  <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
+                                    {s ? (
+                                      <>
+                                        {show2PMade && show2PAttempted
+                                          ? `${s.twoPointersMade}/${s.twoPointersAttempted} `
+                                          : show2PMade
+                                            ? `${s.twoPointersMade} `
+                                            : show2PAttempted
+                                              ? `/${s.twoPointersAttempted} `
+                                              : ''}
+                                        {show2PPct && `(${pct(s.twoPointersMade, s.twoPointersAttempted)}%)`}
+                                      </>
+                                    ) : '—'}
+                                  </td>
+                                )}
+                                <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
+                                  {s ? `${s.threePointersMade}/${s.threePointersAttempted} (${pct(s.threePointersMade, s.threePointersAttempted)}%)` : '—'}
+                                </td>
+                                <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
+                                  {s ? `${s.freeThrowsMade}/${s.freeThrowsAttempted} (${pct(s.freeThrowsMade, s.freeThrowsAttempted)}%)` : '—'}
+                                </td>
+                                <td className="px-2 py-2 text-center">
+                                  <div className="flex gap-1 justify-center">
+                                    <button onClick={() => startEditOpponent(op)} className="text-xs bg-warning/10 hover:bg-warning/20 text-warning px-2 py-1 rounded" title={t('editOpponentStats')}>
+                                      {s ? '✏️' : '➕'}
+                                    </button>
+                                    <button onClick={() => handleRemoveOpponent(op)} className="text-xs bg-danger/10 hover:bg-danger/20 text-danger px-2 py-1 rounded" title={t('removeOpponent')}>
+                                      🗑️
+                                    </button>
+                                  </div>
+                                </td>
+                              </>
+                            ) : (
+                              <>
+                                {opponentPrefs.isVisible('MIN') && <td className="px-2 py-2 text-center text-text-secondary">{fmtMinutes(s?.minutes, s?.seconds)}</td>}
+                                {opponentPrefs.isVisible('PTS') && <td className="px-2 py-2 text-center font-semibold text-text-primary">{s?.points ?? 0}</td>}
+                                {opponentPrefs.isVisible('REB') && <td className="px-2 py-2 text-center text-text-secondary">{s?.rebounds ?? 0}</td>}
+                                {opponentPrefs.isVisible('REB_OFF') && <td className="px-2 py-2 text-center text-text-secondary">{s?.reboundsOff ?? 0}</td>}
+                                {opponentPrefs.isVisible('REB_DEF') && <td className="px-2 py-2 text-center text-text-secondary">{s?.reboundsDef ?? 0}</td>}
+                                {opponentPrefs.isVisible('AST') && <td className="px-2 py-2 text-center text-text-secondary">{s?.assists ?? 0}</td>}
+                                {opponentPrefs.isVisible('ROB') && <td className="px-2 py-2 text-center text-text-secondary">{s?.steals ?? 0}</td>}
+                                {opponentPrefs.isVisible('TAP') && <td className="px-2 py-2 text-center text-text-secondary">{s?.blocks ?? 0}</td>}
+                                {opponentPrefs.isVisible('PER') && <td className="px-2 py-2 text-center text-text-secondary">{s?.turnovers ?? 0}</td>}
+                                {opponentPrefs.isVisible('FAL') && <td className="px-2 py-2 text-center text-text-secondary">{s?.fouls ?? 0}</td>}
+                                {opponentPrefs.isVisible('TWO_P') && show2P && (
+                                  <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
+                                    {s ? (
+                                      <>
+                                        {show2PMade && show2PAttempted
+                                          ? `${s.twoPointersMade}/${s.twoPointersAttempted} `
+                                          : show2PMade
+                                            ? `${s.twoPointersMade} `
+                                            : show2PAttempted
+                                              ? `/${s.twoPointersAttempted} `
+                                              : ''}
+                                        {show2PPct && `(${pct(s.twoPointersMade, s.twoPointersAttempted)}%)`}
+                                      </>
+                                    ) : '—'}
+                                  </td>
+                                )}
+                                {opponentPrefs.isVisible('THREE_P') && (
+                                  <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
+                                    {s ? `${s.threePointersMade}/${s.threePointersAttempted} (${pct(s.threePointersMade, s.threePointersAttempted)}%)` : '—'}
+                                  </td>
+                                )}
+                                {opponentPrefs.isVisible('FT') && (
+                                  <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
+                                    {s ? `${s.freeThrowsMade}/${s.freeThrowsAttempted} (${pct(s.freeThrowsMade, s.freeThrowsAttempted)}%)` : '—'}
+                                  </td>
+                                )}
+                              </>
                             )}
                           </>
                         )}
@@ -1489,31 +1652,62 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
                     <td className="px-2 py-2 text-left text-text-primary">
                       <span className="text-[10px] uppercase tracking-wide text-warning">{t('totals')}</span>
                     </td>
-                    <td className="px-2 py-2 text-center text-text-primary">{fmtMinutes(opponentTotals.minutes, opponentTotals.seconds)}</td>
-                    <td className="px-2 py-2 text-center text-warning font-bold">{opponentTotals.points}</td>
-                    <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.rebounds}</td>
-                    <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.reboundsOff}</td>
-                    <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.reboundsDef}</td>
-                    <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.assists}</td>
-                    <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.steals}</td>
-                    <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.blocks}</td>
-                    <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.turnovers}</td>
-                    <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.fouls}</td>
-                    {show2P && (
-                      <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
-                        {show2PMade && show2PAttempted
-                          ? `${opponentTotals.twoPointersMade}/${opponentTotals.twoPointersAttempted} `
-                          : show2PMade
-                            ? `${opponentTotals.twoPointersMade} `
-                            : show2PAttempted
-                              ? `/${opponentTotals.twoPointersAttempted} `
-                              : ''}
-                        {show2PPct && `(${opponentTotals.twoPointersPct}%)`}
-                      </td>
+                    {!isClosed ? (
+                      <>
+                        <td className="px-2 py-2 text-center text-text-primary">{fmtMinutes(opponentTotals.minutes, opponentTotals.seconds)}</td>
+                        <td className="px-2 py-2 text-center text-warning font-bold">{opponentTotals.points}</td>
+                        <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.rebounds}</td>
+                        <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.reboundsOff}</td>
+                        <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.reboundsDef}</td>
+                        <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.assists}</td>
+                        <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.steals}</td>
+                        <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.blocks}</td>
+                        <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.turnovers}</td>
+                        <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.fouls}</td>
+                        {show2P && (
+                          <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
+                            {show2PMade && show2PAttempted
+                              ? `${opponentTotals.twoPointersMade}/${opponentTotals.twoPointersAttempted} `
+                              : show2PMade
+                                ? `${opponentTotals.twoPointersMade} `
+                                : show2PAttempted
+                                  ? `/${opponentTotals.twoPointersAttempted} `
+                                  : ''}
+                            {show2PPct && `(${opponentTotals.twoPointersPct}%)`}
+                          </td>
+                        )}
+                        <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{opponentTotals.threePointersMade}/{opponentTotals.threePointersAttempted} ({opponentTotals.threePointPct}%)</td>
+                        <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{opponentTotals.freeThrowsMade}/{opponentTotals.freeThrowsAttempted} ({opponentTotals.freeThrowPct}%)</td>
+                        <td className="px-2 py-2"></td>
+                      </>
+                    ) : (
+                      <>
+                        {opponentPrefs.isVisible('MIN') && <td className="px-2 py-2 text-center text-text-primary">{fmtMinutes(opponentTotals.minutes, opponentTotals.seconds)}</td>}
+                        {opponentPrefs.isVisible('PTS') && <td className="px-2 py-2 text-center text-warning font-bold">{opponentTotals.points}</td>}
+                        {opponentPrefs.isVisible('REB') && <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.rebounds}</td>}
+                        {opponentPrefs.isVisible('REB_OFF') && <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.reboundsOff}</td>}
+                        {opponentPrefs.isVisible('REB_DEF') && <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.reboundsDef}</td>}
+                        {opponentPrefs.isVisible('AST') && <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.assists}</td>}
+                        {opponentPrefs.isVisible('ROB') && <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.steals}</td>}
+                        {opponentPrefs.isVisible('TAP') && <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.blocks}</td>}
+                        {opponentPrefs.isVisible('PER') && <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.turnovers}</td>}
+                        {opponentPrefs.isVisible('FAL') && <td className="px-2 py-2 text-center text-text-primary">{opponentTotals.fouls}</td>}
+                        {opponentPrefs.isVisible('TWO_P') && show2P && (
+                          <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
+                            {show2PMade && show2PAttempted
+                              ? `${opponentTotals.twoPointersMade}/${opponentTotals.twoPointersAttempted} `
+                              : show2PMade
+                                ? `${opponentTotals.twoPointersMade} `
+                                : show2PAttempted
+                                  ? `/${opponentTotals.twoPointersAttempted} `
+                                  : ''}
+                            {show2PPct && `(${opponentTotals.twoPointersPct}%)`}
+                          </td>
+                        )}
+                        {opponentPrefs.isVisible('THREE_P') && <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{opponentTotals.threePointersMade}/{opponentTotals.threePointersAttempted} ({opponentTotals.threePointPct}%)</td>}
+                        {opponentPrefs.isVisible('FT') && <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{opponentTotals.freeThrowsMade}/{opponentTotals.freeThrowsAttempted} ({opponentTotals.freeThrowPct}%)</td>}
+                      </>
                     )}
-                    <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{opponentTotals.threePointersMade}/{opponentTotals.threePointersAttempted} ({opponentTotals.threePointPct}%)</td>
-                    <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">{opponentTotals.freeThrowsMade}/{opponentTotals.freeThrowsAttempted} ({opponentTotals.freeThrowPct}%)</td>
-                    {!isClosed && <td className="px-2 py-2"></td>}
                   </tr>
                 </tfoot>
               </table>
@@ -1521,6 +1715,26 @@ export default function BasketballMatchStatsTab({ match, onUpdate }: Props) {
           )}
         </CardBody>
       </Card>
+
+      {/* Modales de configuración de columnas */}
+      <ColumnSettingsModal
+        isOpen={showColumnSettingsTeam}
+        onClose={() => setShowColumnSettingsTeam(false)}
+        columns={teamColumns}
+        hiddenColumns={teamPrefs.hiddenColumns}
+        onToggle={teamPrefs.toggleColumn}
+        onReset={teamPrefs.resetColumns}
+        title="Configurar columnas de mi equipo"
+      />
+      <ColumnSettingsModal
+        isOpen={showColumnSettingsOpponent}
+        onClose={() => setShowColumnSettingsOpponent(false)}
+        columns={opponentColumns}
+        hiddenColumns={opponentPrefs.hiddenColumns}
+        onToggle={opponentPrefs.toggleColumn}
+        onReset={opponentPrefs.resetColumns}
+        title="Configurar columnas de rivales"
+      />
 
       {/* Modales */}
       <Modal isOpen={showAddModal && !isClosed} onClose={() => setShowAddModal(false)} title={t('addPlayerTitle')} size="md">

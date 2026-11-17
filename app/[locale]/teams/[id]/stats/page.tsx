@@ -1,3 +1,4 @@
+// frontend-web/app/[locale]/teams/[id]/stats/page.tsx
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -361,16 +362,7 @@ export default function TeamStatsPage() {
                   {t('newSession')}
                 </Button>
               </Can>
-              {/* Configure → stats:edit */}
-              <Can resource="stats" action="edit" clubId={clubId} teamId={teamId}>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  href={`/teams/${teamId}/stats/config`}
-                >
-                  {t('config')}
-                </Button>
-              </Can>
+              {/* ⚠️ HEMOS ELIMINADO EL BOTÓN DE CONFIGURACIÓN ANTIGUO */}
             </div>
           </div>
 
@@ -439,7 +431,7 @@ export default function TeamStatsPage() {
             onFiltersChange={setStatsFilters}
             onAggregateModeChange={setAggregateMode} // 👈 NUEVO
           />
-          {aggregateMode === 'matches' && ( // 👈 NUEVO
+          {aggregateMode === 'matches' && team.sport !== 'PADEL' && (
             <TeamOpponentPlayersCard
               teamId={teamId}
               filters={{

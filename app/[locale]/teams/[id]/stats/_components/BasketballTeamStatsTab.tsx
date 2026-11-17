@@ -8,6 +8,8 @@ import { useTranslations } from 'next-intl'
 import { Card, CardBody } from '@/components/ui'
 import MetricSelect from '@/components/MetricSelect'
 import TrendChart from '@/components/TrendChart'
+import ColumnSettingsModal from '@/components/ColumnSettingsModal'
+import { useColumnPreferences, type ColumnDef } from '@/lib/hooks/useColumnPreferences'
 import type {
   BasketballTeamStats,
   BasketballTeamStatsPlayer,
@@ -81,6 +83,70 @@ export default function BasketballTeamStatsTab({
   const show2P = show2PMade || show2PAttempted || show2PPct
 
   const [groupBy, setGroupBy] = useState<'month' | 'match'>('match')
+  const [showColumnSettings, setShowColumnSettings] = useState(false)
+  const [showSummarySettings, setShowSummarySettings] = useState(false)
+
+  // ── DEFINICIÓN DE COLUMNAS PARA LA TABLA ──
+  const availableColumns: ColumnDef[] = useMemo(() => {
+    const cols: ColumnDef[] = [
+      { key: 'PLAYER', label: t('metrics.player'), isRequired: true }
+    ]
+
+    if (show('MATCHES')) cols.push({ key: 'MATCHES', label: t('metrics.pj') })
+    if (showWLD) cols.push({ key: 'WLD', label: t('metrics.wld') })
+    if (show('AVAILABILITY')) cols.push({ key: 'AVAILABILITY', label: t('metrics.availability') })
+    if (show('WIN_RATE')) cols.push({ key: 'WIN_RATE', label: t('metrics.winRateShort') })
+    if (show('MINUTES')) cols.push({ key: 'MINUTES', label: t('metrics.min') })
+    if (show('MINUTES_PER_MATCH_PLAYER')) cols.push({ key: 'MINUTES_PER_MATCH_PLAYER', label: t('metrics.minPerMatch') })
+    if (show('POINTS_PLAYER')) cols.push({ key: 'POINTS_PLAYER', label: t('metrics.pts') })
+    if (show('POINTS_PER_MATCH_PLAYER')) cols.push({ key: 'POINTS_PER_MATCH_PLAYER', label: t('metrics.ptsPerMatch') })
+    if (show('REBOUNDS')) cols.push({ key: 'REBOUNDS', label: t('metrics.reb') })
+    if (show('ASSISTS')) cols.push({ key: 'ASSISTS', label: t('metrics.ast') })
+    if (show('STEALS')) cols.push({ key: 'STEALS', label: t('metrics.rob') })
+    if (show('BLOCKS')) cols.push({ key: 'BLOCKS', label: t('metrics.tap') })
+    if (show('BLOCKS_AGAINST')) cols.push({ key: 'BLOCKS_AGAINST', label: t('metrics.tapAgainst') })
+    if (show('TURNOVERS')) cols.push({ key: 'TURNOVERS', label: t('metrics.turnovers') })
+    if (show('FOULS')) cols.push({ key: 'FOULS', label: t('metrics.fouls') })
+    if (show('FOULS_DRAWN')) cols.push({ key: 'FOULS_DRAWN', label: t('metrics.foulsDrawn') })
+    if (show('VALUATION')) cols.push({ key: 'VALUATION', label: t('metrics.valuation') })
+    if (show('PLUS_MINUS')) cols.push({ key: 'PLUS_MINUS', label: t('metrics.plusMinus') })
+    if (show2P) cols.push({ key: 'TWO_P', label: t('metrics.twoP') })
+    if (show('FG_PCT')) cols.push({ key: 'FG_PCT', label: t('metrics.tc') })
+    if (show('TP_PCT')) cols.push({ key: 'TP_PCT', label: t('metrics.threeP') })
+    if (show('FT_PCT')) cols.push({ key: 'FT_PCT', label: t('metrics.tl') })
+
+    return cols
+  }, [show, showWLD, show2P, t])
+
+  // ── DEFINICIÓN DE MÉTRICAS DEL RESUMEN ──
+  const summaryColumns: ColumnDef[] = useMemo(() => {
+    const cols: ColumnDef[] = []
+
+    if (show('MATCHES')) cols.push({ key: 'MATCHES', label: t('labels.matches') })
+    if (show('WIN_RATE')) cols.push({ key: 'WIN_RATE', label: t('labels.winRate') })
+    if (show('POINTS_PER_MATCH')) cols.push({ key: 'POINTS_PER_MATCH', label: t('labels.pointsPerMatch') })
+    if (!isTrainingMode && show('OPPONENT_POINTS_PER_MATCH')) cols.push({ key: 'OPPONENT_POINTS_PER_MATCH', label: t('labels.opponentPointsPerMatch') })
+    if (show('MINUTES_PER_MATCH')) cols.push({ key: 'MINUTES_PER_MATCH', label: t('labels.minutesPerMatch') })
+    if (show('REBOUNDS')) cols.push({ key: 'REBOUNDS', label: t('labels.rebounds') })
+    if (show('ASSISTS')) cols.push({ key: 'ASSISTS', label: t('labels.assists') })
+    if (show('STEALS')) cols.push({ key: 'STEALS', label: t('labels.steals') })
+    if (show('BLOCKS')) cols.push({ key: 'BLOCKS', label: t('labels.blocks') })
+    if (show('BLOCKS_AGAINST')) cols.push({ key: 'BLOCKS_AGAINST', label: t('labels.blocksAgainst') })
+    if (show('TURNOVERS')) cols.push({ key: 'TURNOVERS', label: t('labels.turnovers') })
+    if (show('FOULS')) cols.push({ key: 'FOULS', label: t('labels.fouls') })
+    if (show('FOULS_DRAWN')) cols.push({ key: 'FOULS_DRAWN', label: t('labels.foulsDrawn') })
+    if (show('VALUATION')) cols.push({ key: 'VALUATION', label: t('labels.valuation') })
+    if (show('PLUS_MINUS')) cols.push({ key: 'PLUS_MINUS', label: t('labels.plusMinus') })
+    if (show2P) cols.push({ key: 'TWO_P', label: t('labels.twoPointPct') })
+    if (show('FG_PCT')) cols.push({ key: 'FG_PCT', label: t('labels.fieldGoalPct') })
+    if (show('TP_PCT')) cols.push({ key: 'TP_PCT', label: t('labels.threePointPct') })
+    if (show('FT_PCT')) cols.push({ key: 'FT_PCT', label: t('labels.freeThrowPct') })
+
+    return cols
+  }, [show, show2P, isTrainingMode, t])
+
+  const { hiddenColumns, toggleColumn, resetColumns, isVisible } = useColumnPreferences('team-stats-basketball-players', availableColumns)
+  const summaryPrefs = useColumnPreferences('team-stats-basketball-summary', summaryColumns)
 
   const trendOptions = availableTrendMetrics.map((m) => ({
     value: m.key,
@@ -90,7 +156,7 @@ export default function BasketballTeamStatsTab({
   const isTrendUnavailable =
     trend.series === null && trend.requestedMetric !== null
 
-  // ── CÁLCULO DE TOTALES (Suma de todos los jugadores) ──
+  // ── CÁLCULO DE TOTALES ──
   const totals = useMemo(() => {
     const acc = {
       minutes: 0,
@@ -156,9 +222,34 @@ export default function BasketballTeamStatsTab({
       {/* ─── Resumen ─── */}
       <Card>
         <CardBody>
-          <h2 className="text-xl font-semibold text-text-primary mb-4">
-            {t('summaryTitleBasketball')}
-          </h2>
+          <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+            <h2 className="text-xl font-semibold text-text-primary">
+              {t('summaryTitleBasketball')}
+            </h2>
+            <button
+              type="button"
+              onClick={() => setShowSummarySettings(true)}
+              className="text-text-muted hover:text-brand-primary transition p-1 rounded hover:bg-surface-elevated"
+              title="Configurar métricas del resumen"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"/>
+                <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/>
+                <path d="M12 2v2"/>
+                <path d="M12 22v-2"/>
+                <path d="m17 20.66-1-1.73"/>
+                <path d="M11 10.27 7 3.34"/>
+                <path d="m20.66 17-1.73-1"/>
+                <path d="m3.34 7 1.73 1"/>
+                <path d="M14 12h8"/>
+                <path d="M2 12h2"/>
+                <path d="m20.66 7-1.73 1"/>
+                <path d="m3.34 17 1.73-1"/>
+                <path d="m17 3.34-1 1.73"/>
+                <path d="m11 13.73-4 6.93"/>
+              </svg>
+            </button>
+          </div>
 
           {summary.matches === 0 ? (
             <p className="text-center text-text-muted py-4">
@@ -166,7 +257,7 @@ export default function BasketballTeamStatsTab({
             </p>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-              {show('MATCHES') && (
+              {summaryPrefs.isVisible('MATCHES') && show('MATCHES') && (
                 <StatBox
                   label={t('labels.matches')}
                   value={`${summary.matches ?? '—'}`}
@@ -179,7 +270,7 @@ export default function BasketballTeamStatsTab({
                   }
                 />
               )}
-              {show('WIN_RATE') && (
+              {summaryPrefs.isVisible('WIN_RATE') && show('WIN_RATE') && (
                 <StatBox
                   label={t('labels.winRate')}
                   value={`${summary.winRate ?? '—'}%`}
@@ -190,7 +281,7 @@ export default function BasketballTeamStatsTab({
                   }
                 />
               )}
-              {show('POINTS_PER_MATCH') && (
+              {summaryPrefs.isVisible('POINTS_PER_MATCH') && show('POINTS_PER_MATCH') && (
                 <StatBox
                   label={t('labels.pointsPerMatch')}
                   value={`${summary.pointsPerMatch ?? '—'}`}
@@ -201,20 +292,20 @@ export default function BasketballTeamStatsTab({
                   }
                 />
               )}
-             {!isTrainingMode && show('OPPONENT_POINTS_PER_MATCH') && (
-  <StatBox
-    label={t('labels.opponentPointsPerMatch')}
-    value={`${summary.opponentPointsPerMatch ?? '—'}`}
-    hint={
-      show('OPPONENT_POINTS')
-        ? t('labels.pointsTotal', {
-            n: summary.opponentPoints,
-          })
-        : undefined
-    }
-  />
-)}
-              {show('MINUTES_PER_MATCH') && (
+              {summaryPrefs.isVisible('OPPONENT_POINTS_PER_MATCH') && !isTrainingMode && show('OPPONENT_POINTS_PER_MATCH') && (
+                <StatBox
+                  label={t('labels.opponentPointsPerMatch')}
+                  value={`${summary.opponentPointsPerMatch ?? '—'}`}
+                  hint={
+                    show('OPPONENT_POINTS')
+                      ? t('labels.pointsTotal', {
+                          n: summary.opponentPoints,
+                        })
+                      : undefined
+                  }
+                />
+              )}
+              {summaryPrefs.isVisible('MINUTES_PER_MATCH') && show('MINUTES_PER_MATCH') && (
                 <StatBox
                   label={t('labels.minutesPerMatch')}
                   value={`${summary.minutesPerMatch ?? '—'}`}
@@ -227,37 +318,37 @@ export default function BasketballTeamStatsTab({
                   }
                 />
               )}
-              {show('REBOUNDS') && (
+              {summaryPrefs.isVisible('REBOUNDS') && show('REBOUNDS') && (
                 <StatBox label={t('labels.rebounds')} value={`${summary.rebounds}`} />
               )}
-              {show('ASSISTS') && (
+              {summaryPrefs.isVisible('ASSISTS') && show('ASSISTS') && (
                 <StatBox label={t('labels.assists')} value={`${summary.assists}`} />
               )}
-              {show('STEALS') && (
+              {summaryPrefs.isVisible('STEALS') && show('STEALS') && (
                 <StatBox label={t('labels.steals')} value={`${summary.steals}`} />
               )}
-              {show('BLOCKS') && (
+              {summaryPrefs.isVisible('BLOCKS') && show('BLOCKS') && (
                 <StatBox label={t('labels.blocks')} value={`${summary.blocks}`} />
               )}
-              {show('BLOCKS_AGAINST') && (
+              {summaryPrefs.isVisible('BLOCKS_AGAINST') && show('BLOCKS_AGAINST') && (
                 <StatBox
                   label={t('labels.blocksAgainst')}
                   value={`${summary.blocksAgainst}`}
                 />
               )}
-              {show('TURNOVERS') && (
+              {summaryPrefs.isVisible('TURNOVERS') && show('TURNOVERS') && (
                 <StatBox label={t('labels.turnovers')} value={`${summary.turnovers}`} />
               )}
-              {show('FOULS') && (
+              {summaryPrefs.isVisible('FOULS') && show('FOULS') && (
                 <StatBox label={t('labels.fouls')} value={`${summary.fouls}`} />
               )}
-              {show('FOULS_DRAWN') && (
+              {summaryPrefs.isVisible('FOULS_DRAWN') && show('FOULS_DRAWN') && (
                 <StatBox
                   label={t('labels.foulsDrawn')}
                   value={`${summary.foulsDrawn}`}
                 />
               )}
-              {show('VALUATION') && (
+              {summaryPrefs.isVisible('VALUATION') && show('VALUATION') && (
                 <StatBox
                   label={t('labels.valuation')}
                   value={`${summary.valuation}`}
@@ -270,7 +361,7 @@ export default function BasketballTeamStatsTab({
                   }
                 />
               )}
-              {show('PLUS_MINUS') && (
+              {summaryPrefs.isVisible('PLUS_MINUS') && show('PLUS_MINUS') && (
                 <StatBox
                   label={t('labels.plusMinus')}
                   value={fmtPlusMinus(summary.plusMinus)}
@@ -283,7 +374,7 @@ export default function BasketballTeamStatsTab({
                   }
                 />
               )}
-              {show2P && (
+              {summaryPrefs.isVisible('TWO_P') && show2P && (
                 <StatBox
                   label={t('labels.twoPointPct')}
                   value={`${summary.twoPointersPct ?? 0}%`}
@@ -294,7 +385,7 @@ export default function BasketballTeamStatsTab({
                   }
                 />
               )}
-              {show('FG_PCT') && (
+              {summaryPrefs.isVisible('FG_PCT') && show('FG_PCT') && (
                 <StatBox
                   label={t('labels.fieldGoalPct')}
                   value={`${summary.fieldGoalPct}%`}
@@ -305,7 +396,7 @@ export default function BasketballTeamStatsTab({
                   }
                 />
               )}
-              {show('TP_PCT') && (
+              {summaryPrefs.isVisible('TP_PCT') && show('TP_PCT') && (
                 <StatBox
                   label={t('labels.threePointPct')}
                   value={`${summary.threePointPct}%`}
@@ -316,7 +407,7 @@ export default function BasketballTeamStatsTab({
                   }
                 />
               )}
-              {show('FT_PCT') && (
+              {summaryPrefs.isVisible('FT_PCT') && show('FT_PCT') && (
                 <StatBox
                   label={t('labels.freeThrowPct')}
                   value={`${summary.freeThrowPct}%`}
@@ -393,7 +484,7 @@ export default function BasketballTeamStatsTab({
                     case 'tpPct': return m.threePointPct ?? 0
                     case 'ftPct': return m.freeThrowPct ?? 0
                     case 'twoPointersPct': return m.twoPointersPct ?? 0
-                                        case 'twoPointersMade': return m.twoPointersMade ?? 0
+                    case 'twoPointersMade': return m.twoPointersMade ?? 0
                     case 'twoPointersAttempted': return m.twoPointersAttempted ?? 0
                     case 'threePointersMade': return m.threePointersMade ?? 0
                     case 'threePointersAttempted': return m.threePointersAttempted ?? 0
@@ -412,7 +503,7 @@ export default function BasketballTeamStatsTab({
                     case 'pointsPerMatch': return m.pointsPerMatch ?? 0
                     case 'opponentPoints': return m.opponentPoints ?? 0
                     case 'opponentPointsPerMatch': return m.opponentPointsPerMatch ?? 0
-                                        case 'twoPointersMade': return m.twoPointersMade ?? 0
+                    case 'twoPointersMade': return m.twoPointersMade ?? 0
                     case 'twoPointersAttempted': return m.twoPointersAttempted ?? 0
                     case 'threePointersMade': return m.threePointersMade ?? 0
                     case 'threePointersAttempted': return m.threePointersAttempted ?? 0
@@ -424,7 +515,6 @@ export default function BasketballTeamStatsTab({
                   }
                 }
 
-                
                 const seriesData =
                   groupBy === 'match'
                     ? (trend.byMatch ?? []).map((m: any) => {
@@ -432,7 +522,6 @@ export default function BasketballTeamStatsTab({
                         const isTraining =
                           m.opponent === 'Entrenamiento' || m.isTraining
 
-                        // Obtenemos la ubicación (Casa / Fuera)
                         const locStr =
                           m.location === 'HOME'
                             ? 'Casa'
@@ -440,7 +529,7 @@ export default function BasketballTeamStatsTab({
                             ? 'Fuera'
                             : ''
 
-                                                const parts = [dateStr]
+                        const parts = [dateStr]
                         if (isTraining) {
                           parts.push('🏋️ Entrenamiento')
                         } else {
@@ -448,12 +537,11 @@ export default function BasketballTeamStatsTab({
                           if (locStr) parts.push(locStr)
                         }
 
-                      // 👇 Añadimos el valor de la métrica al texto (sin unidades)
                         const val = applyFromMatch(m)
                         parts.push(`${val}`)
 
                         return {
-                          month: parts.join('\n'), // \n para saltos de línea
+                          month: parts.join('\n'),
                           value: val,
                         }
                       })
@@ -512,9 +600,34 @@ export default function BasketballTeamStatsTab({
       {/* ─── Tabla por jugador ─── */}
       <Card>
         <CardBody>
-          <h3 className="text-lg font-semibold text-text-primary mb-4">
-            {t('playersTitle', { count: players.length })}
-          </h3>
+          <div className="flex items-center justify-between flex-wrap gap-3 mb-4">
+            <h3 className="text-lg font-semibold text-text-primary">
+              {t('playersTitle', { count: players.length })}
+            </h3>
+            <button
+              type="button"
+              onClick={() => setShowColumnSettings(true)}
+              className="text-text-muted hover:text-brand-primary transition p-1 rounded hover:bg-surface-elevated"
+              title="Configurar columnas"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z"/>
+                <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z"/>
+                <path d="M12 2v2"/>
+                <path d="M12 22v-2"/>
+                <path d="m17 20.66-1-1.73"/>
+                <path d="M11 10.27 7 3.34"/>
+                <path d="m20.66 17-1.73-1"/>
+                <path d="m3.34 7 1.73 1"/>
+                <path d="M14 12h8"/>
+                <path d="M2 12h2"/>
+                <path d="m20.66 7-1.73 1"/>
+                <path d="m3.34 17 1.73-1"/>
+                <path d="m17 3.34-1 1.73"/>
+                <path d="m11 13.73-4 6.93"/>
+              </svg>
+            </button>
+          </div>
 
           {players.length === 0 ? (
             <p className="text-center text-text-muted py-4">
@@ -525,71 +638,71 @@ export default function BasketballTeamStatsTab({
               <table className="w-full text-xs">
                 <thead className="bg-surface-elevated">
                   <tr>
-                    <th className="px-2 py-2 text-left text-[10px] font-medium text-text-muted uppercase">{t('metrics.player')}</th>
-                    {show('MATCHES') && (
+                    <th className="px-2 py-2 text-left text-[10px] font-medium text-text-muted uppercase sticky left-0 bg-surface-elevated z-10">{t('metrics.player')}</th>
+                    {isVisible('MATCHES') && show('MATCHES') && (
                       <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.pj')}</th>
                     )}
-                    {showWLD && (
+                    {isVisible('WLD') && showWLD && (
                       <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.wld')}</th>
                     )}
-                    {show('AVAILABILITY') && (
+                    {isVisible('AVAILABILITY') && show('AVAILABILITY') && (
                       <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.availability')}</th>
                     )}
-                    {show('WIN_RATE') && (
+                    {isVisible('WIN_RATE') && show('WIN_RATE') && (
                       <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.winRateShort')}</th>
                     )}
-                    {show('MINUTES') && (
+                    {isVisible('MINUTES') && show('MINUTES') && (
                       <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.min')}</th>
                     )}
-                    {show('MINUTES_PER_MATCH_PLAYER') && (
+                    {isVisible('MINUTES_PER_MATCH_PLAYER') && show('MINUTES_PER_MATCH_PLAYER') && (
                       <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.minPerMatch')}</th>
                     )}
-                    {show('POINTS_PLAYER') && (
+                    {isVisible('POINTS_PLAYER') && show('POINTS_PLAYER') && (
                       <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.pts')}</th>
                     )}
-                    {show('POINTS_PER_MATCH_PLAYER') && (
+                    {isVisible('POINTS_PER_MATCH_PLAYER') && show('POINTS_PER_MATCH_PLAYER') && (
                       <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.ptsPerMatch')}</th>
                     )}
-                    {show('REBOUNDS') && (
+                    {isVisible('REBOUNDS') && show('REBOUNDS') && (
                       <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.reb')}</th>
                     )}
-                    {show('ASSISTS') && (
+                    {isVisible('ASSISTS') && show('ASSISTS') && (
                       <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.ast')}</th>
                     )}
-                    {show('STEALS') && (
+                    {isVisible('STEALS') && show('STEALS') && (
                       <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.rob')}</th>
                     )}
-                    {show('BLOCKS') && (
+                    {isVisible('BLOCKS') && show('BLOCKS') && (
                       <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.tap')}</th>
                     )}
-                    {show('BLOCKS_AGAINST') && (
+                    {isVisible('BLOCKS_AGAINST') && show('BLOCKS_AGAINST') && (
                       <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.tapAgainst')}</th>
                     )}
-                    {show('TURNOVERS') && (
+                    {isVisible('TURNOVERS') && show('TURNOVERS') && (
                       <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.turnovers')}</th>
                     )}
-                    {show('FOULS') && (
+                    {isVisible('FOULS') && show('FOULS') && (
                       <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.fouls')}</th>
                     )}
-                    {show('FOULS_DRAWN') && (
+                    {isVisible('FOULS_DRAWN') && show('FOULS_DRAWN') && (
                       <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.foulsDrawn')}</th>
                     )}
-                    {show('VALUATION') && (
+                    {isVisible('VALUATION') && show('VALUATION') && (
                       <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.valuation')}</th>
                     )}
-                    {show('PLUS_MINUS') && (
+                    {isVisible('PLUS_MINUS') && show('PLUS_MINUS') && (
                       <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.plusMinus')}</th>
                     )}
-                    {show2P && (
+                    {isVisible('TWO_P') && show2P && (
                       <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.twoP')}</th>
                     )}
-                    {show('FG_PCT') && (
+                    {isVisible('FG_PCT') && show('FG_PCT') && (
                       <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.tc')}</th>
                     )}
-                    {show('TP_PCT') && (
+                    {isVisible('TP_PCT') && show('TP_PCT') && (
                       <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.threeP')}</th>
                     )}
-                    {show('FT_PCT') && (
+                    {isVisible('FT_PCT') && show('FT_PCT') && (
                       <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.tl')}</th>
                     )}
                     <th className="px-2 py-2 w-8" aria-label={t('open')} />
@@ -610,22 +723,23 @@ export default function BasketballTeamStatsTab({
                       show2PPct={show2PPct}
                       show2P={show2P}
                       teamId={teamId}
+                      isVisible={isVisible}
                     />
                   ))}
                 </tbody>
                 <tfoot className="bg-brand-primary/5 border-t-2 border-brand-primary/30">
                   <tr className="font-semibold">
-                    <td className="px-2 py-2 text-left text-text-primary">
+                    <td className="px-2 py-2 text-left text-text-primary sticky left-0 bg-surface-elevated z-10">
                       <span className="text-[10px] uppercase tracking-wide text-brand-primary">
                         {t('totals')}
                       </span>
                     </td>
-                    {show('MATCHES') && (
+                    {isVisible('MATCHES') && show('MATCHES') && (
                       <td className="px-2 py-2 text-center text-brand-primary font-bold">
                         {summary.matches}
                       </td>
                     )}
-                    {showWLD && (
+                    {isVisible('WLD') && showWLD && (
                       <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
                         {showWins ? summary.wins : '-'}-
                         {showLosses ? summary.losses : '-'}
@@ -634,10 +748,10 @@ export default function BasketballTeamStatsTab({
                           : ''}
                       </td>
                     )}
-                    {show('AVAILABILITY') && (
+                    {isVisible('AVAILABILITY') && show('AVAILABILITY') && (
                       <td className="px-2 py-2 text-center text-text-muted">—</td>
                     )}
-                    {show('WIN_RATE') && (
+                    {isVisible('WIN_RATE') && show('WIN_RATE') && (
                       <td
                         className={`px-2 py-2 text-center font-bold ${
                           summary.winRate >= 50 ? 'text-success' : 'text-danger'
@@ -646,67 +760,67 @@ export default function BasketballTeamStatsTab({
                         {summary.winRate}%
                       </td>
                     )}
-                    {show('MINUTES') && (
+                    {isVisible('MINUTES') && show('MINUTES') && (
                       <td className="px-2 py-2 text-center text-text-primary">
                         {totals.minutes}
                       </td>
                     )}
-                    {show('MINUTES_PER_MATCH_PLAYER') && (
+                    {isVisible('MINUTES_PER_MATCH_PLAYER') && show('MINUTES_PER_MATCH_PLAYER') && (
                       <td className="px-2 py-2 text-center text-text-primary">
                         {summary.minutesPerMatch}
                       </td>
                     )}
-                    {show('POINTS_PLAYER') && (
+                    {isVisible('POINTS_PLAYER') && show('POINTS_PLAYER') && (
                       <td className="px-2 py-2 text-center text-brand-primary font-bold">
                         {totals.points}
                       </td>
                     )}
-                    {show('POINTS_PER_MATCH_PLAYER') && (
+                    {isVisible('POINTS_PER_MATCH_PLAYER') && show('POINTS_PER_MATCH_PLAYER') && (
                       <td className="px-2 py-2 text-center text-text-primary">
                         {summary.playerPointsPerMatch ?? summary.pointsPerMatch}
                       </td>
                     )}
-                    {show('REBOUNDS') && (
+                    {isVisible('REBOUNDS') && show('REBOUNDS') && (
                       <td className="px-2 py-2 text-center text-text-primary">
                         {totals.rebounds}
                       </td>
                     )}
-                    {show('ASSISTS') && (
+                    {isVisible('ASSISTS') && show('ASSISTS') && (
                       <td className="px-2 py-2 text-center text-text-primary">
                         {totals.assists}
                       </td>
                     )}
-                    {show('STEALS') && (
+                    {isVisible('STEALS') && show('STEALS') && (
                       <td className="px-2 py-2 text-center text-text-primary">
                         {totals.steals}
                       </td>
                     )}
-                    {show('BLOCKS') && (
+                    {isVisible('BLOCKS') && show('BLOCKS') && (
                       <td className="px-2 py-2 text-center text-text-primary">
                         {totals.blocks}
                       </td>
                     )}
-                    {show('BLOCKS_AGAINST') && (
+                    {isVisible('BLOCKS_AGAINST') && show('BLOCKS_AGAINST') && (
                       <td className="px-2 py-2 text-center text-text-primary">
                         {totals.blocksAgainst}
                       </td>
                     )}
-                    {show('TURNOVERS') && (
+                    {isVisible('TURNOVERS') && show('TURNOVERS') && (
                       <td className="px-2 py-2 text-center text-text-primary">
                         {totals.turnovers}
                       </td>
                     )}
-                    {show('FOULS') && (
+                    {isVisible('FOULS') && show('FOULS') && (
                       <td className="px-2 py-2 text-center text-text-primary">
                         {totals.fouls}
                       </td>
                     )}
-                    {show('FOULS_DRAWN') && (
+                    {isVisible('FOULS_DRAWN') && show('FOULS_DRAWN') && (
                       <td className="px-2 py-2 text-center text-text-primary">
                         {totals.foulsDrawn}
                       </td>
                     )}
-                    {show('VALUATION') && (
+                    {isVisible('VALUATION') && show('VALUATION') && (
                       <td
                         className={`px-2 py-2 text-center font-bold ${
                           totals.valuation > 0
@@ -719,7 +833,7 @@ export default function BasketballTeamStatsTab({
                         {totals.valuation}
                       </td>
                     )}
-                    {show('PLUS_MINUS') && (
+                    {isVisible('PLUS_MINUS') && show('PLUS_MINUS') && (
                       <td
                         className={`px-2 py-2 text-center font-bold ${
                           totals.plusMinus > 0
@@ -732,7 +846,7 @@ export default function BasketballTeamStatsTab({
                         {fmtPlusMinus(totals.plusMinus)}
                       </td>
                     )}
-                    {show2P && (
+                    {isVisible('TWO_P') && show2P && (
                       <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
                         {show2PMade && show2PAttempted
                           ? `${totals.twoPointersMade}/${totals.twoPointersAttempted} `
@@ -744,7 +858,7 @@ export default function BasketballTeamStatsTab({
                         {show2PPct && `(${totals.twoPointersPct}%)`}
                       </td>
                     )}
-                    {show('FG_PCT') && (
+                    {isVisible('FG_PCT') && show('FG_PCT') && (
                       <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
                         {show('FG_MADE') && show('FG_ATTEMPTED')
                           ? `${totals.fieldGoalsMade}/${totals.fieldGoalsAttempted} `
@@ -752,7 +866,7 @@ export default function BasketballTeamStatsTab({
                         ({totals.fieldGoalPct}%)
                       </td>
                     )}
-                    {show('TP_PCT') && (
+                    {isVisible('TP_PCT') && show('TP_PCT') && (
                       <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
                         {show('TP_MADE') && show('TP_ATTEMPTED')
                           ? `${totals.threePointersMade}/${totals.threePointersAttempted} `
@@ -760,7 +874,7 @@ export default function BasketballTeamStatsTab({
                         ({totals.threePointPct}%)
                       </td>
                     )}
-                    {show('FT_PCT') && (
+                    {isVisible('FT_PCT') && show('FT_PCT') && (
                       <td className="px-2 py-2 text-center text-text-primary whitespace-nowrap">
                         {show('FT_MADE') && show('FT_ATTEMPTED')
                           ? `${totals.freeThrowsMade}/${totals.freeThrowsAttempted} `
@@ -776,6 +890,28 @@ export default function BasketballTeamStatsTab({
           )}
         </CardBody>
       </Card>
+
+      {/* Modal de configuración de columnas de la tabla */}
+      <ColumnSettingsModal
+        isOpen={showColumnSettings}
+        onClose={() => setShowColumnSettings(false)}
+        columns={availableColumns}
+        hiddenColumns={hiddenColumns}
+        onToggle={toggleColumn}
+        onReset={resetColumns}
+        title="Configurar columnas de jugadores"
+      />
+
+      {/* Modal de configuración de métricas del resumen */}
+      <ColumnSettingsModal
+        isOpen={showSummarySettings}
+        onClose={() => setShowSummarySettings(false)}
+        columns={summaryColumns}
+        hiddenColumns={summaryPrefs.hiddenColumns}
+        onToggle={summaryPrefs.toggleColumn}
+        onReset={summaryPrefs.resetColumns}
+        title="Configurar métricas del resumen"
+      />
     </div>
   )
 }
@@ -792,6 +928,7 @@ function PlayerRow({
   show2PPct,
   show2P,
   teamId,
+  isVisible,
 }: {
   p: BasketballTeamStatsPlayer
   show: (key: string) => boolean
@@ -804,6 +941,7 @@ function PlayerRow({
   show2PPct: boolean
   show2P: boolean
   teamId: string
+  isVisible: (key: string) => boolean
 }) {
   const router = useRouter()
   const href = `/teams/${teamId}/players/${p.userId}/stats`
@@ -813,7 +951,7 @@ function PlayerRow({
       onClick={() => router.push(href)}
       className="hover:bg-surface-elevated transition cursor-pointer"
     >
-      <td className="px-2 py-2 font-medium text-text-primary whitespace-nowrap">
+      <td className="px-2 py-2 font-medium text-text-primary whitespace-nowrap sticky left-0 bg-bg-base z-10">
         <Link
           href={href}
           onClick={(e) => e.stopPropagation()}
@@ -822,21 +960,21 @@ function PlayerRow({
           {p.name} {p.lastName}
         </Link>
       </td>
-      {show('MATCHES') && (
+      {isVisible('MATCHES') && show('MATCHES') && (
         <td className="px-2 py-2 text-center text-text-secondary">{p.matches}</td>
       )}
-      {showWLD && (
+      {isVisible('WLD') && showWLD && (
         <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
           {showWins ? p.wins : '-'}-{showLosses ? p.losses : '-'}
           {showDraws && p.draws > 0 ? `-${p.draws}` : ''}
         </td>
       )}
-      {show('AVAILABILITY') && (
+      {isVisible('AVAILABILITY') && show('AVAILABILITY') && (
         <td className="px-2 py-2 text-center text-text-secondary">
           {p.availabilityCount}/{p.teamMatches}
         </td>
       )}
-      {show('WIN_RATE') && (
+      {isVisible('WIN_RATE') && show('WIN_RATE') && (
         <td
           className={`px-2 py-2 text-center font-semibold ${
             p.winRate >= 50 ? 'text-success' : 'text-danger'
@@ -845,53 +983,53 @@ function PlayerRow({
           {p.winRate}%
         </td>
       )}
-      {show('MINUTES') && (
+      {isVisible('MINUTES') && show('MINUTES') && (
         <td className="px-2 py-2 text-center text-text-secondary">{p.minutes}</td>
       )}
-      {show('MINUTES_PER_MATCH_PLAYER') && (
+      {isVisible('MINUTES_PER_MATCH_PLAYER') && show('MINUTES_PER_MATCH_PLAYER') && (
         <td className="px-2 py-2 text-center text-text-secondary">
           {p.minutesPerMatch}
         </td>
       )}
-      {show('POINTS_PLAYER') && (
+      {isVisible('POINTS_PLAYER') && show('POINTS_PLAYER') && (
         <td className="px-2 py-2 text-center font-semibold text-text-primary">
           {p.points}
         </td>
       )}
-      {show('POINTS_PER_MATCH_PLAYER') && (
+      {isVisible('POINTS_PER_MATCH_PLAYER') && show('POINTS_PER_MATCH_PLAYER') && (
         <td className="px-2 py-2 text-center text-text-secondary">
           {p.pointsPerMatch}
         </td>
       )}
-      {show('REBOUNDS') && (
+      {isVisible('REBOUNDS') && show('REBOUNDS') && (
         <td className="px-2 py-2 text-center text-text-secondary">{p.rebounds}</td>
       )}
-      {show('ASSISTS') && (
+      {isVisible('ASSISTS') && show('ASSISTS') && (
         <td className="px-2 py-2 text-center text-text-secondary">{p.assists}</td>
       )}
-      {show('STEALS') && (
+      {isVisible('STEALS') && show('STEALS') && (
         <td className="px-2 py-2 text-center text-text-secondary">{p.steals}</td>
       )}
-      {show('BLOCKS') && (
+      {isVisible('BLOCKS') && show('BLOCKS') && (
         <td className="px-2 py-2 text-center text-text-secondary">{p.blocks}</td>
       )}
-      {show('BLOCKS_AGAINST') && (
+      {isVisible('BLOCKS_AGAINST') && show('BLOCKS_AGAINST') && (
         <td className="px-2 py-2 text-center text-text-secondary">
           {p.blocksAgainst}
         </td>
       )}
-      {show('TURNOVERS') && (
+      {isVisible('TURNOVERS') && show('TURNOVERS') && (
         <td className="px-2 py-2 text-center text-text-secondary">{p.turnovers}</td>
       )}
-      {show('FOULS') && (
+      {isVisible('FOULS') && show('FOULS') && (
         <td className="px-2 py-2 text-center text-text-secondary">{p.fouls}</td>
       )}
-      {show('FOULS_DRAWN') && (
+      {isVisible('FOULS_DRAWN') && show('FOULS_DRAWN') && (
         <td className="px-2 py-2 text-center text-text-secondary">
           {p.foulsDrawn}
         </td>
       )}
-      {show('VALUATION') && (
+      {isVisible('VALUATION') && show('VALUATION') && (
         <td
           className={`px-2 py-2 text-center font-semibold ${
             p.valuation > 0
@@ -904,7 +1042,7 @@ function PlayerRow({
           {p.valuation}
         </td>
       )}
-      {show('PLUS_MINUS') && (
+      {isVisible('PLUS_MINUS') && show('PLUS_MINUS') && (
         <td
           className={`px-2 py-2 text-center font-medium ${
             p.plusMinus > 0
@@ -917,7 +1055,7 @@ function PlayerRow({
           {fmtPlusMinus(p.plusMinus)}
         </td>
       )}
-      {show2P && (
+      {isVisible('TWO_P') && show2P && (
         <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
           {show2PMade && show2PAttempted
             ? `${p.twoPointersMade}/${p.twoPointersAttempted} `
@@ -933,7 +1071,7 @@ function PlayerRow({
           )}
         </td>
       )}
-      {show('FG_PCT') && (
+      {isVisible('FG_PCT') && show('FG_PCT') && (
         <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
           {show('FG_MADE') && show('FG_ATTEMPTED')
             ? `${p.fieldGoalsMade}/${p.fieldGoalsAttempted} `
@@ -943,7 +1081,7 @@ function PlayerRow({
           </span>
         </td>
       )}
-      {show('TP_PCT') && (
+      {isVisible('TP_PCT') && show('TP_PCT') && (
         <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
           {show('TP_MADE') && show('TP_ATTEMPTED')
             ? `${p.threePointersMade}/${p.threePointersAttempted} `
@@ -953,7 +1091,7 @@ function PlayerRow({
           </span>
         </td>
       )}
-      {show('FT_PCT') && (
+      {isVisible('FT_PCT') && show('FT_PCT') && (
         <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
           {show('FT_MADE') && show('FT_ATTEMPTED')
             ? `${p.freeThrowsMade}/${p.freeThrowsAttempted} `

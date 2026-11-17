@@ -140,10 +140,6 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // ============================================
-  // CARGA DE EQUIPOS
-  // ============================================
-
   const loadTeamsFromMemberships = async (memberships: Membership[]) => {
     const relevant = memberships.filter(
       (m) => m.status === 'ACTIVE' || m.status === 'PENDING',
@@ -195,6 +191,7 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
 
     // ─────────────────────────────────────────────
     // Resolución del equipo activo
+    // Prioridad absoluta al activeTeamId guardado.
     // ─────────────────────────────────────────────
 
     const savedActiveId =
@@ -204,55 +201,43 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
 
     let foundActive: Team | null = null
 
+    // 1) Si hay un activeTeamId guardado y el equipo existe en las listas,
+    //    lo usamos sin preguntar.
     if (savedActiveId) {
       foundActive =
-        favTeams.find((t) => t.id === savedActiveId) ||
         teams.find((t) => t.id === savedActiveId) ||
+        favTeams.find((t) => t.id === savedActiveId) ||
         null
     }
 
+    // 2) Si el activeTeamId no existe o no está en las listas, y el
+    //    activeTeam actual en memoria SÍ está en las listas, lo mantenemos.
+    if (!foundActive && activeTeamRef.current) {
+      const currentInTeams = teams.find(
+        (t) => t.id === activeTeamRef.current!.id,
+      )
+      if (currentInTeams) {
+        foundActive = currentInTeams
+      }
+    }
+
+    // 3) Si seguimos sin encontralgo, elegimos favorito o el primero.
     if (!foundActive && favTeams.length > 0) {
       foundActive = favTeams[0]
     }
-
     if (!foundActive && teams.length > 0) {
       foundActive = teams[0]
     }
 
-    // Si el activeTeam actual ya no es visible (por cambio de licencia),
-    // lo sustituimos por foundActive (o lo vaciamos si no hay nada).
-    const current = activeTeamRef.current
-    const currentStillVisible = current
-      ? teams.some((t) => t.id === current.id) ||
-        favTeams.some((t) => t.id === current.id)
-      : false
-
-    if (current && !currentStillVisible) {
-      if (foundActive) {
-        setActiveTeamState(foundActive)
-        activeTeamRef.current = foundActive
-        if (typeof window !== 'undefined') {
-          localStorage.setItem('activeTeamId', foundActive.id)
-        }
-      } else {
-        setActiveTeamState(null)
-        activeTeamRef.current = null
-        if (typeof window !== 'undefined') {
-          localStorage.removeItem('activeTeamId')
-        }
-      }
-      return
-    }
-
-    // Flujo normal: usar foundActive si lo hay.
+    // 4) Persistir el resultado.
     if (foundActive) {
       setActiveTeamState(foundActive)
       activeTeamRef.current = foundActive
       if (typeof window !== 'undefined') {
         localStorage.setItem('activeTeamId', foundActive.id)
       }
-    } else if (relevant.length === 0) {
-      // No tiene memberships → limpiar.
+    } else {
+      // Sin equipos → limpiar.
       setActiveTeamState(null)
       activeTeamRef.current = null
       if (typeof window !== 'undefined') {
@@ -305,6 +290,7 @@ export function ActiveTeamProvider({ children }: { children: ReactNode }) {
   // ============================================
 
   const setActiveTeam = (team: Team) => {
+    console.log('[setActiveTeam] llamado con:', team.id, team.name)
     setActiveTeamState(team)
     activeTeamRef.current = team
     if (typeof window !== 'undefined') {
