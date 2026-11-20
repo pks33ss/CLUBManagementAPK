@@ -89,9 +89,9 @@ export default function NewSession() {
       const teamToSelect = preferred ? preferredTeamId! : teamsList[0].id
 
       setFormData((prev) => ({ ...prev, teamId: teamToSelect }))
-    } catch (error) {
-      console.error('Error fetching teams:', error)
-    }
+    } catch (error: any) {
+  console.error('Error fetching teams:', error.response?.status, error.response?.data)
+}
   }
 
   const handleClubChange = (clubId: string) => {

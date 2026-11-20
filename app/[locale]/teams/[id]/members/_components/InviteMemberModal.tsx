@@ -5,11 +5,8 @@
 import { useState, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { usersApi } from '@/lib/api/users'
-import { invitationsApi } from '@/lib/api/invitations'
 import { Button, Input, Modal } from '@/components/ui'
 import type { UserPublic } from '@/types/user'
-import { membershipsApi } from '@/lib/api/memberships'
-import api from '@/lib/api'
 
 interface Props {
   teamId: string
@@ -22,15 +19,21 @@ interface Props {
     clubId: string
     user: { name: string; lastName: string; email: string }
   }) => void
+  onRequestRoleAssignment: (payload: {
+    userId?: string
+    email?: string
+    name?: string
+    lastName?: string
+    mode: 'existing' | 'invite' | 'create'
+  }) => void
 }
 
 type Mode = 'search' | 'create' | 'registered'
 
-export default function InviteMemberModal({ teamId, clubId, onClose, onSuccess, onCreated }: Props) {
+export default function InviteMemberModal({ teamId, clubId, onClose, onSuccess, onCreated, onRequestRoleAssignment }: Props) {
   const t = useTranslations('Members.invite')
-  const tRoles = useTranslations('Roles')
   
-  const [mode, setMode] = useState<Mode>('create')
+  const [mode, setMode] = useState<Mode>('registered') // Por defecto "registrado" para que sea más rápido
 
   // Search
   const [query, setQuery] = useState('')
@@ -53,11 +56,8 @@ export default function InviteMemberModal({ teamId, clubId, onClose, onSuccess, 
   const [registeredQuery, setRegisteredQuery] = useState('')
 
   // Result
-  const [invitationLink, setInvitationLink] = useState<string | null>(null)
-  const [invitationCode, setInvitationCode] = useState<string | null>(null)
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState('')
-  const [copied, setCopied] = useState(false)
 
   // Debounced search
   useEffect(() => {
@@ -84,237 +84,86 @@ export default function InviteMemberModal({ teamId, clubId, onClose, onSuccess, 
     return () => clearTimeout(timer)
   }, [query])
 
-  const handleAddExisting = async (user: UserPublic) => {
+  const handleAddExisting = (user: UserPublic) => {
     setAdding(user.id)
     setError('')
-    try {
-      // Para añadir existentes, usamos el endpoint de membership con un rol por defecto
-      await membershipsApi.addMember(teamId, {
-        userId: user.id,
-        role: 'PLAYER', // Rol por defecto
-      })
-      await onSuccess()
-      onClose()
-    } catch (err: any) {
-      console.error('Error:', err)
-      setError(err.response?.data?.message || t('errorAdd'))
-    } finally {
-      setAdding(null)
-    }
+    onRequestRoleAssignment({
+      userId: user.id,
+      mode: 'existing',
+    })
+    onClose()
   }
 
-  const handleInviteExisting = async (user: UserPublic) => {
-    setProcessing(true)
+  const handleInviteExisting = (user: UserPublic) => {
     setError('')
-    try {
-      const invitation = await invitationsApi.create({
-        teamId,
-        role: 'PLAYER',
-        channel: 'LINK',
-        userId: user.id,
-      })
-      setInvitationCode(invitation.code)
-      setInvitationLink(invitation.invitationLink ?? null)
-    } catch (err: any) {
-      console.error('Error:', err)
-      const code = err.response?.data?.code
-      if (code === 'ALREADY_IN_TEAM') {
-        setError(t('errorAlreadyInTeam'))
-      } else {
-        setError(err.response?.data?.message || t('errorCreateInvite'))
-      }
-    } finally {
-      setProcessing(false)
-    }
+    onRequestRoleAssignment({
+      userId: user.id,
+      email: user.email,
+      mode: 'invite',
+    })
+    onClose()
   }
 
-  // ✅ Crear nuevo usuario: usa el endpoint del club con roles
-  const handleCreateNew = async (e: React.FormEvent) => {
+  const handleCreateNew = (e: React.FormEvent) => {
     e.preventDefault()
     if (!createForm.name || !createForm.lastName) {
       setError(t('errorRequired'))
       return
     }
-
-    setProcessing(true)
     setError('')
-    try {
-      const res = await api.post(`/teams/${teamId}/members`, {
-        name: createForm.name,
-        lastName: createForm.lastName,
-        email: createForm.email || undefined,
-        phone: createForm.phone || undefined,
-        role: 'PLAYER',
-        jerseyNumber: createForm.jerseyNumber
-          ? Number(createForm.jerseyNumber)
-          : undefined,
-        position: createForm.position || undefined,
-      })
-
-      // Notificar al padre para que abra el modal de roles
-      onCreated?.({
-        id: res.data.id,
-        userId: res.data.userId ?? res.data.user?.id ?? '',
-        clubId: res.data.clubId ?? clubId,
-        user: res.data.user,
-      })
-
-      await onSuccess()
-      onClose()
-    } catch (err: any) {
-      const code = err.response?.data?.code
-      if (code === 'USER_ALREADY_EXISTS_USE_EMAIL_INVITE') {
-        setMode('registered')
-        setRegisteredQuery(createForm.email)
-        setError(t('errorEmailExists'))
-      } else {
-        setError(err.response?.data?.message || t('errorCreateMember'))
-      }
-    } finally {
-      setProcessing(false)
-    }
+    onRequestRoleAssignment({
+      name: createForm.name,
+      lastName: createForm.lastName,
+      email: createForm.email || undefined,
+      mode: 'create',
+    })
+    onClose()
   }
 
-  const handleInviteRegistered = async (e: React.FormEvent) => {
+  const handleInviteRegistered = (e: React.FormEvent) => {
     e.preventDefault()
     if (!registeredQuery.trim()) return
 
     setProcessing(true)
     setError('')
 
-    const isEmail =
-      registeredQuery.includes('@') && !registeredQuery.startsWith('@')
+    const isEmail = registeredQuery.includes('@') && !registeredQuery.startsWith('@')
 
-    try {
-      const found = await usersApi.lookupUser(
-        isEmail ? { email: registeredQuery } : { username: registeredQuery },
-      )
-
-      const invitation = await invitationsApi.create({
-        teamId,
-        role: 'PLAYER',
-        channel: 'LINK',
-        userId: found.id,
-        email: isEmail ? registeredQuery : undefined,
+    // Buscamos al usuario por email o username
+    usersApi.lookupUser(isEmail ? { email: registeredQuery } : { username: registeredQuery })
+      .then((found) => {
+        onRequestRoleAssignment({
+          userId: found.id,
+          email: isEmail ? registeredQuery : undefined,
+          mode: 'invite',
+        })
+        onClose()
       })
-
-      setInvitationCode(invitation.code)
-      setInvitationLink(invitation.invitationLink ?? null)
-    } catch (err: any) {
-      console.error('Error:', err)
-      const code = err.response?.data?.code
-      if (code === 'USER_NOT_FOUND') {
-        setError(t('errorUserNotFound'))
-      } else if (code === 'ALREADY_IN_TEAM') {
-        setError(t('errorAlreadyInTeam'))
-      } else {
-        setError(err.response?.data?.message || t('errorInvite'))
-      }
-    } finally {
-      setProcessing(false)
-    }
-  }
-
-  const copyLink = async () => {
-    if (!invitationLink) {
-      setError(t('errorNoLink'))
-      return
-    }
-
-    try {
-      if (navigator.clipboard && window.isSecureContext) {
-        await navigator.clipboard.writeText(invitationLink)
-      } else {
-        const textArea = document.createElement('textarea')
-        textArea.value = invitationLink
-        textArea.style.position = 'fixed'
-        textArea.style.left = '-9999px'
-        document.body.appendChild(textArea)
-        textArea.select()
-        document.execCommand('copy')
-        document.body.removeChild(textArea)
-      }
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch (err) {
-      console.error('Error copiando:', err)
-      setError(t('errorCopy'))
-    }
-  }
-
-  const shareWhatsApp = () => {
-    if (!invitationLink) {
-      setError(t('errorNoLink'))
-      return
-    }
-    const msg = `¡Hola! 👋 Te invito al equipo en JoinSport. Únete aquí: ${invitationLink}`
-    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank')
-  }
-
-  const sendByEmail = () => {
-    setError(t('emailInfo'))
-  }
-
-  if (invitationCode) {
-    return (
-      <Modal isOpen={true} onClose={onClose} title={t('successTitle')} size="md">
-        <div className="space-y-4">
-          <div className="bg-success/10 border border-success/20 rounded-lg p-4 text-center">
-            <div className="text-4xl mb-2">✅</div>
-            <p className="text-success font-medium">{t('successHeading')}</p>
-            <p className="text-xs text-text-muted mt-1">{t('successHint')}</p>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-text-secondary mb-1">
-              {t('codeLabel')}
-            </label>
-            <code className="block bg-surface-elevated border border-border-subtle rounded-lg px-3 py-2 text-text-primary font-mono text-sm">
-              {invitationCode}
-            </code>
-          </div>
-          {invitationLink && (
-            <>
-              <div>
-                <label className="block text-sm font-medium text-text-secondary mb-1">
-                  {t('linkLabel')}
-                </label>
-                <input
-                  type="text"
-                  value={invitationLink}
-                  readOnly
-                  onClick={(e) => (e.target as HTMLInputElement).select()}
-                  className="w-full bg-surface-elevated border border-border-subtle rounded-lg px-3 py-2 text-text-primary text-sm font-mono"
-                />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                <Button variant="secondary" onClick={copyLink}>
-                  {copied ? t('copied') : t('copyLink')}
-                </Button>
-                <Button onClick={shareWhatsApp}>💬 WhatsApp</Button>
-                <Button variant="secondary" onClick={sendByEmail}>
-                  {t('emailButton')}
-                </Button>
-              </div>
-            </>
-          )}
-          <Button
-            variant="secondary"
-            onClick={async () => {
-              await onSuccess()
-              onClose()
-            }}
-            className="w-full"
-          >
-            {t('closeAndReload')}
-          </Button>
-        </div>
-      </Modal>
-    )
+      .catch((err) => {
+        console.error('Error:', err)
+        const code = err.response?.data?.code
+        if (code === 'USER_NOT_FOUND') {
+          setError(t('errorUserNotFound'))
+        } else {
+          setError(err.response?.data?.message || t('errorInvite'))
+        }
+      })
+      .finally(() => setProcessing(false))
   }
 
   return (
     <Modal isOpen={true} onClose={onClose} title={t('title')} size="lg">
       <div className="flex mb-4 border-b border-border-subtle">
+        <button
+          onClick={() => setMode('registered')}
+          className={`flex-1 px-2 py-2 text-xs sm:text-sm font-medium border-b-2 -mb-px transition ${
+            mode === 'registered'
+              ? 'border-brand-primary text-brand-primary'
+              : 'border-transparent text-text-muted hover:text-text-primary'
+          }`}
+        >
+          ✉️ Usuario registrado
+        </button>
         <button
           onClick={() => setMode('search')}
           className={`flex-1 px-2 py-2 text-xs sm:text-sm font-medium border-b-2 -mb-px transition ${
@@ -323,7 +172,7 @@ export default function InviteMemberModal({ teamId, clubId, onClose, onSuccess, 
               : 'border-transparent text-text-muted hover:text-text-primary'
           }`}
         >
-          {t('tabSearch')}
+          🔍 Buscar en el club
         </button>
         <button
           onClick={() => setMode('create')}
@@ -333,19 +182,32 @@ export default function InviteMemberModal({ teamId, clubId, onClose, onSuccess, 
               : 'border-transparent text-text-muted hover:text-text-primary'
           }`}
         >
-          {t('tabCreate')}
-        </button>
-        <button
-          onClick={() => setMode('registered')}
-          className={`flex-1 px-2 py-2 text-xs sm:text-sm font-medium border-b-2 -mb-px transition ${
-            mode === 'registered'
-              ? 'border-brand-primary text-brand-primary'
-              : 'border-transparent text-text-muted hover:text-text-primary'
-          }`}
-        >
-          {t('tabRegistered')}
+          ➕ Crear nuevo
         </button>
       </div>
+
+      {mode === 'registered' && (
+        <form onSubmit={handleInviteRegistered} className="space-y-4">
+          <Input
+            label="Email o nombre de usuario"
+            type="text"
+            value={registeredQuery}
+            onChange={(e) => setRegisteredQuery(e.target.value)}
+            placeholder="usuario@email.com o @username"
+            autoFocus
+            required
+          />
+
+          <div className="flex gap-3 pt-2">
+            <Button type="button" variant="secondary" onClick={onClose} disabled={processing} className="flex-1">
+              {t('cancel')}
+            </Button>
+            <Button type="submit" disabled={processing} loading={processing} className="flex-1">
+              {processing ? t('inviting') : 'Continuar y asignar roles →'}
+            </Button>
+          </div>
+        </form>
+      )}
 
       {mode === 'search' && (
         <div className="space-y-4">
@@ -358,40 +220,25 @@ export default function InviteMemberModal({ teamId, clubId, onClose, onSuccess, 
             autoFocus
           />
 
-          {searching && (
-            <p className="text-center text-sm text-text-muted py-4">
-              {t('searching')}
-            </p>
-          )}
+          {searching && <p className="text-center text-sm text-text-muted py-4">{t('searching')}</p>}
 
           {!searching && searched && results.length === 0 && (
-            <p className="text-center text-sm text-text-muted py-4">
-              {t('noResults')}
-            </p>
+            <p className="text-center text-sm text-text-muted py-4">{t('noResults')}</p>
           )}
 
           {!searching && results.length > 0 && (
             <div className="space-y-2 max-h-80 overflow-y-auto">
               {results.map((u) => (
-                <div
-                  key={u.id}
-                  className="flex items-center gap-3 p-3 rounded-lg border border-border-subtle hover:border-brand-primary/50 transition"
-                >
+                <div key={u.id} className="flex items-center gap-3 p-3 rounded-lg border border-border-subtle hover:border-brand-primary/50 transition">
                   {u.avatar ? (
-                    <img
-                      src={u.avatar}
-                      alt={u.name}
-                      className="w-10 h-10 rounded-full object-cover"
-                    />
+                    <img src={u.avatar} alt={u.name} className="w-10 h-10 rounded-full object-cover" />
                   ) : (
                     <div className="w-10 h-10 rounded-full bg-brand-primary/20 text-brand-primary flex items-center justify-center font-bold">
                       {u.name?.[0]?.toUpperCase()}
                     </div>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-text-primary truncate">
-                      {u.name} {u.lastName}
-                    </p>
+                    <p className="font-medium text-text-primary truncate">{u.name} {u.lastName}</p>
                     <p className="text-xs text-brand-primary">{u.username}</p>
                   </div>
                   <div className="flex gap-2 shrink-0">
@@ -401,7 +248,6 @@ export default function InviteMemberModal({ teamId, clubId, onClose, onSuccess, 
                       onClick={() => handleAddExisting(u)}
                       disabled={processing || adding === u.id}
                       loading={adding === u.id}
-                      title={t('addTooltip')}
                     >
                       {t('addButton')}
                     </Button>
@@ -409,7 +255,6 @@ export default function InviteMemberModal({ teamId, clubId, onClose, onSuccess, 
                       size="sm"
                       onClick={() => handleInviteExisting(u)}
                       disabled={processing || adding === u.id}
-                      title={t('inviteTooltip')}
                     >
                       {t('inviteButton')}
                     </Button>
@@ -428,18 +273,14 @@ export default function InviteMemberModal({ teamId, clubId, onClose, onSuccess, 
               label={t('form.name')}
               type="text"
               value={createForm.name}
-              onChange={(e) =>
-                setCreateForm({ ...createForm, name: e.target.value })
-              }
+              onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
               required
             />
             <Input
               label={t('form.lastName')}
               type="text"
               value={createForm.lastName}
-              onChange={(e) =>
-                setCreateForm({ ...createForm, lastName: e.target.value })
-              }
+              onChange={(e) => setCreateForm({ ...createForm, lastName: e.target.value })}
               required
             />
           </div>
@@ -448,63 +289,16 @@ export default function InviteMemberModal({ teamId, clubId, onClose, onSuccess, 
             label={t('form.email')}
             type="email"
             value={createForm.email}
-            onChange={(e) =>
-              setCreateForm({ ...createForm, email: e.target.value })
-            }
+            onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
             helperText={t('form.emailHelper')}
           />
 
           <div className="flex gap-3 pt-4">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={onClose}
-              disabled={processing}
-              className="flex-1"
-            >
+            <Button type="button" variant="secondary" onClick={onClose} disabled={processing} className="flex-1">
               {t('cancel')}
             </Button>
-            <Button
-              type="submit"
-              disabled={processing}
-              loading={processing}
-              className="flex-1"
-            >
+            <Button type="submit" disabled={processing} loading={processing} className="flex-1">
               {processing ? t('creating') : 'Continuar y asignar roles →'}
-            </Button>
-          </div>
-        </form>
-      )}
-
-      {mode === 'registered' && (
-        <form onSubmit={handleInviteRegistered} className="space-y-4">
-          <Input
-            label={t('registeredLabel')}
-            type="text"
-            value={registeredQuery}
-            onChange={(e) => setRegisteredQuery(e.target.value)}
-            placeholder={t('registeredPlaceholder')}
-            autoFocus
-            required
-          />
-
-          <div className="flex gap-3 pt-2">
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={onClose}
-              disabled={processing}
-              className="flex-1"
-            >
-              {t('cancel')}
-            </Button>
-            <Button
-              type="submit"
-              disabled={processing}
-              loading={processing}
-              className="flex-1"
-            >
-              {processing ? t('inviting') : t('sendInvite')}
             </Button>
           </div>
         </form>

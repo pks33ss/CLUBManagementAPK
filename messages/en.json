@@ -2018,7 +2018,15 @@
     "error": "Error inviting the member"
   },
   "roleModal": {
-    "title": "Change Role of {name} {lastName}",
+      "title": "Roles of {name} {lastName}",
+  "cancel": "Cancel",
+  "save": "Save",
+  "active": "Active",
+  "mustHaveOne": "You must select at least one role",
+  "success": "Roles updated successfully",
+  "error": "Error updating roles",
+  "noRolesAvailable": "No roles available",
+  "noRolesHint": "There are no roles configured for this club.",
     "roles": {
       "adminClub": {
         "label": "Club Admin",

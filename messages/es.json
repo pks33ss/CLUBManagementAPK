@@ -2056,7 +2056,15 @@
     "error": "Error al invitar al miembro"
   },
   "roleModal": {
-    "title": "Cambiar Rol de {name} {lastName}",
+    "title": "Roles de {name} {lastName}",
+  "cancel": "Cancelar",
+  "save": "Guardar",
+  "active": "Activo",
+  "mustHaveOne": "Debes seleccionar al menos un rol",
+  "success": "Roles actualizados correctamente",
+  "error": "Error al actualizar roles",
+  "noRolesAvailable": "No hay roles disponibles",
+  "noRolesHint": "No hay roles configurados para este club.",
     "roles": {
       "adminClub": {
         "label": "Admin Club",
