@@ -98,7 +98,7 @@ export default function InviteMemberModal({ teamId, clubId, onClose, onSuccess, 
     setError('')
     onRequestRoleAssignment({
       userId: user.id,
-      email: user.email,
+      email: user.email ?? undefined,
       mode: 'invite',
     })
     onClose()
