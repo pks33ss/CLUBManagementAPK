@@ -191,7 +191,7 @@ export default function ClubMembers() {
   // ===== Handlers =====
   const inviteMember = async (e: React.FormEvent) => {
     e.preventDefault()
-    setShowInviteModal(false)
+   
 
     setInviteMode('create')
     setSelectedMember({

@@ -114,8 +114,8 @@ export default function AddMemberModal({
       setPendingUser({
         id: found.id,
         email: isEmail ? registeredQuery : undefined,
-        name: found.name,
-        lastName: found.lastName,
+        name: found.name || undefined,
+        lastName: found.lastName || undefined,
       })
       
       // Cargar los equipos actuales del usuario
@@ -140,9 +140,9 @@ export default function AddMemberModal({
      console.log('🟢 handleAddExisting - Usuario seleccionado:', user) 
     setPendingUser({
       id: user.id,
-      email: user.email,
-      name: user.name,
-      lastName: user.lastName,
+      email: user.email || undefined,
+      name: user.name || undefined,
+      lastName: user.lastName || undefined,
     })
     
     // Cargar los equipos actuales del usuario
