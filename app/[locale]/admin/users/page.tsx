@@ -89,20 +89,61 @@ export default function UsersManagement() {
   const [savingRoles, setSavingRoles] = useState(false)
   const [teams, setTeams] = useState<any[]>([])
 
-  const openEditRoles = async (club: any, memberId: string, memberName: string, currentRoles: any[]) => {
+  const openEditRoles = async (
+    club: any, 
+    memberId: string, 
+    memberName: string, 
+    currentRoles: any[], 
+    teamId?: string,
+    allMemberships?: any[] // 👈 NUEVO PARÁMETRO
+  ) => {
+    if (!club) return;
+    
     const rolesRes = await api.get(`/clubs/${club.id}/roles`)
     const uniqueRoles = Array.from(new Map(rolesRes.data.map((r: any) => [r.name, r])).values())
     setAvailableRoles(uniqueRoles)
+    
     const teamsRes = await api.get(`/teams/club/${club.id}`)
     setTeams(teamsRes.data)
-    const initialRoles = currentRoles.map((r: any) => r.roleRef.name)
+    
+    const initialRoles = new Set<string>()
     const initialScopes: Record<string, 'ALL' | 'TEAMS'> = {}
     const initialTeams: Record<string, string[]> = {}
+
+    // 1. Roles propios del club
     currentRoles.forEach((r: any) => {
-      initialScopes[r.roleRef.name] = r.scope
+      initialRoles.add(r.roleRef.name)
+      initialScopes[r.roleRef.name] = r.scope || 'ALL'
       initialTeams[r.roleRef.name] = r.teamScopes?.map((ts: any) => ts.teamId) || []
     })
-    setSelectedRoles(initialRoles)
+
+    // 2. Fusionar roles de equipo (si estamos editando el club y hay membresías)
+    if (!teamId && allMemberships) {
+      allMemberships.forEach((m: any) => {
+        if (m.team?.club?.id !== club.id) return
+        
+        m.roles?.forEach((r: any) => {
+          const roleName = r.roleRef?.name
+          if (!roleName) return
+          
+          // Si el rol no estaba en los roles del club, lo añadimos
+          initialRoles.add(roleName)
+          
+          // Si el rol no tiene scope definido o es ALL, lo cambiamos a TEAMS
+          if (!initialScopes[roleName] || initialScopes[roleName] === 'ALL') {
+            initialScopes[roleName] = 'TEAMS'
+          }
+          
+          // Añadir el equipo actual a la lista de equipos de este rol
+          if (!initialTeams[roleName]) initialTeams[roleName] = []
+          if (!initialTeams[roleName].includes(m.team.id)) {
+            initialTeams[roleName].push(m.team.id)
+          }
+        })
+      })
+    }
+
+    setSelectedRoles(Array.from(initialRoles))
     setRoleScopes(initialScopes)
     setRoleTeams(initialTeams)
     setEditRolesData({ clubId: club.id, memberId, memberName, currentRoles })
@@ -142,6 +183,7 @@ export default function UsersManagement() {
     setLoadingMemberships(true)
     try {
       const data = await usersApi.getMemberships(user.id)
+      console.log('📦 Membresías recibidas:', data)
       setMembershipsData(data)
     } catch (error: any) {
       console.error('Error:', error)
@@ -500,13 +542,18 @@ export default function UsersManagement() {
                     return (
                       <tr key={user.id} className="hover:bg-surface-elevated transition">
                         <td className="px-4 py-4">
-                          <p className="font-medium text-text-primary whitespace-nowrap">
-                            {user.name} {user.lastName}
-                          </p>
-                          <Badge variant={getRoleVariant(user.role)} className="mt-1">
-                            {getRoleText(user.role)}
-                          </Badge>
-                        </td>
+  <p className="font-medium text-text-primary whitespace-nowrap">
+    {user.name} {user.lastName}
+  </p>
+  {user.username && (
+    <p className="text-xs text-brand-primary mt-0.5">
+      {user.username}
+    </p>
+  )}
+  <Badge variant={getRoleVariant(user.role)} className="mt-1">
+    {getRoleText(user.role)}
+  </Badge>
+</td>
                         <td className="px-4 py-4 text-sm text-text-secondary">
                           {user.email ?? <span className="text-text-muted italic">{t('noEmail')}</span>}
                         </td>
@@ -648,44 +695,80 @@ export default function UsersManagement() {
         })()}
       </Modal>
 
-      <Modal isOpen={!!viewMembershipsUser} onClose={() => { setViewMembershipsUser(null); setMembershipsData(null) }} title={`Pertenencias de ${viewMembershipsUser?.name} ${viewMembershipsUser?.lastName}`} size="md">
-        {loadingMemberships ? (<div className="text-center py-8 text-text-muted">Cargando...</div>) : membershipsData ? (
+            <Modal isOpen={!!viewMembershipsUser} onClose={() => { setViewMembershipsUser(null); setMembershipsData(null) }} title={`Pertenencias de ${viewMembershipsUser?.name} ${viewMembershipsUser?.lastName}`} size="md">
+        {loadingMemberships ? (
+          <div className="text-center py-8 text-text-muted">Cargando...</div>
+        ) : !membershipsData ? (
+          <p className="text-text-muted">No hay datos.</p>
+        ) : (
           <div className="space-y-6">
+            {/* Clubes */}
             <div>
-              <h3 className="text-lg font-semibold text-text-primary mb-3">🏛️ Clubes ({membershipsData.clubs?.length || 0})</h3>
-              {membershipsData.clubs?.length === 0 ? (<p className="text-sm text-text-muted italic">No pertenece a ningún club.</p>) : (
+              <h3 className="text-lg font-semibold text-text-primary mb-3">
+                🏛️ Clubes ({membershipsData.clubs?.length ?? 0})
+              </h3>
+              {!membershipsData.clubs || membershipsData.clubs.length === 0 ? (
+                <p className="text-sm text-text-muted italic">No pertenece a ningún club.</p>
+              ) : (
                 <div className="space-y-2">
                   {membershipsData.clubs.map((c: any) => (
                     <div key={c.id} className="bg-surface-elevated p-3 rounded-lg border border-border-subtle">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="font-medium text-text-primary">{c.club.name}</p>
-                          <div className="flex gap-1 mt-1">
-                            {c.clubMemberRoles?.map((r: any) => (<Badge key={r.roleRef.name} variant="info">{r.roleRef.name}</Badge>))}
+                          <p className="font-medium text-text-primary">{c.club?.name ?? 'Club desconocido'}</p>
+                          <div className="flex gap-1 mt-1 flex-wrap">
+                            {c.clubMemberRoles?.map((r: any) => (
+                              <Badge key={r.roleRef?.name ?? Math.random()} variant="info">
+                                {r.roleRef?.name ?? '—'}
+                              </Badge>
+                            ))}
                           </div>
                         </div>
-                        <Button size="sm" variant="secondary" onClick={() => openEditRoles(c.club, c.id, `${viewMembershipsUser?.name} ${viewMembershipsUser?.lastName}`, c.clubMemberRoles)}>✏️ Editar roles</Button>
+                        <Button 
+                          size="sm" 
+                          variant="secondary" 
+                          onClick={() => openEditRoles(
+                            c.club, 
+                            c.id, 
+                            `${viewMembershipsUser?.name} ${viewMembershipsUser?.lastName}`, 
+                            c.clubMemberRoles ?? [],
+                            undefined, // teamId
+                            membershipsData.memberships // 👈 Pasamos todas las membresías para fusionar roles de equipo
+                          )}
+                        >
+                          ✏️ Editar roles
+                        </Button>
                       </div>
                     </div>
                   ))}
                 </div>
               )}
             </div>
+
+            {/* Equipos */}
             <div>
-              <h3 className="text-lg font-semibold text-text-primary mb-3">🏆 Equipos ({membershipsData.memberships?.length || 0})</h3>
-              {membershipsData.memberships?.length === 0 ? (<p className="text-sm text-text-muted italic">No pertenece a ningún equipo.</p>) : (
+              <h3 className="text-lg font-semibold text-text-primary mb-3">
+                🏆 Equipos ({membershipsData.memberships?.length ?? 0})
+              </h3>
+              {!membershipsData.memberships || membershipsData.memberships.length === 0 ? (
+                <p className="text-sm text-text-muted italic">No pertenece a ningún equipo.</p>
+              ) : (
                 <div className="space-y-2">
                   {membershipsData.memberships.map((m: any) => (
                     <div key={m.id} className="bg-surface-elevated p-3 rounded-lg border border-border-subtle">
                       <div className="flex items-center justify-between">
                         <div>
-                          <p className="font-medium text-text-primary">{m.team.name}</p>
-                          <p className="text-xs text-text-muted">{m.team.club?.name}</p>
-                          <div className="flex gap-1 mt-1">
-                            {m.roles?.map((r: any) => (<Badge key={r.roleRef.name} variant="brand">{r.roleRef.name}</Badge>))}
+                          <p className="font-medium text-text-primary">{m.team?.name ?? 'Equipo desconocido'}</p>
+                          <p className="text-xs text-text-muted">{m.team?.club?.name ?? '—'}</p>
+                          <div className="flex gap-1 mt-1 flex-wrap">
+                            {m.roles?.map((r: any) => (
+                              <Badge key={r.roleRef?.name ?? Math.random()} variant="brand">
+                                {r.roleRef?.name ?? '—'}
+                              </Badge>
+                            ))}
                           </div>
                         </div>
-                        <Button size="sm" variant="secondary" onClick={() => openEditRoles(m.team.club, m.id, `${viewMembershipsUser?.name} ${viewMembershipsUser?.lastName}`, m.roles)}>✏️ Editar roles</Button>
+                        {/* ⚠️ BOTÓN DE EDITAR ROLES ELIMINADO DE AQUÍ */}
                       </div>
                     </div>
                   ))}
@@ -693,7 +776,7 @@ export default function UsersManagement() {
               )}
             </div>
           </div>
-        ) : (<p className="text-text-muted">No hay datos.</p>)}
+        )}
       </Modal>
 
       <Modal isOpen={!!editRolesData} onClose={() => setEditRolesData(null)} title={`Editar roles de ${editRolesData?.memberName}`} size="md">

@@ -11,6 +11,8 @@ import type { Role as PermissionRole } from '@/lib/permissions/types'
 import { usePermissionsContext } from '@/lib/permissions/permissions-provider'
 import { Can } from '@/lib/permissions/can'
 import NoAccess from '@/components/permissions/NoAccess'
+import AddMemberModal from '@/components/members/AddMemberModal'
+
 
 interface Member {
   id: string
@@ -43,6 +45,8 @@ export default function ClubMembers() {
   const tRoles = useTranslations('Clubs.roles')
   const tCommon = useTranslations('Common')
   const format = useFormatter()
+
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false)
 
   const {
     can,
@@ -77,7 +81,7 @@ export default function ClubMembers() {
   const [errorStatus, setErrorStatus] = useState<number | null>(null)
   const [currentUser, setCurrentUser] = useState<any>(null)
 
-  const [showInviteModal, setShowInviteModal] = useState(false)
+  //const [showInviteModal, setShowInviteModal] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState('COACH')
 
@@ -435,12 +439,12 @@ export default function ClubMembers() {
           <h1 className="text-2xl font-bold text-text-primary">{t('title')}</h1>
           <p className="text-text-secondary">{t('subtitle')}</p>
         </div>
-        <Can resource="member" action="create" clubId={clubId}>
+        <Can resource="member" action="edit" clubId={clubId}>
           <Button
-            onClick={() => setShowInviteModal(true)}
-            icon={<span className="text-xl">+</span>}
-          >
-            {t('inviteButton')}
+            onClick={() => setShowAddMemberModal(true)}
+           icon={<span className="text-xl">+</span>}
+            >
+            Invitar miembro
           </Button>
         </Can>
       </div>
@@ -646,104 +650,16 @@ export default function ClubMembers() {
         </div>
       </Card>
 
-      {/* ===== MODAL DE AÑADIR MIEMBRO (PASO 1: datos) ===== */}
-      <Can resource="member" action="create" clubId={clubId}>
-        <Modal
-          isOpen={showInviteModal}
-          onClose={() => setShowInviteModal(false)}
-          title="Añadir miembro al club"
-          size="md"
-        >
-          <div className="space-y-4">
-            <div className="flex gap-2 border-b border-border-subtle">
-              <button
-                type="button"
-                onClick={() => setInviteTab('registered')}
-                className={`pb-2 px-3 text-sm font-medium transition ${
-                  inviteTab === 'registered'
-                    ? 'text-brand-primary border-b-2 border-brand-primary'
-                    : 'text-text-muted'
-                }`}
-              >
-                ✉️ Usuario registrado
-              </button>
-              <button
-                type="button"
-                onClick={() => setInviteTab('search')}
-                className={`pb-2 px-3 text-sm font-medium transition ${
-                  inviteTab === 'search'
-                    ? 'text-brand-primary border-b-2 border-brand-primary'
-                    : 'text-text-muted'
-                }`}
-              >
-                🔍 Buscar en club
-              </button>
-              <button
-                type="button"
-                onClick={() => setInviteTab('create')}
-                className={`pb-2 px-3 text-sm font-medium transition ${
-                  inviteTab === 'create'
-                    ? 'text-brand-primary border-b-2 border-brand-primary'
-                    : 'text-text-muted'
-                }`}
-              >
-                ➕ Crear nuevo
-              </button>
-            </div>
-
-            <form onSubmit={inviteMember} className="space-y-4">
-              {inviteTab === 'registered' && (
-                <Input
-                  label="Email del usuario"
-                  type="email"
-                  value={inviteEmail}
-                  onChange={(e) => setInviteEmail(e.target.value)}
-                  placeholder="usuario@email.com"
-                  required
-                />
-              )}
-              {inviteTab === 'search' && (
-                <p className="text-sm text-text-muted">
-                  Buscar entre los miembros del club que aún no están en este equipo.{' '}
-                  <em>(Pendiente de implementar)</em>
-                </p>
-              )}
-              {inviteTab === 'create' && (
-                <>
-                  <Input
-                    label="Nombre"
-                    value={inviteName}
-                    onChange={(e) => setInviteName(e.target.value)}
-                    required
-                  />
-                  <Input
-                    label="Apellido"
-                    value={inviteLastName}
-                    onChange={(e) => setInviteLastName(e.target.value)}
-                    required
-                  />
-                  <Input
-                    label="Email (opcional)"
-                    type="email"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                  />
-                </>
-              )}
-              <div className="flex gap-3 pt-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => setShowInviteModal(false)}
-                >
-                  Cancelar
-                </Button>
-                <Button type="submit">Continuar y asignar roles →</Button>
-              </div>
-            </form>
-          </div>
-        </Modal>
-      </Can>
+      {/* Nuevo modal unificado */}
+      <AddMemberModal
+  isOpen={showAddMemberModal}
+  onClose={() => setShowAddMemberModal(false)}
+  clubId={clubId!}
+   onSuccess={() => {
+    fetchMembers()
+    setShowAddMemberModal(false)
+  }}
+/>
 
       {/* ===== MODAL DE ROLES MÚLTIPLES ===== */}
       {((inviteMode === 'edit' && canAnyRoleAction) ||

@@ -7,11 +7,9 @@ import { Link } from '@/navigation'
 import { membershipsApi } from '@/lib/api/memberships'
 import { useActiveTeam } from '@/lib/ActiveTeamContext'
 import { Button } from '@/components/ui'
-import api from '@/lib/api'
 import MembersList from './_components/MembersList'
 import PendingRequestsSection from './_components/PendingRequestsSection'
-import InviteMemberModal from './_components/InviteMemberModal'
-import RoleAssignmentModal from '@/components/members/RoleAssignmentModal' // 👈 Importamos el nuevo componente
+import AddMemberModal from '@/components/members/AddMemberModal'
 import type { MembershipWithUser } from '@/types/membership'
 import { useRouter, useParams, useSearchParams } from 'next/navigation'
 import { usePermissionsContext } from '@/lib/permissions/permissions-provider'
@@ -38,30 +36,9 @@ export default function TeamMembersPage() {
   const [error, setError] = useState('')
   const [errorStatus, setErrorStatus] = useState<number | null>(null)
 
-  const [showInviteModal, setShowInviteModal] = useState(false)
-  
-  // Estados para el modal de roles
-  const [showRoleModal, setShowRoleModal] = useState(false)
-  const [pendingInvite, setPendingInvite] = useState<{
-    userId?: string
-    email?: string
-    name?: string
-    lastName?: string
-    mode: 'existing' | 'invite' | 'create'
-  } | null>(null)
-  const [savingRoles, setSavingRoles] = useState(false)
-  const [clubTeams, setClubTeams] = useState<any[]>([]) // Equipos del club para el modal
-
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false)
   const searchParams = useSearchParams()
   const action = searchParams.get('action')
-
-  // Miembro creado (para el flujo antiguo)
-  const [createdMember, setCreatedMember] = useState<{
-    id: string
-    userId: string
-    clubId: string
-    user: { name: string; lastName: string; email: string }
-  } | null>(null)
 
   const fetchMembers = useCallback(async () => {
     try {
@@ -76,17 +53,6 @@ export default function TeamMembersPage() {
       setLoading(false)
     }
   }, [teamId])
-
-  // Cargar equipos del club (necesario para el modal de roles)
-  const fetchClubTeams = useCallback(async () => {
-    if (!clubId) return
-    try {
-      const res = await api.get(`/teams/club/${clubId}/with-members`)
-      setClubTeams(res.data)
-    } catch (err) {
-      console.error('Error fetching club teams:', err)
-    }
-  }, [clubId])
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -118,103 +84,17 @@ export default function TeamMembersPage() {
       setLoading(false)
     }
 
-    // Cargar equipos si tiene permiso de edición (para el modal de roles)
-    if (canEditMembers) {
-      fetchClubTeams()
-    }
-
     if (action === 'invite' && canEditMembers) {
-      setShowInviteModal(true)
+      setShowAddMemberModal(true)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [teamId, permissionsLoading, permissionsError, action, clubId, fetchMembers, fetchClubTeams])
+  }, [teamId, permissionsLoading, permissionsError, action, clubId])
 
   const activeMembers = members.filter((m) => m.status === 'ACTIVE')
   const pendingRequests = members.filter((m) => m.status === 'PENDING')
   const inactiveMembers = members.filter(
     (m) => m.status === 'INACTIVE' || m.status === 'LEFT',
   )
-
-  const handleCreated = (member: {
-    id: string
-    userId: string
-    clubId: string
-    user: { name: string; lastName: string; email: string }
-  }) => {
-    setCreatedMember(member)
-  }
-
-  // 👇 Nueva función que recibe la petición del modal de invitar
-  const handleRequestRoleAssignment = (payload: {
-    userId?: string
-    email?: string
-    name?: string
-    lastName?: string
-    mode: 'existing' | 'invite' | 'create'
-  }) => {
-    setPendingInvite(payload)
-    setShowRoleModal(true)
-    setShowInviteModal(false) // Cerramos el modal de invitar
-  }
-
-  // 👇 Función que guarda los roles seleccionados en el modal
-const handleSaveRoles = async (roles: any[]) => {
-  if (!pendingInvite) return
-  setSavingRoles(true)
-  try {
-    // 1. Mapeo de roles del club a roles de equipo
-    const roleName = roles[0]?.name || 'PLAYER'
-    
-    const teamRoleMap: Record<string, string> = {
-      'ADMIN_CLUB': 'ADMIN_TEAM',
-      'COACH': 'COACH',
-      'ASSISTANT': 'ASSISTANT',
-      'MEMBER': 'PLAYER',
-      'PLAYER': 'PLAYER',
-    }
-    
-    const teamRoleName = teamRoleMap[roleName] || 'PLAYER'
-
-    // 2. Enviamos el rol de equipo con scope TEAMS al endpoint del club
-    const adaptedRoles = [{
-      name: teamRoleName,
-      scope: 'TEAMS',
-      teamIds: [teamId],
-    }]
-
-    // 3. Llamamos al endpoint del club con los roles adaptados
-    if (pendingInvite.mode === 'existing') {
-      await api.post(`/clubs/${clubId}/members`, {
-        userId: pendingInvite.userId,
-        roles: adaptedRoles,
-      })
-    } else if (pendingInvite.mode === 'invite') {
-      await api.post(`/clubs/${clubId}/members`, {
-        email: pendingInvite.email,
-        name: pendingInvite.name,
-        lastName: pendingInvite.lastName,
-        roles: adaptedRoles,
-      })
-    } else if (pendingInvite.mode === 'create') {
-      await api.post(`/clubs/${clubId}/members`, {
-        name: pendingInvite.name,
-        lastName: pendingInvite.lastName,
-        email: pendingInvite.email,
-        roles: adaptedRoles,
-      })
-    }
-
-    setShowRoleModal(false)
-    setPendingInvite(null)
-    await fetchMembers()
-    alert('Roles asignados correctamente')
-  } catch (err: any) {
-    console.error('Error asignando roles:', err)
-    alert(err.response?.data?.message || 'Error al asignar roles')
-  } finally {
-    setSavingRoles(false)
-  }
-}
 
   if (permissionsLoading) {
     return <div className="text-center py-12 text-text-muted">Cargando permisos...</div>
@@ -270,7 +150,7 @@ const handleSaveRoles = async (roles: any[]) => {
 
         <Can resource="member" action="edit" clubId={clubId} teamId={teamId}>
           <Button
-            onClick={() => setShowInviteModal(true)}
+            onClick={() => setShowAddMemberModal(true)}
             icon={<span className="text-xl">+</span>}
           >
             Invitar miembro
@@ -293,8 +173,6 @@ const handleSaveRoles = async (roles: any[]) => {
           currentUserId={userMe?.id || ''}
           onUpdate={fetchMembers}
           title="Miembros activos"
-          createdMember={createdMember}
-          onCreatedHandled={() => setCreatedMember(null)}
         />
       </Can>
 
@@ -317,37 +195,17 @@ const handleSaveRoles = async (roles: any[]) => {
         </Can>
       )}
 
-      {/* Modal de invitar: member:edit */}
-      <Can resource="member" action="edit" clubId={clubId} teamId={teamId}>
-        {showInviteModal && (
-          <InviteMemberModal
-            teamId={teamId}
-            clubId={activeTeam?.club?.id || ''}
-            onClose={() => setShowInviteModal(false)}
-            onSuccess={fetchMembers}
-            onCreated={handleCreated}
-            onRequestRoleAssignment={handleRequestRoleAssignment} // 👈 NUEVA PROP
-          />
-        )}
-      </Can>
-
-      {/* Modal de asignación de roles (el mismo del club) */}
-      {showRoleModal && (
-        <RoleAssignmentModal
-          isOpen={showRoleModal}
-          onClose={() => {
-            setShowRoleModal(false)
-            setPendingInvite(null)
-          }}
-          clubId={activeTeam?.club?.id || ''}
-          memberName={pendingInvite?.name || 'Invitado'}
-          memberLastName={pendingInvite?.lastName || ''}
-          availableTeams={clubTeams}
-          initialRoles={[]}
-          onSave={handleSaveRoles}
-          isSaving={savingRoles}
-        />
-      )}
+      {/* Modal de añadir miembro unificado */}
+      <AddMemberModal
+        isOpen={showAddMemberModal}
+        onClose={() => setShowAddMemberModal(false)}
+        clubId={clubId!}
+        teamId={teamId}
+        onSuccess={() => {
+          fetchMembers()
+          setShowAddMemberModal(false)
+        }}
+      />
     </div>
   )
 }
