@@ -2,16 +2,28 @@
 
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { Link } from '@/navigation';
+import { Link } from '@/navigation'
 import api from '@/lib/api'
 import { Button, Card, CardBody, Modal } from '@/components/ui'
+import {
+  LIVE_COLUMNS,
+  filterColumnsForRival,
+  type BasketballColumnDef,
+} from '@/lib/stats/basketballColumns'
+import { computeValuationFromBreakdown } from '@/lib/stats/valuation'
 import LiveScoreboard from './_components/LiveScoreboard'
 import PlayerPicker from './_components/PlayerPicker'
 import ActionPad from './_components/ActionPad'
 import EventsFeed from './_components/EventsFeed'
 import AddOpponentPlayersModal from './_components/AddOpponentPlayersModal'
+
+import ColumnSettingsModal from '@/components/ColumnSettingsModal'
+import {
+  useColumnPreferences,
+  type ColumnDef,
+} from '@/lib/hooks/useColumnPreferences'
 
 export type LiveStatsResponse = {
   session: {
@@ -51,8 +63,12 @@ export type LiveStatsResponse = {
     blocks: number
     turnovers: number
     fouls: number
-     twoPointersMade: number       // <-- AÑADIR
-    twoPointersAttempted: number  // <-- AÑADIR
+    // 👇 El backend los devuelve desde MatchEvent, pero no estaban tipados
+    blocksAgainst?: number
+    foulsDrawn?: number
+    plusMinus?: number
+    twoPointersMade: number
+    twoPointersAttempted: number
     fieldGoalsMade: number
     fieldGoalsAttempted: number
     threePointersMade: number
@@ -76,6 +92,10 @@ export type LiveStatsResponse = {
     blocks: number
     turnovers: number
     fouls: number
+    // 👇 idem
+    blocksAgainst?: number
+    foulsDrawn?: number
+    plusMinus?: number
     onCourt: boolean
     secondsPlayed: number
   }>
@@ -105,6 +125,262 @@ interface Candidate {
   team: { id: string; name: string; category: string | null; sport: string }
 }
 
+// ─────────────────────────────────────────────────────────────
+// LABELS DEL DESCRIPTOR (traducidos a español corto para la UI live)
+// ─────────────────────────────────────────────────────────────
+
+const LIVE_LABELS: Record<string, string> = {
+  PLAYER: 'Jugador',
+  MIN: 'Min',
+  PTS: 'Pts',
+  TWO_P: '2P',
+  THREE_P: '3P',
+  FT: 'TL',
+  TC: 'TC',
+  REB_DEF: 'Reb Def',
+  REB_OFF: 'Reb Of',
+  REB_TOTAL: 'Reb',
+  AST: 'Asist',
+  STL: 'Recup',
+  TO: 'Pérd',
+  BLK: 'Tap H',
+  BLK_AGAINST: 'Tap R',
+  FOULS: 'Faltas H',
+  FOULS_DRAWN: 'Faltas R',
+  VAL: 'VAL',
+  PLUS_MINUS: '+/-',
+}
+
+function labelFor(col: BasketballColumnDef): string {
+  if (col.labelKey.startsWith('Stats.metrics.')) {
+    return LIVE_LABELS[col.key] ?? col.key
+  }
+  return LIVE_LABELS[col.key] ?? col.labelKey
+}
+
+// ─────────────────────────────────────────────────────────────
+// HELPERS DE FORMATO
+// ─────────────────────────────────────────────────────────────
+
+function fmtMinSec(totalSeconds: number): string {
+  const s = Math.max(0, totalSeconds)
+  const m = Math.floor(s / 60)
+  const r = s % 60
+  return `${m}:${String(r).padStart(2, '0')}`
+}
+
+const pct = (made: number, att: number) =>
+  att > 0 ? Math.round((made / att) * 1000) / 10 : 0
+
+// ─────────────────────────────────────────────────────────────
+// RENDER DE CELDA GENÉRICA (sirve para jugador propio y rival)
+// ─────────────────────────────────────────────────────────────
+
+type LiveRow =
+  | { kind: 'ours'; player: LiveStatsResponse['players'][number] }
+  | { kind: 'opponent'; player: LiveStatsResponse['opponentPlayers'][number] }
+
+function renderLiveCell(col: BasketballColumnDef, row: LiveRow) {
+  const isOurs = row.kind === 'ours'
+  const p = row.player
+
+  if (col.key === 'PLAYER') {
+    return (
+      <td
+        key={col.key}
+        className="px-2 py-1 text-text-primary whitespace-nowrap"
+      >
+        {isOurs
+          ? `${(p as any).user.name} ${(p as any).user.lastName}`
+          : `#${(p as any).number} ${(p as any).name ?? ''}`}
+      </td>
+    )
+  }
+
+  if (col.key === 'MIN') {
+    return (
+      <td
+        key={col.key}
+        className="px-1 py-1 text-center font-mono text-text-secondary"
+      >
+        {fmtMinSec(p.secondsPlayed)}
+      </td>
+    )
+  }
+
+  // Calculados locales
+  const twoPM = isOurs ? (p as any).twoPointersMade : 0
+  const twoPA = isOurs ? (p as any).twoPointersAttempted : 0
+  const threePM = isOurs ? (p as any).threePointersMade : 0
+  const threePA = isOurs ? (p as any).threePointersAttempted : 0
+  const ftM = isOurs ? (p as any).freeThrowsMade : 0
+  const ftA = isOurs ? (p as any).freeThrowsAttempted : 0
+  const fgM = isOurs ? (p as any).fieldGoalsMade : 0
+  const fgA = isOurs ? (p as any).fieldGoalsAttempted : 0
+  const localPoints = isOurs
+    ? twoPM * 2 + threePM * 3 + ftM
+    : (p as any).points
+  const localVal = computeValuationFromBreakdown({
+    points: localPoints,
+    rebounds: (p as any).rebounds,
+    assists: (p as any).assists,
+    steals: (p as any).steals,
+    blocks: (p as any).blocks,
+    foulsDrawn: (p as any).foulsDrawn ?? 0,
+    twoPointersMade: twoPM,
+    twoPointersAttempted: twoPA,
+    threePointersMade: threePM,
+    threePointersAttempted: threePA,
+    freeThrowsMade: ftM,
+    freeThrowsAttempted: ftA,
+    turnovers: (p as any).turnovers,
+    blocksAgainst: (p as any).blocksAgainst ?? 0,
+    fouls: (p as any).fouls,
+  })
+
+  switch (col.key) {
+    case 'PTS':
+      return (
+        <td
+          key={col.key}
+          className="px-1 py-1 text-center font-semibold text-text-primary"
+        >
+          {(p as any).points}
+        </td>
+      )
+    case 'TWO_P':
+      return (
+        <td
+          key={col.key}
+          className="px-1 py-1 text-center text-text-secondary whitespace-nowrap"
+        >
+          {isOurs ? `${twoPM}/${twoPA} (${pct(twoPM, twoPA)}%)` : '—'}
+        </td>
+      )
+    case 'THREE_P':
+      return (
+        <td
+          key={col.key}
+          className="px-1 py-1 text-center text-text-secondary whitespace-nowrap"
+        >
+          {isOurs ? `${threePM}/${threePA} (${pct(threePM, threePA)}%)` : '—'}
+        </td>
+      )
+    case 'FT':
+      return (
+        <td
+          key={col.key}
+          className="px-1 py-1 text-center text-text-secondary whitespace-nowrap"
+        >
+          {isOurs ? `${ftM}/${ftA} (${pct(ftM, ftA)}%)` : '—'}
+        </td>
+      )
+    case 'TC':
+      return (
+        <td
+          key={col.key}
+          className="px-1 py-1 text-center text-text-secondary whitespace-nowrap"
+        >
+          {isOurs ? `${fgM}/${fgA} (${pct(fgM, fgA)}%)` : '—'}
+        </td>
+      )
+    case 'REB_DEF':
+      return (
+        <td key={col.key} className="px-1 py-1 text-center text-text-secondary">
+          {(p as any).reboundsDef}
+        </td>
+      )
+    case 'REB_OFF':
+      return (
+        <td key={col.key} className="px-1 py-1 text-center text-text-secondary">
+          {(p as any).reboundsOff}
+        </td>
+      )
+    case 'REB_TOTAL':
+      return (
+        <td key={col.key} className="px-1 py-1 text-center text-text-secondary">
+          {(p as any).rebounds}
+        </td>
+      )
+    case 'AST':
+      return (
+        <td key={col.key} className="px-1 py-1 text-center text-text-secondary">
+          {(p as any).assists}
+        </td>
+      )
+    case 'STL':
+      return (
+        <td key={col.key} className="px-1 py-1 text-center text-text-secondary">
+          {(p as any).steals}
+        </td>
+      )
+    case 'TO':
+      return (
+        <td key={col.key} className="px-1 py-1 text-center text-text-secondary">
+          {(p as any).turnovers}
+        </td>
+      )
+    case 'BLK':
+      return (
+        <td key={col.key} className="px-1 py-1 text-center text-text-secondary">
+          {(p as any).blocks}
+        </td>
+      )
+    case 'BLK_AGAINST':
+      return (
+        <td key={col.key} className="px-1 py-1 text-center text-text-secondary">
+          {(p as any).blocksAgainst ?? 0}
+        </td>
+      )
+    case 'FOULS':
+      return (
+        <td key={col.key} className="px-1 py-1 text-center text-text-secondary">
+          {(p as any).fouls}
+        </td>
+      )
+    case 'FOULS_DRAWN':
+      return (
+        <td key={col.key} className="px-1 py-1 text-center text-text-secondary">
+          {(p as any).foulsDrawn ?? 0}
+        </td>
+      )
+    case 'VAL':
+      return (
+        <td
+          key={col.key}
+          className={`px-1 py-1 text-center font-semibold ${
+            localVal > 0
+              ? 'text-success'
+              : localVal < 0
+                ? 'text-danger'
+                : 'text-text-muted'
+          }`}
+        >
+          {localVal}
+        </td>
+      )
+    case 'PLUS_MINUS':
+      return (
+        <td
+          key={col.key}
+          className="px-1 py-1 text-center text-text-secondary"
+        >
+          {(p as any).plusMinus ?? 0}
+        </td>
+      )
+    default:
+      return (
+        <td key={col.key} className="px-1 py-1 text-center text-text-muted">
+          —
+        </td>
+      )
+  }
+}
+
+// ─────────────────────────────────────────────────────────────
+// COMPONENTE
+// ─────────────────────────────────────────────────────────────
+
 export default function LiveSessionPage() {
   const params = useParams()
   const router = useRouter()
@@ -117,6 +393,9 @@ export default function LiveSessionPage() {
   const [posting, setPosting] = useState(false)
   const [showAddOpponent, setShowAddOpponent] = useState(false)
   const [showStatsPanel, setShowStatsPanel] = useState(false)
+
+  const [showColumnSettingsOurs, setShowColumnSettingsOurs] = useState(false)
+const [showColumnSettingsRival, setShowColumnSettingsRival] = useState(false)
 
   // Añadir jugadora propia
   const [showAddPlayer, setShowAddPlayer] = useState(false)
@@ -155,7 +434,7 @@ export default function LiveSessionPage() {
     return () => clearInterval(t)
   }, [refresh, isSseConnected])
 
-    // Efecto para hacer que el reloj corra visualmente en el frontend
+  // Efecto para hacer que el reloj corra visualmente en el frontend
   useEffect(() => {
     if (!data?.clock.running) return
 
@@ -186,16 +465,11 @@ export default function LiveSessionPage() {
     }
 
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
-    
-    // ⚠️ AÑADIMOS EL TOKEN A LA URL
     const sseUrl = `${apiUrl}/stat-sessions/${sessionId}/live-stream?token=${token}`
-
-  
 
     const es = new EventSource(sseUrl)
 
     es.onopen = () => {
-      
       setIsSseConnected(true)
     }
 
@@ -215,7 +489,6 @@ export default function LiveSessionPage() {
     }
 
     return () => {
-    
       es.close()
       setIsSseConnected(false)
     }
@@ -236,27 +509,76 @@ export default function LiveSessionPage() {
       .finally(() => setLoadingCandidates(false))
   }, [showAddPlayer, sessionId])
 
+// ── Preferencias de columnas (persisten en localStorage) ──
+// ⚠️ Estos hooks van AQUÍ, antes de cualquier `return` condicional
+// (loading / error / !data). Si se ponen después, React lanza
+// "change in the order of Hooks".
+
+const oursColumnsDef: ColumnDef[] = useMemo(
+  () =>
+    LIVE_COLUMNS.map((c) => ({
+      key: c.key,
+      label: labelFor(c),
+      isRequired: c.required === true,
+    })),
+  [],
+)
+
+const rivalColumnsDef: ColumnDef[] = useMemo(
+  () =>
+    filterColumnsForRival(LIVE_COLUMNS).map((c) => ({
+      key: c.key,
+      label: labelFor(c),
+      isRequired: c.required === true,
+    })),
+  [],
+)
+
+const oursPrefs = useColumnPreferences('live-stats-ours', oursColumnsDef)
+const rivalPrefs = useColumnPreferences('live-stats-rival', rivalColumnsDef)
+
+const visibleLiveCols = useMemo(
+  () => LIVE_COLUMNS.filter((c) => oursPrefs.isVisible(c.key)),
+  [oursPrefs],
+)
+
+const visibleLiveRivalCols = useMemo(
+  () =>
+    filterColumnsForRival(LIVE_COLUMNS).filter((c) =>
+      rivalPrefs.isVisible(c.key),
+    ),
+  [rivalPrefs],
+)
+
+
+
+
   const addEvent = async (type: string) => {
     if (!active) {
       alert('Selecciona un jugador primero')
       return
     }
 
-    // 1. OPTIMISTIC UI: Actualizamos el marcador y las stats al instante
     if (data) {
       const snapshot = data
       let newTeamScore = data.score.team
       let newOpponentScore = data.score.opponent
-      
-      const pts = type === 'POINTS_2' ? 2 : type === 'POINTS_3' ? 3 : type === 'FREE_THROW' ? 1 : 0
-      
+
+      const pts =
+        type === 'POINTS_2'
+          ? 2
+          : type === 'POINTS_3'
+            ? 3
+            : type === 'FREE_THROW'
+              ? 1
+              : 0
+
       if (active.kind === 'ours') {
         newTeamScore += pts
       } else {
         newOpponentScore += pts
       }
 
-      // Creamos un evento "falso" temporal para que aparezca en la lista de inmediato
       const tempEvent = {
         id: `temp-${Date.now()}`,
         type,
@@ -264,64 +586,93 @@ export default function LiveSessionPage() {
         period: data.clock.currentPeriod,
         clockSeconds: data.clock.seconds,
         isOpponent: active.kind === 'opponent',
-        player: active.kind === 'ours' 
-          ? data.players.find(p => p.userId === active.userId)?.user ?? null 
-          : null,
-        opponentPlayer: active.kind === 'opponent'
-          ? data.opponentPlayers.find(p => p.opponentPlayerId === active.opponentPlayerId) 
-            ? {
-                id: active.opponentPlayerId,
-                number: data.opponentPlayers.find(p => p.opponentPlayerId === active.opponentPlayerId)!.number,
-                name: data.opponentPlayers.find(p => p.opponentPlayerId === active.opponentPlayerId)!.name
-              }
-            : null
-          : null
+        player:
+          active.kind === 'ours'
+            ? data.players.find((p) => p.userId === active.userId)?.user ??
+              null
+            : null,
+        opponentPlayer:
+          active.kind === 'opponent'
+            ? data.opponentPlayers.find(
+                (p) => p.opponentPlayerId === active.opponentPlayerId,
+              )
+              ? {
+                  id: active.opponentPlayerId,
+                  number: data.opponentPlayers.find(
+                    (p) => p.opponentPlayerId === active.opponentPlayerId,
+                  )!.number,
+                  name: data.opponentPlayers.find(
+                    (p) => p.opponentPlayerId === active.opponentPlayerId,
+                  )!.name,
+                }
+              : null
+            : null,
       }
 
       setData({
         ...data,
         score: { team: newTeamScore, opponent: newOpponentScore },
-        events: [...data.events, tempEvent], // <-- Añadimos el evento falso a la lista
-        players: active.kind === 'ours' ? data.players.map(p => {
-          if (p.userId !== active.userId) return p
-          return {
-            ...p,
-            points: p.points + pts,
-            twoPointersMade: p.twoPointersMade + (type === 'POINTS_2' ? 1 : 0),
-            twoPointersAttempted: p.twoPointersAttempted + (type === 'POINTS_2' || type === 'MISS_2' ? 1 : 0),
-            threePointersMade: p.threePointersMade + (type === 'POINTS_3' ? 1 : 0),
-            threePointersAttempted: p.threePointersAttempted + (type === 'POINTS_3' || type === 'MISS_3' ? 1 : 0),
-            freeThrowsMade: p.freeThrowsMade + (type === 'FREE_THROW' ? 1 : 0),
-            freeThrowsAttempted: p.freeThrowsAttempted + (type === 'FREE_THROW' || type === 'MISS_FT' ? 1 : 0),
-            reboundsOff: p.reboundsOff + (type === 'REBOUND_OFF' ? 1 : 0),
-            reboundsDef: p.reboundsDef + (type === 'REBOUND_DEF' ? 1 : 0),
-            assists: p.assists + (type === 'ASSIST' ? 1 : 0),
-            steals: p.steals + (type === 'STEAL' ? 1 : 0),
-            blocks: p.blocks + (type === 'BLOCK' ? 1 : 0),
-            turnovers: p.turnovers + (type === 'TURNOVER' ? 1 : 0),
-            fouls: p.fouls + (type === 'FOUL' ? 1 : 0),
-          }
-        }) : data.players,
-        opponentPlayers: active.kind === 'opponent' ? data.opponentPlayers.map(p => {
-          if (p.opponentPlayerId !== active.opponentPlayerId) return p
-          return {
-            ...p,
-            points: p.points + pts,
-          }
-        }) : data.opponentPlayers,
+        events: [...data.events, tempEvent],
+        players:
+          active.kind === 'ours'
+            ? data.players.map((p) => {
+                if (p.userId !== active.userId) return p
+                return {
+                  ...p,
+                  points: p.points + pts,
+                  twoPointersMade:
+                    p.twoPointersMade + (type === 'POINTS_2' ? 1 : 0),
+                  twoPointersAttempted:
+                    p.twoPointersAttempted +
+                    (type === 'POINTS_2' || type === 'MISS_2' ? 1 : 0),
+                  threePointersMade:
+                    p.threePointersMade + (type === 'POINTS_3' ? 1 : 0),
+                  threePointersAttempted:
+                    p.threePointersAttempted +
+                    (type === 'POINTS_3' || type === 'MISS_3' ? 1 : 0),
+                  freeThrowsMade:
+                    p.freeThrowsMade + (type === 'FREE_THROW' ? 1 : 0),
+                  freeThrowsAttempted:
+                    p.freeThrowsAttempted +
+                    (type === 'FREE_THROW' || type === 'MISS_FT' ? 1 : 0),
+                  reboundsOff:
+                    p.reboundsOff + (type === 'REBOUND_OFF' ? 1 : 0),
+                  reboundsDef:
+                    p.reboundsDef + (type === 'REBOUND_DEF' ? 1 : 0),
+                  assists: p.assists + (type === 'ASSIST' ? 1 : 0),
+                  steals: p.steals + (type === 'STEAL' ? 1 : 0),
+                  blocks: p.blocks + (type === 'BLOCK' ? 1 : 0),
+                  turnovers: p.turnovers + (type === 'TURNOVER' ? 1 : 0),
+                  fouls: p.fouls + (type === 'FOUL' ? 1 : 0),
+                }
+              })
+            : data.players,
+        opponentPlayers:
+          active.kind === 'opponent'
+            ? data.opponentPlayers.map((p) => {
+                if (p.opponentPlayerId !== active.opponentPlayerId) return p
+                return {
+                  ...p,
+                  points: p.points + pts,
+                }
+              })
+            : data.opponentPlayers,
       })
 
-      // 2. Enviamos la petición SIN bloquear la interfaz
-      api.post(`/stat-sessions/${sessionId}/events`, {
-        type,
-        ...(active.kind === 'ours' ? { playerId: active.userId } : { opponentPlayerId: active.opponentPlayerId })
-      }).catch((err: any) => {
-        // Si falla el backend, deshacemos el cambio visual
-        setData(snapshot)
-        alert(err.response?.data?.message || 'Error al anotar')
-      })
+      api
+        .post(`/stat-sessions/${sessionId}/events`, {
+          type,
+          ...(active.kind === 'ours'
+            ? { playerId: active.userId }
+            : { opponentPlayerId: active.opponentPlayerId }),
+        })
+        .catch((err: any) => {
+          setData(snapshot)
+          alert(err.response?.data?.message || 'Error al anotar')
+        })
     }
   }
+
   const undoEvent = async (eventId: string) => {
     try {
       await api.delete(`/stat-sessions/${sessionId}/events/${eventId}`)
@@ -332,10 +683,9 @@ export default function LiveSessionPage() {
 
   const updateClock = async (patch: any) => {
     if (!data) return
-    
+
     const snapshot = data
 
-    // 1. Actualización Optimista (instantánea)
     let newData = { ...data }
     if (patch.clockRunning !== undefined) {
       newData.clock = { ...newData.clock, running: patch.clockRunning }
@@ -348,11 +698,10 @@ export default function LiveSessionPage() {
     }
     setData(newData)
 
-    // 2. Petición al servidor en segundo plano
     try {
       await api.patch(`/stat-sessions/${sessionId}/live`, patch)
     } catch (err: any) {
-      setData(snapshot) // Revertir si falla
+      setData(snapshot)
       alert(err.response?.data?.message || 'Error al actualizar el reloj')
     }
   }
@@ -491,6 +840,11 @@ export default function LiveSessionPage() {
 
   const isClosed = !!data.session.closedAt
 
+
+
+
+
+
   return (
     <div ref={containerRef} className="bg-bg-base min-h-screen">
       <div className="max-w-7xl mx-auto px-3 sm:px-4 py-4">
@@ -504,12 +858,18 @@ export default function LiveSessionPage() {
           </button>
           <div className="flex gap-2 items-center flex-wrap">
             {isSseConnected ? (
-              <span className="text-xs text-success flex items-center gap-1" title="Conexión en tiempo real establecida">
+              <span
+                className="text-xs text-success flex items-center gap-1"
+                title="Conexión en tiempo real establecida"
+              >
                 <span className="w-2 h-2 rounded-full bg-success animate-pulse"></span>
                 En vivo
               </span>
             ) : (
-              <span className="text-xs text-warning flex items-center gap-1" title="Usando polling cada 3s">
+              <span
+                className="text-xs text-warning flex items-center gap-1"
+                title="Usando polling cada 3s"
+              >
                 <span className="w-2 h-2 rounded-full bg-warning"></span>
                 Reconectando...
               </span>
@@ -553,101 +913,172 @@ export default function LiveSessionPage() {
               <h3 className="text-sm font-semibold text-text-primary mb-3">
                 📊 Estadísticas en este momento
               </h3>
+            <div className="flex items-center justify-between mb-2">
+               <h4 className="text-xs font-semibold text-text-primary">
+                   🟢 Nuestro equipo
+              </h4>
+               <button
+                type="button"
+                    onClick={() => setShowColumnSettingsOurs(true)}
+                 className="text-text-muted hover:text-brand-primary transition p-1 rounded hover:bg-surface-elevated"
+                  title="Configurar columnas"
+             >
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z" />
+      <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
+      <path d="M12 2v2" />
+      <path d="M12 22v-2" />
+      <path d="m17 20.66-1-1.73" />
+      <path d="M11 10.27 7 3.34" />
+      <path d="m20.66 17-1.73-1" />
+      <path d="m3.34 7 1.73 1" />
+      <path d="M14 12h8" />
+      <path d="M2 12h2" />
+      <path d="m20.66 7-1.73 1" />
+      <path d="m3.34 17 1.73-1" />
+      <path d="m17 3.34-1 1.73" />
+      <path d="m11 13.73-4 6.93" />
+    </svg>
+  </button>
+</div>
+              {/* ────── Tabla nuestro equipo ────── */}
               <div className="overflow-x-auto scrollbar-menu">
                 <table className="w-full text-xs">
                   <thead className="bg-surface-elevated">
                     <tr>
-                      <th className="px-2 py-2 text-left text-[10px] font-medium text-text-muted uppercase">Jugador</th>
-                      <th className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Min</th>
-                      <th className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Pts</th>
-                      <th className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Reb</th>
-                      <th className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase">O</th>
-                      <th className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase">D</th>
-                      <th className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Ast</th>
-                      <th className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Rob</th>
-                      <th className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Tap</th>
-                      <th className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Per</th>
-                      <th className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Fal</th>
+                      {visibleLiveCols.map((c) => (
+                        <th
+                          key={c.key}
+                          className={`px-1 py-2 text-[10px] font-medium text-text-muted uppercase whitespace-nowrap ${
+                            c.key === 'PLAYER' ? 'text-left px-2' : 'text-center'
+                          }`}
+                        >
+                          {labelFor(c)}
+                        </th>
+                      ))}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border-subtle">
                     {data.players.map((p) => (
-                      <tr key={p.userId} className="hover:bg-surface-elevated">
-                        <td className="px-2 py-1 text-text-primary whitespace-nowrap">
-                          {p.user.name} {p.user.lastName}
-                        </td>
-                        <td className="px-1 py-1 text-center font-mono text-text-secondary">
-                          {fmtMinSec(p.secondsPlayed)}
-                        </td>
-                        <td className="px-1 py-1 text-center font-semibold text-text-primary">
-                          {p.points}
-                        </td>
-                        <td className="px-1 py-1 text-center text-text-secondary">{p.rebounds}</td>
-                        <td className="px-1 py-1 text-center text-text-secondary">{p.reboundsOff}</td>
-                        <td className="px-1 py-1 text-center text-text-secondary">{p.reboundsDef}</td>
-                        <td className="px-1 py-1 text-center text-text-secondary">{p.assists}</td>
-                        <td className="px-1 py-1 text-center text-text-secondary">{p.steals}</td>
-                        <td className="px-1 py-1 text-center text-text-secondary">{p.blocks}</td>
-                        <td className="px-1 py-1 text-center text-text-secondary">{p.turnovers}</td>
-                        <td className="px-1 py-1 text-center text-text-secondary">{p.fouls}</td>
-                      </tr>
-                    ))}
+  <tr key={p.userId} className="hover:bg-surface-elevated">
+    {visibleLiveCols.map((c) =>
+      renderLiveCell(c, { kind: 'ours', player: p }),
+    )}
+  </tr>
+))}
                   </tbody>
                 </table>
               </div>
 
-              {data.opponentPlayers.length > 0 && (
-                <div className="mt-4">
-                  <h4 className="text-xs font-semibold text-text-primary mb-2">
-                    🔴 Rival
-                  </h4>
-                  <div className="overflow-x-auto scrollbar-menu">
-                    <table className="w-full text-xs">
-                      <thead className="bg-surface-elevated">
-                        <tr>
-                          <th className="px-2 py-2 text-left text-[10px] font-medium text-text-muted uppercase">Jugador</th>
-                          <th className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Min</th>
-                          <th className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Pts</th>
-                          <th className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Reb</th>
-                          <th className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase">O</th>
-                          <th className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase">D</th>
-                          <th className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Ast</th>
-                          <th className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Rob</th>
-                          <th className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Tap</th>
-                          <th className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Per</th>
-                          <th className="px-1 py-2 text-center text-[10px] font-medium text-text-muted uppercase">Fal</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-border-subtle">
-                        {data.opponentPlayers.map((op) => (
-                          <tr key={op.opponentPlayerId} className="hover:bg-surface-elevated">
-                            <td className="px-2 py-1 text-text-primary whitespace-nowrap">
-                              #{op.number} {op.name ?? ''}
-                            </td>
-                            <td className="px-1 py-1 text-center font-mono text-text-secondary">
-                              {fmtMinSec(op.secondsPlayed)}
-                            </td>
-                            <td className="px-1 py-1 text-center font-semibold text-text-primary">
-                              {op.points}
-                            </td>
-                            <td className="px-1 py-1 text-center text-text-secondary">{op.rebounds}</td>
-                            <td className="px-1 py-1 text-center text-text-secondary">{op.reboundsOff}</td>
-                            <td className="px-1 py-1 text-center text-text-secondary">{op.reboundsDef}</td>
-                            <td className="px-1 py-1 text-center text-text-secondary">{op.assists}</td>
-                            <td className="px-1 py-1 text-center text-text-secondary">{op.steals}</td>
-                            <td className="px-1 py-1 text-center text-text-secondary">{op.blocks}</td>
-                            <td className="px-1 py-1 text-center text-text-secondary">{op.turnovers}</td>
-                            <td className="px-1 py-1 text-center text-text-secondary">{op.fouls}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+              {/* ────── Tabla rival ────── */}
+             {data.opponentPlayers.length > 0 && (
+  <div className="mt-4">
+    <div className="flex items-center justify-between mb-2">
+      <h4 className="text-xs font-semibold text-text-primary">
+        🔴 Rival
+      </h4>
+      <button
+        type="button"
+        onClick={() => setShowColumnSettingsRival(true)}
+        className="text-text-muted hover:text-brand-primary transition p-1 rounded hover:bg-surface-elevated"
+        title="Configurar columnas"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="18"
+          height="18"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <path d="M12 20a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z" />
+          <path d="M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z" />
+          <path d="M12 2v2" />
+          <path d="M12 22v-2" />
+          <path d="m17 20.66-1-1.73" />
+          <path d="M11 10.27 7 3.34" />
+          <path d="m20.66 17-1.73-1" />
+          <path d="m3.34 7 1.73 1" />
+          <path d="M14 12h8" />
+          <path d="M2 12h2" />
+          <path d="m20.66 7-1.73 1" />
+          <path d="m3.34 17 1.73-1" />
+          <path d="m17 3.34-1 1.73" />
+          <path d="m11 13.73-4 6.93" />
+        </svg>
+      </button>
+    </div>
+    <div className="overflow-x-auto scrollbar-menu">
+      <table className="w-full text-xs">
+        <thead className="bg-surface-elevated">
+          <tr>
+            {visibleLiveRivalCols.map((c) => (
+              <th
+                key={c.key}
+                className={`px-1 py-2 text-[10px] font-medium text-text-muted uppercase whitespace-nowrap ${
+                  c.key === 'PLAYER' ? 'text-left px-2' : 'text-center'
+                }`}
+              >
+                {labelFor(c)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-border-subtle">
+          {data.opponentPlayers.map((op) => (
+            <tr
+              key={op.opponentPlayerId}
+              className="hover:bg-surface-elevated"
+            >
+              {visibleLiveRivalCols.map((c) =>
+                renderLiveCell(c, {
+                  kind: 'opponent',
+                  player: op,
+                }),
+              )}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
               )}
             </CardBody>
           </Card>
         )}
+
+  <ColumnSettingsModal
+  isOpen={showColumnSettingsOurs}
+  onClose={() => setShowColumnSettingsOurs(false)}
+  columns={oursColumnsDef}
+  hiddenColumns={oursPrefs.hiddenColumns}
+  onToggle={oursPrefs.toggleColumn}
+  onReset={oursPrefs.resetColumns}
+  title="Columnas · Nuestro equipo"
+/>
+<ColumnSettingsModal
+  isOpen={showColumnSettingsRival}
+  onClose={() => setShowColumnSettingsRival(false)}
+  columns={rivalColumnsDef}
+  hiddenColumns={rivalPrefs.hiddenColumns}
+  onToggle={rivalPrefs.toggleColumn}
+  onReset={rivalPrefs.resetColumns}
+  title="Columnas · Rival"
+/>
 
         {isClosed && (
           <div className="mt-3 p-3 rounded-lg bg-warning/10 border border-warning/30 text-warning text-sm text-center">
@@ -691,12 +1122,11 @@ export default function LiveSessionPage() {
               activeLabel={
                 active
                   ? active.kind === 'ours'
-                    ? data.players.find((p) => p.userId === active.userId)
-                        ?.user.lastName ?? ''
+                    ? data.players.find((p) => p.userId === active.userId)?.user
+                        .lastName ?? ''
                     : `Rival #${
                         data.opponentPlayers.find(
-                          (p) =>
-                            p.opponentPlayerId === active.opponentPlayerId,
+                          (p) => p.opponentPlayerId === active.opponentPlayerId,
                         )?.number ?? ''
                       }`
                   : null
@@ -781,11 +1211,4 @@ export default function LiveSessionPage() {
       </Modal>
     </div>
   )
-}
-
-function fmtMinSec(totalSeconds: number): string {
-  const s = Math.max(0, totalSeconds)
-  const m = Math.floor(s / 60)
-  const r = s % 60
-  return `${m}:${String(r).padStart(2, '0')}`
 }

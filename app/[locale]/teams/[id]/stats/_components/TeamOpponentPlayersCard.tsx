@@ -62,22 +62,28 @@ export default function TeamOpponentPlayersCard({ teamId, filters }: Props) {
   const [showColumnSettings, setShowColumnSettings] = useState(false)
 
   // ── DEFINICIÓN DE COLUMNAS ──
+  // Orden unificado (rival): PJ, Min, Pts, 2P, 3P, TL, TC,
+  // Reb Def, Reb Of, Reb Total, Ast, Rob, Per, Tap, Fal
+  // ⚠️ Las claves NO cambian → se conservan las prefs guardadas.
+  // Sin W-L-D / Avail / W% / Min/G / Pts/G (no aplican a rival).
+  // TpC, FR, VAL y +/- pendientes: el payload no trae esos campos.
   const availableColumns: ColumnDef[] = useMemo(() => [
     { key: 'OPPONENT', label: t('opponentRow'), isRequired: true },
     { key: 'PJ', label: t('metrics.pj') },
     { key: 'MIN', label: t('metrics.min') },
     { key: 'PTS', label: t('metrics.pts') },
-    { key: 'REB', label: t('metrics.reb') },
-    { key: 'REB_OFF', label: t('metrics.rebOff') },
-    { key: 'REB_DEF', label: t('metrics.rebDef') },
-    { key: 'AST', label: t('metrics.ast') },
-    { key: 'ROB', label: t('metrics.rob') },
-    { key: 'TAP', label: t('metrics.tap') },
-    { key: 'TURNOVERS', label: t('metrics.turnovers') },
-    { key: 'FOULS', label: t('metrics.fouls') },
-    { key: 'TC', label: t('metrics.tc') },
+    { key: 'TWO_P', label: t('metrics.twoP') },
     { key: 'THREE_P', label: t('metrics.threeP') },
     { key: 'TL', label: t('metrics.tl') },
+    { key: 'TC', label: t('metrics.tc') },
+    { key: 'REB_DEF', label: t('metrics.rebDef') },
+    { key: 'REB_OFF', label: t('metrics.rebOff') },
+    { key: 'REB', label: t('metrics.reb') },
+    { key: 'AST', label: t('metrics.ast') },
+    { key: 'ROB', label: t('metrics.rob') },
+    { key: 'TURNOVERS', label: t('metrics.turnovers') },
+    { key: 'TAP', label: t('metrics.tap') },
+    { key: 'FOULS', label: t('metrics.fouls') },
   ], [t])
 
   const { hiddenColumns, toggleColumn, resetColumns, isVisible } = useColumnPreferences('team-stats-opponents', availableColumns)
@@ -148,6 +154,17 @@ export default function TeamOpponentPlayersCard({ teamId, filters }: Props) {
   if (!totals) {
     return null
   }
+  
+
+    // 2P derivado: FGM incluye 2P + 3P, así que restamos los triples.
+  const twoPMade = Math.max(
+    0,
+    (totals.fieldGoalsMade ?? 0) - (totals.threePointersMade ?? 0),
+  )
+  const twoPAttempted = Math.max(
+    0,
+    (totals.fieldGoalsAttempted ?? 0) - (totals.threePointersAttempted ?? 0),
+  )
 
   return (
     <Card>
@@ -182,70 +199,76 @@ export default function TeamOpponentPlayersCard({ teamId, filters }: Props) {
         </div>
 
         <div className="overflow-x-auto scrollbar-menu">
-          <table className="w-full text-xs">
+          <table className="w-full min-w-max text-xs">
             <thead className="bg-surface-elevated">
-              <tr>
-                <th className="px-2 py-2 text-left text-[10px] font-medium text-text-muted uppercase sticky left-0 bg-surface-elevated z-10">{t('opponentRow')}</th>
-                {isVisible('PJ') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.pj')}</th>}
-                {isVisible('MIN') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.min')}</th>}
-                {isVisible('PTS') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.pts')}</th>}
-                {isVisible('REB') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.reb')}</th>}
-                {isVisible('REB_OFF') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.rebOff')}</th>}
-                {isVisible('REB_DEF') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.rebDef')}</th>}
-                {isVisible('AST') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.ast')}</th>}
-                {isVisible('ROB') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.rob')}</th>}
-                {isVisible('TAP') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.tap')}</th>}
-                {isVisible('TURNOVERS') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.turnovers')}</th>}
-                {isVisible('FOULS') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.fouls')}</th>}
-                {isVisible('TC') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.tc')}</th>}
-                {isVisible('THREE_P') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.threeP')}</th>}
-                {isVisible('TL') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.tl')}</th>}
-              </tr>
+                         <tr>
+             <th className="px-2 py-2 text-left text-[10px] font-medium text-text-muted uppercase sticky left-0 bg-surface-elevated z-10">{t('opponentRow')}</th>
+             {isVisible('PJ') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.pj')}</th>}
+             {isVisible('MIN') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.min')}</th>}
+             {isVisible('PTS') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.pts')}</th>}
+             {isVisible('TWO_P') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.twoP')}</th>}
+             {isVisible('THREE_P') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.threeP')}</th>}
+             {isVisible('TL') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.tl')}</th>}
+             {isVisible('TC') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.tc')}</th>}
+             {isVisible('REB_DEF') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.rebDef')}</th>}
+             {isVisible('REB_OFF') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.rebOff')}</th>}
+             {isVisible('REB') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.reb')}</th>}
+             {isVisible('AST') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.ast')}</th>}
+             {isVisible('ROB') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.rob')}</th>}
+             {isVisible('TURNOVERS') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.turnovers')}</th>}
+             {isVisible('TAP') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.tap')}</th>}
+             {isVisible('FOULS') && <th className="px-2 py-2 text-center text-[10px] font-medium text-text-muted uppercase">{t('metrics.fouls')}</th>}
+           </tr>
             </thead>
             <tbody>
-              <tr className="bg-warning/5">
-                <td className="px-2 py-2 font-medium text-text-primary whitespace-nowrap sticky left-0 bg-surface-elevated z-10">
-  {t('opponentTotalsRow')}
-</td>
-                {isVisible('PJ') && (
-                  <td className="px-2 py-2 text-center text-text-primary font-semibold">
-                    {totals.matchesCount}
-                  </td>
-                )}
-                {isVisible('MIN') && (
-                  <td className="px-2 py-2 text-center text-text-secondary">
-                    {fmtMinutes(totals.minutes, totals.seconds)}
-                  </td>
-                )}
-                {isVisible('PTS') && (
-                  <td className="px-2 py-2 text-center font-bold text-warning">
-                    {totals.points}
-                  </td>
-                )}
-                {isVisible('REB') && <td className="px-2 py-2 text-center text-text-secondary">{totals.rebounds}</td>}
-                {isVisible('REB_OFF') && <td className="px-2 py-2 text-center text-text-secondary">{totals.reboundsOff}</td>}
-                {isVisible('REB_DEF') && <td className="px-2 py-2 text-center text-text-secondary">{totals.reboundsDef}</td>}
-                {isVisible('AST') && <td className="px-2 py-2 text-center text-text-secondary">{totals.assists}</td>}
-                {isVisible('ROB') && <td className="px-2 py-2 text-center text-text-secondary">{totals.steals}</td>}
-                {isVisible('TAP') && <td className="px-2 py-2 text-center text-text-secondary">{totals.blocks}</td>}
-                {isVisible('TURNOVERS') && <td className="px-2 py-2 text-center text-text-secondary">{totals.turnovers}</td>}
-                {isVisible('FOULS') && <td className="px-2 py-2 text-center text-text-secondary">{totals.fouls}</td>}
-                {isVisible('TC') && (
-                  <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
-                    {totals.fieldGoalsMade}/{totals.fieldGoalsAttempted} ({pct(totals.fieldGoalsMade, totals.fieldGoalsAttempted)}%)
-                  </td>
-                )}
-                {isVisible('THREE_P') && (
-                  <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
-                    {totals.threePointersMade}/{totals.threePointersAttempted} ({pct(totals.threePointersMade, totals.threePointersAttempted)}%)
-                  </td>
-                )}
-                {isVisible('TL') && (
-                  <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
-                    {totals.freeThrowsMade}/{totals.freeThrowsAttempted} ({pct(totals.freeThrowsMade, totals.freeThrowsAttempted)}%)
-                  </td>
-                )}
-              </tr>
+                         <tr className="bg-warning/5">
+             <td className="px-2 py-2 font-medium text-text-primary whitespace-nowrap sticky left-0 bg-surface-elevated z-10">
+               {t('opponentTotalsRow')}
+             </td>
+             {isVisible('PJ') && (
+               <td className="px-2 py-2 text-center text-text-primary font-semibold">
+                 {totals.matchesCount}
+               </td>
+             )}
+             {isVisible('MIN') && (
+               <td className="px-2 py-2 text-center text-text-secondary">
+                 {fmtMinutes(totals.minutes, totals.seconds)}
+               </td>
+             )}
+             {isVisible('PTS') && (
+               <td className="px-2 py-2 text-center font-bold text-warning">
+                 {totals.points}
+               </td>
+             )}
+             {isVisible('TWO_P') && (
+               <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
+                 {twoPMade}/{twoPAttempted} ({pct(twoPMade, twoPAttempted)}%)
+               </td>
+             )}
+             {isVisible('THREE_P') && (
+               <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
+                 {totals.threePointersMade}/{totals.threePointersAttempted} ({pct(totals.threePointersMade, totals.threePointersAttempted)}%)
+               </td>
+             )}
+             {isVisible('TL') && (
+               <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
+                 {totals.freeThrowsMade}/{totals.freeThrowsAttempted} ({pct(totals.freeThrowsMade, totals.freeThrowsAttempted)}%)
+               </td>
+             )}
+             {isVisible('TC') && (
+               <td className="px-2 py-2 text-center text-text-secondary whitespace-nowrap">
+                 {totals.fieldGoalsMade}/{totals.fieldGoalsAttempted} ({pct(totals.fieldGoalsMade, totals.fieldGoalsAttempted)}%)
+               </td>
+             )}
+             {isVisible('REB_DEF') && <td className="px-2 py-2 text-center text-text-secondary">{totals.reboundsDef}</td>}
+             {isVisible('REB_OFF') && <td className="px-2 py-2 text-center text-text-secondary">{totals.reboundsOff}</td>}
+             {isVisible('REB') && <td className="px-2 py-2 text-center text-text-secondary">{totals.rebounds}</td>}
+             {isVisible('AST') && <td className="px-2 py-2 text-center text-text-secondary">{totals.assists}</td>}
+             {isVisible('ROB') && <td className="px-2 py-2 text-center text-text-secondary">{totals.steals}</td>}
+             {isVisible('TURNOVERS') && <td className="px-2 py-2 text-center text-text-secondary">{totals.turnovers}</td>}
+             {isVisible('TAP') && <td className="px-2 py-2 text-center text-text-secondary">{totals.blocks}</td>}
+             {isVisible('FOULS') && <td className="px-2 py-2 text-center text-text-secondary">{totals.fouls}</td>}
+           </tr>
             </tbody>
           </table>
         </div>

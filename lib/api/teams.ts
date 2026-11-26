@@ -153,10 +153,13 @@ export interface BasketballTeamStatsPlayer {
   availabilityCount: number
   teamMatches: number
   minutes: number
+  seconds: number
   minutesPerMatch: number
   points: number
   pointsPerMatch: number
   rebounds: number
+  reboundsOff: number
+  reboundsDef: number
   assists: number
   steals: number
   blocks: number
@@ -332,9 +335,12 @@ export interface PlayerByMatchBasketball {
   losses: number
   draws: number
   availabilityCount: number
-  minutes: number | null
+    minutes: number | null
+  seconds: number | null
   points: number
   rebounds: number
+  reboundsOff: number
+  reboundsDef: number
   assists: number
   steals: number
   blocks: number

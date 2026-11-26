@@ -15,6 +15,13 @@ import type {
 } from '@/lib/api/teams'
 import type { MatchResult } from '@/lib/api/matches'
 import { useState, useMemo } from 'react'
+import { MATCH_COLUMNS, type BasketballColumnDef } from '@/lib/stats/basketballColumns'
+import {
+  computeValuationFromBreakdown,
+  fmtPlusMinus,
+  plusMinusColor,
+  valuationColor,
+} from '@/lib/stats/valuation'
 
 interface Props {
   data: BasketballPlayerStatsResponse
@@ -44,10 +51,147 @@ function ResultPill({
   )
 }
 
-function fmtPlusMinus(v: number | null): string {
-  if (v === null) return '—'
-  if (v > 0) return `+${v}`
-  return `${v}`
+// ── Formato y etiquetas ──────────────────────────────────────
+function fmtMinutes(
+  minutes: number | null | undefined,
+  seconds: number | null | undefined,
+): string {
+  if (minutes == null && seconds == null) return '—'
+  const m = minutes ?? 0
+  const s = seconds ?? 0
+  return `${m}:${String(s).padStart(2, '0')}`
+}
+
+/** Clave i18n (dentro de Players.stats.byMatchColumns) por columna del descriptor. */
+const LABEL_KEY: Record<string, string> = {
+  MIN: 'min',
+  PTS: 'pts',
+  TWO_P: 'twoP',
+  THREE_P: 'threeP',
+  FT: 'ft',
+  TC: 'fg',
+  REB_DEF: 'rebDef',
+  REB_OFF: 'rebOff',
+  REB_TOTAL: 'reb',
+  AST: 'ast',
+  STL: 'stl',
+  TO: 'tov',
+  BLK: 'blk',
+  BLK_AGAINST: 'blkAgainst',
+  FOULS: 'fouls',
+  FOULS_DRAWN: 'foulsDrawn',
+  VAL: 'val',
+  PLUS_MINUS: 'plusMinus',
+}
+
+/** Columnas estadísticas del descriptor, sin PLAYER (que aquí es el contexto). */
+const STAT_COLUMNS: BasketballColumnDef[] = MATCH_COLUMNS.filter(
+  (c) => c.key !== 'PLAYER',
+)
+
+/**
+ * Celda de una columna estadística, recorriendo el descriptor central.
+ * El VAL se recalcula en frontend con la fórmula corregida (igual que en
+ * partido, sesión y agregado).
+ */
+function renderPlayerCell(
+  col: BasketballColumnDef,
+  m: PlayerByMatchBasketball,
+  t: (key: string) => string,
+) {
+  const val = computeValuationFromBreakdown({
+    points: m.points,
+    rebounds: m.rebounds,
+    assists: m.assists,
+    steals: m.steals,
+    blocks: m.blocks,
+    foulsDrawn: m.foulsDrawn,
+    twoPointersMade: m.twoPointersMade,
+    twoPointersAttempted: m.twoPointersAttempted,
+    threePointersMade: m.threePointersMade,
+    threePointersAttempted: m.threePointersAttempted,
+    freeThrowsMade: m.freeThrowsMade,
+    freeThrowsAttempted: m.freeThrowsAttempted,
+    turnovers: m.turnovers,
+    blocksAgainst: m.blocksAgainst,
+    fouls: m.fouls,
+  })
+
+  const num = (v: number | null | undefined, cls = 'text-text-secondary') => (
+    <td key={col.key} className={`px-3 py-2 text-center ${cls}`}>
+      {v ?? 0}
+    </td>
+  )
+
+  const shot = (made: number, att: number) => (
+    <td
+      key={col.key}
+      className="px-3 py-2 text-center text-text-secondary whitespace-nowrap"
+    >
+      {made}/{att} ({pct(made, att)}%)
+    </td>
+  )
+
+  switch (col.key) {
+    case 'MIN':
+      return (
+        <td key={col.key} className="px-3 py-2 text-center text-text-secondary">
+          {fmtMinutes(m.minutes, m.seconds)}
+        </td>
+      )
+    case 'PTS':
+      return (
+        <td key={col.key} className="px-3 py-2 text-center font-semibold text-text-primary">
+          {m.points}
+        </td>
+      )
+    case 'TWO_P':
+      return shot(m.twoPointersMade, m.twoPointersAttempted)
+    case 'THREE_P':
+      return shot(m.threePointersMade, m.threePointersAttempted)
+    case 'FT':
+      return shot(m.freeThrowsMade, m.freeThrowsAttempted)
+    case 'TC':
+      return shot(m.fieldGoalsMade, m.fieldGoalsAttempted)
+    case 'REB_DEF':
+      return num(m.reboundsDef)
+    case 'REB_OFF':
+      return num(m.reboundsOff)
+    case 'REB_TOTAL':
+      return num(m.rebounds, 'text-text-primary font-semibold')
+    case 'AST':
+      return num(m.assists)
+    case 'STL':
+      return num(m.steals)
+    case 'TO':
+      return num(m.turnovers)
+    case 'BLK':
+      return num(m.blocks)
+    case 'BLK_AGAINST':
+      return num(m.blocksAgainst)
+    case 'FOULS':
+      return num(m.fouls)
+    case 'FOULS_DRAWN':
+      return num(m.foulsDrawn)
+    case 'VAL':
+      return (
+        <td key={col.key} className={`px-3 py-2 text-center font-semibold ${valuationColor(val)}`}>
+          {val}
+        </td>
+      )
+    case 'PLUS_MINUS':
+      return (
+        <td key={col.key} className={`px-3 py-2 text-center font-medium ${plusMinusColor(m.plusMinus)}`}>
+          {fmtPlusMinus(m.plusMinus)}
+        </td>
+      )
+    default:
+      return (
+        <td key={col.key} className="px-3 py-2 text-center text-text-muted">
+          —
+        </td>
+      )
+  }
 }
 
 export default function BasketballPlayerStatsTab({
@@ -70,34 +214,32 @@ export default function BasketballPlayerStatsTab({
   const show2PPct = show('TWO_POINTERS_PCT')
   const show2P = show2PMade || show2PAttempted || show2PPct
 
-  // ── DEFINICIÓN DE COLUMNAS PARA EL FILTRO ──
-  const availableColumns: ColumnDef[] = useMemo(() => {
-    const cols: ColumnDef[] = [
+    // ── DEFINICIÓN DE COLUMNAS ──
+  // Orden unificado: contexto (Fecha, Rival, Res., Marc.) + descriptor MATCH_COLUMNS.
+  const availableColumns: ColumnDef[] = useMemo(
+    () => [
       { key: 'DATE', label: t('byMatchColumns.date'), isRequired: true },
       { key: 'OPPONENT', label: t('byMatchColumns.opponent'), isRequired: true },
       { key: 'RESULT', label: t('byMatchColumns.result'), isRequired: true },
       { key: 'SCORE', label: t('byMatchColumns.score'), isRequired: true },
-    ]
+      ...STAT_COLUMNS.map((c) => ({
+        key: c.key,
+        label: t(`byMatchColumns.${LABEL_KEY[c.key] ?? 'min'}`),
+        isRequired: c.required === true,
+      })),
+    ],
+    [t],
+  )
 
-    if (show('MINUTES')) cols.push({ key: 'MIN', label: t('byMatchColumns.min') })
-    if (show('POINTS_PLAYER')) cols.push({ key: 'PTS', label: t('byMatchColumns.pts') })
-    if (show('REBOUNDS')) cols.push({ key: 'REB', label: t('byMatchColumns.reb') })
-    if (show('ASSISTS')) cols.push({ key: 'AST', label: t('byMatchColumns.ast') })
-    if (show('STEALS')) cols.push({ key: 'STL', label: t('byMatchColumns.stl') })
-    if (show('BLOCKS')) cols.push({ key: 'BLK', label: t('byMatchColumns.blk') })
-    if (show('TURNOVERS')) cols.push({ key: 'TOV', label: t('byMatchColumns.tov') })
-    if (show('FOULS')) cols.push({ key: 'FOULS', label: t('byMatchColumns.fouls') })
-    if (show('VALUATION')) cols.push({ key: 'VAL', label: t('byMatchColumns.val') })
-    if (show('PLUS_MINUS')) cols.push({ key: 'PLUS_MINUS', label: t('byMatchColumns.plusMinus') })
-    if (show2P) cols.push({ key: 'TWO_P', label: t('byMatchColumns.twoP') })
-    if (show('FG_PCT')) cols.push({ key: 'FG', label: t('byMatchColumns.fg') })
-    if (show('TP_PCT')) cols.push({ key: 'THREE_P', label: t('byMatchColumns.threeP') })
+  const { hiddenColumns, toggleColumn, resetColumns, isVisible } =
+    useColumnPreferences('player-stats-basketball', availableColumns)
 
-    return cols
-  }, [show, show2P, t])
+  const visibleStatCols = useMemo(
+    () => STAT_COLUMNS.filter((c) => isVisible(c.key)),
+    [isVisible],
+  )
 
-  const { hiddenColumns, toggleColumn, resetColumns, isVisible } = useColumnPreferences('player-stats-basketball', availableColumns)
-
+  
   const trendOptions = availableTrendMetrics.map((m) => ({
     value: m.key,
     label: m.label,
@@ -446,171 +588,69 @@ export default function BasketballPlayerStatsTab({
                 </svg>
               </button>
             </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+            <div className="overflow-x-auto scrollbar-menu">
+              <table className="w-full min-w-max text-sm">
                 <thead className="bg-surface-elevated">
-                  <tr>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase sticky left-0 bg-surface-elevated z-10">
-  {t('byMatchColumns.date')}
-</th>
-                    <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase">
-                      {t('byMatchColumns.opponent')}
-                    </th>
-                    <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                      {t('byMatchColumns.result')}
-                    </th>
-                    <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                      {t('byMatchColumns.score')}
-                    </th>
-                    {isVisible('MIN') && show('MINUTES') && (
-                      <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        {t('byMatchColumns.min')}
-                      </th>
-                    )}
-                    {isVisible('PTS') && show('POINTS_PLAYER') && (
-                      <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        {t('byMatchColumns.pts')}
-                      </th>
-                    )}
-                    {isVisible('REB') && show('REBOUNDS') && (
-                      <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        {t('byMatchColumns.reb')}
-                      </th>
-                    )}
-                    {isVisible('AST') && show('ASSISTS') && (
-                      <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        {t('byMatchColumns.ast')}
-                      </th>
-                    )}
-                    {isVisible('STL') && show('STEALS') && (
-                      <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        {t('byMatchColumns.stl')}
-                      </th>
-                    )}
-                    {isVisible('BLK') && show('BLOCKS') && (
-                      <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        {t('byMatchColumns.blk')}
-                      </th>
-                    )}
-                    {isVisible('TOV') && show('TURNOVERS') && (
-                      <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        {t('byMatchColumns.tov')}
-                      </th>
-                    )}
-                    {isVisible('FOULS') && show('FOULS') && (
-                      <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        {t('byMatchColumns.fouls')}
-                      </th>
-                    )}
-                    {isVisible('VAL') && show('VALUATION') && (
-                      <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        {t('byMatchColumns.val')}
-                      </th>
-                    )}
-                    {isVisible('PLUS_MINUS') && show('PLUS_MINUS') && (
-                      <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        {t('byMatchColumns.plusMinus')}
-                      </th>
-                    )}
-                    {isVisible('TWO_P') && show2P && (
-                      <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        {t('byMatchColumns.twoP')}
-                      </th>
-                    )}
-                    {isVisible('FG') && show('FG_PCT') && (
-                      <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        {t('byMatchColumns.fg')}
-                      </th>
-                    )}
-                    {isVisible('THREE_P') && show('TP_PCT') && (
-                      <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
-                        {t('byMatchColumns.threeP')}
-                      </th>
-                    )}
-                  </tr>
+                               <tr>
+                <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase sticky left-0 bg-surface-elevated z-10">
+                  {t('byMatchColumns.date')}
+                </th>
+                <th className="px-3 py-2 text-left text-xs font-medium text-text-muted uppercase">
+                  {t('byMatchColumns.opponent')}
+                </th>
+                {isVisible('RESULT') && (
+                  <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
+                    {t('byMatchColumns.result')}
+                  </th>
+                )}
+                {isVisible('SCORE') && (
+                  <th className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase">
+                    {t('byMatchColumns.score')}
+                  </th>
+                )}
+                {visibleStatCols.map((c) => (
+                  <th
+                    key={c.key}
+                    className="px-3 py-2 text-center text-xs font-medium text-text-muted uppercase whitespace-nowrap"
+                  >
+                    {t(`byMatchColumns.${LABEL_KEY[c.key] ?? 'min'}`)}
+                  </th>
+                ))}
+              </tr>
                 </thead>
-                <tbody className="divide-y divide-border-subtle">
-                  {byMatch.map((m: PlayerByMatchBasketball) => {
-                    const result: MatchResult = 
-                      m.result === 'WIN' || m.result === 'LOSS' || m.result === 'DRAW' 
-                        ? m.result 
-                        : null;
-                    
-                    return (
-                      <tr key={m.matchId} className="hover:bg-surface-elevated transition">
-                        <td className="px-3 py-2 text-text-secondary whitespace-nowrap sticky left-0 bg-bg-base z-10">
-  {new Date(m.date).toLocaleDateString()}
-</td>
-                        <td className="px-3 py-2 text-text-primary">
-                          {m.opponent === 'Entrenamiento' ? '🏋️ Entreno' : `vs ${m.opponent}`}
-                        </td>
-                        <td className="px-3 py-2 text-center">
-                          <ResultPill result={result} labels={resultLabels} />
-                        </td>
-                        <td className="px-3 py-2 text-center font-mono text-text-secondary">
-                          {m.teamScore != null ? `${m.teamScore}-${m.opponentScore}` : '—'}
-                        </td>
-                        
-                        {isVisible('MIN') && show('MINUTES') && (
-                          <td className="px-3 py-2 text-center text-text-secondary">{m.minutes}</td>
-                        )}
-                        {isVisible('PTS') && show('POINTS_PLAYER') && (
-                          <td className="px-3 py-2 text-center font-semibold text-text-primary">{m.points}</td>
-                        )}
-                        {isVisible('REB') && show('REBOUNDS') && (
-                          <td className="px-3 py-2 text-center text-text-secondary">{m.rebounds}</td>
-                        )}
-                        {isVisible('AST') && show('ASSISTS') && (
-                          <td className="px-3 py-2 text-center text-text-secondary">{m.assists}</td>
-                        )}
-                        {isVisible('STL') && show('STEALS') && (
-                          <td className="px-3 py-2 text-center text-text-secondary">{m.steals}</td>
-                        )}
-                        {isVisible('BLK') && show('BLOCKS') && (
-                          <td className="px-3 py-2 text-center text-text-secondary">{m.blocks}</td>
-                        )}
-                        {isVisible('TOV') && show('TURNOVERS') && (
-                          <td className="px-3 py-2 text-center text-text-secondary">{m.turnovers}</td>
-                        )}
-                        {isVisible('FOULS') && show('FOULS') && (
-                          <td className="px-3 py-2 text-center text-text-secondary">{m.fouls}</td>
-                        )}
-                        {isVisible('VAL') && show('VALUATION') && (
-                          <td className="px-3 py-2 text-center font-semibold text-text-primary">{m.valuation}</td>
-                        )}
-                        {isVisible('PLUS_MINUS') && show('PLUS_MINUS') && (
-                          <td className={`px-3 py-2 text-center font-medium ${
-                            (m.plusMinus ?? 0) > 0 ? 'text-success' : (m.plusMinus ?? 0) < 0 ? 'text-danger' : 'text-text-muted'
-                          }`}>
-                            {fmtPlusMinus(m.plusMinus)}
-                          </td>
-                        )}
-                        {isVisible('TWO_P') && show2P && (
-                          <td className="px-3 py-2 text-center text-text-secondary whitespace-nowrap">
-                            {show2PMade && show2PAttempted 
-                              ? `${m.twoPointersMade}/${m.twoPointersAttempted}`
-                              : show2PMade 
-                                ? m.twoPointersMade 
-                                : show2PAttempted 
-                                  ? m.twoPointersAttempted 
-                                  : ''}
-                            {show2PPct && ` (${pct(m.twoPointersMade, m.twoPointersAttempted)}%)`}
-                          </td>
-                        )}
-                        {isVisible('FG') && show('FG_PCT') && (
-                          <td className="px-3 py-2 text-center text-text-secondary whitespace-nowrap">
-                            {m.fieldGoalsMade}/{m.fieldGoalsAttempted} ({pct(m.fieldGoalsMade, m.fieldGoalsAttempted)}%)
-                          </td>
-                        )}
-                        {isVisible('THREE_P') && show('TP_PCT') && (
-                          <td className="px-3 py-2 text-center text-text-secondary whitespace-nowrap">
-                            {m.threePointersMade}/{m.threePointersAttempted} ({pct(m.threePointersMade, m.threePointersAttempted)}%)
-                          </td>
-                        )}
-                      </tr>
-                    )
-                  })}
-                </tbody>
+                             <tbody className="divide-y divide-border-subtle">
+               {byMatch.map((m: PlayerByMatchBasketball) => {
+                 const result: MatchResult =
+                   m.result === 'WIN' || m.result === 'LOSS' || m.result === 'DRAW'
+                     ? m.result
+                     : null
+                 return (
+                   <tr key={m.matchId} className="hover:bg-surface-elevated transition">
+                     <td className="px-3 py-2 text-text-secondary whitespace-nowrap sticky left-0 bg-bg-base z-10">
+                       {new Date(m.date).toLocaleDateString()}
+                     </td>
+                     <td className="px-3 py-2 text-text-primary">
+                       {m.opponent === 'Entrenamiento'
+                         ? '🏋️ Entreno'
+                         : `vs ${m.opponent}`}
+                     </td>
+                     {isVisible('RESULT') && (
+                       <td className="px-3 py-2 text-center">
+                         <ResultPill result={result} labels={resultLabels} />
+                       </td>
+                     )}
+                     {isVisible('SCORE') && (
+                       <td className="px-3 py-2 text-center font-mono text-text-secondary">
+                         {m.teamScore != null
+                           ? `${m.teamScore}-${m.opponentScore}`
+                           : '—'}
+                       </td>
+                     )}
+                     {visibleStatCols.map((c) => renderPlayerCell(c, m, t))}
+                   </tr>
+                 )
+               })}
+             </tbody>
               </table>
             </div>
           </CardBody>
